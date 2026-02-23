@@ -83,26 +83,38 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
     }
 
     // Walk from the deepest non-filename dir upward looking for a good title.
-    for i in (0..parts.len() - 1).rev() {
+    let mut offset = 0;
+    for i in 0..parts.len() - 1 {
         let dir_name = parts[i];
-        if dir_name.is_empty() || dir_name.eq_ignore_ascii_case("movies")
-            || dir_name.eq_ignore_ascii_case("series")
-            || dir_name.eq_ignore_ascii_case("tv shows")
-            || dir_name.eq_ignore_ascii_case("tv")
-            || dir_name.eq_ignore_ascii_case("media")
-        {
-            continue;
-        }
-        // Skip "Season X" directories.
-        if dir_name.to_lowercase().starts_with("season")
-            || dir_name.to_lowercase().starts_with("saison")
-        {
+        let dir_start = offset;
+        let dir_end = dir_start + dir_name.len();
+        offset = dir_end + 1; // +1 for separator
+
+        if dir_name.is_empty() || is_generic_dir(dir_name) {
             continue;
         }
 
-        let cleaned = clean_title(dir_name);
+        // Find the first property match that falls within this directory's span.
+        let first_match_in_dir = matches
+            .iter()
+            .filter(|m| m.start >= dir_start && m.start < dir_end)
+            .filter(|m| !m.tags.contains(&"extension".to_string()))
+            .filter(|m| !m.tags.contains(&"path-season".to_string()))
+            .min_by_key(|m| m.start);
+
+        let title_end = match first_match_in_dir {
+            Some(m) => m.start,
+            None => dir_end,
+        };
+
+        if title_end <= dir_start {
+            continue;
+        }
+
+        let raw_title = &input[dir_start..title_end];
+        let cleaned = clean_title(raw_title);
         if !cleaned.is_empty() {
-            return Some(MatchSpan::new(0, 0, Property::Title, cleaned));
+            return Some(MatchSpan::new(dir_start, title_end, Property::Title, cleaned));
         }
     }
 
@@ -111,6 +123,18 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
 
 fn has_parent_dir(input: &str) -> bool {
     input.contains('/') || input.contains('\\')
+}
+
+/// Check if a directory name is generic (should be skipped for title).
+fn is_generic_dir(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    matches!(
+        lower.as_str(),
+        "movies" | "movie" | "series" | "tv shows" | "tv" | "media"
+        | "video" | "videos" | "downloads" | "download"
+    ) || lower.starts_with("season")
+      || lower.starts_with("saison")
+      || lower.starts_with("temporada")
 }
 
 /// Detect if a title looks like a scene abbreviation (e.g., "dmd", "wthd", "dmd aw").
@@ -248,14 +272,19 @@ mod tests {
     #[test]
     fn test_abbreviated_fallback() {
         // Abbreviated filename should fall back to parent dir.
+        // The parent dir "Alice in Wonderland DVDRip.XviD-DiAMOND" has property
+        // matches in it, so the title should stop at the first match.
+        let matches = vec![
+            // DVDRip match in parent dir portion.
+            MatchSpan::new(27, 34, Property::Source, "DVD"),
+        ];
         let title = extract_title(
             "Movies/Alice in Wonderland DVDRip.XviD-DiAMOND/dmd-aw.avi",
-            &[],
+            &matches,
         );
         assert!(title.is_some());
         let t = title.unwrap();
-        // Falls back to parent dir name.
-        assert!(t.value.contains("Alice in Wonderland"));
+        assert_eq!(t.value, "Alice in Wonderland");
     }
 
     #[test]
