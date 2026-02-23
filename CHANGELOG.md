@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-02-22
+
+### Added
+
+- Pre-built binaries for 5 platforms in GitHub Releases.
+- `cargo-binstall` support — install without compiling.
+
+### Fixed
+
+- All clippy warnings resolved.
+- `cargo fmt` applied consistently.
+- CI workflow now callable as reusable workflow.
+
 ## [0.1.0] - 2026-02-22
 
 ### Added
@@ -26,4 +39,5 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[0.1.1]: https://github.com/lijunzh/hunch/releases/tag/v0.1.1
 [0.1.0]: https://github.com/lijunzh/hunch/releases/tag/v0.1.0
