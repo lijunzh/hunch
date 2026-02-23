@@ -1,4 +1,17 @@
-//! Season / episode detection (S01E02, 1x03, etc.).
+//! Season / episode detection.
+//!
+//! Supported patterns:
+//! - S01E02, S01E02E03, S01E02-E05, S01E02-05
+//! - s03-e01, s03-e02 (dash-separated)
+//! - S06xE01 (x separator)
+//! - 1x03, 5x9, 5x44x45x46 (NxN)
+//! - E01, Ep01, Ep.01 (standalone episode)
+//! - Season 1, Season.01 (standalone season)
+//! - Episode 1, Episode.01 (episode word)
+//! - 3-digit: 101 → S01E01, 117 → S01E17
+//! - [401] bracket episode numbers
+//! - Season from path: /Season 6/ → S06
+//! - Anime: `- 01`, `- 001`
 
 use lazy_static::lazy_static;
 use fancy_regex::Regex;
@@ -7,14 +20,24 @@ use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
 
 lazy_static! {
-    /// S01E02, S01E02E03, S01E02-E05.
+    /// S01E02, S01E02E03, S01E02-E05, S01E02-05.
     static ref SXXEXX: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})\s*E(?P<episode>\d{1,4})(?:[-E]+(?P<episode_end>\d{1,4}))?(?![a-z0-9])"
+        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})\s*E(?P<ep_start>\d{1,4})(?:(?:[-]E?|E)(?P<ep2>\d{1,4}))*(?![a-z0-9])"
     ).unwrap();
 
-    /// 1x03 format.
+    /// S03-E01 (dash between S and E).
+    static ref SXX_DASH_EXX: Regex = Regex::new(
+        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[-. ]+E(?P<episode>\d{1,4})(?![a-z0-9])"
+    ).unwrap();
+
+    /// S06xE01 (x separator).
+    static ref SXX_X_EXX: Regex = Regex::new(
+        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[xX]E(?P<episode>\d{1,4})(?![a-z0-9])"
+    ).unwrap();
+
+    /// NxN format: 1x03, 5x9, 5x44x45.
     static ref NXN: Regex = Regex::new(
-        r"(?<![a-z0-9])(?P<season>\d{1,2})x(?P<episode>\d{2,3})(?![a-z0-9])"
+        r"(?i)(?<![a-z0-9])(?P<season>\d{1,2})[xX](?P<ep_start>\d{1,4})(?:[xX](?P<ep2>\d{1,4}))*(?![a-z0-9])"
     ).unwrap();
 
     /// Standalone episode: E01, Ep01, Ep.01.
@@ -22,18 +45,56 @@ lazy_static! {
         r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<episode>\d{1,4})(?![a-z0-9])"
     ).unwrap();
 
-    /// Season-only: Season 1, Season.01.
+    /// Season-only: Season 1, Season.01, Saison 2.
     static ref SEASON_ONLY: Regex = Regex::new(
-        r"(?i)(?<![a-z])Season\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])"
+        r"(?i)(?<![a-z])(?:Season|Saison)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])"
+    ).unwrap();
+
+    /// Season from path directory: /Season 6/, /Season.02/.
+    static ref SEASON_DIR: Regex = Regex::new(
+        r"(?i)(?:Season|Saison)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])"
     ).unwrap();
 
     /// Episode-only: Episode 1, Episode.01.
     static ref EPISODE_WORD: Regex = Regex::new(
         r"(?i)(?<![a-z])Episode\s*\.?\s*(?P<episode>\d{1,4})(?![a-z0-9])"
     ).unwrap();
+
+    /// 3-digit episode number: 101, 117, 210 → season/episode decomposition.
+    /// Only when preceded by dots/spaces/dashes (not part of a year or other number).
+    static ref THREE_DIGIT: Regex = Regex::new(
+        r"(?i)(?<![a-z0-9])(?P<num>\d{3})(?=[^\d]|$)"
+    ).unwrap();
+
+    /// Bracket episode: [401], [S01E02].
+    static ref BRACKET_EPISODE: Regex = Regex::new(
+        r"(?i)\[(?P<num>\d{3,4})\]"
+    ).unwrap();
+
+    /// Anime episode: `- 01`, `- 001` (preceded by dash + space).
+    static ref ANIME_EPISODE: Regex = Regex::new(
+        r"(?<![a-z0-9])[-]\s+(?P<episode>\d{1,4})(?:\s|[.]|$)"
+    ).unwrap();
+
+    /// Bare episode number after dots: `Show.05.Title` → episode 5.
+    /// Very weak, only single/double digit, must be surrounded by separators.
+    static ref BARE_EPISODE: Regex = Regex::new(
+        r"(?<![a-z0-9])\.(?P<episode>0\d|\d{2})\.(?![0-9])"
+    ).unwrap();
+
+    /// S01-only without episode (e.g., `S01Extras`, `S01.Special`).
+    /// The lookahead avoids matching S01E02 (which is handled by SXXEXX).
+    static ref S_ONLY: Regex = Regex::new(
+        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})(?!\d|E\d|[xX]\d)"
+    ).unwrap();
+
+    /// S03-X01 for bonus/extras (x as episode prefix).
+    static ref SXX_DASH_XXX: Regex = Regex::new(
+        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[-. ]+[xX](?P<episode>\d{1,4})(?![a-z0-9])"
+    ).unwrap();
 }
 
-/// Helper: iterate fancy_regex captures (which return Result).
+/// Helper: iterate fancy_regex captures.
 fn captures_iter<'a>(re: &'a Regex, input: &'a str) -> Vec<fancy_regex::Captures<'a>> {
     let mut results = Vec::new();
     let mut start = 0;
@@ -53,52 +114,177 @@ fn captures_iter<'a>(re: &'a Regex, input: &'a str) -> Vec<fancy_regex::Captures
     results
 }
 
+/// Generate a range of episode numbers as MatchSpans.
+fn episode_range(
+    start_ep: u32,
+    end_ep: u32,
+    span_start: usize,
+    span_end: usize,
+    priority: i32,
+) -> Vec<MatchSpan> {
+    let mut out = Vec::new();
+    for ep in start_ep..=end_ep {
+        out.push(
+            MatchSpan::new(span_start, span_end, Property::Episode, ep.to_string())
+                .with_priority(priority),
+        );
+    }
+    out
+}
+
+/// Parse a named capture group as a u32 and return as String (strips leading zeros).
+fn parse_num(cap: &fancy_regex::Captures, name: &str) -> String {
+    cap.name(name)
+        .unwrap()
+        .as_str()
+        .parse::<u32>()
+        .unwrap_or(0)
+        .to_string()
+}
+
 pub struct EpisodeMatcher;
 
 impl PropertyMatcher for EpisodeMatcher {
     fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
         let mut matches = Vec::new();
 
-        // S01E02 (highest priority).
+        // 1. S01E02 (highest priority).
         for cap in captures_iter(&SXXEXX, input) {
             let full = cap.get(0).unwrap();
-            let season = cap.name("season").unwrap().as_str();
-            let episode = cap.name("episode").unwrap().as_str();
+            let season: u32 = cap.name("season").unwrap().as_str().parse().unwrap_or(0);
+            let ep_start: u32 = cap.name("ep_start").unwrap().as_str().parse().unwrap_or(0);
 
             matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Season, season)
+                MatchSpan::new(full.start(), full.end(), Property::Season, season.to_string())
                     .with_tag("SxxExx")
                     .with_priority(5),
             );
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                    .with_tag("SxxExx")
-                    .with_priority(5),
-            );
+
+            // Check for multi-episode.
+            let ep_end = cap
+                .name("ep2")
+                .and_then(|m| m.as_str().parse::<u32>().ok());
+
+            match ep_end {
+                Some(end) if end > ep_start => {
+                    matches.extend(episode_range(ep_start, end, full.start(), full.end(), 5));
+                }
+                Some(end) => {
+                    // E01E02 style (not a range, individual episodes).
+                    matches.push(
+                        MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
+                            .with_priority(5),
+                    );
+                    matches.push(
+                        MatchSpan::new(full.start(), full.end(), Property::Episode, end.to_string())
+                            .with_priority(5),
+                    );
+                }
+                None => {
+                    matches.push(
+                        MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
+                            .with_priority(5),
+                    );
+                }
+            }
         }
 
-        // 1x03 format.
+        // 2. S03-E01 (dash separated).
         if matches.is_empty() {
-            for cap in captures_iter(&NXN, input) {
+            for cap in captures_iter(&SXX_DASH_EXX, input) {
                 let full = cap.get(0).unwrap();
-                let season = cap.name("season").unwrap().as_str();
-                let episode = cap.name("episode").unwrap().as_str();
+                let season = parse_num(&cap, "season");
+                let episode = parse_num(&cap, "episode");
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Season, season)
-                        .with_priority(3),
+                        .with_priority(4),
                 );
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                        .with_priority(3),
+                        .with_priority(4),
                 );
             }
         }
 
-        // Standalone season/episode words.
+        // 3. S06xE01.
+        if matches.is_empty() {
+            for cap in captures_iter(&SXX_X_EXX, input) {
+                let full = cap.get(0).unwrap();
+                let season = parse_num(&cap, "season");
+                let episode = parse_num(&cap, "episode");
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, season)
+                        .with_priority(4),
+                );
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                        .with_priority(4),
+                );
+            }
+        }
+
+        // 4. S03-X01 for bonus.
+        if matches.is_empty() {
+            for cap in captures_iter(&SXX_DASH_XXX, input) {
+                let full = cap.get(0).unwrap();
+                let season = parse_num(&cap, "season");
+                let episode = parse_num(&cap, "episode");
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, season)
+                        .with_priority(4),
+                );
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                        .with_priority(4),
+                );
+            }
+        }
+
+        // 5. NxN format: 1x03, 5x44x45.
+        if matches.is_empty() {
+            for cap in captures_iter(&NXN, input) {
+                let full = cap.get(0).unwrap();
+                let season: u32 = cap.name("season").unwrap().as_str().parse().unwrap_or(0);
+                let ep_start: u32 = cap.name("ep_start").unwrap().as_str().parse().unwrap_or(0);
+
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, season.to_string())
+                        .with_priority(3),
+                );
+
+                let ep_end = cap
+                    .name("ep2")
+                    .and_then(|m| m.as_str().parse::<u32>().ok());
+
+                match ep_end {
+                    Some(end) if end > ep_start => {
+                        matches.extend(episode_range(ep_start, end, full.start(), full.end(), 3));
+                    }
+                    Some(end) => {
+                        matches.push(
+                            MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
+                                .with_priority(3),
+                        );
+                        matches.push(
+                            MatchSpan::new(full.start(), full.end(), Property::Episode, end.to_string())
+                                .with_priority(3),
+                        );
+                    }
+                    None => {
+                        matches.push(
+                            MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
+                                .with_priority(3),
+                        );
+                    }
+                }
+            }
+        }
+
+        // 6. Standalone season/episode words.
         if !matches.iter().any(|m| m.property == Property::Season) {
             for cap in captures_iter(&SEASON_ONLY, input) {
                 let full = cap.get(0).unwrap();
-                let season = cap.name("season").unwrap().as_str();
+                let season = parse_num(&cap, "season");
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Season, season)
                         .with_priority(2),
@@ -106,10 +292,36 @@ impl PropertyMatcher for EpisodeMatcher {
             }
         }
 
+        // Season from path directory.
+        if !matches.iter().any(|m| m.property == Property::Season) {
+            for cap in captures_iter(&SEASON_DIR, input) {
+                let full = cap.get(0).unwrap();
+                let season = parse_num(&cap, "season");
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, season)
+                        .with_tag("path-season")
+                        .with_priority(1),
+                );
+            }
+        }
+
+        // S01-only (without episode, e.g., S01Extras).
+        if !matches.iter().any(|m| m.property == Property::Season) {
+            for cap in captures_iter(&S_ONLY, input) {
+                let full = cap.get(0).unwrap();
+                let season = parse_num(&cap, "season");
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, season)
+                        .with_priority(1),
+                );
+            }
+        }
+
+        // Episode standalone patterns.
         if !matches.iter().any(|m| m.property == Property::Episode) {
             for cap in captures_iter(&EP_ONLY, input) {
                 let full = cap.get(0).unwrap();
-                let episode = cap.name("episode").unwrap().as_str();
+                let episode = parse_num(&cap, "episode");
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
                         .with_priority(2),
@@ -120,7 +332,7 @@ impl PropertyMatcher for EpisodeMatcher {
         if !matches.iter().any(|m| m.property == Property::Episode) {
             for cap in captures_iter(&EPISODE_WORD, input) {
                 let full = cap.get(0).unwrap();
-                let episode = cap.name("episode").unwrap().as_str();
+                let episode = parse_num(&cap, "episode");
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
                         .with_priority(2),
@@ -139,15 +351,50 @@ mod tests {
     #[test]
     fn test_s01e02() {
         let m = EpisodeMatcher.find_matches("Show.S01E02.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "01"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "02"));
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+    }
+
+    #[test]
+    fn test_multi_episode_e01e02() {
+        let m = EpisodeMatcher.find_matches("Show.S01E01E02.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+    }
+
+    #[test]
+    fn test_multi_episode_e01_dash_02() {
+        let m = EpisodeMatcher.find_matches("Show.S03E01-02.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+    }
+
+    #[test]
+    fn test_multi_episode_e01_dash_e02() {
+        let m = EpisodeMatcher.find_matches("Show.S03E01-E02.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
     }
 
     #[test]
     fn test_1x03() {
         let m = EpisodeMatcher.find_matches("Show.1x03.mkv");
         assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "03"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
+    }
+
+    #[test]
+    fn test_s03_dash_e01() {
+        let m = EpisodeMatcher.find_matches("Parks_and_Recreation-s03-e01.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "3"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+    }
+
+    #[test]
+    fn test_s06xe01() {
+        let m = EpisodeMatcher.find_matches("The Office - S06xE01.avi");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "6"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
     }
 
     #[test]
@@ -160,6 +407,25 @@ mod tests {
     #[test]
     fn test_standalone_ep() {
         let m = EpisodeMatcher.find_matches("Show.E05.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "05"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "5"));
+    }
+
+    #[test]
+    fn test_season_dir() {
+        let m = EpisodeMatcher.find_matches("TV/Show/Season 6/file.avi");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "6"));
+    }
+
+    #[test]
+    fn test_s01_only() {
+        let m = EpisodeMatcher.find_matches("Show.S01Extras.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
+    }
+
+    #[test]
+    fn test_s03_dash_x01() {
+        let m = EpisodeMatcher.find_matches("Parks_and_Recreation-s03-x01.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "3"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
     }
 }
