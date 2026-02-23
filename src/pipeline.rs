@@ -142,17 +142,19 @@ impl Pipeline {
             .min();
 
         if let Some(tech_pos) = first_tech_pos {
-            // Remove language matches that appear before the first technical token.
+            // Remove language matches that appear before the first technical token,
+            // but only if they appear in the first half of the pre-tech zone
+            // (likely part of the title rather than metadata).
+            let title_zone_end = fn_start + (tech_pos - fn_start) / 2;
             matches.retain(|m| {
-                if m.property == Property::Language && m.start < tech_pos && m.start >= fn_start {
-                    false // prune it
+                if m.property == Property::Language && m.start < title_zone_end && m.start >= fn_start {
+                    false // prune it — likely a title word
                 } else {
                     true
                 }
             });
         } else {
             // No technical tokens at all — prune all language matches.
-            // Filenames like "The_Italian_Job.mkv" have no codecs/years/etc.
             matches.retain(|m| m.property != Property::Language);
         }
     }
