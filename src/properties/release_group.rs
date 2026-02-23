@@ -15,9 +15,9 @@ use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
 
 lazy_static! {
-    /// Matches `-GROUP` at the end, before optional extension.
+    /// Matches `-GROUP` at the end with optional bracket suffix.
     static ref RELEASE_GROUP_END: Regex = Regex::new(
-        r"-(?P<group>[A-Za-z0-9@µ!]+(?:\[[A-Fa-f0-9]+\])?)(?:\.[a-z0-9]{2,5})?$"
+        r"-(?P<group>[A-Za-z0-9@µ!]+)(?:\[(?P<suffix>[A-Za-z0-9]+)\])?(?:\.[a-z0-9]{2,5})?$"
     ).unwrap();
 
     /// Matches `-GROUP` before a `[website]` suffix.
@@ -62,15 +62,21 @@ impl PropertyMatcher for ReleaseGroupMatcher {
         let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
         let filename = &input[filename_start..];
 
-        // 1. Check for `-GROUP` at the end (most common convention).
+        // 1. Check for simple `-GROUP` at end with optional bracket suffix.
         if let Some(cap) = RELEASE_GROUP_END.captures(filename) {
             if let Some(group) = cap.name("group") {
-                let value = group.as_str();
-                if !is_known_token(value) {
+                let mut value = group.as_str().to_string();
+                if let Some(suffix) = cap.name("suffix") {
+                    value = format!("{}[{}]", value, suffix.as_str());
+                }
+                if !is_known_token(&value) {
+                    let end = cap.name("suffix")
+                        .map(|s| s.end() + 1)
+                        .unwrap_or(group.end());
                     matches.push(
                         MatchSpan::new(
                             filename_start + group.start(),
-                            filename_start + group.end(),
+                            filename_start + end,
                             Property::ReleaseGroup,
                             value,
                         )
@@ -222,7 +228,7 @@ fn is_known_token(s: &str) -> bool {
     matches!(
         lower.as_str(),
         "mkv" | "mp4" | "avi" | "wmv" | "flv" | "mov" | "webm" | "ogm" |
-        "x264" | "x265" | "h264" | "h265" | "hevc" | "avc" | "av1" | "xvid" | "divx" |
+        "x264" | "x265" | "h264" | "h265" | "hevc" | "avc" | "av1" | "xvid" | "divx" | "dvdivx" |
         "aac" | "ac3" | "dts" | "flac" | "mp3" | "pcm" | "opus" | "ma" |
         "bluray" | "bdrip" | "brrip" | "dvdrip" | "webrip" | "webdl" | "hdtv" |
         "720p" | "1080p" | "2160p" | "4k" |
