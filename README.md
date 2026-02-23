@@ -10,12 +10,13 @@ to parse filenames like `The.Matrix.1999.1080p.BluRay.x264-SPARKS.mkv` into stru
 
 ## Features
 
-- 🎬 **14 property types**: title, year, season, episode, screen_size, source, video_codec,
-  audio_codec, audio_channels, edition, container, release_group, other flags, media type
+- 🎬 **15+ property types**: title, year, season, episode, screen_size, source, video_codec,
+  audio_codec, audio_channels, edition, container, release_group, language,
+  streaming_service, other flags, media type
 - ⚡ **Fast**: pure Rust with lazy-compiled regexes, processes thousands of filenames per second
 - 🧠 **Smart conflict resolution**: priority-based overlap handling
 - 📁 **Path-aware**: extracts titles from parent directories, detects seasons from paths
-- 🎯 **41%+ guessit compatibility** on the full guessit test suite (976 cases)
+- 🎯 **50% guessit compatibility** on the full guessit test suite (976 cases)
   and **90%+ accuracy** on core properties (video_codec, audio_codec, screen_size,
   source, edition, year, audio_channels, container)
 
@@ -60,18 +61,18 @@ assert_eq!(guess.video_codec(), Some("H.264"));
 |----------|----------|----------|
 | video_codec | 98.7% | H.264, H.265, Xvid, AV1 |
 | year | 96.8% | 1999, 2024 |
-| audio_codec | 94.3% | AAC, DTS-HD, Dolby Atmos |
 | screen_size | 95.9% | 720p, 1080p, 2160p, 4K |
+| audio_codec | 94.3% | AAC, DTS-HD, Dolby Atmos |
 | edition | 94.1% | Director's Cut, Extended |
 | source | 93.4% | Blu-ray, Web, HDTV, DVD |
 | audio_channels | 91.7% | 5.1, 7.1, 2.0 |
 | container | 91.0% | mkv, mp4, avi |
-| season | 84.2% | S01, Season 1 |
-| type | 78.0% | movie, episode |
-| episode | 65.0% | E02, 1x03 |
-| title | 63.9% | The Matrix |
-| release_group | 61.5% | SPARKS, FGT |
-| other | 51.1% | HDR10, Remux, Proper |
+| type | 89.5% | movie, episode |
+| season | 88.1% | S01, Season 1 |
+| release_group | 81.0% | SPARKS, FGT, [SubGroup] |
+| episode | 77.6% | E02, 1x03, 501 |
+| title | 70.1% | The Matrix |
+| other | 69.8% | HDR10, Remux, Proper |
 
 ## Architecture
 
@@ -91,10 +92,12 @@ src/
     ├── container.rs
     ├── edition.rs
     ├── episodes.rs
+    ├── language.rs
     ├── other.rs
     ├── release_group.rs
     ├── screen_size.rs
     ├── source.rs
+    ├── streaming_service.rs
     ├── title.rs
     ├── video_codec.rs
     └── year.rs
@@ -103,7 +106,7 @@ src/
 ## Running Tests
 
 ```bash
-# Rust unit tests (94 tests)
+# Rust unit tests (105 tests)
 cargo test
 
 # Integration tests against guessit test suite
