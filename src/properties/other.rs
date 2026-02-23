@@ -1,4 +1,4 @@
-//! "Other" flags: HDR, Remux, Proper, Repack, 3D, etc.
+//! "Other" flags: HDR, Remux, Proper, Repack, 3D, region codes, etc.
 
 use lazy_static::lazy_static;
 
@@ -9,33 +9,72 @@ use crate::properties::PropertyMatcher;
 lazy_static! {
     static ref OTHER_PATTERNS: Vec<ValuePattern> = vec![
         // HDR variants (most specific first).
-        ValuePattern::new(r"(?i)(?<![a-z])Dolby[-.]?Vision(?![a-z])", "Dolby Vision"),
+        ValuePattern::new(r"(?i)(?<![a-z])Dolby[-. ]?Vision(?![a-z])", "Dolby Vision"),
         ValuePattern::new(r"(?i)(?<![a-z])DV(?![a-z])", "Dolby Vision"),
         ValuePattern::new(r"(?i)(?<![a-z])HDR10\+(?![a-z])", "HDR10+"),
         ValuePattern::new(r"(?i)(?<![a-z])HDR10(?![a-z+])", "HDR10"),
-        ValuePattern::new(r"(?i)(?<![a-z])HDR(?![a-z0-9])", "HDR"),
-        ValuePattern::new(r"(?i)(?<![a-z])SDR(?![a-z])", "SDR"),
+        ValuePattern::new(r"(?i)(?<![a-z])HDR(?![a-z0-9])", "HDR10"),
+        ValuePattern::new(r"(?i)(?<![a-z])SDR(?![a-z])", "Standard Dynamic Range"),
+        ValuePattern::new(r"(?i)(?<![a-z])BT[-. ]?2020(?![0-9])", "BT.2020"),
+        // Quality / resolution flags.
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Full[-. ]?HD|FHD)(?![a-z])", "Full HD"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Ultra[-. ]?HD|UHD|Ultra)(?![a-z])", "Ultra HD"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:mHD|HDLight)(?![a-z])", "Micro HD"),
+        ValuePattern::new(r"(?i)(?<![a-z])HD(?![a-z])", "HD"),
+        ValuePattern::new(r"(?i)(?<![a-z])HQ(?![a-z])", "High Quality"),
+        ValuePattern::new(r"(?i)(?<![a-z])HR(?![a-z])", "High Resolution"),
+        ValuePattern::new(r"(?i)(?<![a-z])LDTV(?![a-z])", "Low Definition"),
+        ValuePattern::new(r"(?i)(?<![a-z])Upscale[d]?(?![a-z])", "Upscaled"),
         // Release quality flags.
         ValuePattern::new(r"(?i)(?<![a-z])Remux(?![a-z])", "Remux"),
         ValuePattern::new(r"(?i)(?<![a-z])PROPER(?![a-z])", "Proper"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:REPACK|RERIP)(?![a-z])", "Repack"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:REPACK|RERIP)\d*(?![a-z])", "Proper"),
         ValuePattern::new(r"(?i)(?<![a-z])REAL(?![a-z])", "Real"),
-        ValuePattern::new(r"(?i)(?<![a-z])CONVERT(?![a-z])", "Convert"),
+        // Reencoded.
+        ValuePattern::new(r"(?i)(?<![a-z])(?:re[-. ]?enc(?:oded)?|reencoded)(?![a-z])", "Reencoded"),
+        // Converted.
+        ValuePattern::new(r"(?i)(?<![a-z])CONVERT(?:ED)?(?![a-z])", "Converted"),
+        // Fix variants.
+        ValuePattern::new(r"(?i)(?<![a-z])Audio[-. ]?Fix(?:ed)?(?![a-z])", "Audio Fixed"),
+        ValuePattern::new(r"(?i)(?<![a-z])Sync[-. ]?Fix(?:ed)?(?![a-z])", "Sync Fixed"),
+        // Dub / Sub flags.
         ValuePattern::new(r"(?i)(?<![a-z])(?:DUBBED|DUBS?)(?![a-z])", "Dubbed"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:SUBBED|SUBS?)(?![a-z])", "Subbed"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:HARDCODED|HC)[-.]?SUBS?(?![a-z])", "Hardcoded Subtitles"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:HARDCODED|HC)[-. ]?SUBS?(?![a-z])", "Hardcoded Subtitles"),
+        ValuePattern::new(r"(?i)(?<![a-z])Fan[-. ]?Sub(?:bed|titled|s)?(?![a-z])", "Fan Subtitled"),
+        ValuePattern::new(r"(?i)(?<![a-z])Fast[-. ]?Sub(?:bed|titled|s)?(?![a-z])", "Fast Subtitled"),
+        // Widescreen.
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Wide[-. ]?Screen|WS)(?![a-z])", "Widescreen"),
+        // Dual / Multi audio.
+        ValuePattern::new(r"(?i)(?<![a-z])Dual[-. ]?Audio(?![a-z])", "Dual Audio"),
+        ValuePattern::new(r"(?i)(?<![a-z])Multi(?![a-z])", "Multi Audio"),
+        ValuePattern::new(r"(?i)(?<![a-z])LiNE(?![a-z])", "Line Audio"),
+        // Dubbing quality.
+        ValuePattern::new(r"(?i)(?<![a-z])LD(?![a-z])", "Line Dubbed"),
+        ValuePattern::new(r"(?i)(?<![a-z])MD(?![a-z])", "Mic Dubbed"),
         // 3D.
         ValuePattern::new(r"(?i)(?<![a-z])3D(?![a-z])", "3D"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:Half[-.]?)?(?:SBS|Side[-.]?by[-.]?Side)(?![a-z])", "3D"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:Half[-.]?)?(?:OU|Over[-.]?Under)(?![a-z])", "3D"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Half[-. ]?)?(?:SBS|Side[-. ]?by[-. ]?Side)(?![a-z])", "3D"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Half[-. ]?)?(?:OU|Over[-. ]?Under)(?![a-z])", "3D"),
+        // TV standards.
+        ValuePattern::new(r"(?i)(?<![a-z])PAL(?![a-z])", "PAL"),
+        ValuePattern::new(r"(?i)(?<![a-z])NTSC(?![a-z])", "NTSC"),
+        ValuePattern::new(r"(?i)(?<![a-z])SECAM(?![a-z])", "SECAM"),
+        // Region codes.
+        ValuePattern::new(r"(?i)(?<![a-z])R5(?![a-z0-9])", "Region 5"),
+        ValuePattern::new(r"(?i)(?<![a-z])RC(?![a-z0-9])", "Region C"),
+        // Screener.
+        ValuePattern::new(r"(?i)(?<![a-z])Screener(?![a-z])", "Screener"),
         // Mux / encode.
-        ValuePattern::new(r"(?i)(?<![a-z])(?:Mux|Re[-]?Mux)(?![a-z])", "Mux"),
         ValuePattern::new(r"(?i)(?<![a-z])Hybrid(?![a-z])", "Hybrid"),
-        // Extras / bonus.
-        ValuePattern::new(r"(?i)(?<![a-z])Complete[-.]?Series(?![a-z])", "Complete Series"),
-        ValuePattern::new(r"(?i)(?<![a-z])LiNE(?![a-z])", "Line Audio"),
-        ValuePattern::new(r"(?i)(?<![a-z])Dual[-.]?Audio(?![a-z])", "Dual Audio"),
-        ValuePattern::new(r"(?i)(?<![a-z])Multi(?![a-z])", "Multi Audio"),
+        // Extras / bonus / complete.
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Season|Series)[-. ]?Complete(?![a-z])", "Complete"),
+        ValuePattern::new(r"(?i)(?<![a-z])Complete[-. ]?(?:Season|Series)(?![a-z])", "Complete"),
+        ValuePattern::new(r"(?i)(?<![a-z])PreAir(?![a-z])", "Preair"),
+        ValuePattern::new(r"(?i)(?<![a-z])Pre[-. ]?Air(?![a-z])", "Preair"),
+        // 2in1.
+        ValuePattern::new(r"(?i)(?<![a-z])2in1(?![a-z])", "2in1"),
+        // Internal / sample / NFO.
         ValuePattern::new(r"(?i)(?<![a-z])INTERNAL(?![a-z])", "Internal"),
         ValuePattern::new(r"(?i)(?<![a-z])READ\.?NFO(?![a-z])", "Read NFO"),
         ValuePattern::new(r"(?i)(?<![a-z])SAMPLE(?![a-z])", "Sample"),
@@ -67,6 +106,12 @@ mod tests {
     }
 
     #[test]
+    fn test_hdr_maps_to_hdr10() {
+        let m = OtherMatcher.find_matches("Movie.HDR.mkv");
+        assert!(m.iter().any(|x| x.value == "HDR10"));
+    }
+
+    #[test]
     fn test_remux() {
         let m = OtherMatcher.find_matches("Movie.Remux.mkv");
         assert!(m.iter().any(|x| x.value == "Remux"));
@@ -75,6 +120,12 @@ mod tests {
     #[test]
     fn test_proper() {
         let m = OtherMatcher.find_matches("Movie.PROPER.mkv");
+        assert!(m.iter().any(|x| x.value == "Proper"));
+    }
+
+    #[test]
+    fn test_repack_is_proper() {
+        let m = OtherMatcher.find_matches("Movie.REPACK.mkv");
         assert!(m.iter().any(|x| x.value == "Proper"));
     }
 
@@ -88,5 +139,41 @@ mod tests {
     fn test_dolby_vision() {
         let m = OtherMatcher.find_matches("Movie.Dolby.Vision.mkv");
         assert!(m.iter().any(|x| x.value == "Dolby Vision"));
+    }
+
+    #[test]
+    fn test_region_5() {
+        let m = OtherMatcher.find_matches("Movie.R5.mkv");
+        assert!(m.iter().any(|x| x.value == "Region 5"));
+    }
+
+    #[test]
+    fn test_widescreen() {
+        let m = OtherMatcher.find_matches("Movie.WideScreen.mkv");
+        assert!(m.iter().any(|x| x.value == "Widescreen"));
+    }
+
+    #[test]
+    fn test_pal() {
+        let m = OtherMatcher.find_matches("Movie.PAL.mkv");
+        assert!(m.iter().any(|x| x.value == "PAL"));
+    }
+
+    #[test]
+    fn test_sdr() {
+        let m = OtherMatcher.find_matches("Movie.SDR.mkv");
+        assert!(m.iter().any(|x| x.value == "Standard Dynamic Range"));
+    }
+
+    #[test]
+    fn test_reencoded() {
+        let m = OtherMatcher.find_matches("Movie.re-enc.mkv");
+        assert!(m.iter().any(|x| x.value == "Reencoded"));
+    }
+
+    #[test]
+    fn test_complete_season() {
+        let m = OtherMatcher.find_matches("Movie.Season.Complete.mkv");
+        assert!(m.iter().any(|x| x.value == "Complete"));
     }
 }

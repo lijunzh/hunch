@@ -8,7 +8,7 @@ use crate::properties::PropertyMatcher;
 
 lazy_static! {
     static ref STANDARD_RES: ValuePattern = ValuePattern::new(
-        r"(?i)(?<![a-z0-9])(?:(?:\d{3,4})[x*])?(?:240|360|480|540|576|720|900|1080|1440|2160|4320)[ip](?![a-z0-9])",
+        r"(?i)(?<![a-z0-9])(?:(?:\d{3,4})[x*])?(?:240|360|368|480|540|576|720|900|1080|1440|2160|4320)(?:[ip](?:x|HD|\d{2,3})?|hd)(?![a-z0-9])",
         "",  // value computed dynamically
     );
     static ref EXPLICIT_RES: ValuePattern = ValuePattern::new(
@@ -31,17 +31,33 @@ impl PropertyMatcher for ScreenSizeMatcher {
     fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
         let mut matches = Vec::new();
 
-        // Standard: 720p, 1080p, 1080i, etc.
+        // Standard: 720p, 1080p, 1080i, 720hd, 720p60, etc.
         for (start, end) in STANDARD_RES.find_iter(input) {
             let raw = &input[start..end];
-            let normalized = raw.to_lowercase();
-            // Extract just height+scan from the end (strip optional WxH prefix).
-            let value = if let Some(idx) = normalized.rfind(|c: char| c == 'x' || c == '*') {
-                &normalized[idx + 1..]
+            let lower = raw.to_lowercase();
+            // Strip optional WxH prefix.
+            let height_part = if let Some(idx) = lower.rfind(|c: char| c == 'x' || c == '*') {
+                &lower[idx + 1..]
             } else {
-                &normalized
+                &lower
             };
-            matches.push(MatchSpan::new(start, end, Property::ScreenSize, value.to_string()));
+            // Extract the resolution number and scan type.
+            // Patterns: "720p", "720p60", "720pHD", "720px", "720hd", "1080i"
+            let value = if let Some(caps) = fancy_regex::Regex::new(r"(?i)(\d+)([ip]|hd)")
+                .unwrap()
+                .captures(height_part)
+                .ok()
+                .flatten()
+            {
+                let num = caps.get(1).unwrap().as_str();
+                let scan = caps.get(2).unwrap().as_str().to_lowercase();
+                // "hd" suffix maps to progressive.
+                let scan_char = if scan == "hd" { "p" } else { &scan };
+                format!("{num}{scan_char}")
+            } else {
+                lower.to_string()
+            };
+            matches.push(MatchSpan::new(start, end, Property::ScreenSize, value));
         }
 
         // Explicit WxH: 1920x1080 -> 1080p.

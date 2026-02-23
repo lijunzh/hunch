@@ -124,7 +124,7 @@ mod tests {
         assert_eq!(guess.year(), Some(2024));
         assert_eq!(guess.screen_size(), Some("2160p"));
         assert_eq!(guess.video_codec(), Some("H.265"));
-        assert!(guess.other().contains(&"HDR"));
+        assert!(guess.other().contains(&"HDR10"));
         assert!(guess.other().contains(&"Remux"));
     }
 }

@@ -31,12 +31,9 @@ impl MatchEngine {
                 if !keep[j] {
                     continue;
                 }
-                // Allow different properties to coexist on the same span
-                // (e.g., Season + Episode from "S01E02").
-                if matches[i].property != matches[j].property
-                    && matches[i].start == matches[j].start
-                    && matches[i].end == matches[j].end
-                {
+                // Allow different properties to coexist on the same or overlapping spans
+                // (e.g., Season + Episode from "S01E02", Source + Other:Rip from "DVDRip").
+                if matches[i].property != matches[j].property {
                     continue;
                 }
                 if matches[i].overlaps(&matches[j]) {

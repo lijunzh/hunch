@@ -29,14 +29,14 @@ pub struct Guess {
 }
 
 impl Guess {
-    /// Build a `Guess` from resolved match spans.
+    /// Build a `Guess` from resolved match spans, deduplicating values.
     pub(crate) fn from_matches(matches: &[MatchSpan]) -> Self {
         let mut props: BTreeMap<String, Vec<String>> = BTreeMap::new();
         for m in matches {
-            props
-                .entry(m.property.to_string())
-                .or_default()
-                .push(m.value.clone());
+            let values = props.entry(m.property.to_string()).or_default();
+            if !values.contains(&m.value) {
+                values.push(m.value.clone());
+            }
         }
         Self { props }
     }
