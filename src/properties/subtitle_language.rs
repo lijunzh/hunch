@@ -44,9 +44,9 @@ lazy_static! {
         r"(?i)(?<![a-z])(?P<lang>Heb|Swe|Nl|Pl|Ro|De|Kor|Eng|Fre|Ita|Spa|Dan|Nor|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Ukr|Bul|Hun|Cze|Hrv|Slk|Slv|Est|Lav|Lit|Cat|Pt|Br)[-. ]?(?:sub(?:s|bed|titles?)?)(?![a-z])"
     ).unwrap();
 
-    /// LANG SUBS pattern: ENG SUBS, SPANISH SUBBED, German.Subbed
+    /// LANG SUBS pattern: ENG SUBS, SPANISH SUBBED, German.Subbed, German.Custom.Subbed
     static ref LANG_SUBS: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?P<lang>English|French|Spanish|German|Italian|Portuguese|Dutch|Swedish|Norwegian|Danish|Finnish|Greek|Turkish|Arabic|Russian|Hindi|Chinese|Japanese|Korean|Hebrew|Romanian|Polish|Czech|Hungarian|Croatian|Serbian|Slovak|Slovenian|Estonian|Latvian|Lithuanian|Catalan|Eng|Fre|Spa|Ger|Ita|Por|Dut|Swe|Nor|Dan|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Kor|Heb|Ron|Pol|Cze|Hun|Hrv|Srp|Slk|Slv|Est|Lav|Lit|Cat)[-. ]+(?:Soft[-. ]?)?(?:sub(?:s|bed|titled|titles)?)(?![a-z])"
+        r"(?i)(?<![a-z])(?P<lang>English|French|Spanish|German|Italian|Portuguese|Dutch|Swedish|Norwegian|Danish|Finnish|Greek|Turkish|Arabic|Russian|Hindi|Chinese|Japanese|Korean|Hebrew|Romanian|Polish|Czech|Hungarian|Croatian|Serbian|Slovak|Slovenian|Estonian|Latvian|Lithuanian|Catalan|Eng|Fre|Spa|Ger|Ita|Por|Dut|Swe|Nor|Dan|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Kor|Heb|Ron|Pol|Cze|Hun|Hrv|Srp|Slk|Slv|Est|Lav|Lit|Cat)[-. ]+(?:(?:Soft|Custom|Hard|Forced)[-. ])*(?:sub(?:s|bed|titled|titles)?)(?![a-z])"
     ).unwrap();
 
     /// EN-SUB, EN.SUB pattern
