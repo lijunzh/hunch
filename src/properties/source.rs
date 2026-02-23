@@ -42,6 +42,10 @@ lazy_static! {
         SourcePattern::plain(r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD|BR)[-. ]?(?:UHD|Ultra(?:[-. ]?HD)?)(?![a-z])", "Ultra HD Blu-ray"),
         SourcePattern::plain(r"(?i)(?<![a-z])(?:4K|2160p)[-. ]?(?:Blu[-.]?ray|BD|BR)(?![a-z])", "Ultra HD Blu-ray"),
         SourcePattern::plain(r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD|BR)[-. ]?(?:4K|2160p)(?![a-z])", "Ultra HD Blu-ray"),
+        // UHD with BRRip/BDRip (may have other tokens between).
+        SourcePattern::plain(r"(?i)(?<![a-z])UHD(?:.{0,20})(?:BR|BD)(?:Rip)?(?![a-z])", "Ultra HD Blu-ray"),
+        SourcePattern::with_rip(r"(?i)(?<![a-z])UHD(?:.{0,20})(?:BR|BD)[-.]?Rip(?![a-z])", "Ultra HD Blu-ray"),
+        SourcePattern::plain(r"(?i)(?<![a-z])(?:BR|BD)[-.]?Rip[^\n]{0,20}UHD(?![a-z])", "Ultra HD Blu-ray"),
         // Blu-ray variants.
         SourcePattern::plain(r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD[59R]?|BD25|BD50)(?![a-z])", "Blu-ray"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD)[-.]?Rip(?![a-z])", "Blu-ray"),
@@ -56,7 +60,8 @@ lazy_static! {
         SourcePattern::plain(r"(?i)(?<![a-z])DL[-.]?WEB(?![a-z])", "Web"),
         SourcePattern::plain(r"(?i)(?<![a-z])WEB(?![a-z])", "Web"),
         // HDTV.
-        SourcePattern::plain(r"(?i)(?<![a-z])A?HD[-.]?TV(?![a-z])", "HDTV"),
+        SourcePattern::plain(r"(?i)(?<![a-z])AHDTV(?![a-z])", "Analog HDTV"),
+        SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?TV(?![a-z])", "HDTV"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?TV[-.]?Rip(?![a-z])", "HDTV"),
         SourcePattern::plain(r"(?i)(?<![a-z])UHD[-.]?TV(?![a-z])", "Ultra HDTV"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])UHD[-.]?(?:TV[-.]?)?Rip(?![a-z])", "Ultra HDTV"),
@@ -64,27 +69,28 @@ lazy_static! {
         SourcePattern::with_rip(r"(?i)(?<![a-z])(?:PD[-.]?TV|DVB)[-.]?Rip(?![a-z])", "Digital TV"),
         SourcePattern::plain(r"(?i)(?<![a-z])DVB(?![a-z])", "Digital TV"),
         // DVD.
-        SourcePattern::plain(r"(?i)(?<![a-z])VIDEO[-._]?TS(?![a-z])", "DVD"),
+        SourcePattern::plain(r"(?i)(?<![a-z])VIDEO[-._\s]?TS(?![a-z])", "DVD"),
         SourcePattern::plain(r"(?i)(?<![a-z])DVD(?:R|\s*[59])?(?![a-z])", "DVD"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])DVD[-.]?Rip(?![a-z])", "DVD"),
         // HD-DVD.
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?DVD(?![a-z])", "HD-DVD"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?DVD[-.]?Rip(?![a-z])", "HD-DVD"),
+        SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]?DVD(?![a-z])", "HD-DVD"),
+        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-. ]?DVD[-.]?Rip(?![a-z])", "HD-DVD"),
         // Satellite.
         SourcePattern::plain(r"(?i)(?<![a-z])(?:DSR|DTH)(?![a-z])", "Satellite"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])(?:DSR|DTH|SAT)[-.]?Rip(?![a-z])", "Satellite"),
+        SourcePattern::with_rip(r"(?i)(?<![a-z])(?:DSR?|DTH|SAT)[-. ]?Rip(?![a-z])", "Satellite"),
         // Telecine / Telesync.
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?TELECINE(?![a-z])", "HD Telecine"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?TC[-.]?Rip(?![a-z])", "HD Telecine"),
+        SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]?TELECINE(?![a-z])", "HD Telecine"),
+        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-. ]?(?:TELECINE|TC)[-. ]?Rip(?![a-z])", "HD Telecine"),
         SourcePattern::plain(r"(?i)(?<![a-z])HDTC(?![a-z])", "HD Telecine"),
         SourcePattern::plain(r"(?i)(?<![a-z])TELECINE(?![a-z])", "Telecine"),
         SourcePattern::plain(r"(?i)(?<![a-z])TC(?![a-z])", "Telecine"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])TC[-.]?Rip(?![a-z])", "Telecine"),
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?TELESYNC(?![a-z])", "HD Telesync"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-. ]TS[-.]?Rip(?![a-z])", "HD Telesync"),
+        SourcePattern::with_rip(r"(?i)(?<![a-z])(?:TELECINE|TC)[-. ]?Rip(?![a-z])", "Telecine"),
+        SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]?TELESYNC(?![a-z])", "HD Telesync"),
+        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-. ]?TS[-.]?Rip(?![a-z])", "HD Telesync"),
+        SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]TS(?![a-z0-9])", "HD Telesync"),
         SourcePattern::plain(r"(?i)(?<![a-z])TELESYNC(?![a-z])", "Telesync"),
+        SourcePattern::with_rip(r"(?i)(?<![a-z])(?:TELESYNC|TS)[-.]?Rip(?![a-z])", "Telesync"),
         SourcePattern::plain(r"(?i)(?<![a-z])TS(?![a-z])", "Telesync"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])TS[-.]?Rip(?![a-z])", "Telesync"),
         // Camera.
         SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?CAM(?![a-z])", "HD Camera"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?CAM[-.]?Rip(?![a-z])", "HD Camera"),
@@ -104,11 +110,10 @@ lazy_static! {
         // Digital Master.
         SourcePattern::plain(r"(?i)(?<![a-z])DM(?![a-z])", "Digital Master"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])DM[-.]?Rip(?![a-z])", "Digital Master"),
-        // Analog HDTV.
-        SourcePattern::plain(r"(?i)(?<![a-z])AHDTV(?![a-z])", "Analog HDTV"),
         // SD TV (weak, must come last).
         SourcePattern::plain(r"(?i)(?<![a-z])SD[-.]?TV(?![a-z])", "TV"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])(?:SD[-.]?)?TV[-.]?Rip(?![a-z])", "TV"),
+        SourcePattern::plain(r"(?i)(?<![a-z])TV[-.]?Dub(?![a-z])", "TV"),
         // HD Rip (generic HD source).
         SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?Rip(?![a-z])", "HD"),
     ];
