@@ -37,38 +37,28 @@ impl PropertyMatcher for WebsiteMatcher {
         for cap in WEBSITE_BRACKET.captures_iter(input) {
             if let Some(site) = cap.name("site") {
                 matches.push(
-                    MatchSpan::new(
-                        site.start(),
-                        site.end(),
-                        Property::Website,
-                        site.as_str(),
-                    )
-                    .with_priority(2),
+                    MatchSpan::new(site.start(), site.end(), Property::Website, site.as_str())
+                        .with_priority(2),
                 );
             }
         }
 
         // Priority 2: "From" prefix
         for cap in WEBSITE_FROM.captures_iter(input) {
-            if let Some(site) = cap.name("site") {
-                if !matches.iter().any(|m| {
+            if let Some(site) = cap.name("site")
+                && !matches.iter().any(|m| {
                     m.overlaps(&MatchSpan::new(
                         site.start(),
                         site.end(),
                         Property::Website,
                         "",
                     ))
-                }) {
-                    matches.push(
-                        MatchSpan::new(
-                            site.start(),
-                            site.end(),
-                            Property::Website,
-                            site.as_str(),
-                        )
+                })
+            {
+                matches.push(
+                    MatchSpan::new(site.start(), site.end(), Property::Website, site.as_str())
                         .with_priority(1),
-                    );
-                }
+                );
             }
         }
 
@@ -81,13 +71,8 @@ impl PropertyMatcher for WebsiteMatcher {
                     // (e.g., AC3.5 or DD5.1)
                     if val.len() > 5 {
                         matches.push(
-                            MatchSpan::new(
-                                site.start(),
-                                site.end(),
-                                Property::Website,
-                                val,
-                            )
-                            .with_priority(0),
+                            MatchSpan::new(site.start(), site.end(), Property::Website, val)
+                                .with_priority(0),
                         );
                     }
                 }

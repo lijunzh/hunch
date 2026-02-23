@@ -82,8 +82,7 @@ impl PropertyMatcher for AudioCodecMatcher {
         for cp in COMBINED_PATTERNS.iter() {
             for (start, end) in cp.vp.find_iter(input) {
                 matches.push(
-                    MatchSpan::new(start, end, Property::AudioCodec, cp.codec)
-                        .with_priority(2),
+                    MatchSpan::new(start, end, Property::AudioCodec, cp.codec).with_priority(2),
                 );
                 matches.push(
                     MatchSpan::new(start, end, Property::AudioChannels, cp.channels)
@@ -95,14 +94,24 @@ impl PropertyMatcher for AudioCodecMatcher {
         // Standalone codec patterns.
         for pattern in AUDIO_CODEC_PATTERNS.iter() {
             for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(start, end, Property::AudioCodec, pattern.value));
+                matches.push(MatchSpan::new(
+                    start,
+                    end,
+                    Property::AudioCodec,
+                    pattern.value,
+                ));
             }
         }
 
         // Standalone channel patterns.
         for pattern in AUDIO_CHANNELS_PATTERNS.iter() {
             for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(start, end, Property::AudioChannels, pattern.value));
+                matches.push(MatchSpan::new(
+                    start,
+                    end,
+                    Property::AudioChannels,
+                    pattern.value,
+                ));
             }
         }
 
@@ -135,13 +144,19 @@ mod tests {
     #[test]
     fn test_channels_51() {
         let m = AudioCodecMatcher.find_matches("Movie.5.1.mkv");
-        assert!(m.iter().any(|x| x.value == "5.1" && x.property == Property::AudioChannels));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
+        );
     }
 
     #[test]
     fn test_6ch_is_51() {
         let m = AudioCodecMatcher.find_matches("Movie.6ch.mkv");
-        assert!(m.iter().any(|x| x.value == "5.1" && x.property == Property::AudioChannels));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
+        );
     }
 
     #[test]
@@ -153,21 +168,39 @@ mod tests {
     #[test]
     fn test_dd51_combined() {
         let m = AudioCodecMatcher.find_matches("Movie.DD5.1.mkv");
-        assert!(m.iter().any(|x| x.value == "Dolby Digital" && x.property == Property::AudioCodec));
-        assert!(m.iter().any(|x| x.value == "5.1" && x.property == Property::AudioChannels));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "Dolby Digital" && x.property == Property::AudioCodec)
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
+        );
     }
 
     #[test]
     fn test_aac20_combined() {
         let m = AudioCodecMatcher.find_matches("Movie.AAC2.0.mkv");
-        assert!(m.iter().any(|x| x.value == "AAC" && x.property == Property::AudioCodec));
-        assert!(m.iter().any(|x| x.value == "2.0" && x.property == Property::AudioChannels));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "AAC" && x.property == Property::AudioCodec)
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.value == "2.0" && x.property == Property::AudioChannels)
+        );
     }
 
     #[test]
     fn test_truehd51_combined() {
         let m = AudioCodecMatcher.find_matches("Movie.TrueHD51.mkv");
-        assert!(m.iter().any(|x| x.value == "Dolby TrueHD" && x.property == Property::AudioCodec));
-        assert!(m.iter().any(|x| x.value == "5.1" && x.property == Property::AudioChannels));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "Dolby TrueHD" && x.property == Property::AudioCodec)
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
+        );
     }
 }

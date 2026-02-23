@@ -85,8 +85,7 @@ impl PropertyMatcher for LanguageMatcher {
         for pattern in LANGUAGE_PATTERNS.iter() {
             for (start, end) in pattern.find_iter(input) {
                 matches.push(
-                    MatchSpan::new(start, end, Property::Language, pattern.value)
-                        .with_priority(-1),
+                    MatchSpan::new(start, end, Property::Language, pattern.value).with_priority(-1),
                 );
             }
         }

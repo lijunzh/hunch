@@ -2,8 +2,8 @@
 //!
 //! Detects air dates in filenames: 2014.12.25, 25-12-2014, etc.
 
-use lazy_static::lazy_static;
 use fancy_regex::Regex;
+use lazy_static::lazy_static;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
@@ -47,96 +47,107 @@ impl PropertyMatcher for DateMatcher {
         let mut matches = Vec::new();
 
         // 1. YYYY.MM.DD
-        if let Ok(Some(cap)) = DATE_YMD.captures(input) {
-            if let (Some(full), Some(year), Some(month), Some(day)) =
-                (cap.get(0), cap.name("date"), cap.name("month"), cap.name("day"))
-            {
-                matches.push(
-                    MatchSpan::new(
-                        full.start(),
-                        full.end(),
-                        Property::Date,
-                        format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
-                    )
-                    .with_priority(2),
-                );
-            }
+        if let Ok(Some(cap)) = DATE_YMD.captures(input)
+            && let (Some(full), Some(year), Some(month), Some(day)) = (
+                cap.get(0),
+                cap.name("date"),
+                cap.name("month"),
+                cap.name("day"),
+            )
+        {
+            matches.push(
+                MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Date,
+                    format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
+                )
+                .with_priority(2),
+            );
         }
 
         // 2. YYYYxMM.DD (mixed separator)
-        if matches.is_empty() {
-            if let Ok(Some(cap)) = DATE_YMIXED.captures(input) {
-                if let (Some(full), Some(year), Some(month), Some(day)) =
-                    (cap.get(0), cap.name("date"), cap.name("month"), cap.name("day"))
-                {
-                    matches.push(
-                        MatchSpan::new(
-                            full.start(),
-                            full.end(),
-                            Property::Date,
-                            format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
-                        )
-                        .with_priority(2),
-                    );
-                }
-            }
+        if matches.is_empty()
+            && let Ok(Some(cap)) = DATE_YMIXED.captures(input)
+            && let (Some(full), Some(year), Some(month), Some(day)) = (
+                cap.get(0),
+                cap.name("date"),
+                cap.name("month"),
+                cap.name("day"),
+            )
+        {
+            matches.push(
+                MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Date,
+                    format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
+                )
+                .with_priority(2),
+            );
         }
 
         // 3. DD.MM.YYYY
-        if matches.is_empty() {
-            if let Ok(Some(cap)) = DATE_DMY.captures(input) {
-                if let (Some(full), Some(year), Some(month), Some(day)) =
-                    (cap.get(0), cap.name("year"), cap.name("month"), cap.name("day"))
-                {
-                    matches.push(
-                        MatchSpan::new(
-                            full.start(),
-                            full.end(),
-                            Property::Date,
-                            format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
-                        )
-                        .with_priority(2),
-                    );
-                }
-            }
+        if matches.is_empty()
+            && let Ok(Some(cap)) = DATE_DMY.captures(input)
+            && let (Some(full), Some(year), Some(month), Some(day)) = (
+                cap.get(0),
+                cap.name("year"),
+                cap.name("month"),
+                cap.name("day"),
+            )
+        {
+            matches.push(
+                MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Date,
+                    format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
+                )
+                .with_priority(2),
+            );
         }
 
         // 4. MM-DD-YYYY (US style)
-        if matches.is_empty() {
-            if let Ok(Some(cap)) = DATE_MDY.captures(input) {
-                if let (Some(full), Some(year), Some(month), Some(day)) =
-                    (cap.get(0), cap.name("year"), cap.name("month"), cap.name("day"))
-                {
-                    matches.push(
-                        MatchSpan::new(
-                            full.start(),
-                            full.end(),
-                            Property::Date,
-                            format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
-                        )
-                        .with_priority(2),
-                    );
-                }
-            }
+        if matches.is_empty()
+            && let Ok(Some(cap)) = DATE_MDY.captures(input)
+            && let (Some(full), Some(year), Some(month), Some(day)) = (
+                cap.get(0),
+                cap.name("year"),
+                cap.name("month"),
+                cap.name("day"),
+            )
+        {
+            matches.push(
+                MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Date,
+                    format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
+                )
+                .with_priority(2),
+            );
         }
 
         // 5. YYYYMMDD compact
-        if matches.is_empty() {
-            if let Ok(Some(cap)) = DATE_COMPACT.captures(input) {
-                if let (Some(full), Some(year), Some(month), Some(day)) =
-                    (cap.get(0), cap.name("year"), cap.name("month"), cap.name("day"))
-                {
-                    matches.push(
-                        MatchSpan::new(
-                            full.start(),
-                            full.end(),
-                            Property::Date,
-                            format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
-                        )
-                        .with_priority(1),
-                    );
-                }
-            }
+        if matches.is_empty()
+            && let Ok(Some(cap)) = DATE_COMPACT.captures(input)
+            && let (Some(full), Some(year), Some(month), Some(day)) = (
+                cap.get(0),
+                cap.name("year"),
+                cap.name("month"),
+                cap.name("day"),
+            )
+        {
+            matches.push(
+                MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Date,
+                    format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
+                )
+                .with_priority(1),
+            );
         }
 
         matches

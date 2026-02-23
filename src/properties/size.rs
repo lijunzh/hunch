@@ -2,8 +2,8 @@
 //!
 //! Detects file sizes: 700MB, 1.4GB, 4.7GB, etc.
 
-use lazy_static::lazy_static;
 use fancy_regex::Regex;
+use lazy_static::lazy_static;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
@@ -11,7 +11,8 @@ use crate::properties::PropertyMatcher;
 lazy_static! {
     static ref SIZE_PATTERN: Regex = Regex::new(
         r"(?i)(?<![a-z0-9])(?P<size>[0-9]+(?:\.[0-9]+)?\s*(?:GB|MB|TB|GiB|MiB|TiB))(?![a-z])"
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 pub struct SizeMatcher;
@@ -19,13 +20,13 @@ pub struct SizeMatcher;
 impl PropertyMatcher for SizeMatcher {
     fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
         let mut matches = Vec::new();
-        if let Ok(Some(cap)) = SIZE_PATTERN.captures(input) {
-            if let Some(size) = cap.name("size") {
-                matches.push(
-                    MatchSpan::new(size.start(), size.end(), Property::Size, size.as_str())
-                        .with_priority(1),
-                );
-            }
+        if let Ok(Some(cap)) = SIZE_PATTERN.captures(input)
+            && let Some(size) = cap.name("size")
+        {
+            matches.push(
+                MatchSpan::new(size.start(), size.end(), Property::Size, size.as_str())
+                    .with_priority(1),
+            );
         }
         matches
     }

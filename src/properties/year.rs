@@ -23,13 +23,10 @@ impl PropertyMatcher for YearMatcher {
         let mut matches = Vec::new();
         for (start, end) in YEAR_RE.find_iter(input) {
             let raw = &input[start..end];
-            if let Ok(year) = raw.parse::<i32>() {
-                if year >= MIN_YEAR && year <= MAX_YEAR {
-                    matches.push(
-                        MatchSpan::new(start, end, Property::Year, raw)
-                            .with_priority(-1),
-                    );
-                }
+            if let Ok(year) = raw.parse::<i32>()
+                && (MIN_YEAR..=MAX_YEAR).contains(&year)
+            {
+                matches.push(MatchSpan::new(start, end, Property::Year, raw).with_priority(-1));
             }
         }
         matches

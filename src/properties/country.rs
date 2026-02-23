@@ -27,8 +27,7 @@ impl PropertyMatcher for CountryMatcher {
         for pattern in COUNTRY_PATTERNS.iter() {
             for (start, end) in pattern.find_iter(input) {
                 matches.push(
-                    MatchSpan::new(start, end, Property::Country, pattern.value)
-                        .with_priority(-2),
+                    MatchSpan::new(start, end, Property::Country, pattern.value).with_priority(-2),
                 );
             }
         }

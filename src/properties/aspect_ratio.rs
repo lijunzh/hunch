@@ -31,13 +31,8 @@ impl PropertyMatcher for AspectRatioMatcher {
                     let formatted = format!("{:.3}", ratio);
                     let full = cap.get(0).unwrap();
                     matches.push(
-                        MatchSpan::new(
-                            full.start(),
-                            full.end(),
-                            Property::AspectRatio,
-                            formatted,
-                        )
-                        .with_priority(-1),
+                        MatchSpan::new(full.start(), full.end(), Property::AspectRatio, formatted)
+                            .with_priority(-1),
                     );
                 }
             }

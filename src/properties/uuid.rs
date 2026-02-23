@@ -30,13 +30,8 @@ impl PropertyMatcher for UuidMatcher {
         for cap in UUID_STANDARD.captures_iter(input) {
             if let Some(uuid) = cap.name("uuid") {
                 matches.push(
-                    MatchSpan::new(
-                        uuid.start(),
-                        uuid.end(),
-                        Property::Uuid,
-                        uuid.as_str(),
-                    )
-                    .with_priority(2),
+                    MatchSpan::new(uuid.start(), uuid.end(), Property::Uuid, uuid.as_str())
+                        .with_priority(2),
                 );
             }
         }
@@ -46,13 +41,8 @@ impl PropertyMatcher for UuidMatcher {
             for cap in UUID_NODASH.captures_iter(input) {
                 if let Some(uuid) = cap.name("uuid") {
                     matches.push(
-                        MatchSpan::new(
-                            uuid.start(),
-                            uuid.end(),
-                            Property::Uuid,
-                            uuid.as_str(),
-                        )
-                        .with_priority(2),
+                        MatchSpan::new(uuid.start(), uuid.end(), Property::Uuid, uuid.as_str())
+                            .with_priority(2),
                     );
                 }
             }

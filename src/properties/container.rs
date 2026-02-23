@@ -1,21 +1,20 @@
 //! Container / file extension detection.
 
-use lazy_static::lazy_static;
 use fancy_regex::Regex as FancyRegex;
+use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
 
 const VIDEO_EXTS: &[&str] = &[
-    "3g2", "3gp", "asf", "avi", "divx", "flv", "m2ts", "m4v", "mk3d", "mkv",
-    "mov", "mp4", "mpeg", "mpg", "mts", "ogm", "ogv", "rm", "rmvb", "ts",
-    "vob", "webm", "wmv",
+    "3g2", "3gp", "asf", "avi", "divx", "flv", "m2ts", "m4v", "mk3d", "mkv", "mov", "mp4", "mpeg",
+    "mpg", "mts", "ogm", "ogv", "rm", "rmvb", "ts", "vob", "webm", "wmv",
 ];
 
 const SUBTITLE_EXTS: &[&str] = &[
-    "aqt", "ass", "idx", "mpl", "pjs", "psb", "rt", "smi", "srt", "ssa",
-    "stl", "sub", "sup", "usf", "vtt",
+    "aqt", "ass", "idx", "mpl", "pjs", "psb", "rt", "smi", "srt", "ssa", "stl", "sub", "sup",
+    "usf", "vtt",
 ];
 
 const INFO_EXTS: &[&str] = &["nfo"];
@@ -55,20 +54,30 @@ impl PropertyMatcher for ContainerMatcher {
         if let Some(cap) = EXT_REGEX.find(input) {
             let ext = &input[cap.start() + 1..cap.end()];
             matches.push(
-                MatchSpan::new(cap.start() + 1, cap.end(), Property::Container, ext.to_lowercase())
-                    .with_tag("extension")
-                    .with_priority(10),
+                MatchSpan::new(
+                    cap.start() + 1,
+                    cap.end(),
+                    Property::Container,
+                    ext.to_lowercase(),
+                )
+                .with_tag("extension")
+                .with_priority(10),
             );
         }
         // Fallback: standalone container token (e.g., "MP4-GUSH", "[.mp4]").
-        if matches.is_empty() {
-            if let Ok(Some(cap)) = EXT_STANDALONE.find(input) {
-                let ext = &input[cap.start()..cap.end()];
-                matches.push(
-                    MatchSpan::new(cap.start(), cap.end(), Property::Container, ext.to_lowercase())
-                        .with_priority(5),
-                );
-            }
+        if matches.is_empty()
+            && let Ok(Some(cap)) = EXT_STANDALONE.find(input)
+        {
+            let ext = &input[cap.start()..cap.end()];
+            matches.push(
+                MatchSpan::new(
+                    cap.start(),
+                    cap.end(),
+                    Property::Container,
+                    ext.to_lowercase(),
+                )
+                .with_priority(5),
+            );
         }
         matches
     }

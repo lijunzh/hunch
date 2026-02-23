@@ -57,27 +57,26 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
     }
 
     // If parent directory has the same title with better casing, use it.
-    if has_parent_dir(input) {
-        if let Some(parent_match) = extract_title_from_parent(input, matches) {
-            if parent_match.value.to_lowercase() == cleaned.to_lowercase()
-                && parent_match.value != cleaned
-            {
-                return Some(MatchSpan::new(
-                    filename_start,
-                    title_end_abs,
-                    Property::Title,
-                    parent_match.value,
-                ));
-            }
-        }
+    if has_parent_dir(input)
+        && let Some(parent_match) = extract_title_from_parent(input, matches)
+        && parent_match.value.to_lowercase() == cleaned.to_lowercase()
+        && parent_match.value != cleaned
+    {
+        return Some(MatchSpan::new(
+            filename_start,
+            title_end_abs,
+            Property::Title,
+            parent_match.value,
+        ));
     }
 
     // If the filename looks like a scene abbreviation (very short, no spaces/dots
     // in the cleaned result), prefer the parent directory.
-    if is_abbreviated(&cleaned) && has_parent_dir(input) {
-        if let Some(parent_title) = extract_title_from_parent(input, matches) {
-            return Some(parent_title);
-        }
+    if is_abbreviated(&cleaned)
+        && has_parent_dir(input)
+        && let Some(parent_title) = extract_title_from_parent(input, matches)
+    {
+        return Some(parent_title);
     }
 
     Some(MatchSpan::new(
@@ -105,6 +104,7 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
 
     // Walk from the deepest non-filename dir upward looking for a good title.
     let mut offset = 0;
+    #[allow(clippy::needless_range_loop)]
     for i in 0..parts.len() - 1 {
         let dir_name = parts[i];
         let dir_start = offset;
@@ -135,7 +135,12 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
         let raw_title = &input[dir_start..title_end];
         let cleaned = clean_title(raw_title);
         if !cleaned.is_empty() {
-            return Some(MatchSpan::new(dir_start, title_end, Property::Title, cleaned));
+            return Some(MatchSpan::new(
+                dir_start,
+                title_end,
+                Property::Title,
+                cleaned,
+            ));
         }
     }
 
@@ -182,9 +187,9 @@ fn extract_after_bracket_group(
     let title_end_abs = match next_match {
         Some(m) => m.start,
         None => {
-            let has_ext = matches.iter().any(|m| {
-                m.property == Property::Container && m.start >= filename_start
-            });
+            let has_ext = matches
+                .iter()
+                .any(|m| m.property == Property::Container && m.start >= filename_start);
             if has_ext {
                 if let Some(dot) = filename.rfind('.') {
                     filename_start + dot
@@ -224,19 +229,30 @@ fn is_generic_dir(name: &str) -> bool {
     let lower = name.to_lowercase();
     matches!(
         lower.as_str(),
-        "movies" | "movie" | "series" | "tv shows" | "tv" | "media"
-        | "video" | "videos" | "downloads" | "download"
+        "movies"
+            | "movie"
+            | "series"
+            | "tv shows"
+            | "tv"
+            | "media"
+            | "video"
+            | "videos"
+            | "downloads"
+            | "download"
     ) || lower.starts_with("season")
-      || lower.starts_with("saison")
-      || lower.starts_with("temporada")
+        || lower.starts_with("saison")
+        || lower.starts_with("temporada")
 }
 
 /// Detect if a title looks like a scene abbreviation (e.g., "dmd", "wthd", "dmd aw").
 fn is_abbreviated(title: &str) -> bool {
     let words: Vec<&str> = title.split_whitespace().collect();
     // All words short and lowercase → probably abbreviated.
-    words.iter().all(|w| w.len() <= 6 && w.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
-        && title.len() <= 20
+    words.iter().all(|w| {
+        w.len() <= 6
+            && w.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+    }) && title.len() <= 20
 }
 
 /// Clean up a raw title: replace separators with spaces, strip brackets, trim.
@@ -255,8 +271,7 @@ fn clean_title(raw: &str) -> String {
     }
 
     // Strip parenthesized year at the end: "Movie (2005)" → "Movie"
-    let re_paren_year =
-        fancy_regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap();
+    let re_paren_year = fancy_regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap();
     if let Ok(Some(m)) = re_paren_year.find(&s) {
         s = s[..m.start()].to_string();
     }
@@ -264,8 +279,7 @@ fn clean_title(raw: &str) -> String {
     // Strip all parenthesized groups (alternative titles, countries, etc.).
     // e.g., "Le Prestige (The Prestige)" → "Le Prestige"
     //        "The Office (US)" → "The Office"
-    let re_paren =
-        fancy_regex::Regex::new(r"\s*\([^)]*\)\s*").unwrap();
+    let re_paren = fancy_regex::Regex::new(r"\s*\([^)]*\)\s*").unwrap();
     let before_paren_strip = s.clone();
     s = re_paren.replace_all(&s, " ").to_string();
     // If stripping removed everything, revert.
@@ -283,11 +297,7 @@ fn clean_title(raw: &str) -> String {
                 // Preserve hyphens between alphanumeric chars (e.g., X-Men, Re-Animator).
                 let prev_alnum = i > 0 && chars[i - 1].is_alphanumeric();
                 let next_alnum = i + 1 < chars.len() && chars[i + 1].is_alphanumeric();
-                if prev_alnum && next_alnum {
-                    '-'
-                } else {
-                    ' '
-                }
+                if prev_alnum && next_alnum { '-' } else { ' ' }
             } else if SEPS.contains(&c) || BRACKETS.contains(&c) {
                 ' '
             } else {
@@ -300,9 +310,9 @@ fn clean_title(raw: &str) -> String {
     let mut result = collapse_spaces(&cleaned);
 
     // Strip trailing "Part" + optional roman/number: "The Godfather Part III" → "The Godfather".
-    let re_part = fancy_regex::Regex::new(
-        r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$"
-    ).unwrap();
+    let re_part =
+        fancy_regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$")
+            .unwrap();
     if let Ok(Some(m)) = re_part.find(&result) {
         let stripped = result[..m.start()].to_string();
         if !stripped.trim().is_empty() {
@@ -409,9 +419,9 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
         Some(m) => m.start,
         None => {
             // No technical property — check for extension via container matches.
-            let has_container = matches.iter().any(|m| {
-                m.property == Property::Container && m.start >= filename_start
-            });
+            let has_container = matches
+                .iter()
+                .any(|m| m.property == Property::Container && m.start >= filename_start);
             if has_container {
                 // Use position of last dot as extension separator.
                 let ext_dot = filename.rfind('.');

@@ -79,7 +79,10 @@ mod tests {
     #[test]
     fn test_avchd() {
         let m = VideoProfileMatcher.find_matches("Movie.AVCHD.mkv");
-        assert!(m.iter().any(|x| x.value == "Advanced Video Codec High Definition"));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "Advanced Video Codec High Definition")
+        );
     }
 
     #[test]

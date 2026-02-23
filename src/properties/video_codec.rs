@@ -34,7 +34,12 @@ impl PropertyMatcher for VideoCodecMatcher {
         let mut matches = Vec::new();
         for pattern in CODEC_PATTERNS.iter() {
             for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(start, end, Property::VideoCodec, pattern.value));
+                matches.push(MatchSpan::new(
+                    start,
+                    end,
+                    Property::VideoCodec,
+                    pattern.value,
+                ));
             }
         }
         matches

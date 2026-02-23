@@ -1,10 +1,10 @@
 //! Season / episode detection.
 //! Supports S01E02, 1x03, Season/Saison, Episode, 3/4-digit decomposition,
 //! anime-style, path-based seasons, and Roman numeral seasons.
-use lazy_static::lazy_static;
-use fancy_regex::Regex;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use fancy_regex::Regex;
+use lazy_static::lazy_static;
 
 lazy_static! {
     /// S01E02, S01E02E03, S01E02-E05, S01E02-05.
@@ -147,16 +147,30 @@ fn parse_num(cap: &fancy_regex::Captures, name: &str) -> String {
 fn roman_to_int(s: &str) -> Option<u32> {
     let upper = s.to_uppercase();
     let mut result: i32 = 0;
-    let mut prev = 0;    for ch in upper.chars().rev() {
+    let mut prev = 0;
+    for ch in upper.chars().rev() {
         let val = match ch {
-            'I' => 1, 'V' => 5, 'X' => 10, 'L' => 50,
-            'C' => 100, 'D' => 500, 'M' => 1000,
+            'I' => 1,
+            'V' => 5,
+            'X' => 10,
+            'L' => 50,
+            'C' => 100,
+            'D' => 500,
+            'M' => 1000,
             _ => return None,
         };
-        if val < prev { result -= val; } else { result += val; }
+        if val < prev {
+            result -= val;
+        } else {
+            result += val;
+        }
         prev = val;
     }
-    if result > 0 { Some(result as u32) } else { None }
+    if result > 0 {
+        Some(result as u32)
+    } else {
+        None
+    }
 }
 
 pub struct EpisodeMatcher;
@@ -172,15 +186,18 @@ impl PropertyMatcher for EpisodeMatcher {
             let ep_start: u32 = cap.name("ep_start").unwrap().as_str().parse().unwrap_or(0);
 
             matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Season, season.to_string())
-                    .with_tag("SxxExx")
-                    .with_priority(5),
+                MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Season,
+                    season.to_string(),
+                )
+                .with_tag("SxxExx")
+                .with_priority(5),
             );
 
             // Check for multi-episode.
-            let ep_end = cap
-                .name("ep2")
-                .and_then(|m| m.as_str().parse::<u32>().ok());
+            let ep_end = cap.name("ep2").and_then(|m| m.as_str().parse::<u32>().ok());
 
             match ep_end {
                 Some(end) if end > ep_start => {
@@ -189,18 +206,33 @@ impl PropertyMatcher for EpisodeMatcher {
                 Some(end) => {
                     // E01E02 style (not a range, individual episodes).
                     matches.push(
-                        MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                            .with_priority(5),
+                        MatchSpan::new(
+                            full.start(),
+                            full.end(),
+                            Property::Episode,
+                            ep_start.to_string(),
+                        )
+                        .with_priority(5),
                     );
                     matches.push(
-                        MatchSpan::new(full.start(), full.end(), Property::Episode, end.to_string())
-                            .with_priority(5),
+                        MatchSpan::new(
+                            full.start(),
+                            full.end(),
+                            Property::Episode,
+                            end.to_string(),
+                        )
+                        .with_priority(5),
                     );
                 }
                 None => {
                     matches.push(
-                        MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                            .with_priority(5),
+                        MatchSpan::new(
+                            full.start(),
+                            full.end(),
+                            Property::Episode,
+                            ep_start.to_string(),
+                        )
+                        .with_priority(5),
                     );
                 }
             }
@@ -265,13 +297,16 @@ impl PropertyMatcher for EpisodeMatcher {
                 let ep_start: u32 = cap.name("ep_start").unwrap().as_str().parse().unwrap_or(0);
 
                 matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Season, season.to_string())
-                        .with_priority(3),
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Season,
+                        season.to_string(),
+                    )
+                    .with_priority(3),
                 );
 
-                let ep_end = cap
-                    .name("ep2")
-                    .and_then(|m| m.as_str().parse::<u32>().ok());
+                let ep_end = cap.name("ep2").and_then(|m| m.as_str().parse::<u32>().ok());
 
                 match ep_end {
                     Some(end) if end > ep_start => {
@@ -279,18 +314,33 @@ impl PropertyMatcher for EpisodeMatcher {
                     }
                     Some(end) => {
                         matches.push(
-                            MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                                .with_priority(3),
+                            MatchSpan::new(
+                                full.start(),
+                                full.end(),
+                                Property::Episode,
+                                ep_start.to_string(),
+                            )
+                            .with_priority(3),
                         );
                         matches.push(
-                            MatchSpan::new(full.start(), full.end(), Property::Episode, end.to_string())
-                                .with_priority(3),
+                            MatchSpan::new(
+                                full.start(),
+                                full.end(),
+                                Property::Episode,
+                                end.to_string(),
+                            )
+                            .with_priority(3),
                         );
                     }
                     None => {
                         matches.push(
-                            MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                                .with_priority(3),
+                            MatchSpan::new(
+                                full.start(),
+                                full.end(),
+                                Property::Episode,
+                                ep_start.to_string(),
+                            )
+                            .with_priority(3),
                         );
                     }
                 }
@@ -385,31 +435,29 @@ impl PropertyMatcher for EpisodeMatcher {
         }
 
         // 8. Bare episode after dots: `Show.05.Title`.
-        if !matches.iter().any(|m| m.property == Property::Episode) {
-            for cap in captures_iter(&BARE_EPISODE, input) {
-                let full = cap.get(0).unwrap();
-                let episode = parse_num(&cap, "episode");
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                        .with_tag("bare")
-                        .with_priority(-1),
-                );
-                break; // Only the first bare number.
-            }
+        if !matches.iter().any(|m| m.property == Property::Episode)
+            && let Some(cap) = captures_iter(&BARE_EPISODE, input).into_iter().next()
+        {
+            let full = cap.get(0).unwrap();
+            let episode = parse_num(&cap, "episode");
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                    .with_tag("bare")
+                    .with_priority(-1),
+            );
         }
 
         // 9. Versioned episode: `Show.07v4` or `312v1`.
-        if !matches.iter().any(|m| m.property == Property::Episode) {
-            for cap in captures_iter(&VERSIONED_EPISODE, input) {
-                let full = cap.get(0).unwrap();
-                let episode = parse_num(&cap, "episode");
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                        .with_tag("versioned")
-                        .with_priority(1),
-                );
-                break;
-            }
+        if !matches.iter().any(|m| m.property == Property::Episode)
+            && let Some(cap) = captures_iter(&VERSIONED_EPISODE, input).into_iter().next()
+        {
+            let full = cap.get(0).unwrap();
+            let episode = parse_num(&cap, "episode");
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                    .with_tag("versioned")
+                    .with_priority(1),
+            );
         }
 
         // 9b. Leading episode: `01 - Ep Name`, `003. Show Name`.
@@ -456,20 +504,34 @@ impl PropertyMatcher for EpisodeMatcher {
                     continue;
                 }
                 // Skip year-like and codec-related numbers.
-                if num_str.len() == 4 && (1920..=2039).contains(&num) { continue; }
-                if num == 264 || num == 265 || num == 128 { continue; }
+                if num_str.len() == 4 && (1920..=2039).contains(&num) {
+                    continue;
+                }
+                if num == 264 || num == 265 || num == 128 {
+                    continue;
+                }
                 // Decompose: e.g., 501 → S5E01, 117 → S1E17, 2401 → S24E01.
                 let (season, episode) = (num / 100, num % 100);
                 if season == 0 || episode == 0 || season > 30 || episode > 99 {
                     continue;
                 }
                 matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Season, season.to_string())
-                        .with_priority(0),
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Season,
+                        season.to_string(),
+                    )
+                    .with_priority(0),
                 );
                 matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode.to_string())
-                        .with_priority(0),
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        episode.to_string(),
+                    )
+                    .with_priority(0),
                 );
                 break; // Only decompose the first occurrence.
             }
@@ -486,114 +548,201 @@ mod tests {
     #[test]
     fn test_s01e02() {
         let m = EpisodeMatcher.find_matches("Show.S01E02.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "1")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "2")
+        );
     }
 
     #[test]
     fn test_multi_episode_e01e02() {
         let m = EpisodeMatcher.find_matches("Show.S01E01E02.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "1")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "2")
+        );
     }
 
     #[test]
     fn test_multi_episode_e01_dash_02() {
         let m = EpisodeMatcher.find_matches("Show.S03E01-02.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "1")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "2")
+        );
     }
 
     #[test]
     fn test_multi_episode_e01_dash_e02() {
         let m = EpisodeMatcher.find_matches("Show.S03E01-E02.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "1")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "2")
+        );
     }
 
     #[test]
     fn test_1x03() {
         let m = EpisodeMatcher.find_matches("Show.1x03.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "1")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "3")
+        );
     }
 
     #[test]
     fn test_s03_dash_e01() {
         let m = EpisodeMatcher.find_matches("Parks_and_Recreation-s03-e01.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "3"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "3")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "1")
+        );
     }
 
     #[test]
     fn test_s06xe01() {
         let m = EpisodeMatcher.find_matches("The Office - S06xE01.avi");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "6"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "6")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "1")
+        );
     }
 
     #[test]
     fn test_episode_word() {
         let m = EpisodeMatcher.find_matches("Show Season 2 Episode 5");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "2"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "5"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "2")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "5")
+        );
     }
 
     #[test]
     fn test_standalone_ep() {
         let m = EpisodeMatcher.find_matches("Show.E05.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "5"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "5")
+        );
     }
 
     #[test]
     fn test_season_dir() {
         let m = EpisodeMatcher.find_matches("TV/Show/Season 6/file.avi");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "6"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "6")
+        );
     }
 
     #[test]
     fn test_s01_only() {
         let m = EpisodeMatcher.find_matches("Show.S01Extras.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "1")
+        );
     }
 
     #[test]
     fn test_s03_dash_x01() {
         let m = EpisodeMatcher.find_matches("Parks_and_Recreation-s03-x01.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "3"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "3")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "1")
+        );
     }
 
     #[test]
     fn test_three_digit_501() {
         let m = EpisodeMatcher.find_matches("the.mentalist.501.hdtv.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "5"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "5")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "1")
+        );
     }
 
     #[test]
     fn test_three_digit_117() {
         let m = EpisodeMatcher.find_matches("new.girl.117.hdtv.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "17"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "1")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "17")
+        );
     }
 
     #[test]
     fn test_four_digit_2401() {
         let m = EpisodeMatcher.find_matches("the.simpsons.2401.hdtv.mkv");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "24"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "24")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "1")
+        );
     }
 
     #[test]
     fn test_anime_dash_episode() {
         let m = EpisodeMatcher.find_matches("Show Name - 03 Vostfr HD");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "3")
+        );
     }
 
     #[test]
     fn test_bare_dot_episode() {
         let m = EpisodeMatcher.find_matches("Neverwhere.05.Down.Street.avi");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "5"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "5")
+        );
     }
 }

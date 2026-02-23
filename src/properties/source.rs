@@ -3,8 +3,8 @@
 //! When a source includes "Rip" (e.g., DVDRip), we emit BOTH
 //! `Source` and `Other: "Rip"` to match guessit's behavior.
 
-use lazy_static::lazy_static;
 use fancy_regex::Regex;
+use lazy_static::lazy_static;
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
@@ -155,7 +155,10 @@ mod tests {
     #[test]
     fn test_bluray() {
         let m = SourceMatcher.find_matches("Movie.BluRay.mkv");
-        assert!(m.iter().any(|x| x.value == "Blu-ray" && x.property == Property::Source));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "Blu-ray" && x.property == Property::Source)
+        );
         // No Rip flag for plain Blu-ray.
         assert!(!m.iter().any(|x| x.value == "Rip"));
     }
@@ -163,8 +166,14 @@ mod tests {
     #[test]
     fn test_dvdrip_emits_rip() {
         let m = SourceMatcher.find_matches("Movie.DVDRip.mkv");
-        assert!(m.iter().any(|x| x.value == "DVD" && x.property == Property::Source));
-        assert!(m.iter().any(|x| x.value == "Rip" && x.property == Property::Other));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "DVD" && x.property == Property::Source)
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.value == "Rip" && x.property == Property::Other)
+        );
     }
 
     #[test]
@@ -183,7 +192,10 @@ mod tests {
     fn test_webrip() {
         let m = SourceMatcher.find_matches("Movie.WEBRip.mkv");
         assert!(m.iter().any(|x| x.value == "Web"));
-        assert!(m.iter().any(|x| x.value == "Rip" && x.property == Property::Other));
+        assert!(
+            m.iter()
+                .any(|x| x.value == "Rip" && x.property == Property::Other)
+        );
     }
 
     #[test]

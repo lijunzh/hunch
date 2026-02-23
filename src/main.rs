@@ -1,10 +1,13 @@
 //! Hunch CLI — parse media filenames from the command line.
 
 use clap::Parser;
-use hunch::{hunch, hunch_with, Options};
+use hunch::{Options, hunch, hunch_with};
 
 #[derive(Parser)]
-#[command(name = "hunch", about = "Media filename parser — spiritual descendant of guessit")]
+#[command(
+    name = "hunch",
+    about = "Media filename parser — spiritual descendant of guessit"
+)]
 #[command(version)]
 struct Cli {
     /// Filename or release name to parse.

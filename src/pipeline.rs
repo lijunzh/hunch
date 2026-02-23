@@ -116,24 +116,28 @@ impl Pipeline {
         // 3d: Compute proper_count from Other:Proper matches in the filename.
         let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
         let mut proper_count: u32 = 0;
-        for m in all_matches.iter().filter(|m| {
-            m.property == Property::Other && m.value == "Proper" && m.start >= fn_start
-        }) {
+        for m in all_matches
+            .iter()
+            .filter(|m| m.property == Property::Other && m.value == "Proper" && m.start >= fn_start)
+        {
             let raw = &input[m.start..m.end];
             // Check for trailing digit: REPACK5 → 5.
             let re = fancy_regex::Regex::new(r"(?i)(?:REPACK|RERIP)(\d+)$").unwrap();
-            if let Ok(Some(caps)) = re.captures(raw) {
-                if let Some(num) = caps.get(1) {
-                    proper_count += num.as_str().parse::<u32>().unwrap_or(1);
-                    continue;
-                }
+            if let Ok(Some(caps)) = re.captures(raw)
+                && let Some(num) = caps.get(1)
+            {
+                proper_count += num.as_str().parse::<u32>().unwrap_or(1);
+                continue;
             }
             proper_count += 1;
         }
         if proper_count > 0 {
-            all_matches.push(
-                MatchSpan::new(0, 0, Property::ProperCount, proper_count.to_string()),
-            );
+            all_matches.push(MatchSpan::new(
+                0,
+                0,
+                Property::ProperCount,
+                proper_count.to_string(),
+            ));
         }
 
         // Step 4: Build the Guess result.
@@ -144,7 +148,6 @@ impl Pipeline {
     /// This prevents language names (French, Italian, English, etc.) from
     /// eating title words like "The Italian Job" or "Immersion French".
     fn prune_language_in_title_zone(&self, input: &str, matches: &mut Vec<MatchSpan>) {
-
         // Find the filename portion start.
         let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
 
@@ -175,7 +178,10 @@ impl Pipeline {
             // (likely part of the title rather than metadata).
             let title_zone_end = fn_start + (tech_pos - fn_start) / 2;
             matches.retain(|m| {
-                if m.property == Property::Language && m.start < title_zone_end && m.start >= fn_start {
+                if m.property == Property::Language
+                    && m.start < title_zone_end
+                    && m.start >= fn_start
+                {
                     false // prune it — likely a title word
                 } else {
                     true

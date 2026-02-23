@@ -37,7 +37,7 @@ impl PropertyMatcher for ScreenSizeMatcher {
             let lower = raw.to_lowercase();
 
             // Strip optional WxH prefix.
-            let height_part = if let Some(idx) = lower.rfind(|c: char| c == 'x' || c == '*') {
+            let height_part = if let Some(idx) = lower.rfind(['x', '*']) {
                 &lower[idx + 1..]
             } else {
                 &lower
@@ -70,7 +70,7 @@ impl PropertyMatcher for ScreenSizeMatcher {
             }
             let raw = &input[start..end];
             // Extract height from WxH.
-            if let Some(sep) = raw.find(|c: char| c == 'x' || c == '*' || c == 'X') {
+            if let Some(sep) = raw.find(['x', '*', 'X']) {
                 let height_str = raw[sep + 1..].trim();
                 let value = format!("{height_str}p");
                 matches.push(MatchSpan::new(start, end, Property::ScreenSize, value));

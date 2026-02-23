@@ -29,7 +29,12 @@ impl PropertyMatcher for ColorDepthMatcher {
         let mut matches = Vec::new();
         for pattern in COLOR_DEPTH_PATTERNS.iter() {
             for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(start, end, Property::ColorDepth, pattern.value));
+                matches.push(MatchSpan::new(
+                    start,
+                    end,
+                    Property::ColorDepth,
+                    pattern.value,
+                ));
             }
         }
         matches
