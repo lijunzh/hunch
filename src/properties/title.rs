@@ -273,11 +273,22 @@ fn clean_title(raw: &str) -> String {
         s = before_paren_strip;
     }
 
-    // Replace separators with spaces.
-    let cleaned: String = s
-        .chars()
-        .map(|c| {
-            if SEPS.contains(&c) || BRACKETS.contains(&c) {
+    // Replace separators with spaces, but preserve hyphens between letters.
+    let chars: Vec<char> = s.chars().collect();
+    let cleaned: String = chars
+        .iter()
+        .enumerate()
+        .map(|(i, &c)| {
+            if c == '-' {
+                // Preserve hyphens between alphanumeric chars (e.g., X-Men, Re-Animator).
+                let prev_alnum = i > 0 && chars[i - 1].is_alphanumeric();
+                let next_alnum = i + 1 < chars.len() && chars[i + 1].is_alphanumeric();
+                if prev_alnum && next_alnum {
+                    '-'
+                } else {
+                    ' '
+                }
+            } else if SEPS.contains(&c) || BRACKETS.contains(&c) {
                 ' '
             } else {
                 c
