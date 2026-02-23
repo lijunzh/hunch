@@ -35,14 +35,15 @@ impl PropertyMatcher for ScreenSizeMatcher {
         for (start, end) in STANDARD_RES.find_iter(input) {
             let raw = &input[start..end];
             let lower = raw.to_lowercase();
+
             // Strip optional WxH prefix.
             let height_part = if let Some(idx) = lower.rfind(|c: char| c == 'x' || c == '*') {
                 &lower[idx + 1..]
             } else {
                 &lower
             };
+
             // Extract the resolution number and scan type.
-            // Patterns: "720p", "720p60", "720pHD", "720px", "720hd", "1080i"
             let value = if let Some(caps) = fancy_regex::Regex::new(r"(?i)(\d+)([ip]|hd)")
                 .unwrap()
                 .captures(height_part)
@@ -51,11 +52,10 @@ impl PropertyMatcher for ScreenSizeMatcher {
             {
                 let num = caps.get(1).unwrap().as_str();
                 let scan = caps.get(2).unwrap().as_str().to_lowercase();
-                // "hd" suffix maps to progressive.
                 let scan_char = if scan == "hd" { "p" } else { &scan };
                 format!("{num}{scan_char}")
             } else {
-                lower.to_string()
+                height_part.to_string()
             };
             matches.push(MatchSpan::new(start, end, Property::ScreenSize, value));
         }
@@ -64,6 +64,9 @@ impl PropertyMatcher for ScreenSizeMatcher {
         for (start, end) in EXPLICIT_RES.find_iter(input) {
             if matches.iter().any(|m| m.start == start && m.end == end) {
                 continue;
+            }
+            if matches.iter().any(|m| !(m.end <= start || m.start >= end)) {
+                continue; // Already matched by STANDARD_RES.
             }
             let raw = &input[start..end];
             // Extract height from WxH.
