@@ -16,7 +16,7 @@ to parse filenames like `The.Matrix.1999.1080p.BluRay.x264-SPARKS.mkv` into stru
 - ⚡ **Fast**: pure Rust with lazy-compiled regexes, processes thousands of filenames per second
 - 🧠 **Smart conflict resolution**: priority-based overlap handling
 - 📁 **Path-aware**: extracts titles from parent directories, detects seasons from paths
-- 🎯 **50% guessit compatibility** on the full guessit test suite (976 cases)
+- 🎯 **58% guessit compatibility** on the full guessit test suite (1330 cases)
   and **90%+ accuracy** on core properties (video_codec, audio_codec, screen_size,
   source, edition, year, audio_channels, container)
 
@@ -59,20 +59,20 @@ assert_eq!(guess.video_codec(), Some("H.264"));
 
 | Property | Accuracy | Examples |
 |----------|----------|----------|
-| video_codec | 98.7% | H.264, H.265, Xvid, AV1 |
+| video_codec | 98.6% | H.264, H.265, Xvid, AV1 |
 | year | 96.8% | 1999, 2024 |
-| screen_size | 95.9% | 720p, 1080p, 2160p, 4K |
-| audio_codec | 94.3% | AAC, DTS-HD, Dolby Atmos |
-| edition | 94.1% | Director's Cut, Extended |
-| source | 93.4% | Blu-ray, Web, HDTV, DVD |
-| audio_channels | 91.7% | 5.1, 7.1, 2.0 |
-| container | 91.0% | mkv, mp4, avi |
-| type | 89.5% | movie, episode |
-| season | 88.1% | S01, Season 1 |
-| release_group | 81.0% | SPARKS, FGT, [SubGroup] |
-| episode | 77.6% | E02, 1x03, 501 |
-| title | 70.1% | The Matrix |
-| other | 69.8% | HDR10, Remux, Proper |
+| edition | 96.4% | Director's Cut, Extended |
+| source | 94.3% | Blu-ray, Web, HDTV, DVD |
+| audio_codec | 94.2% | AAC, DTS-HD, Dolby Atmos |
+| screen_size | 93.0% | 720p, 1080p, 2160p, 4K |
+| audio_channels | 92.4% | 5.1, 7.1, 2.0 |
+| type | 90.5% | movie, episode |
+| container | 89.7% | mkv, mp4, avi |
+| season | 86.9% | S01, Season 1 |
+| release_group | 80.6% | SPARKS, FGT, [SubGroup] |
+| episode | 78.5% | E02, 1x03, 501 |
+| other | 71.6% | HDR10, Remux, Proper |
+| title | 71.3% | The Matrix |
 
 ## Architecture
 
