@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Integration test runner: validate hunch against guessit's YAML test vectors.
+"""Compatibility report generator: validate hunch against guessit's YAML test vectors.
 
-Parses guessit's YAML test files, runs hunch CLI against each test case,
-and reports pass/fail rates per property and per file.
+Parses YAML test files from tests/fixtures/ (copied from guessit),
+runs hunch CLI against each test case, and reports pass/fail rates
+per property and per file. No external guessit repo needed.
 
 Usage:
-    python3 tests/validate_guessit.py
+    cargo build --release
+    uv run --with pyyaml python3 tests/validate_guessit.py
 """
 
 import json
@@ -16,7 +18,7 @@ from pathlib import Path
 import yaml
 
 HUNCH_BIN = Path(__file__).parent.parent / "target" / "release" / "hunch"
-GUESSIT_TEST_DIR = Path(__file__).parent.parent.parent / "guessit" / "guessit" / "test"
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 # Properties hunch knows about (maps guessit names -> hunch JSON keys).
 PROPERTY_MAP = {
@@ -329,24 +331,35 @@ def main():
         print("Run: cargo build --release")
         sys.exit(1)
 
-    if not GUESSIT_TEST_DIR.exists():
-        print(f"ERROR: guessit test dir not found at {GUESSIT_TEST_DIR}")
+    if not FIXTURES_DIR.exists():
+        print(f"ERROR: fixtures dir not found at {FIXTURES_DIR}")
+        print("Expected test fixtures in tests/fixtures/")
         sys.exit(1)
 
-    # Test files to validate against.
+    # Test files to validate against (all bundled fixtures).
     test_files = [
         "movies.yml",
         "episodes.yml",
         "various.yml",
-        "rules/video_codec.yml",
         "rules/audio_codec.yml",
-        "rules/screen_size.yml",
-        "rules/source.yml",
+        "rules/bonus.yml",
+        "rules/cd.yml",
+        "rules/common_words.yml",
+        "rules/country.yml",
+        "rules/date.yml",
         "rules/edition.yml",
-        "rules/other.yml",
-        "rules/release_group.yml",
-        "rules/title.yml",
         "rules/episodes.yml",
+        "rules/film.yml",
+        "rules/language.yml",
+        "rules/other.yml",
+        "rules/part.yml",
+        "rules/release_group.yml",
+        "rules/screen_size.yml",
+        "rules/size.yml",
+        "rules/source.yml",
+        "rules/title.yml",
+        "rules/video_codec.yml",
+        "rules/website.yml",
     ]
 
     total_passed = 0
@@ -357,7 +370,7 @@ def main():
     failure_examples: list[tuple[str, str, dict]] = []  # (file, input, failures)
 
     for tf in test_files:
-        filepath = GUESSIT_TEST_DIR / tf
+        filepath = FIXTURES_DIR / tf
         if not filepath.exists():
             print(f"  SKIP (not found): {tf}")
             continue
