@@ -33,15 +33,15 @@ lazy_static! {
     ).unwrap();
 
     static ref SEASON_ONLY: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])"
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Tem\.?)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])"
     ).unwrap();
 
     static ref SEASON_ROMAN: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison)\s*\.?\s*(?P<season>(?:X{0,3})(?:IX|IV|V?I{0,3}))(?![a-z])"
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<season>(?:X{0,3})(?:IX|IV|V?I{0,3}))(?![a-z])"
     ).unwrap();
 
     static ref SEASON_DIR: Regex = Regex::new(
-        r"(?i)(?:Season|Saison)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])"
+        r"(?i)(?:Season|Saison|Temporada)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])"
     ).unwrap();
 
     /// Episode-only: Episode 1, Episode.01.

@@ -299,11 +299,11 @@ fn clean_title(raw: &str) -> String {
         }
     }
 
-    // Strip trailing "Saison" + roman numeral: "Dexter Saison VII" → "Dexter".
-    let re_saison = fancy_regex::Regex::new(
-        r"(?i)\s+Saison\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$"
+    // Strip trailing season words: "Dexter Saison VII" → "Dexter".
+    let re_season_word = fancy_regex::Regex::new(
+        r"(?i)\s+(?:Saison|Temporada|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
     ).unwrap();
-    if let Ok(Some(m)) = re_saison.find(&result) {
+    if let Ok(Some(m)) = re_season_word.find(&result) {
         let stripped = result[..m.start()].to_string();
         if !stripped.trim().is_empty() {
             result = stripped;
