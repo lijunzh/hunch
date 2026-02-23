@@ -41,7 +41,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])DUBBED(?![a-z])", "Dubbed"),
         ValuePattern::new(r"(?i)(?<![a-z])SUBBED(?![a-z])", "Subbed"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:HARDCODED|HC)[-. ]?SUBS?(?![a-z])", "Hardcoded Subtitles"),
-        ValuePattern::new(r"(?i)(?<![a-z])Fan[-. ]?Sub(?:bed|titled|s)?(?![a-z])", "Fan Subtitled"),
+        ValuePattern::new(r"(?i)(?<![a-z])Fan[-. ]Sub(?:bed|titled|s)(?![a-z])", "Fan Subtitled"),
         ValuePattern::new(r"(?i)(?<![a-z])Fast[-. ]?Sub(?:bed|titled|s)?(?![a-z])", "Fast Subtitled"),
         // Widescreen.
         ValuePattern::new(r"(?i)(?<![a-z])(?:Wide[-. ]?Screen|WS)(?![a-z])", "Widescreen"),
