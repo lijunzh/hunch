@@ -264,6 +264,120 @@ fn strip_extension(s: &str) -> &str {
     s
 }
 
+/// Extract episode title: the text between the last episode/season marker
+/// and the next technical property in the filename portion.
+pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
+    let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let filename = &input[filename_start..];
+    let filename_end = filename_start + filename.len();
+
+    // Must have an actual episode match (not just season).
+    let has_episode = matches
+        .iter()
+        .any(|m| m.property == Property::Episode && m.start >= filename_start);
+    if !has_episode {
+        return None;
+    }
+
+    // Find the last episode/season match in the filename.
+    let last_ep_match = matches
+        .iter()
+        .filter(|m| {
+            m.start >= filename_start
+                && (m.property == Property::Episode || m.property == Property::Season)
+        })
+        .max_by_key(|m| m.end)?;
+
+    let ep_title_start = last_ep_match.end;
+
+    // Find the next "technical" property match after the episode marker.
+    // Exclude ReleaseGroup — it's positional (last word) and would eat the
+    // episode title's last word otherwise.
+    let technical_props = [
+        Property::VideoCodec,
+        Property::AudioCodec,
+        Property::Source,
+        Property::ScreenSize,
+        Property::Edition,
+        Property::Other,
+        Property::AudioChannels,
+        Property::Language,
+        Property::Container,
+        Property::StreamingService,
+        Property::Year,
+    ];
+
+    let next_tech = matches
+        .iter()
+        .filter(|m| {
+            m.start >= ep_title_start
+                && m.start < filename_end
+                && technical_props.contains(&m.property)
+        })
+        .min_by_key(|m| m.start);
+
+    let ep_title_end = match next_tech {
+        Some(m) => m.start,
+        None => {
+            // No technical property — check for extension via container matches.
+            let has_container = matches.iter().any(|m| {
+                m.property == Property::Container && m.start >= filename_start
+            });
+            if has_container {
+                // Use position of last dot as extension separator.
+                let ext_dot = filename.rfind('.');
+                match ext_dot {
+                    Some(pos) => filename_start + pos,
+                    None => filename_end,
+                }
+            } else {
+                filename_end
+            }
+        }
+    };
+
+    if ep_title_end <= ep_title_start {
+        return None;
+    }
+
+    let raw = &input[ep_title_start..ep_title_end];
+    let cleaned = clean_title(raw);
+
+    if cleaned.is_empty() {
+        return None;
+    }
+
+    // Reject if the cleaned title is just a number, year-like, or too short/noisy.
+    let trimmed = cleaned.trim();
+    if trimmed.chars().all(|c| c.is_ascii_digit()) {
+        return None; // Pure number — likely a misidentified episode/season.
+    }
+    if trimmed.len() <= 1 {
+        return None; // Too short to be meaningful.
+    }
+    // Reject if it looks like a season reference.
+    let lower = trimmed.to_lowercase();
+    if lower.starts_with("season") || lower.starts_with("saison") || lower.starts_with("tem") {
+        return None;
+    }
+    // Reject if it contains another episode/season match within it.
+    let has_ep_in_gap = matches.iter().any(|m| {
+        m.start >= ep_title_start
+            && m.end <= ep_title_end
+            && (m.property == Property::Episode || m.property == Property::Season)
+    });
+    if has_ep_in_gap {
+        return None;
+    }
+
+    Some(MatchSpan::new(
+        ep_title_start,
+        ep_title_end,
+        Property::EpisodeTitle,
+        cleaned,
+    ))
+}
+
 /// Infer media type from the set of matched properties.
 pub fn infer_media_type(matches: &[MatchSpan]) -> Option<MatchSpan> {
     let has_episode = matches.iter().any(|m| m.property == Property::Episode);

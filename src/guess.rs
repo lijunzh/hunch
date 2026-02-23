@@ -113,6 +113,12 @@ impl Guess {
         self.first(Property::StreamingService)
     }
 
+    /// Proper count (number of PROPER/REPACK occurrences).
+    pub fn proper_count(&self) -> Option<u32> {
+        self.first(Property::ProperCount)
+            .and_then(|s| s.parse().ok())
+    }
+
     /// Detected media type.
     pub fn media_type(&self) -> Option<MediaType> {
         match self.first(Property::MediaType)?.to_lowercase().as_str() {

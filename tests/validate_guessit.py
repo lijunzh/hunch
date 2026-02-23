@@ -24,6 +24,7 @@ PROPERTY_MAP = {
     "year": "year",
     "season": "season",
     "episode": "episode",
+    "episode_title": "episode_title",
     "video_codec": "video_codec",
     "audio_codec": "audio_codec",
     "audio_channels": "audio_channels",
@@ -33,6 +34,8 @@ PROPERTY_MAP = {
     "release_group": "release_group",
     "edition": "edition",
     "type": "type",
+    "proper_count": "proper_count",
+    "streaming_service": "streaming_service",
     # Properties we map from guessit's "other" list.
     "other": "other",
 }
@@ -40,9 +43,9 @@ PROPERTY_MAP = {
 # Properties hunch does NOT implement yet.
 UNIMPLEMENTED = {
     "subtitle_language", "country", "date",
-    "episode_title", "website",
+    "website",
     "video_profile", "audio_profile", "color_depth",
-    "proper_count", "cd", "cd_count", "part",
+    "cd", "cd_count", "part",
     "film", "film_title", "bonus", "bonus_title",
     "episode_format", "episode_details", "disc", "week",
     "size", "aspect_ratio", "uuid", "crc32",

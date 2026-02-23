@@ -2,7 +2,7 @@
 
 use crate::guess::Guess;
 use crate::matcher::engine::MatchEngine;
-use crate::matcher::span::MatchSpan;
+use crate::matcher::span::{MatchSpan, Property};
 use crate::options::Options;
 use crate::properties::PropertyMatcher;
 use crate::properties::audio_codec::AudioCodecMatcher;
@@ -75,9 +75,25 @@ impl Pipeline {
             all_matches.push(title_match);
         }
 
-        // 3b: Infer media type.
+        // 3b: Extract episode title (text between episode marker and next property).
+        if let Some(ep_title) = title::extract_episode_title(input, &all_matches) {
+            all_matches.push(ep_title);
+        }
+
+        // 3c: Infer media type.
         if let Some(type_match) = title::infer_media_type(&all_matches) {
             all_matches.push(type_match);
+        }
+
+        // 3c: Compute proper_count from Other:Proper matches.
+        let proper_count = all_matches
+            .iter()
+            .filter(|m| m.property == Property::Other && m.value == "Proper")
+            .count();
+        if proper_count > 0 {
+            all_matches.push(
+                MatchSpan::new(0, 0, Property::ProperCount, proper_count.to_string()),
+            );
         }
 
         // Step 4: Build the Guess result.
@@ -88,7 +104,6 @@ impl Pipeline {
     /// This prevents language names (French, Italian, English, etc.) from
     /// eating title words like "The Italian Job" or "Immersion French".
     fn prune_language_in_title_zone(&self, input: &str, matches: &mut Vec<MatchSpan>) {
-        use crate::matcher::span::Property;
 
         // Find the filename portion start.
         let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);

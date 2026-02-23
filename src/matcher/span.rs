@@ -36,6 +36,7 @@ pub enum Property {
     Film,
     Part,
     Crc,
+    ProperCount,
     MediaType,
 }
 
@@ -73,6 +74,7 @@ impl fmt::Display for Property {
             Self::Film => "film",
             Self::Part => "part",
             Self::Crc => "crc",
+            Self::ProperCount => "proper_count",
             Self::MediaType => "type",
         };
         write!(f, "{s}")
