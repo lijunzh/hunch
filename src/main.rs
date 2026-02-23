@@ -1,7 +1,7 @@
 //! Hunch CLI — parse media filenames from the command line.
 
 use clap::Parser;
-use hunch::{guess, guess_with, Options};
+use hunch::{hunch, hunch_with, Options};
 
 #[derive(Parser)]
 #[command(name = "hunch", about = "Media filename parser — spiritual descendant of guessit")]
@@ -41,9 +41,9 @@ fn main() {
 
     for filename in &cli.filename {
         let result = if cli.media_type.is_some() || cli.name_only {
-            guess_with(filename, options.clone())
+            hunch_with(filename, options.clone())
         } else {
-            guess(filename)
+            hunch(filename)
         };
 
         if cli.json {

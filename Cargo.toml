@@ -2,8 +2,11 @@
 name = "hunch"
 version = "0.1.0"
 edition = "2024"
-description = "A media filename parser for Rust — spiritual descendant of guessit"
+authors = ["Lijun Zhu"]
+description = "A Rust port of guessit — extract media metadata from filenames"
 license = "MIT"
+repository = "https://github.com/lijunzh/hunch"
+homepage = "https://github.com/lijunzh/hunch"
 keywords = ["media", "parser", "filename", "movies", "episodes"]
 categories = ["multimedia", "parser-implementations"]
 readme = "README.md"

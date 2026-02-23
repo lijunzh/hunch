@@ -1,16 +1,18 @@
 //! # Hunch
 //!
-//! A media filename parser for Rust — spiritual descendant of Python's guessit.
+//! A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
+//! for extracting media metadata from filenames.
 //!
-//! Extracts structured metadata (title, year, season, episode, video codec, etc.)
-//! from media filenames and release names.
+//! Hunch parses messy media filenames and release names into structured
+//! metadata: title, year, season, episode, video codec, audio codec,
+//! resolution, and 35+ other properties.
 //!
 //! ## Quick Start
 //!
 //! ```rust
-//! use hunch::guess;
+//! use hunch::hunch;
 //!
-//! let result = guess("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
+//! let result = hunch("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
 //! assert_eq!(result.title(), Some("The Matrix"));
 //! assert_eq!(result.year(), Some(1999));
 //! assert_eq!(result.screen_size(), Some("1080p"));
@@ -34,11 +36,27 @@ pub use pipeline::Pipeline;
 /// Parse a media filename and return structured metadata.
 ///
 /// This is the main entry point for the library.
-pub fn guess(input: &str) -> Guess {
+///
+/// ```rust
+/// let result = hunch::hunch("Movie.2024.1080p.BluRay.x264-GROUP.mkv");
+/// assert_eq!(result.title(), Some("Movie"));
+/// assert_eq!(result.year(), Some(2024));
+/// ```
+pub fn hunch(input: &str) -> Guess {
     Pipeline::default().run(input)
 }
 
 /// Parse a media filename with custom options.
-pub fn guess_with(input: &str, options: Options) -> Guess {
+pub fn hunch_with(input: &str, options: Options) -> Guess {
     Pipeline::new(options).run(input)
+}
+
+// Backwards-compatible aliases.
+#[doc(hidden)]
+pub fn guess(input: &str) -> Guess {
+    hunch(input)
+}
+#[doc(hidden)]
+pub fn guess_with(input: &str, options: Options) -> Guess {
+    hunch_with(input, options)
 }

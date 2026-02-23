@@ -22,10 +22,10 @@ cargo add hunch
 ### As a library
 
 ```rust
-use hunch::parse;
+use hunch::hunch;
 
 fn main() {
-    let result = parse("The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv");
+    let result = hunch("The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv");
     println!("{:#?}", result);
     // GuessResult {
     //   title: Some("The Walking Dead"),
