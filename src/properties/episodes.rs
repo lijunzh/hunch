@@ -1,21 +1,8 @@
 //! Season / episode detection.
-//!
-//! Supported patterns:
-//! - S01E02, S01E02E03, S01E02-E05, S01E02-05
-//! - s03-e01, s03-e02 (dash-separated)
-//! - S06xE01 (x separator)
-//! - 1x03, 5x9, 5x44x45x46 (NxN)
-//! - E01, Ep01, Ep.01 (standalone episode)
-//! - Season 1, Season.01 (standalone season)
-//! - Episode 1, Episode.01 (episode word)
-//! - 3-digit: 101 → S01E01, 117 → S01E17
-//! - [401] bracket episode numbers
-//! - Season from path: /Season 6/ → S06
-//! - Anime: `- 01`, `- 001`
-
+//! Supports S01E02, 1x03, Season/Saison, Episode, 3/4-digit decomposition,
+//! anime-style, path-based seasons, and Roman numeral seasons.
 use lazy_static::lazy_static;
 use fancy_regex::Regex;
-
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
 
@@ -45,17 +32,14 @@ lazy_static! {
         r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<episode>\d{1,4})(?![a-z0-9])"
     ).unwrap();
 
-    /// Season-only: Season 1, Season.01, Saison 2.
     static ref SEASON_ONLY: Regex = Regex::new(
         r"(?i)(?<![a-z])(?:Season|Saison)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])"
     ).unwrap();
 
-    /// Season with Roman numerals: Saison VII, Season III.
     static ref SEASON_ROMAN: Regex = Regex::new(
         r"(?i)(?<![a-z])(?:Season|Saison)\s*\.?\s*(?P<season>(?:X{0,3})(?:IX|IV|V?I{0,3}))(?![a-z])"
     ).unwrap();
 
-    /// Season from path directory: /Season 6/, /Season.02/.
     static ref SEASON_DIR: Regex = Regex::new(
         r"(?i)(?:Season|Saison)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])"
     ).unwrap();
@@ -163,8 +147,7 @@ fn parse_num(cap: &fancy_regex::Captures, name: &str) -> String {
 fn roman_to_int(s: &str) -> Option<u32> {
     let upper = s.to_uppercase();
     let mut result: i32 = 0;
-    let mut prev = 0;
-    for ch in upper.chars().rev() {
+    let mut prev = 0;    for ch in upper.chars().rev() {
         let val = match ch {
             'I' => 1, 'V' => 5, 'X' => 10, 'L' => 50,
             'C' => 100, 'D' => 500, 'M' => 1000,
@@ -326,7 +309,7 @@ impl PropertyMatcher for EpisodeMatcher {
             }
         }
 
-        // 6b. Season with Roman numerals: Saison VII, Season III.
+        // Roman numeral seasons.
         if !matches.iter().any(|m| m.property == Property::Season) {
             for cap in captures_iter(&SEASON_ROMAN, input) {
                 let full = cap.get(0).unwrap();
@@ -472,21 +455,11 @@ impl PropertyMatcher for EpisodeMatcher {
                 if num == 0 {
                     continue;
                 }
-                // Skip year-like 4-digit numbers (1920-2039).
-                if num_str.len() == 4 && (1920..=2039).contains(&num) {
-                    continue;
-                }
-                // Skip codec-related numbers (264, 265, 128, etc.).
-                if num == 264 || num == 265 || num == 128 {
-                    continue;
-                }
+                // Skip year-like and codec-related numbers.
+                if num_str.len() == 4 && (1920..=2039).contains(&num) { continue; }
+                if num == 264 || num == 265 || num == 128 { continue; }
                 // Decompose: e.g., 501 → S5E01, 117 → S1E17, 2401 → S24E01.
-                let (season, episode) = if num_str.len() == 4 {
-                    (num / 100, num % 100)
-                } else {
-                    // 3-digit: first digit is season, last two are episode.
-                    (num / 100, num % 100)
-                };
+                let (season, episode) = (num / 100, num % 100);
                 if season == 0 || episode == 0 || season > 30 || episode > 99 {
                     continue;
                 }
