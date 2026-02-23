@@ -14,72 +14,66 @@ use crate::properties::PropertyMatcher;
 lazy_static! {
     static ref LANGUAGE_PATTERNS: Vec<ValuePattern> = vec![
         // Full names (case-insensitive, word-bounded).
-        ValuePattern::new(r"(?i)(?<![a-z])English(?![a-z])", "en"),
-        ValuePattern::new(r"(?i)(?<![a-z])French(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])Spanish(?![a-z])", "es"),
-        ValuePattern::new(r"(?i)(?<![a-z])German(?![a-z])", "de"),
-        ValuePattern::new(r"(?i)(?<![a-z])Italian(?![a-z])", "it"),
-        ValuePattern::new(r"(?i)(?<![a-z])Portuguese(?![a-z])", "pt"),
-        ValuePattern::new(r"(?i)(?<![a-z])Russian(?![a-z])", "ru"),
-        ValuePattern::new(r"(?i)(?<![a-z])Japanese(?![a-z])", "ja"),
-        ValuePattern::new(r"(?i)(?<![a-z])Chinese(?![a-z])", "zh"),
-        ValuePattern::new(r"(?i)(?<![a-z])Korean(?![a-z])", "ko"),
-        ValuePattern::new(r"(?i)(?<![a-z])Arabic(?![a-z])", "ar"),
-        ValuePattern::new(r"(?i)(?<![a-z])Hindi(?![a-z])", "hi"),
-        ValuePattern::new(r"(?i)(?<![a-z])Dutch(?![a-z])", "nl"),
-        ValuePattern::new(r"(?i)(?<![a-z])Swedish(?![a-z])", "sv"),
-        ValuePattern::new(r"(?i)(?<![a-z])Norwegian(?![a-z])", "no"),
-        ValuePattern::new(r"(?i)(?<![a-z])Danish(?![a-z])", "da"),
-        ValuePattern::new(r"(?i)(?<![a-z])Finnish(?![a-z])", "fi"),
-        ValuePattern::new(r"(?i)(?<![a-z])Polish(?![a-z])", "pl"),
-        ValuePattern::new(r"(?i)(?<![a-z])Czech(?![a-z])", "cs"),
-        ValuePattern::new(r"(?i)(?<![a-z])Turkish(?![a-z])", "tr"),
-        ValuePattern::new(r"(?i)(?<![a-z])Greek(?![a-z])", "el"),
-        ValuePattern::new(r"(?i)(?<![a-z])Hungarian(?![a-z])", "hu"),
-        ValuePattern::new(r"(?i)(?<![a-z])Romanian(?![a-z])", "ro"),
-        ValuePattern::new(r"(?i)(?<![a-z])Thai(?![a-z])", "th"),
-        ValuePattern::new(r"(?i)(?<![a-z])Vietnamese(?![a-z])", "vi"),
-        ValuePattern::new(r"(?i)(?<![a-z])Catalan(?![a-z])", "ca"),
-        ValuePattern::new(r"(?i)(?<![a-z])Croatian(?![a-z])", "hr"),
-        ValuePattern::new(r"(?i)(?<![a-z])Serbian(?![a-z])", "sr"),
-        ValuePattern::new(r"(?i)(?<![a-z])Bulgarian(?![a-z])", "bg"),
-        ValuePattern::new(r"(?i)(?<![a-z])Ukrainian(?![a-z])", "uk"),
-        ValuePattern::new(r"(?i)(?<![a-z])Hebrew(?![a-z])", "he"),
-        ValuePattern::new(r"(?i)(?<![a-z])Dubbed(?![a-z])", "dubbed"),
+        ValuePattern::new(r"(?i)(?<![a-z])English(?![a-z])", "English"),
+        ValuePattern::new(r"(?i)(?<![a-z])French(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])Spanish(?![a-z])", "Spanish"),
+        ValuePattern::new(r"(?i)(?<![a-z])German(?![a-z])", "German"),
+        ValuePattern::new(r"(?i)(?<![a-z])Italian(?![a-z])", "Italian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Portuguese(?![a-z])", "Portuguese"),
+        ValuePattern::new(r"(?i)(?<![a-z])Russian(?![a-z])", "Russian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Japanese(?![a-z])", "Japanese"),
+        ValuePattern::new(r"(?i)(?<![a-z])Chinese(?![a-z])", "Chinese"),
+        ValuePattern::new(r"(?i)(?<![a-z])Korean(?![a-z])", "Korean"),
+        ValuePattern::new(r"(?i)(?<![a-z])Arabic(?![a-z])", "Arabic"),
+        ValuePattern::new(r"(?i)(?<![a-z])Hindi(?![a-z])", "Hindi"),
+        ValuePattern::new(r"(?i)(?<![a-z])Dutch(?![a-z])", "Dutch"),
+        ValuePattern::new(r"(?i)(?<![a-z])Swedish(?![a-z])", "Swedish"),
+        ValuePattern::new(r"(?i)(?<![a-z])Norwegian(?![a-z])", "Norwegian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Danish(?![a-z])", "Danish"),
+        ValuePattern::new(r"(?i)(?<![a-z])Finnish(?![a-z])", "Finnish"),
+        ValuePattern::new(r"(?i)(?<![a-z])Polish(?![a-z])", "Polish"),
+        ValuePattern::new(r"(?i)(?<![a-z])Czech(?![a-z])", "Czech"),
+        ValuePattern::new(r"(?i)(?<![a-z])Turkish(?![a-z])", "Turkish"),
+        ValuePattern::new(r"(?i)(?<![a-z])Greek(?![a-z])", "Greek"),
+        ValuePattern::new(r"(?i)(?<![a-z])Hungarian(?![a-z])", "Hungarian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Romanian(?![a-z])", "Romanian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Thai(?![a-z])", "Thai"),
+        ValuePattern::new(r"(?i)(?<![a-z])Vietnamese(?![a-z])", "Vietnamese"),
+        ValuePattern::new(r"(?i)(?<![a-z])Catalan(?![a-z])", "Catalan"),
+        ValuePattern::new(r"(?i)(?<![a-z])Croatian(?![a-z])", "Croatian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Serbian(?![a-z])", "Serbian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Bulgarian(?![a-z])", "Bulgarian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Ukrainian(?![a-z])", "Ukrainian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Hebrew(?![a-z])", "Hebrew"),
         // Localized language names.
-        ValuePattern::new(r"(?i)(?<![a-z])Fran[cç]ais(?:e)?(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])Espa[nñ]ol(?![a-z])", "es"),
-        ValuePattern::new(r"(?i)(?<![a-z])Castellano(?![a-z])", "es"),
-        ValuePattern::new(r"(?i)(?<![a-z])Deutsch(?![a-z])", "de"),
-        ValuePattern::new(r"(?i)(?<![a-z])Italiano(?![a-z])", "it"),
-        ValuePattern::new(r"(?i)(?<![a-z])Portugu[eê]s(?![a-z])", "pt"),
-        ValuePattern::new(r"(?i)(?<![a-z])Vostfr(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])VOST(?![a-z])", "und"),
-        ValuePattern::new(r"(?i)(?<![a-z])VO(?:ST)?(?![a-z])", "und"),
-        // Common abbreviation tags (only in context of media filenames).
-        ValuePattern::new(r"(?i)(?<![a-z])FRENCH(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])TRUEFRENCH(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])VFF(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])VFQ(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])VFI(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])VF2(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])VF(?![a-z])", "fr"),
-        ValuePattern::new(r"(?i)(?<![a-z])SPANISH(?![a-z])", "es"),
-        ValuePattern::new(r"(?i)(?<![a-z])GERMAN(?![a-z])", "de"),
-        ValuePattern::new(r"(?i)(?<![a-z])ITALIAN(?![a-z])", "it"),
-        ValuePattern::new(r"(?i)(?<![a-z])LATINO(?![a-z])", "es"),
+        ValuePattern::new(r"(?i)(?<![a-z])Fran[cç]ais(?:e)?(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])Espa[nñ]ol(?![a-z])", "Spanish"),
+        ValuePattern::new(r"(?i)(?<![a-z])Castellano(?![a-z])", "Spanish"),
+        ValuePattern::new(r"(?i)(?<![a-z])Deutsch(?![a-z])", "German"),
+        ValuePattern::new(r"(?i)(?<![a-z])Italiano(?![a-z])", "Italian"),
+        ValuePattern::new(r"(?i)(?<![a-z])Portugu[eê]s(?![a-z])", "Portuguese"),
+        ValuePattern::new(r"(?i)(?<![a-z])Vostfr(?![a-z])", "French"),
+        // Common abbreviation tags.
+        ValuePattern::new(r"(?i)(?<![a-z])FRENCH(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])TRUEFRENCH(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])VFF(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])VFQ(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])VFI(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])VF2(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])VF(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])SPANISH(?![a-z])", "Spanish"),
+        ValuePattern::new(r"(?i)(?<![a-z])GERMAN(?![a-z])", "German"),
+        ValuePattern::new(r"(?i)(?<![a-z])ITALIAN(?![a-z])", "Italian"),
+        ValuePattern::new(r"(?i)(?<![a-z])LATINO(?![a-z])", "Spanish"),
         ValuePattern::new(r"(?i)(?<![a-z])MULTI(?:LANG(?:UAGE)?)?(?![a-z])", "mul"),
-        // Two-letter ISO codes (only uppercase, to avoid false positives).
-        ValuePattern::new(r"(?<![a-zA-Z])(?:Fr|FR)(?![a-zA-Z])", "fr"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:En|EN)(?![a-zA-Z])", "en"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:De|DE)(?![a-zA-Z])", "de"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:Es|ES)(?![a-zA-Z])", "es"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:It|IT)(?![a-zA-Z])", "it"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:Pt|PT)(?![a-zA-Z])", "pt"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:Ja|JA)(?![a-zA-Z])", "ja"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:Ru|RU)(?![a-zA-Z])", "ru"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:Nl|NL)(?![a-zA-Z])", "nl"),
-        ValuePattern::new(r"(?<![a-zA-Z])(?:Ko|KO)(?![a-zA-Z])", "ko"),
+        ValuePattern::new(r"(?i)(?<![a-z])ENG(?![a-z])", "English"),
+        ValuePattern::new(r"(?i)(?<![a-z])ITA(?![a-z])", "Italian"),
+        ValuePattern::new(r"(?i)(?<![a-z])SPA(?![a-z])", "Spanish"),
+        ValuePattern::new(r"(?i)(?<![a-z])GER(?![a-z])", "German"),
+        ValuePattern::new(r"(?i)(?<![a-z])FRE(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])JPN(?![a-z])", "Japanese"),
+        ValuePattern::new(r"(?i)(?<![a-z])RUS(?![a-z])", "Russian"),
+        ValuePattern::new(r"(?i)(?<![a-z])KOR(?![a-z])", "Korean"),
     ];
 }
 
@@ -107,19 +101,19 @@ mod tests {
     #[test]
     fn test_french() {
         let m = LanguageMatcher.find_matches("Movie.FRENCH.DVDRip.mkv");
-        assert!(m.iter().any(|x| x.value == "fr"));
+        assert!(m.iter().any(|x| x.value == "French"));
     }
 
     #[test]
     fn test_english() {
         let m = LanguageMatcher.find_matches("Movie.English.mkv");
-        assert!(m.iter().any(|x| x.value == "en"));
+        assert!(m.iter().any(|x| x.value == "English"));
     }
 
     #[test]
     fn test_spanish() {
         let m = LanguageMatcher.find_matches("Movie.Spanish.mkv");
-        assert!(m.iter().any(|x| x.value == "es"));
+        assert!(m.iter().any(|x| x.value == "Spanish"));
     }
 
     #[test]

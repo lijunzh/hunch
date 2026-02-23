@@ -39,7 +39,7 @@ PROPERTY_MAP = {
 
 # Properties hunch does NOT implement yet.
 UNIMPLEMENTED = {
-    "language", "subtitle_language", "country", "date",
+    "subtitle_language", "country", "date",
     "episode_title", "website",
     "video_profile", "audio_profile", "color_depth",
     "proper_count", "cd", "cd_count", "part",
