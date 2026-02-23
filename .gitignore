@@ -1,0 +1,6 @@
+/target/
+*.db
+*.sqlite
+*.csv
+*.xlsx
+*.xls
