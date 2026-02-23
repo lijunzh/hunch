@@ -99,6 +99,8 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])DOCU(?:MENTARY)?(?![a-z])", "Documentary"),
         // Original Video.
         ValuePattern::new(r"(?i)(?<![a-z])OVA(?![a-z])", "Original Video"),
+        // Colorized.
+        ValuePattern::new(r"(?i)(?<![a-z])Colorized(?![a-z])", "Colorized"),
         // East/West Coast Feed.
         ValuePattern::new(r"(?i)(?<![a-z])(?:East|EST)[-. ]?(?:Coast[-. ]?)?Feed(?![a-z])", "East Coast Feed"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:West|WST)[-. ]?(?:Coast[-. ]?)?Feed(?![a-z])", "West Coast Feed"),

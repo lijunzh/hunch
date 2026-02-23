@@ -1,6 +1,6 @@
 //! Match engine: collects matches from all property matchers, resolves conflicts.
 
-use super::span::MatchSpan;
+use super::span::{MatchSpan, Property};
 
 /// Collects all matches and resolves conflicts between overlapping spans.
 pub struct MatchEngine;
@@ -34,6 +34,14 @@ impl MatchEngine {
                 // Allow different properties to coexist on the same or overlapping spans
                 // (e.g., Season + Episode from "S01E02", Source + Other:Rip from "DVDRip").
                 if matches[i].property != matches[j].property {
+                    continue;
+                }
+                // Allow same-span Other with different values (e.g., Other:Rip + Other:Reencoded).
+                if matches[i].property == Property::Other
+                    && matches[i].value != matches[j].value
+                    && matches[i].start == matches[j].start
+                    && matches[i].end == matches[j].end
+                {
                     continue;
                 }
                 if matches[i].overlaps(&matches[j]) {
