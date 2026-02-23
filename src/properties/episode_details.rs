@@ -10,7 +10,7 @@ use crate::properties::PropertyMatcher;
 
 lazy_static! {
     static ref EPISODE_DETAILS_PATTERNS: Vec<ValuePattern> = vec![
-        ValuePattern::new(r"(?i)(?<![a-z])Special(?![a-z])", "Special"),
+        ValuePattern::new(r"(?i)(?<![a-z])Special(?![-. ]*(?:Edition|Feature|Effect))(?![a-z])", "Special"),
         ValuePattern::new(r"(?i)(?<![a-z])Pilot(?![a-z])", "Pilot"),
         ValuePattern::new(r"(?i)(?<![a-z])Unaired(?![a-z])", "Unaired"),
         ValuePattern::new(r"(?i)(?<![a-z])Final(?![a-z])", "Final"),

@@ -30,8 +30,9 @@ lazy_static! {
     ).unwrap();
 
     /// Film number: f01, f21 (used in collections like James Bond)
+    /// Only match when preceded by separator and followed by separator.
     static ref FILM_PATTERN: Regex = Regex::new(
-        r"(?i)(?<![a-z])f(?P<num>[0-9]{1,3})(?![a-z0-9])"
+        r"(?i)(?<![a-z0-9])f(?P<num>[0-9]{1,2})(?![a-z0-9])"
     ).unwrap();
 }
 

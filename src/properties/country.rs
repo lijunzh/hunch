@@ -10,12 +10,12 @@ use crate::properties::PropertyMatcher;
 
 lazy_static! {
     static ref COUNTRY_PATTERNS: Vec<ValuePattern> = vec![
-        ValuePattern::new(r"(?<![a-zA-Z])US(?![a-zA-Z])", "US"),
-        ValuePattern::new(r"(?<![a-zA-Z])UK(?![a-zA-Z])", "GB"),
-        ValuePattern::new(r"(?<![a-zA-Z])GB(?![a-zA-Z])", "GB"),
-        ValuePattern::new(r"(?<![a-zA-Z])CA(?![a-zA-Z])", "CA"),
-        ValuePattern::new(r"(?<![a-zA-Z])AU(?![a-zA-Z])", "AU"),
-        ValuePattern::new(r"(?<![a-zA-Z])NZ(?![a-zA-Z])", "NZ"),
+        ValuePattern::new(r"(?<![a-zA-Z0-9])US(?![a-zA-Z0-9])", "US"),
+        ValuePattern::new(r"(?<![a-zA-Z0-9])UK(?![a-zA-Z0-9])", "GB"),
+        ValuePattern::new(r"(?<![a-zA-Z0-9])GB(?![a-zA-Z0-9])", "GB"),
+        ValuePattern::new(r"(?<![a-zA-Z0-9])CA(?![a-zA-Z0-9])", "CA"),
+        ValuePattern::new(r"(?<![a-zA-Z0-9])AU(?![a-zA-Z0-9])", "AU"),
+        ValuePattern::new(r"(?<![a-zA-Z0-9])NZ(?![a-zA-Z0-9])", "NZ"),
     ];
 }
 

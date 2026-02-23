@@ -14,7 +14,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])(?:DTS[-. ]?)?HD[-. ]?(?:Master[-. ]?Audio|MA)(?![a-z])", "Master Audio"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:DTS[-. ]?)?HD[-. ]?HRA?(?![a-z])", "High Resolution Audio"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:DTS[-. ]?)?ES(?:[-. ]?(?:Matrix|Discrete))?(?![a-z])", "Extended Surround"),
-        ValuePattern::new(r"(?i)(?<![a-z])DTS[-. ]?X(?![a-z])", "DTS:X"),
+        ValuePattern::new(r"(?i)(?<![a-z])DTS[-. ]?X(?!264|265|[0-9])(?![a-z])", "DTS:X"),
         ValuePattern::new(r"(?i)(?<![a-z])DTS[-. ]?EX(?![a-z])", "EX"),
         // Dolby variants
         ValuePattern::new(r"(?i)(?<![a-z])(?:DD|Dolby[-. ]?Digital)?[-. ]?(?:Atmos|ATMOS)(?![a-z])", "Atmos"),

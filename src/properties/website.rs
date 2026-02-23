@@ -9,19 +9,21 @@ use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
 
 lazy_static! {
-    /// Website in brackets: [www.example.com] or [site.name]
+    /// Website in brackets with multi-part TLD: [tvu.org.ru], [www.site.com]
+    /// Also handles [.www.site.com.] with optional leading/trailing dots.
     static ref WEBSITE_BRACKET: Regex = Regex::new(
-        r"\[(?P<site>(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)\]"
+        r"\[[. ]*(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+\.[a-zA-Z]{2,})[. ]*\]"
     ).unwrap();
 
     /// Website prefixed: "From [ site.com ] -"
     static ref WEBSITE_FROM: Regex = Regex::new(
-        r"(?i)from\s*\[?\s*(?P<site>(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)\s*\]?"
+        r"(?i)from\s*\[?\s*(?P<site>(?:www\.)?[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})\s*\]?"
     ).unwrap();
 
-    /// Website at end before extension: -site.com.mkv
-    static ref WEBSITE_END: Regex = Regex::new(
-        r"[-. ](?P<site>(?:www\.)?[a-zA-Z0-9-]+\.(?:com|org|net|info|tv|to|cc|me))(?:\.[a-z]{2,5})?$"
+    /// Unbracketed website in filename: MkvCage.com, www.divx-overnet.com
+    /// Excludes common file extensions to prevent over-matching.
+    static ref WEBSITE_INLINE: Regex = Regex::new(
+        r"(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.(?:com|org|net|info|tv|io|ru|cc|me|to))"
     ).unwrap();
 }
 
@@ -31,6 +33,7 @@ impl PropertyMatcher for WebsiteMatcher {
     fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
         let mut matches = Vec::new();
 
+        // Priority 1: Bracket-enclosed websites
         for cap in WEBSITE_BRACKET.captures_iter(input) {
             if let Some(site) = cap.name("site") {
                 matches.push(
@@ -45,9 +48,17 @@ impl PropertyMatcher for WebsiteMatcher {
             }
         }
 
+        // Priority 2: "From" prefix
         for cap in WEBSITE_FROM.captures_iter(input) {
             if let Some(site) = cap.name("site") {
-                if !matches.iter().any(|m| m.overlaps(&MatchSpan::new(site.start(), site.end(), Property::Website, ""))) {
+                if !matches.iter().any(|m| {
+                    m.overlaps(&MatchSpan::new(
+                        site.start(),
+                        site.end(),
+                        Property::Website,
+                        "",
+                    ))
+                }) {
                     matches.push(
                         MatchSpan::new(
                             site.start(),
@@ -57,6 +68,28 @@ impl PropertyMatcher for WebsiteMatcher {
                         )
                         .with_priority(1),
                     );
+                }
+            }
+        }
+
+        // Priority 3: Inline websites (not in brackets)
+        if matches.is_empty() {
+            for cap in WEBSITE_INLINE.captures_iter(input) {
+                if let Some(site) = cap.name("site") {
+                    let val = site.as_str();
+                    // Avoid matching things that look like domains but aren't
+                    // (e.g., AC3.5 or DD5.1)
+                    if val.len() > 5 {
+                        matches.push(
+                            MatchSpan::new(
+                                site.start(),
+                                site.end(),
+                                Property::Website,
+                                val,
+                            )
+                            .with_priority(0),
+                        );
+                    }
                 }
             }
         }
@@ -76,8 +109,20 @@ mod tests {
     }
 
     #[test]
-    fn test_from_website() {
-        let m = WebsiteMatcher.find_matches("From [ WWW.TORRENTING.COM ] - Movie.mkv");
-        assert!(m.iter().any(|x| x.value == "WWW.TORRENTING.COM"));
+    fn test_bracket_multipart_tld() {
+        let m = WebsiteMatcher.find_matches("Movie.[tvu.org.ru].avi");
+        assert!(m.iter().any(|x| x.value == "tvu.org.ru"));
+    }
+
+    #[test]
+    fn test_inline_website() {
+        let m = WebsiteMatcher.find_matches("Movie.720p.MkvCage.com");
+        assert!(m.iter().any(|x| x.value == "MkvCage.com"));
+    }
+
+    #[test]
+    fn test_dotted_brackets() {
+        let m = WebsiteMatcher.find_matches("[.www.site.com.].-.Movie.mkv");
+        assert!(m.iter().any(|x| x.value == "www.site.com"));
     }
 }
