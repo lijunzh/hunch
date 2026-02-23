@@ -9,10 +9,10 @@ use crate::properties::PropertyMatcher;
 lazy_static! {
     static ref STREAMING_PATTERNS: Vec<ValuePattern> = vec![
         ValuePattern::new(r"(?i)(?<![a-z])AMZN(?![a-z])", "Amazon Prime"),
-        ValuePattern::new(r"(?i)(?<![a-z])Amazon(?![a-z])", "Amazon Prime"),
+        ValuePattern::new(r"(?i)(?<![a-z])Amazon(?:HD)?(?![a-z])", "Amazon Prime"),
         ValuePattern::new(r"(?i)(?<![a-z])NFLX(?![a-z])", "Netflix"),
-        ValuePattern::new(r"(?i)(?<![a-z])Netflix(?![a-z])", "Netflix"),
-        ValuePattern::new(r"(?i)(?<![a-z])NetflixUHD(?![a-z])", "Netflix"),
+        ValuePattern::new(r"(?i)(?<![a-z])Netflix(?:UHD)?(?:Rip)?(?![a-z])", "Netflix"),
+        ValuePattern::new(r"(?i)(?<![a-z])NF(?![a-z])", "Netflix"),
         ValuePattern::new(r"(?i)(?<![a-z])ATVP(?![a-z])", "Apple TV+"),
         ValuePattern::new(r"(?i)(?<![a-z])DSNP(?![a-z])", "Disney+"),
         ValuePattern::new(r"(?i)(?<![a-z])Disney\+(?![a-z])", "Disney+"),
@@ -20,13 +20,18 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])HULU(?![a-z])", "Hulu"),
         ValuePattern::new(r"(?i)(?<![a-z])PCOK(?![a-z])", "Peacock"),
         ValuePattern::new(r"(?i)(?<![a-z])PMTP(?![a-z])", "Paramount+"),
-        ValuePattern::new(r"(?i)(?<![a-z])iTunes(?![a-z])", "iTunes"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:HD)?iTunes(?:HD)?(?![a-z])", "iTunes"),
         ValuePattern::new(r"(?i)(?<![a-z])VUDU(?![a-z])", "Vudu"),
         ValuePattern::new(r"(?i)(?<![a-z])CRAV(?![a-z])", "Crave"),
         ValuePattern::new(r"(?i)(?<![a-z])DCU(?![a-z])", "DC Universe"),
         ValuePattern::new(r"(?i)(?<![a-z])DSCP(?![a-z])", "DramaFever"),
         ValuePattern::new(r"(?i)(?<![a-z])DramaFever(?![a-z])", "DramaFever"),
+        ValuePattern::new(r"(?i)(?<![a-z])DF(?![a-z])", "DramaFever"),
         ValuePattern::new(r"(?i)(?<![a-z])VIKI(?![a-z])", "Viki"),
+        ValuePattern::new(r"(?i)(?<![a-z])A&E(?![a-z])", "A&E"),
+        ValuePattern::new(r"(?i)(?<![a-z])AE\.(?=WEB)", "A&E"),
+        ValuePattern::new(r"(?i)(?<![a-z])MBCVOD(?![a-z])", "MBC"),
+        ValuePattern::new(r"(?i)(?<![a-z])MBC(?![a-z])", "MBC"),
     ];
 }
 
