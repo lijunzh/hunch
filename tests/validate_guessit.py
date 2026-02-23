@@ -26,7 +26,9 @@ PROPERTY_MAP = {
     "episode": "episode",
     "episode_title": "episode_title",
     "video_codec": "video_codec",
+    "video_profile": "video_profile",
     "audio_codec": "audio_codec",
+    "audio_profile": "audio_profile",
     "audio_channels": "audio_channels",
     "screen_size": "screen_size",
     "source": "source",
@@ -36,20 +38,32 @@ PROPERTY_MAP = {
     "type": "type",
     "proper_count": "proper_count",
     "streaming_service": "streaming_service",
+    "color_depth": "color_depth",
+    "subtitle_language": "subtitle_language",
+    "country": "country",
+    "date": "date",
+    "crc32": "crc32",
+    "website": "website",
+    "episode_details": "episode_details",
+    "part": "part",
+    "disc": "disc",
+    "cd": "cd",
+    "cd_count": "cd_count",
+    "film": "film",
+    "film_title": "film_title",
+    "bonus": "bonus",
+    "bonus_title": "bonus_title",
+    "size": "size",
+    "uuid": "uuid",
+    "aspect_ratio": "aspect_ratio",
+    "week": "week",
+    "episode_format": "episode_format",
     # Properties we map from guessit's "other" list.
     "other": "other",
 }
 
 # Properties hunch does NOT implement yet.
-UNIMPLEMENTED = {
-    "subtitle_language", "country", "date",
-    "website",
-    "video_profile", "audio_profile", "color_depth",
-    "cd", "cd_count", "part",
-    "film", "film_title", "bonus", "bonus_title",
-    "episode_format", "episode_details", "disc", "week",
-    "size", "aspect_ratio", "uuid", "crc32",
-}
+UNIMPLEMENTED = set()
 
 
 def parse_yaml_tests(filepath: Path) -> list[tuple[str, dict]]:
@@ -207,8 +221,59 @@ def run_hunch(input_str: str) -> dict:
 def normalize_value(val):
     """Normalize a value for comparison."""
     if isinstance(val, list):
-        return sorted(str(v) for v in val)
-    return str(val)
+        return sorted(normalize_single(str(v)) for v in val)
+    return normalize_single(str(val))
+
+
+# Language normalization map: guessit may use full names, ISO 2-letter,
+# or ISO 3-letter codes interchangeably. Normalize to a canonical form.
+LANG_NORMALIZE = {
+    "en": "en", "eng": "en", "english": "en",
+    "fr": "fr", "fre": "fr", "fra": "fr", "french": "fr",
+    "es": "es", "spa": "es", "spanish": "es",
+    "de": "de", "ger": "de", "deu": "de", "german": "de",
+    "it": "it", "ita": "it", "italian": "it",
+    "pt": "pt", "por": "pt", "portuguese": "pt",
+    "pt-br": "pt-br",
+    "ja": "ja", "jpn": "ja", "japanese": "ja",
+    "ko": "ko", "kor": "ko", "korean": "ko",
+    "zh": "zh", "chi": "zh", "zho": "zh", "chinese": "zh",
+    "ru": "ru", "rus": "ru", "russian": "ru",
+    "ar": "ar", "ara": "ar", "arabic": "ar",
+    "hi": "hi", "hin": "hi", "hindi": "hi",
+    "nl": "nl", "dut": "nl", "nld": "nl", "dutch": "nl",
+    "pl": "pl", "pol": "pl", "polish": "pl",
+    "sv": "sv", "swe": "sv", "swedish": "sv",
+    "no": "no", "nor": "no", "norwegian": "no",
+    "da": "da", "dan": "da", "danish": "da",
+    "fi": "fi", "fin": "fi", "finnish": "fi",
+    "hu": "hu", "hun": "hu", "hungarian": "hu",
+    "cs": "cs", "cze": "cs", "ces": "cs", "czech": "cs",
+    "ro": "ro", "rum": "ro", "ron": "ro", "romanian": "ro",
+    "el": "el", "gre": "el", "ell": "el", "greek": "el",
+    "tr": "tr", "tur": "tr", "turkish": "tr",
+    "he": "he", "heb": "he", "hebrew": "he",
+    "uk": "uk", "ukr": "uk", "ukrainian": "uk",
+    "bg": "bg", "bul": "bg", "bulgarian": "bg",
+    "hr": "hr", "hrv": "hr", "croatian": "hr",
+    "sr": "sr", "srp": "sr", "serbian": "sr",
+    "sk": "sk", "slo": "sk", "slk": "sk", "slovak": "sk",
+    "sl": "sl", "slv": "sl", "slovenian": "sl",
+    "et": "et", "est": "et", "estonian": "et",
+    "lv": "lv", "lav": "lv", "latvian": "lv",
+    "lt": "lt", "lit": "lt", "lithuanian": "lt",
+    "ca": "ca", "cat": "ca", "catalan": "ca",
+    "mul": "mul", "multiple languages": "mul",
+    "und": "und", "undetermined": "und",
+}
+
+# Properties that contain language values needing normalization.
+LANG_PROPS = {"language", "subtitle_language", "country"}
+
+
+def normalize_single(val):
+    """Normalize a single string value."""
+    return val
 
 
 def compare(expected: dict, actual: dict) -> tuple[dict, dict, dict]:
@@ -240,6 +305,15 @@ def compare(expected: dict, actual: dict) -> tuple[dict, dict, dict]:
         # Normalize for comparison.
         exp_norm = normalize_value(exp_val)
         act_norm = normalize_value(act_val)
+
+        # Apply language normalization for language properties.
+        if prop in LANG_PROPS:
+            if isinstance(exp_norm, list):
+                exp_norm = sorted(LANG_NORMALIZE.get(v.lower(), v) for v in exp_norm)
+                act_norm = sorted(LANG_NORMALIZE.get(v.lower(), v) for v in act_norm) if isinstance(act_norm, list) else [LANG_NORMALIZE.get(act_norm.lower(), act_norm)]
+            else:
+                exp_norm = LANG_NORMALIZE.get(exp_norm.lower(), exp_norm)
+                act_norm = LANG_NORMALIZE.get(act_norm.lower(), act_norm) if isinstance(act_norm, str) else act_norm
 
         if exp_norm == act_norm:
             passed[prop] = exp_val

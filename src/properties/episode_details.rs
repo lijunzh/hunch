@@ -1,0 +1,53 @@
+//! Episode details detection.
+//!
+//! Detects special episode markers: Special, Pilot, Unaired, OVA, etc.
+
+use lazy_static::lazy_static;
+
+use crate::matcher::regex_utils::ValuePattern;
+use crate::matcher::span::{MatchSpan, Property};
+use crate::properties::PropertyMatcher;
+
+lazy_static! {
+    static ref EPISODE_DETAILS_PATTERNS: Vec<ValuePattern> = vec![
+        ValuePattern::new(r"(?i)(?<![a-z])Special(?![a-z])", "Special"),
+        ValuePattern::new(r"(?i)(?<![a-z])Pilot(?![a-z])", "Pilot"),
+        ValuePattern::new(r"(?i)(?<![a-z])Unaired(?![a-z])", "Unaired"),
+        ValuePattern::new(r"(?i)(?<![a-z])Final(?![a-z])", "Final"),
+        ValuePattern::new(r"(?i)(?<![a-z])Premiere(?![a-z])", "Premiere"),
+    ];
+}
+
+pub struct EpisodeDetailsMatcher;
+
+impl PropertyMatcher for EpisodeDetailsMatcher {
+    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
+        let mut matches = Vec::new();
+        for pattern in EPISODE_DETAILS_PATTERNS.iter() {
+            for (start, end) in pattern.find_iter(input) {
+                matches.push(
+                    MatchSpan::new(start, end, Property::EpisodeDetails, pattern.value)
+                        .with_priority(-1),
+                );
+            }
+        }
+        matches
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_special() {
+        let m = EpisodeDetailsMatcher.find_matches("Show.S01.Special.mkv");
+        assert!(m.iter().any(|x| x.value == "Special"));
+    }
+
+    #[test]
+    fn test_pilot() {
+        let m = EpisodeDetailsMatcher.find_matches("Show.Pilot.720p.mkv");
+        assert!(m.iter().any(|x| x.value == "Pilot"));
+    }
+}

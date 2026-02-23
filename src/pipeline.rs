@@ -5,18 +5,32 @@ use crate::matcher::engine::MatchEngine;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::options::Options;
 use crate::properties::PropertyMatcher;
+use crate::properties::aspect_ratio::AspectRatioMatcher;
 use crate::properties::audio_codec::AudioCodecMatcher;
+use crate::properties::audio_profile::AudioProfileMatcher;
+use crate::properties::bonus::BonusMatcher;
+use crate::properties::color_depth::ColorDepthMatcher;
 use crate::properties::container::ContainerMatcher;
+use crate::properties::country::CountryMatcher;
+use crate::properties::crc32::Crc32Matcher;
+use crate::properties::date::DateMatcher;
 use crate::properties::edition::EditionMatcher;
+use crate::properties::episode_details::EpisodeDetailsMatcher;
 use crate::properties::episodes::EpisodeMatcher;
 use crate::properties::language::LanguageMatcher;
 use crate::properties::other::OtherMatcher;
+use crate::properties::part::PartMatcher;
 use crate::properties::release_group::ReleaseGroupMatcher;
 use crate::properties::screen_size::ScreenSizeMatcher;
+use crate::properties::size::SizeMatcher;
 use crate::properties::source::SourceMatcher;
 use crate::properties::streaming_service::StreamingServiceMatcher;
+use crate::properties::subtitle_language::SubtitleLanguageMatcher;
 use crate::properties::title;
+use crate::properties::uuid::UuidMatcher;
 use crate::properties::video_codec::VideoCodecMatcher;
+use crate::properties::video_profile::VideoProfileMatcher;
+use crate::properties::website::WebsiteMatcher;
 use crate::properties::year::YearMatcher;
 
 /// The parsing pipeline.
@@ -38,14 +52,28 @@ impl Pipeline {
             Box::new(ContainerMatcher),
             Box::new(VideoCodecMatcher),
             Box::new(AudioCodecMatcher),
+            Box::new(AudioProfileMatcher),
+            Box::new(VideoProfileMatcher),
+            Box::new(ColorDepthMatcher),
             Box::new(SourceMatcher),
             Box::new(ScreenSizeMatcher),
+            Box::new(AspectRatioMatcher),
             Box::new(YearMatcher),
+            Box::new(DateMatcher),
             Box::new(EpisodeMatcher),
+            Box::new(EpisodeDetailsMatcher),
             Box::new(EditionMatcher),
             Box::new(OtherMatcher),
             Box::new(LanguageMatcher),
+            Box::new(SubtitleLanguageMatcher),
+            Box::new(CountryMatcher),
             Box::new(StreamingServiceMatcher),
+            Box::new(Crc32Matcher),
+            Box::new(UuidMatcher),
+            Box::new(WebsiteMatcher),
+            Box::new(SizeMatcher),
+            Box::new(PartMatcher),
+            Box::new(BonusMatcher),
             Box::new(ReleaseGroupMatcher),
         ];
         Self { options, matchers }
