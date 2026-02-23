@@ -51,6 +51,22 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
         return extract_title_from_parent(input, matches);
     }
 
+    // If parent directory has the same title with better casing, use it.
+    if has_parent_dir(input) {
+        if let Some(parent_match) = extract_title_from_parent(input, matches) {
+            if parent_match.value.to_lowercase() == cleaned.to_lowercase()
+                && parent_match.value != cleaned
+            {
+                return Some(MatchSpan::new(
+                    filename_start,
+                    title_end_abs,
+                    Property::Title,
+                    parent_match.value,
+                ));
+            }
+        }
+    }
+
     // If the filename looks like a scene abbreviation (very short, no spaces/dots
     // in the cleaned result), prefer the parent directory.
     if is_abbreviated(&cleaned) && has_parent_dir(input) {
