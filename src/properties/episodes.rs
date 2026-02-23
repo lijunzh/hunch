@@ -77,9 +77,9 @@ lazy_static! {
     ).unwrap();
 
     /// Bare episode number after dots: `Show.05.Title` → episode 5.
-    /// Very weak, only single/double digit, must be surrounded by separators.
+    /// Very weak, only leading-zero or two-digit, must be between dots.
     static ref BARE_EPISODE: Regex = Regex::new(
-        r"(?<![a-z0-9])\.(?P<episode>0\d|\d{2})\.(?![0-9])"
+        r"\.(?P<episode>0\d|\d{2})\.(?![0-9])"
     ).unwrap();
 
     /// S01-only without episode (e.g., `S01Extras`, `S01.Special`).
@@ -340,7 +340,34 @@ impl PropertyMatcher for EpisodeMatcher {
             }
         }
 
-        // 7. 3/4-digit episode number decomposition: 101→S1E01, 2401→S24E01.
+        // 7. Anime-style episode: `Show - 03` or `Show - 003`.
+        if !matches.iter().any(|m| m.property == Property::Episode) {
+            for cap in captures_iter(&ANIME_EPISODE, input) {
+                let full = cap.get(0).unwrap();
+                let episode = parse_num(&cap, "episode");
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                        .with_tag("anime")
+                        .with_priority(1),
+                );
+            }
+        }
+
+        // 8. Bare episode after dots: `Show.05.Title`.
+        if !matches.iter().any(|m| m.property == Property::Episode) {
+            for cap in captures_iter(&BARE_EPISODE, input) {
+                let full = cap.get(0).unwrap();
+                let episode = parse_num(&cap, "episode");
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                        .with_tag("bare")
+                        .with_priority(-1),
+                );
+                break; // Only the first bare number.
+            }
+        }
+
+        // 9. 3/4-digit episode number decomposition: 101→S1E01, 2401→S24E01.
         // Only fires when no season/episode found yet.
         if !matches.iter().any(|m| m.property == Property::Season)
             && !matches.iter().any(|m| m.property == Property::Episode)
@@ -486,5 +513,17 @@ mod tests {
         let m = EpisodeMatcher.find_matches("the.simpsons.2401.hdtv.mkv");
         assert!(m.iter().any(|x| x.property == Property::Season && x.value == "24"));
         assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+    }
+
+    #[test]
+    fn test_anime_dash_episode() {
+        let m = EpisodeMatcher.find_matches("Show Name - 03 Vostfr HD");
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
+    }
+
+    #[test]
+    fn test_bare_dot_episode() {
+        let m = EpisodeMatcher.find_matches("Neverwhere.05.Down.Street.avi");
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "5"));
     }
 }
