@@ -64,9 +64,9 @@ lazy_static! {
         SourcePattern::with_rip(r"(?i)(?<![a-z])(?:PD[-.]?TV|DVB)[-.]?Rip(?![a-z])", "Digital TV"),
         SourcePattern::plain(r"(?i)(?<![a-z])DVB(?![a-z])", "Digital TV"),
         // DVD.
+        SourcePattern::plain(r"(?i)(?<![a-z])VIDEO[-._]?TS(?![a-z])", "DVD"),
         SourcePattern::plain(r"(?i)(?<![a-z])DVD(?:R|\s*[59])?(?![a-z])", "DVD"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])DVD[-.]?Rip(?![a-z])", "DVD"),
-        SourcePattern::plain(r"(?i)(?<![a-z])VIDEO[-.]?TS(?![a-z])", "DVD"),
         // HD-DVD.
         SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?DVD(?![a-z])", "HD-DVD"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?DVD[-.]?Rip(?![a-z])", "HD-DVD"),

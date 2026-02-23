@@ -2,77 +2,169 @@
 //!
 //! This runs as a post-processing step rather than a regex matcher. The title
 //! is typically everything before the first recognized property token.
+//!
+//! Handles:
+//! - Path-aware extraction (prefers parent dir for abbreviated filenames)
+//! - Stripping leading bracket groups like `[XCT]`
+//! - Stripping parenthesized text after the first recognized word group
 
 use crate::matcher::span::{MatchSpan, Property};
 
 /// Separators used in media filenames.
-const SEPS: &[char] = &[
-    '.', ' ', '_', '-', '+', '(', ')', '[', ']', '{', '}',
-];
+const SEPS: &[char] = &['.', ' ', '_', '-', '+'];
+
+/// Characters we strip from title boundaries.
+const BRACKETS: &[char] = &['(', ')', '[', ']', '{', '}'];
 
 /// Extract title from the input string by finding the gap before the first
 /// recognized match. This is a post-processing step, not a `PropertyMatcher`.
 pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
-    if matches.is_empty() {
-        // No properties found — the whole thing is the title (strip extension-like suffix).
-        let title = strip_extension(input);
-        let cleaned = clean_title(title);
-        if cleaned.is_empty() {
-            return None;
-        }
-        return Some(MatchSpan::new(0, title.len(), Property::Title, cleaned));
-    }
-
     // Find the filename portion (after last path separator).
-    let filename_start = input
-        .rfind(['/', '\\'])
-        .map(|i| i + 1)
-        .unwrap_or(0);
+    let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let filename = &input[filename_start..];
 
-    // First match in the filename portion (skip extension matches at the very end).
+    // First match in the filename portion (skip extension matches).
     let first_match_in_filename = matches
         .iter()
         .filter(|m| m.start >= filename_start)
         .filter(|m| !m.tags.contains(&"extension".to_string()))
         .min_by_key(|m| m.start);
 
-    let title_end = match first_match_in_filename {
+    let title_end_abs = match first_match_in_filename {
         Some(m) => m.start,
         None => {
-            // All matches are extensions or outside filename — title is whole filename.
-            let ext_start = input.rfind('.').unwrap_or(input.len());
-            ext_start
+            // All matches are extensions or outside filename.
+            let ext_start = filename.rfind('.').unwrap_or(filename.len());
+            filename_start + ext_start
         }
     };
 
-    if title_end <= filename_start {
-        return None;
+    if title_end_abs <= filename_start {
+        // Title is empty in the filename — try parent directory.
+        return extract_title_from_parent(input, matches);
     }
 
-    let raw_title = &input[filename_start..title_end];
+    let raw_title = &input[filename_start..title_end_abs];
     let cleaned = clean_title(raw_title);
+
     if cleaned.is_empty() {
-        return None;
+        return extract_title_from_parent(input, matches);
+    }
+
+    // If the filename looks like a scene abbreviation (very short, no spaces/dots
+    // in the cleaned result), prefer the parent directory.
+    if is_abbreviated(&cleaned) && has_parent_dir(input) {
+        if let Some(parent_title) = extract_title_from_parent(input, matches) {
+            return Some(parent_title);
+        }
     }
 
     Some(MatchSpan::new(
         filename_start,
-        title_end,
+        title_end_abs,
         Property::Title,
         cleaned,
     ))
 }
 
-/// Clean up a raw title: replace separators with spaces, trim.
+/// Try to extract the title from the parent directory name.
+fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
+    let parts: Vec<&str> = input.split(['/', '\\']).collect();
+    if parts.len() < 2 {
+        // No parent directory.
+        if matches.is_empty() {
+            let stripped = strip_extension(input);
+            let cleaned = clean_title(stripped);
+            if !cleaned.is_empty() {
+                return Some(MatchSpan::new(0, stripped.len(), Property::Title, cleaned));
+            }
+        }
+        return None;
+    }
+
+    // Walk from the deepest non-filename dir upward looking for a good title.
+    for i in (0..parts.len() - 1).rev() {
+        let dir_name = parts[i];
+        if dir_name.is_empty() || dir_name.eq_ignore_ascii_case("movies")
+            || dir_name.eq_ignore_ascii_case("series")
+            || dir_name.eq_ignore_ascii_case("tv shows")
+            || dir_name.eq_ignore_ascii_case("tv")
+            || dir_name.eq_ignore_ascii_case("media")
+        {
+            continue;
+        }
+        // Skip "Season X" directories.
+        if dir_name.to_lowercase().starts_with("season")
+            || dir_name.to_lowercase().starts_with("saison")
+        {
+            continue;
+        }
+
+        let cleaned = clean_title(dir_name);
+        if !cleaned.is_empty() {
+            return Some(MatchSpan::new(0, 0, Property::Title, cleaned));
+        }
+    }
+
+    None
+}
+
+fn has_parent_dir(input: &str) -> bool {
+    input.contains('/') || input.contains('\\')
+}
+
+/// Detect if a title looks like a scene abbreviation (e.g., "dmd", "wthd", "dmd aw").
+fn is_abbreviated(title: &str) -> bool {
+    let words: Vec<&str> = title.split_whitespace().collect();
+    // All words short and lowercase → probably abbreviated.
+    words.iter().all(|w| w.len() <= 6 && w.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
+        && title.len() <= 20
+}
+
+/// Clean up a raw title: replace separators with spaces, strip brackets, trim.
 fn clean_title(raw: &str) -> String {
-    let cleaned: String = raw
+    let mut s = raw.to_string();
+
+    // Strip leading bracket groups: [XCT], [阿维达], etc.
+    while s.starts_with('[') {
+        if let Some(end) = s.find(']') {
+            s = s[end + 1..].to_string();
+            // Also strip separator after bracket.
+            s = s.trim_start_matches(SEPS).to_string();
+        } else {
+            break;
+        }
+    }
+
+    // Strip parenthesized year at the end: "Movie (2005)" → "Movie"
+    // But keep non-year parens as part of the title.
+    let re_paren_year =
+        fancy_regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap();
+    if let Ok(Some(m)) = re_paren_year.find(&s) {
+        s = s[..m.start()].to_string();
+    }
+
+    // Replace separators with spaces.
+    let cleaned: String = s
         .chars()
-        .map(|c| if SEPS.contains(&c) { ' ' } else { c })
+        .map(|c| {
+            if SEPS.contains(&c) || BRACKETS.contains(&c) {
+                ' '
+            } else {
+                c
+            }
+        })
         .collect();
+
     // Collapse multiple spaces and trim.
+    collapse_spaces(&cleaned)
+}
+
+/// Collapse multiple spaces into one and trim.
+fn collapse_spaces(s: &str) -> String {
     let mut result = String::new();
     let mut prev_space = true;
-    for c in cleaned.chars() {
+    for c in s.chars() {
         if c == ' ' {
             if !prev_space {
                 result.push(' ');
@@ -103,7 +195,6 @@ pub fn infer_media_type(matches: &[MatchSpan]) -> Option<MatchSpan> {
     let has_season = matches.iter().any(|m| m.property == Property::Season);
 
     if has_episode || has_season {
-        // Use span 0..0 as a synthetic match.
         Some(MatchSpan::new(0, 0, Property::MediaType, "episode"))
     } else {
         Some(MatchSpan::new(0, 0, Property::MediaType, "movie"))
@@ -142,6 +233,29 @@ mod tests {
     #[test]
     fn test_clean_title_underscores() {
         assert_eq!(clean_title("The_Matrix_Reloaded"), "The Matrix Reloaded");
+    }
+
+    #[test]
+    fn test_strip_leading_bracket() {
+        assert_eq!(clean_title("[XCT].Le.Prestige"), "Le Prestige");
+    }
+
+    #[test]
+    fn test_strip_paren_year() {
+        assert_eq!(clean_title("Movie Name (2005)"), "Movie Name");
+    }
+
+    #[test]
+    fn test_abbreviated_fallback() {
+        // Abbreviated filename should fall back to parent dir.
+        let title = extract_title(
+            "Movies/Alice in Wonderland DVDRip.XviD-DiAMOND/dmd-aw.avi",
+            &[],
+        );
+        assert!(title.is_some());
+        let t = title.unwrap();
+        // Falls back to parent dir name.
+        assert!(t.value.contains("Alice in Wonderland"));
     }
 
     #[test]

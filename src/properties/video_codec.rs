@@ -17,6 +17,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])Mpe?g[-.]?2(?![a-z])", "MPEG-2"),
         ValuePattern::new(r"(?i)(?<![a-z])XviD(?![a-z])", "Xvid"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:DVD)?DivX(?![a-z])", "DivX"),
+        ValuePattern::new(r"(?i)(?<![a-z])DVD[-.]?DivX(?![a-z])", "DivX"),
         ValuePattern::new(r"(?i)(?<![a-z])VC[-.]?1(?![a-z])", "VC-1"),
         ValuePattern::new(r"(?i)(?<![a-z])VP9(?![a-z])", "VP9"),
         ValuePattern::new(r"(?i)(?<![a-z])VP8(?:0)?(?![a-z])", "VP8"),
