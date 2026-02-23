@@ -29,7 +29,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])Remux(?![a-z])", "Remux"),
         ValuePattern::new(r"(?i)(?<![a-z])PROPER(?![a-z])", "Proper"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:REPACK|RERIP)\d*(?![a-z])", "Proper"),
-        ValuePattern::new(r"(?i)(?<![a-z])REAL[-.]?PROPER(?![a-z])", "Proper"),
+        ValuePattern::new(r"(?i)(?<![a-z])REAL(?![a-z])", "Proper"),
         // Reencoded.
         ValuePattern::new(r"(?i)(?<![a-z])(?:re[-. ]?enc(?:oded)?|reencoded)(?![a-z])", "Reencoded"),
         // Converted.

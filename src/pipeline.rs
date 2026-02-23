@@ -85,11 +85,23 @@ impl Pipeline {
             all_matches.push(type_match);
         }
 
-        // 3c: Compute proper_count from Other:Proper matches.
-        let proper_count = all_matches
-            .iter()
-            .filter(|m| m.property == Property::Other && m.value == "Proper")
-            .count();
+        // 3d: Compute proper_count from Other:Proper matches in the filename.
+        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+        let mut proper_count: u32 = 0;
+        for m in all_matches.iter().filter(|m| {
+            m.property == Property::Other && m.value == "Proper" && m.start >= fn_start
+        }) {
+            let raw = &input[m.start..m.end];
+            // Check for trailing digit: REPACK5 → 5.
+            let re = fancy_regex::Regex::new(r"(?i)(?:REPACK|RERIP)(\d+)$").unwrap();
+            if let Ok(Some(caps)) = re.captures(raw) {
+                if let Some(num) = caps.get(1) {
+                    proper_count += num.as_str().parse::<u32>().unwrap_or(1);
+                    continue;
+                }
+            }
+            proper_count += 1;
+        }
         if proper_count > 0 {
             all_matches.push(
                 MatchSpan::new(0, 0, Property::ProperCount, proper_count.to_string()),

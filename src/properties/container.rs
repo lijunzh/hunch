@@ -1,6 +1,7 @@
 //! Container / file extension detection.
 
 use lazy_static::lazy_static;
+use fancy_regex::Regex as FancyRegex;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
@@ -34,6 +35,16 @@ lazy_static! {
         let pattern = format!(r"(?i)\.({})$", all_exts.join("|"));
         Regex::new(&pattern).unwrap()
     };
+    /// Match container as standalone uppercase token (e.g., MP4-GUSH, WMV-NOVO).
+    static ref EXT_STANDALONE: FancyRegex = {
+        let all_exts: Vec<&str> = VIDEO_EXTS
+            .iter()
+            .chain(SUBTITLE_EXTS)
+            .copied()
+            .collect();
+        let pattern = format!(r"(?i)(?<=[.\-_ \[])({})(?=[.\-_ \]\)]|$)", all_exts.join("|"));
+        FancyRegex::new(&pattern).unwrap()
+    };
 }
 
 pub struct ContainerMatcher;
@@ -42,13 +53,22 @@ impl PropertyMatcher for ContainerMatcher {
     fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
         let mut matches = Vec::new();
         if let Some(cap) = EXT_REGEX.find(input) {
-            // Skip the leading dot.
             let ext = &input[cap.start() + 1..cap.end()];
             matches.push(
                 MatchSpan::new(cap.start() + 1, cap.end(), Property::Container, ext.to_lowercase())
                     .with_tag("extension")
                     .with_priority(10),
             );
+        }
+        // Fallback: standalone container token (e.g., "MP4-GUSH", "[.mp4]").
+        if matches.is_empty() {
+            if let Ok(Some(cap)) = EXT_STANDALONE.find(input) {
+                let ext = &input[cap.start()..cap.end()];
+                matches.push(
+                    MatchSpan::new(cap.start(), cap.end(), Property::Container, ext.to_lowercase())
+                        .with_priority(5),
+                );
+            }
         }
         matches
     }
