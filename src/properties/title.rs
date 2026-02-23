@@ -161,11 +161,22 @@ fn clean_title(raw: &str) -> String {
     }
 
     // Strip parenthesized year at the end: "Movie (2005)" → "Movie"
-    // But keep non-year parens as part of the title.
     let re_paren_year =
         fancy_regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap();
     if let Ok(Some(m)) = re_paren_year.find(&s) {
         s = s[..m.start()].to_string();
+    }
+
+    // Strip all parenthesized groups (alternative titles, countries, etc.).
+    // e.g., "Le Prestige (The Prestige)" → "Le Prestige"
+    //        "The Office (US)" → "The Office"
+    let re_paren =
+        fancy_regex::Regex::new(r"\s*\([^)]*\)\s*").unwrap();
+    let before_paren_strip = s.clone();
+    s = re_paren.replace_all(&s, " ").to_string();
+    // If stripping removed everything, revert.
+    if s.trim().is_empty() {
+        s = before_paren_strip;
     }
 
     // Replace separators with spaces.
