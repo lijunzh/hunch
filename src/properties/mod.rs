@@ -9,6 +9,7 @@ pub mod other;
 pub mod release_group;
 pub mod screen_size;
 pub mod source;
+pub mod streaming_service;
 pub mod title;
 pub mod video_codec;
 pub mod year;

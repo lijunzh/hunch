@@ -14,6 +14,7 @@ use crate::properties::other::OtherMatcher;
 use crate::properties::release_group::ReleaseGroupMatcher;
 use crate::properties::screen_size::ScreenSizeMatcher;
 use crate::properties::source::SourceMatcher;
+use crate::properties::streaming_service::StreamingServiceMatcher;
 use crate::properties::title;
 use crate::properties::video_codec::VideoCodecMatcher;
 use crate::properties::year::YearMatcher;
@@ -44,6 +45,7 @@ impl Pipeline {
             Box::new(EditionMatcher),
             Box::new(OtherMatcher),
             Box::new(LanguageMatcher),
+            Box::new(StreamingServiceMatcher),
             Box::new(ReleaseGroupMatcher),
         ];
         Self { options, matchers }
