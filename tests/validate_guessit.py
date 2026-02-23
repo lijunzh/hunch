@@ -52,14 +52,107 @@ UNIMPLEMENTED = {
 def parse_yaml_tests(filepath: Path) -> list[tuple[str, dict]]:
     """Parse a guessit YAML test file into (input, expected) pairs.
 
-    guessit's format:
-        ? input_string
+    guessit's format supports chained keys:
+        ? +input1
+        ? +input2
+        ? -negative_input
         : key: value
           key2: value2
 
-    Returns only positive test cases (skips `-` prefixed negatives
-    and `__default__` entries).
+    Multiple `?` keys can share one `:` value block.
+    PyYAML collapses these, so we parse line-by-line for rules files,
+    and use simple YAML for main test files.
     """
+    text = filepath.read_text()
+
+    # Detect if this is a chained-key file (rules files use `+`/`-` prefixes).
+    if any(line.strip().startswith("? +") or line.strip().startswith("? -") for line in text.splitlines()[:20]):
+        return _parse_chained_yaml(filepath)
+    return _parse_simple_yaml(filepath)
+
+
+def _parse_chained_yaml(filepath: Path) -> list[tuple[str, dict]]:
+    """Parse YAML files with chained `? +key` / `? -key` patterns."""
+    text = filepath.read_text()
+    lines = text.splitlines()
+
+    # Collect groups: list of (keys, yaml_block)
+    tests = []
+    current_keys: list[str] = []
+    i = 0
+
+    # Extract default type.
+    raw = yaml.safe_load(text)
+    default_type = None
+    if isinstance(raw, dict) and "__default__" in raw:
+        defaults = raw["__default__"]
+        if isinstance(defaults, dict):
+            default_type = defaults.get("type")
+
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        if stripped.startswith("? "):
+            key = stripped[2:].strip()
+            current_keys.append(key)
+            i += 1
+        elif stripped.startswith(": ") and current_keys:
+            # Collect the YAML mapping block.
+            block_lines = [stripped[2:]]  # First line after ":"
+            i += 1
+            while i < len(lines):
+                nline = lines[i]
+                if nline.startswith("?") or nline.strip() == "" or nline.startswith("#"):
+                    break
+                # Continuation of mapping (indented).
+                block_lines.append(nline.strip())
+                i += 1
+
+            # Parse the block as YAML.
+            block_yaml = "\n".join(block_lines)
+            try:
+                expected = yaml.safe_load(block_yaml)
+            except Exception:
+                current_keys = []
+                continue
+
+            if not isinstance(expected, dict):
+                current_keys = []
+                continue
+
+            # Filter out `-` prefixed properties.
+            clean_expected = {}
+            for k, v in expected.items():
+                if not str(k).startswith("-"):
+                    clean_expected[k] = v
+
+            # Skip entries with options.
+            if "options" in clean_expected:
+                current_keys = []
+                continue
+
+            # Inject default type.
+            if default_type and "type" not in clean_expected:
+                clean_expected["type"] = default_type
+
+            # Emit test cases for each positive key.
+            for key in current_keys:
+                if key.startswith("-"):
+                    continue
+                clean_key = key.lstrip("+")
+                tests.append((clean_key, dict(clean_expected)))
+
+            current_keys = []
+        else:
+            i += 1
+            current_keys = []
+
+    return tests
+
+
+def _parse_simple_yaml(filepath: Path) -> list[tuple[str, dict]]:
+    """Parse standard guessit YAML test files."""
     with open(filepath) as f:
         raw = yaml.safe_load(f)
 
@@ -80,13 +173,17 @@ def parse_yaml_tests(filepath: Path) -> list[tuple[str, dict]]:
         # Skip negatives (start with -).
         if str(input_str).startswith("-"):
             continue
+        # Strip positive prefix (+).
+        clean_input = str(input_str)
+        if clean_input.startswith("+"):
+            clean_input = clean_input[1:]
         # Skip entries with options (we don't support those yet).
         if "options" in expected:
             continue
         # Inject default type if not overridden.
         if default_type and "type" not in expected:
             expected["type"] = default_type
-        tests.append((str(input_str), expected))
+        tests.append((clean_input, expected))
     return tests
 
 
