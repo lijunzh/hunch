@@ -4,6 +4,7 @@ pub mod audio_codec;
 pub mod container;
 pub mod edition;
 pub mod episodes;
+pub mod language;
 pub mod other;
 pub mod release_group;
 pub mod screen_size;

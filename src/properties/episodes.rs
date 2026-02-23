@@ -60,10 +60,10 @@ lazy_static! {
         r"(?i)(?<![a-z])Episode\s*\.?\s*(?P<episode>\d{1,4})(?![a-z0-9])"
     ).unwrap();
 
-    /// 3-digit episode number: 101, 117, 210 → season/episode decomposition.
-    /// Only when preceded by dots/spaces/dashes (not part of a year or other number).
+    /// 3-4 digit episode number: 101, 117, 2401 → season/episode decomposition.
+    /// Must be preceded by a separator and not be a year (1900-2099).
     static ref THREE_DIGIT: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])(?P<num>\d{3})(?=[^\d]|$)"
+        r"(?<![0-9a-zA-Z])(?P<num>\d{3,4})(?=[^\d a-zA-Z]|$)"
     ).unwrap();
 
     /// Bracket episode: [401], [S01E02].
@@ -340,6 +340,44 @@ impl PropertyMatcher for EpisodeMatcher {
             }
         }
 
+        // 7. 3/4-digit episode number decomposition: 101→S1E01, 2401→S24E01.
+        // Only fires when no season/episode found yet.
+        if !matches.iter().any(|m| m.property == Property::Season)
+            && !matches.iter().any(|m| m.property == Property::Episode)
+        {
+            for cap in captures_iter(&THREE_DIGIT, input) {
+                let full = cap.get(0).unwrap();
+                let num_str = cap.name("num").unwrap().as_str();
+                let num: u32 = num_str.parse().unwrap_or(0);
+                if num == 0 {
+                    continue;
+                }
+                // Skip year-like 4-digit numbers (1920-2039).
+                if num_str.len() == 4 && (1920..=2039).contains(&num) {
+                    continue;
+                }
+                // Decompose: e.g., 501 → S5E01, 117 → S1E17, 2401 → S24E01.
+                let (season, episode) = if num_str.len() == 4 {
+                    (num / 100, num % 100)
+                } else {
+                    // 3-digit: first digit is season, last two are episode.
+                    (num / 100, num % 100)
+                };
+                if season == 0 || episode == 0 || season > 50 || episode > 99 {
+                    continue;
+                }
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, season.to_string())
+                        .with_priority(0),
+                );
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode.to_string())
+                        .with_priority(0),
+                );
+                break; // Only decompose the first occurrence.
+            }
+        }
+
         matches
     }
 }
@@ -426,6 +464,27 @@ mod tests {
     fn test_s03_dash_x01() {
         let m = EpisodeMatcher.find_matches("Parks_and_Recreation-s03-x01.mkv");
         assert!(m.iter().any(|x| x.property == Property::Season && x.value == "3"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+    }
+
+    #[test]
+    fn test_three_digit_501() {
+        let m = EpisodeMatcher.find_matches("the.mentalist.501.hdtv.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "5"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
+    }
+
+    #[test]
+    fn test_three_digit_117() {
+        let m = EpisodeMatcher.find_matches("new.girl.117.hdtv.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "17"));
+    }
+
+    #[test]
+    fn test_four_digit_2401() {
+        let m = EpisodeMatcher.find_matches("the.simpsons.2401.hdtv.mkv");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "24"));
         assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "1"));
     }
 }

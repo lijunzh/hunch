@@ -18,9 +18,9 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])BT[-. ]?2020(?![0-9])", "BT.2020"),
         // Quality / resolution flags.
         ValuePattern::new(r"(?i)(?<![a-z])(?:Full[-. ]?HD|FHD)(?![a-z])", "Full HD"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:Ultra[-. ]?HD|UHD|Ultra)(?![a-z])", "Ultra HD"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Ultra[-. ]?HD|UHD)(?![a-z])", "Ultra HD"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:mHD|HDLight)(?![a-z])", "Micro HD"),
-        ValuePattern::new(r"(?i)(?<![a-z])HD(?![a-z])", "HD"),
+        ValuePattern::new(r"(?i)(?<![a-z0-9])HD(?![a-zTV0-9-])", "HD"),
         ValuePattern::new(r"(?i)(?<![a-z])HQ(?![a-z])", "High Quality"),
         ValuePattern::new(r"(?i)(?<![a-z])HR(?![a-z])", "High Resolution"),
         ValuePattern::new(r"(?i)(?<![a-z])LDTV(?![a-z])", "Low Definition"),
@@ -29,7 +29,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])Remux(?![a-z])", "Remux"),
         ValuePattern::new(r"(?i)(?<![a-z])PROPER(?![a-z])", "Proper"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:REPACK|RERIP)\d*(?![a-z])", "Proper"),
-        ValuePattern::new(r"(?i)(?<![a-z])REAL(?![a-z])", "Real"),
+        ValuePattern::new(r"(?i)(?<![a-z])REAL[-.]?PROPER(?![a-z])", "Proper"),
         // Reencoded.
         ValuePattern::new(r"(?i)(?<![a-z])(?:re[-. ]?enc(?:oded)?|reencoded)(?![a-z])", "Reencoded"),
         // Converted.
@@ -37,9 +37,9 @@ lazy_static! {
         // Fix variants.
         ValuePattern::new(r"(?i)(?<![a-z])Audio[-. ]?Fix(?:ed)?(?![a-z])", "Audio Fixed"),
         ValuePattern::new(r"(?i)(?<![a-z])Sync[-. ]?Fix(?:ed)?(?![a-z])", "Sync Fixed"),
-        // Dub / Sub flags.
-        ValuePattern::new(r"(?i)(?<![a-z])(?:DUBBED|DUBS?)(?![a-z])", "Dubbed"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:SUBBED|SUBS?)(?![a-z])", "Subbed"),
+        // Dub / Sub flags (require explicit markers, not bare words).
+        ValuePattern::new(r"(?i)(?<![a-z])DUBBED(?![a-z])", "Dubbed"),
+        ValuePattern::new(r"(?i)(?<![a-z])SUBBED(?![a-z])", "Subbed"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:HARDCODED|HC)[-. ]?SUBS?(?![a-z])", "Hardcoded Subtitles"),
         ValuePattern::new(r"(?i)(?<![a-z])Fan[-. ]?Sub(?:bed|titled|s)?(?![a-z])", "Fan Subtitled"),
         ValuePattern::new(r"(?i)(?<![a-z])Fast[-. ]?Sub(?:bed|titled|s)?(?![a-z])", "Fast Subtitled"),
@@ -47,7 +47,8 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])(?:Wide[-. ]?Screen|WS)(?![a-z])", "Widescreen"),
         // Dual / Multi audio.
         ValuePattern::new(r"(?i)(?<![a-z])Dual[-. ]?Audio(?![a-z])", "Dual Audio"),
-        ValuePattern::new(r"(?i)(?<![a-z])Multi(?![a-z])", "Multi Audio"),
+        ValuePattern::new(r"(?i)(?<![a-z])Dual(?=[-. ]?(?:DVD|BD|BR|WEB|BluRay))(?![a-z])", "Dual Audio"),
+        ValuePattern::new(r"(?i)(?<![a-z])Multi[-. ]?Audio(?![a-z])", "Multi Audio"),
         ValuePattern::new(r"(?i)(?<![a-z])LiNE(?![a-z])", "Line Audio"),
         // Dubbing quality.
         ValuePattern::new(r"(?i)(?<![a-z])LD(?![a-z])", "Line Dubbed"),
@@ -68,8 +69,6 @@ lazy_static! {
         // Mux / encode.
         ValuePattern::new(r"(?i)(?<![a-z])Hybrid(?![a-z])", "Hybrid"),
         // Extras / bonus / complete.
-        ValuePattern::new(r"(?i)(?<![a-z])(?:Season|Series)[-. ]?Complete(?![a-z])", "Complete"),
-        ValuePattern::new(r"(?i)(?<![a-z])Complete[-. ]?(?:Season|Series)(?![a-z])", "Complete"),
         ValuePattern::new(r"(?i)(?<![a-z])PreAir(?![a-z])", "Preair"),
         ValuePattern::new(r"(?i)(?<![a-z])Pre[-. ]?Air(?![a-z])", "Preair"),
         // 2in1.
@@ -78,6 +77,31 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])INTERNAL(?![a-z])", "Internal"),
         ValuePattern::new(r"(?i)(?<![a-z])READ\.?NFO(?![a-z])", "Read NFO"),
         ValuePattern::new(r"(?i)(?<![a-z])SAMPLE(?![a-z])", "Sample"),
+        // Mux.
+        ValuePattern::new(r"(?i)(?<![a-z])(?:DivX|XviD)?[-.]?Mux(?![a-z])", "Mux"),
+        // Repost / Obfuscated.
+        ValuePattern::new(r"(?i)(?<![a-z])REPOST(?![a-z])", "Repost"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:OBFUSCATED|Obfuscation|scrambled)(?![a-z])", "Obfuscated"),
+        // Complete (broader patterns).
+        ValuePattern::new(r"(?i)(?<![a-z])COMPLETE(?![a-z])", "Complete"),
+        // Straight to Video.
+        ValuePattern::new(r"(?i)(?<![a-z])(?:STV|Straight[-. ]?to[-. ]?Video)(?![a-z])", "Straight to Video"),
+        // Fix (generic and specific).
+        ValuePattern::new(r"(?i)(?<![a-z])(?:DIRFIX|NFOFIX|SAMPLEFIX)(?![a-z])", "Fix"),
+        ValuePattern::new(r"(?i)(?<![a-z])FIX(?![a-z])", "Fix"),
+        // XXX.
+        ValuePattern::new(r"(?i)(?<![a-z])XXX(?![a-z])", "XXX"),
+        // Open Matte.
+        ValuePattern::new(r"(?i)(?<![a-z])Open[-. ]?Matte(?![a-z])", "Open Matte"),
+        // Extras / Bonus.
+        ValuePattern::new(r"(?i)(?<![a-z])EXTRAS?(?![a-z])", "Extras"),
+        // Documentary.
+        ValuePattern::new(r"(?i)(?<![a-z])DOCU(?:MENTARY)?(?![a-z])", "Documentary"),
+        // Original Video.
+        ValuePattern::new(r"(?i)(?<![a-z])OVA?(?![a-z])", "Original Video"),
+        // East/West Coast Feed.
+        ValuePattern::new(r"(?i)(?<![a-z])(?:East|EST)[-. ]?(?:Coast[-. ]?)?Feed(?![a-z])", "East Coast Feed"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:West|WST)[-. ]?(?:Coast[-. ]?)?Feed(?![a-z])", "West Coast Feed"),
     ];
 }
 

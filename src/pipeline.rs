@@ -9,6 +9,7 @@ use crate::properties::audio_codec::AudioCodecMatcher;
 use crate::properties::container::ContainerMatcher;
 use crate::properties::edition::EditionMatcher;
 use crate::properties::episodes::EpisodeMatcher;
+use crate::properties::language::LanguageMatcher;
 use crate::properties::other::OtherMatcher;
 use crate::properties::release_group::ReleaseGroupMatcher;
 use crate::properties::screen_size::ScreenSizeMatcher;
@@ -42,6 +43,7 @@ impl Pipeline {
             Box::new(EpisodeMatcher),
             Box::new(EditionMatcher),
             Box::new(OtherMatcher),
+            Box::new(LanguageMatcher),
             Box::new(ReleaseGroupMatcher),
         ];
         Self { options, matchers }
