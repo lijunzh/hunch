@@ -1,117 +1,126 @@
-# hunch 🔮
+# 🔍 Hunch
 
-**A Rust media filename parser — spiritual descendant of Python's [guessit](https://github.com/guessit-io/guessit).**
+**A Rust library for guessing media metadata from filenames.**
 
-*"It's not a guess, it's a hunch."*
-
-`hunch` extracts structured metadata from media filenames using regex-based pattern matching
-and conflict resolution. It's designed for media organizers, scrapers, and anyone who needs
-to parse filenames like `The.Matrix.1999.1080p.BluRay.x264-SPARKS.mkv` into structured data.
-
-## Features
-
-- 🎬 **15+ property types**: title, year, season, episode, screen_size, source, video_codec,
-  audio_codec, audio_channels, edition, container, release_group, language,
-  streaming_service, other flags, media type
-- ⚡ **Fast**: pure Rust with lazy-compiled regexes, processes thousands of filenames per second
-- 🧠 **Smart conflict resolution**: priority-based overlap handling
-- 📁 **Path-aware**: extracts titles from parent directories, detects seasons from paths
-- 🎯 **58% guessit compatibility** on the full guessit test suite (1330 cases)
-  and **90%+ accuracy** on core properties (video_codec, audio_codec, screen_size,
-  source, edition, year, audio_channels, container)
+Hunch is a fast, opinionated media filename parser — a spiritual descendant
+of Python's [guessit](https://github.com/guessit-io/guessit), rewritten from
+scratch for Rust. It extracts title, year, season, episode, resolution, codec,
+language, and 30+ other properties from messy media filenames.
 
 ## Quick Start
 
 ```bash
-cargo build --release
-./target/release/hunch "The.Matrix.1999.1080p.BluRay.x264-SPARKS.mkv"
+cargo add hunch
 ```
 
-Output:
-```json
-{
-  "container": "mkv",
-  "release_group": "SPARKS",
-  "screen_size": "1080p",
-  "source": "Blu-ray",
-  "title": "The Matrix",
-  "type": "movie",
-  "video_codec": "H.264",
-  "year": 1999
+### As a library
+
+```rust
+use hunch::parse;
+
+fn main() {
+    let result = parse("The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv");
+    println!("{:#?}", result);
+    // GuessResult {
+    //   title: Some("The Walking Dead"),
+    //   season: Some(5),
+    //   episode: Some(3),
+    //   screen_size: Some("720p"),
+    //   source: Some("Blu-ray"),
+    //   video_codec: Some("H.264"),
+    //   release_group: Some("DEMAND"),
+    //   container: Some("mkv"),
+    //   media_type: Episode,
+    //   ...
+    // }
 }
 ```
 
-## As a Library
+### As a CLI tool
 
-```rust
-use hunch::Pipeline;
-
-let pipeline = Pipeline::default();
-let guess = pipeline.run("Breaking.Bad.S05E16.720p.BluRay.x264-DEMAND.mkv");
-
-assert_eq!(guess.title(), Some("Breaking Bad"));
-assert_eq!(guess.season(), Some(5));
-assert_eq!(guess.episode(), Some(16));
-assert_eq!(guess.video_codec(), Some("H.264"));
+```bash
+$ hunch "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
+{
+  "container": "mkv",
+  "episode": 3,
+  "release_group": "DEMAND",
+  "screen_size": "720p",
+  "season": 5,
+  "source": "Blu-ray",
+  "title": "The Walking Dead",
+  "type": "episode",
+  "video_codec": "H.264"
+}
 ```
 
 ## Supported Properties
 
-| Property | Accuracy | Examples |
-|----------|----------|----------|
-| video_codec | 98.6% | H.264, H.265, Xvid, AV1 |
-| year | 96.8% | 1999, 2024 |
-| edition | 96.4% | Director's Cut, Extended |
-| source | 94.3% | Blu-ray, Web, HDTV, DVD |
-| audio_codec | 94.2% | AAC, DTS-HD, Dolby Atmos |
-| screen_size | 93.0% | 720p, 1080p, 2160p, 4K |
-| audio_channels | 92.4% | 5.1, 7.1, 2.0 |
-| type | 90.5% | movie, episode |
-| container | 89.7% | mkv, mp4, avi |
-| season | 86.9% | S01, Season 1 |
-| release_group | 80.6% | SPARKS, FGT, [SubGroup] |
-| episode | 78.5% | E02, 1x03, 501 |
-| other | 71.6% | HDR10, Remux, Proper |
-| title | 71.3% | The Matrix |
+| Property | Examples | Accuracy |
+|---|---|---|
+| title | Movie name / show name | 78% |
+| year | 2024, (1999) | 97% |
+| season | S05, Season 3 | 89% |
+| episode | E03, 5x03, Ep.12 | 81% |
+| episode_title | Inferred from position | 62% |
+| screen_size | 720p, 1080p, 4K, 2160p | 93% |
+| source | BluRay, WEB-DL, HDTV | 94% |
+| video_codec | x264, H.265, HEVC, Xvid | 99% |
+| audio_codec | DTS, AAC, FLAC, AC3 | 94% |
+| audio_channels | 5.1, 7.1, 2.0 | 92% |
+| audio_profile | Master Audio, Atmos | 78% |
+| release_group | DEMAND, SPARKS, FGT | 83% |
+| container | mkv, mp4, avi | 99% |
+| edition | Director's Cut, Extended | 96% |
+| streaming_service | AMZN, NF, HMAX | 100% |
+| other | Proper, Repack, HDR | 74% |
+| subtitle_language | French, eng, VOSTFR | 83% |
+| language | French, Multi, VOSTFR | 91% |
+| color_depth | 10-bit, 8-bit | 100% |
+| video_profile | High, HEVC, AVCHD | 64% |
+| date | 2017-06-22, 20021107 | 92% |
+| country | US, UK, GB | 90% |
+| crc32 | [1A2B3C4D] | 96% |
+| website | [site.com], www.x.com | 95% |
+| uuid | Standard & compact UUIDs | 88% |
+| aspect_ratio | Computed from resolution | 98% |
+| bonus / bonus_title | x01 extras | 100% / 60% |
+| part / disc / cd | Part 2, Disc 1, CD1 | 67% |
+| size | 700MB, 1.4GB | 67% |
 
-## Architecture
+*Accuracy measured agit's test suite (1,330 test cases).*
 
-```
-src/
-├── lib.rs          # Public API
-├── main.rs         # CLI binary
-├── pipeline.rs     # Orchestration
-├── guess.rs        # Result type
-├── options.rs      # Configuration
-├── matcher/
-│   ├── engine.rs   # Conflict resolution
-│   ├── span.rs     # Match spans & properties
-│   └── regex_utils.rs
-└── properties/     # One file per property type
-    ├── audio_codec.rs
-    ├── container.rs
-    ├── edition.rs
-    ├── episodes.rs
-    ├── language.rs
-    ├── other.rs
-    ├── release_group.rs
-    ├── screen_size.rs
-    ├── source.rs
-    ├── streaming_service.rs
-    ├── title.rs
-    ├── video_codec.rs
-    └── year.rs
-```
+## Design
 
-## Running Tests
+Hunch uses a **span-based architecture**:
 
-```bash
-# Rust unit tests (105 tests)
-cargo test
+1. **Match** — Each property matcher scans the input and produces
+   `MatchSpan`s (start, end, property, value) with priorities.
+2. **Resolve** — Overlapping spans are resolved using priority and
+   specificity rules (longer matches win ties).
+3. **Extract** — Title is inferred from the largest unclaimed region
+   before the first technical property.
 
-# Integration tests against guessit test suite
-python3 tests/validate_guessit.py
-```
+This is fundamentally different from guessit's rebulk-based approach.
+Instead of a complex rule engine, Hunch uses simple regex matchers
+composed via a trait (`PropertyMatcher`) and resolved with span logic.
+
+## Performance
+
+Hunch compiles all regex patterns at startup via `lazy_static` and
+runs each parse in microseconds. The CLI adds ~85ms of process startup
+overhead.
+
+## Compatibility with guessit
+
+Hunch targets **feature parity** with guessit's test suite:
+
+- **Overall pass rate: 58.5%** (778/1,330 test cases)
+- **20 properties at 90%+** accuracy
+- **7 properties at 100%** accuracy
+
+The remaining gaps are mostly in complex title extraction heuristics,
+episode title inference, and edge cases in `other` flags. These are
+actively being improved.
 
 ## License
 
