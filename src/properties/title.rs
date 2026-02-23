@@ -192,7 +192,31 @@ fn clean_title(raw: &str) -> String {
         .collect();
 
     // Collapse multiple spaces and trim.
-    collapse_spaces(&cleaned)
+    let mut result = collapse_spaces(&cleaned);
+
+    // Strip trailing "Part" + optional roman/number: "The Godfather Part III" → "The Godfather".
+    let re_part = fancy_regex::Regex::new(
+        r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$"
+    ).unwrap();
+    if let Ok(Some(m)) = re_part.find(&result) {
+        let stripped = result[..m.start()].to_string();
+        if !stripped.trim().is_empty() {
+            result = stripped;
+        }
+    }
+
+    // Strip trailing "Saison" + roman numeral: "Dexter Saison VII" → "Dexter".
+    let re_saison = fancy_regex::Regex::new(
+        r"(?i)\s+Saison\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$"
+    ).unwrap();
+    if let Ok(Some(m)) = re_saison.find(&result) {
+        let stripped = result[..m.start()].to_string();
+        if !stripped.trim().is_empty() {
+            result = stripped;
+        }
+    }
+
+    result
 }
 
 /// Collapse multiple spaces into one and trim.

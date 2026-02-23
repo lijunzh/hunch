@@ -20,6 +20,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])Collector'?s?(?:[-. ]?Edition)?(?![a-z])", "Collector"),
         // Special.
         ValuePattern::new(r"(?i)(?<![a-z])Special[-. ]?Edition(?![a-z])", "Special"),
+        ValuePattern::new(r"(?<![a-zA-Z])SE(?![a-zA-Z])", "Special"),
         // Ultimate.
         ValuePattern::new(r"(?i)(?<![a-z])Ultimate[-. ]?Edition(?![a-z])", "Ultimate"),
         ValuePattern::new(r"(?i)(?<![a-z])Ultimate(?![a-z])", "Ultimate"),

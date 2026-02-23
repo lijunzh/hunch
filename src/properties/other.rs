@@ -49,7 +49,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])Dual[-. ]?Audio(?![a-z])", "Dual Audio"),
         ValuePattern::new(r"(?i)(?<![a-z])Dual(?=[-. ]?(?:DVD|BD|BR|WEB|BluRay))(?![a-z])", "Dual Audio"),
         ValuePattern::new(r"(?i)(?<![a-z])Multi[-. ]?Audio(?![a-z])", "Multi Audio"),
-        ValuePattern::new(r"(?i)(?<![a-z])LiNE(?![a-z])", "Line Audio"),
+        ValuePattern::new(r"(?<![a-zA-Z])LiNE(?![a-zA-Z])", "Line Audio"),
         // Dubbing quality.
         ValuePattern::new(r"(?i)(?<![a-z])LD(?![a-z])", "Line Dubbed"),
         ValuePattern::new(r"(?i)(?<![a-z])MD(?![a-z])", "Mic Dubbed"),
@@ -98,7 +98,7 @@ lazy_static! {
         // Documentary.
         ValuePattern::new(r"(?i)(?<![a-z])DOCU(?:MENTARY)?(?![a-z])", "Documentary"),
         // Original Video.
-        ValuePattern::new(r"(?i)(?<![a-z])OVA?(?![a-z])", "Original Video"),
+        ValuePattern::new(r"(?i)(?<![a-z])OVA(?![a-z])", "Original Video"),
         // East/West Coast Feed.
         ValuePattern::new(r"(?i)(?<![a-z])(?:East|EST)[-. ]?(?:Coast[-. ]?)?Feed(?![a-z])", "East Coast Feed"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:West|WST)[-. ]?(?:Coast[-. ]?)?Feed(?![a-z])", "West Coast Feed"),

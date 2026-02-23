@@ -63,6 +63,12 @@ impl Pipeline {
         // Step 2: Resolve overlapping conflicts.
         MatchEngine::resolve_conflicts(&mut all_matches);
 
+        // Step 2b: Remove language matches that appear in the title zone.
+        // The "title zone" is the region before the first technical property.
+        // Language words like "Italian" in "The.Italian.Job" should not be treated
+        // as language tags if they appear before any codec/year/source/resolution.
+        self.prune_language_in_title_zone(input, &mut all_matches);
+
         // Step 3: Post-processing.
         // 3a: Extract title from remaining gaps.
         if let Some(title_match) = title::extract_title(input, &all_matches) {
@@ -76,6 +82,52 @@ impl Pipeline {
 
         // Step 4: Build the Guess result.
         Guess::from_matches(&all_matches)
+    }
+
+    /// Remove language matches that appear before any "technical" property.
+    /// This prevents language names (French, Italian, English, etc.) from
+    /// eating title words like "The Italian Job" or "Immersion French".
+    fn prune_language_in_title_zone(&self, input: &str, matches: &mut Vec<MatchSpan>) {
+        use crate::matcher::span::Property;
+
+        // Find the filename portion start.
+        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+
+        // Find the start position of the first technical match.
+        let technical_props = [
+            Property::Year,
+            Property::VideoCodec,
+            Property::AudioCodec,
+            Property::Source,
+            Property::ScreenSize,
+            Property::Edition,
+            Property::Other,
+            Property::AudioChannels,
+            Property::Season,
+            Property::Episode,
+            Property::StreamingService,
+        ];
+
+        let first_tech_pos = matches
+            .iter()
+            .filter(|m| m.start >= fn_start && technical_props.contains(&m.property))
+            .map(|m| m.start)
+            .min();
+
+        if let Some(tech_pos) = first_tech_pos {
+            // Remove language matches that appear before the first technical token.
+            matches.retain(|m| {
+                if m.property == Property::Language && m.start < tech_pos && m.start >= fn_start {
+                    false // prune it
+                } else {
+                    true
+                }
+            });
+        } else {
+            // No technical tokens at all — prune all language matches.
+            // Filenames like "The_Italian_Job.mkv" have no codecs/years/etc.
+            matches.retain(|m| m.property != Property::Language);
+        }
     }
 }
 
