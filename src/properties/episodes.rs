@@ -62,8 +62,9 @@ lazy_static! {
 
     /// 3-4 digit episode number: 101, 117, 2401 → season/episode decomposition.
     /// Must be preceded by a separator and not be a year (1900-2099).
+    /// Only matches after a dot/dash/space and NOT at the very start of filename.
     static ref THREE_DIGIT: Regex = Regex::new(
-        r"(?<![0-9a-zA-Z])(?P<num>\d{3,4})(?=[^\d a-zA-Z]|$)"
+        r"(?<=[.\-_ ])(?P<num>\d{3,4})(?=[.\-_ ]|$)"
     ).unwrap();
 
     /// Bracket episode: [401], [S01E02].
@@ -369,11 +370,17 @@ impl PropertyMatcher for EpisodeMatcher {
 
         // 9. 3/4-digit episode number decomposition: 101→S1E01, 2401→S24E01.
         // Only fires when no season/episode found yet.
+        // Must appear after the title portion (not in first 5 chars of filename).
         if !matches.iter().any(|m| m.property == Property::Season)
             && !matches.iter().any(|m| m.property == Property::Episode)
         {
+            let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
             for cap in captures_iter(&THREE_DIGIT, input) {
                 let full = cap.get(0).unwrap();
+                // Skip if too close to the start of the filename (likely title).
+                if full.start() < fn_start + 5 {
+                    continue;
+                }
                 let num_str = cap.name("num").unwrap().as_str();
                 let num: u32 = num_str.parse().unwrap_or(0);
                 if num == 0 {
@@ -383,6 +390,10 @@ impl PropertyMatcher for EpisodeMatcher {
                 if num_str.len() == 4 && (1920..=2039).contains(&num) {
                     continue;
                 }
+                // Skip codec-related numbers (264, 265, 128, etc.).
+                if num == 264 || num == 265 || num == 128 {
+                    continue;
+                }
                 // Decompose: e.g., 501 → S5E01, 117 → S1E17, 2401 → S24E01.
                 let (season, episode) = if num_str.len() == 4 {
                     (num / 100, num % 100)
@@ -390,7 +401,7 @@ impl PropertyMatcher for EpisodeMatcher {
                     // 3-digit: first digit is season, last two are episode.
                     (num / 100, num % 100)
                 };
-                if season == 0 || episode == 0 || season > 50 || episode > 99 {
+                if season == 0 || episode == 0 || season > 30 || episode > 99 {
                     continue;
                 }
                 matches.push(
