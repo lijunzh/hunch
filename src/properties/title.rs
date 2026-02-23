@@ -48,6 +48,11 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
     let cleaned = clean_title(raw_title);
 
     if cleaned.is_empty() {
+        // Try anime-style: [Group] Title - Episode.
+        // Look for text between the first bracket group and the next property.
+        if let Some(title) = extract_after_bracket_group(input, matches, filename_start) {
+            return Some(title);
+        }
         return extract_title_from_parent(input, matches);
     }
 
@@ -135,6 +140,79 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
     }
 
     None
+}
+
+/// For anime-style: `[Group] Title - 04 [480p]`, extract "Title" from
+/// the gap between the bracket group and the next property match.
+fn extract_after_bracket_group(
+    input: &str,
+    matches: &[MatchSpan],
+    filename_start: usize,
+) -> Option<MatchSpan> {
+    let filename = &input[filename_start..];
+    let filename_end = filename_start + filename.len();
+
+    // Find the end of leading bracket groups in the filename.
+    let mut pos = 0;
+    while pos < filename.len() && filename[pos..].starts_with('[') {
+        if let Some(close) = filename[pos..].find(']') {
+            pos += close + 1;
+            // Skip trailing separators.
+            while pos < filename.len() && SEPS.contains(&(filename.as_bytes()[pos] as char)) {
+                pos += 1;
+            }
+        } else {
+            break;
+        }
+    }
+
+    if pos == 0 || pos >= filename.len() {
+        return None;
+    }
+
+    let title_start_abs = filename_start + pos;
+
+    // Find the next property match after this position.
+    let next_match = matches
+        .iter()
+        .filter(|m| m.start >= title_start_abs && m.start < filename_end)
+        .filter(|m| !m.tags.contains(&"extension".to_string()))
+        .min_by_key(|m| m.start);
+
+    let title_end_abs = match next_match {
+        Some(m) => m.start,
+        None => {
+            let has_ext = matches.iter().any(|m| {
+                m.property == Property::Container && m.start >= filename_start
+            });
+            if has_ext {
+                if let Some(dot) = filename.rfind('.') {
+                    filename_start + dot
+                } else {
+                    filename_end
+                }
+            } else {
+                filename_end
+            }
+        }
+    };
+
+    if title_end_abs <= title_start_abs {
+        return None;
+    }
+
+    let raw = &input[title_start_abs..title_end_abs];
+    let cleaned = clean_title(raw);
+    if cleaned.is_empty() {
+        return None;
+    }
+
+    Some(MatchSpan::new(
+        title_start_abs,
+        title_end_abs,
+        Property::Title,
+        cleaned,
+    ))
 }
 
 fn has_parent_dir(input: &str) -> bool {

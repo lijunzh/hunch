@@ -50,6 +50,11 @@ lazy_static! {
         r"(?i)(?<![a-z])(?:Season|Saison)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])"
     ).unwrap();
 
+    /// Season with Roman numerals: Saison VII, Season III.
+    static ref SEASON_ROMAN: Regex = Regex::new(
+        r"(?i)(?<![a-z])(?:Season|Saison)\s*\.?\s*(?P<season>(?:X{0,3})(?:IX|IV|V?I{0,3}))(?![a-z])"
+    ).unwrap();
+
     /// Season from path directory: /Season 6/, /Season.02/.
     static ref SEASON_DIR: Regex = Regex::new(
         r"(?i)(?:Season|Saison)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])"
@@ -152,6 +157,23 @@ fn parse_num(cap: &fancy_regex::Captures, name: &str) -> String {
         .parse::<u32>()
         .unwrap_or(0)
         .to_string()
+}
+
+/// Parse a Roman numeral string to an integer.
+fn roman_to_int(s: &str) -> Option<u32> {
+    let upper = s.to_uppercase();
+    let mut result: i32 = 0;
+    let mut prev = 0;
+    for ch in upper.chars().rev() {
+        let val = match ch {
+            'I' => 1, 'V' => 5, 'X' => 10, 'L' => 50,
+            'C' => 100, 'D' => 500, 'M' => 1000,
+            _ => return None,
+        };
+        if val < prev { result -= val; } else { result += val; }
+        prev = val;
+    }
+    if result > 0 { Some(result as u32) } else { None }
 }
 
 pub struct EpisodeMatcher;
@@ -301,6 +323,20 @@ impl PropertyMatcher for EpisodeMatcher {
                     MatchSpan::new(full.start(), full.end(), Property::Season, season)
                         .with_priority(2),
                 );
+            }
+        }
+
+        // 6b. Season with Roman numerals: Saison VII, Season III.
+        if !matches.iter().any(|m| m.property == Property::Season) {
+            for cap in captures_iter(&SEASON_ROMAN, input) {
+                let full = cap.get(0).unwrap();
+                let roman_str = cap.name("season").unwrap().as_str();
+                if let Some(num) = roman_to_int(roman_str) {
+                    matches.push(
+                        MatchSpan::new(full.start(), full.end(), Property::Season, num.to_string())
+                            .with_priority(2),
+                    );
+                }
             }
         }
 
