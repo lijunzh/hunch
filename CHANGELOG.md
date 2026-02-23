@@ -13,17 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   date, film, language, part, size, website.
 - All 22 fixture files now wired into Rust regression tests (was 12).
 - `!!null` assertion support in regression test checker.
-- 191 total Rust tests (140 unit + 22 regression + 27 integration + 2 doc-tests).
+- Language normalization in regression tests (ISO 2/3-letter, full names).
+- Compatibility report: `cargo test compatibility_report -- --ignored --nocapture`
+  for full per-property and per-file accuracy breakdown.
+- 192 total Rust tests (140 unit + 23 regression + 27 integration + 2 doc-tests).
 
 ### Changed
 
-- `validate_guessit.py` now reads from `tests/fixtures/` instead of
-  requiring `../guessit` — fully self-contained, no external repo needed.
 - Regression floors tightened to (actual − 2%) across all fixture files.
 
 ### Removed
 
-- Dependency on external `../guessit` repository for testing.
+- `tests/validate_guessit.py` — replaced by Rust-native compatibility report.
+- Dependency on external `../guessit` repository. Everything is self-contained.
 
 ## [0.1.1] - 2026-02-22
 

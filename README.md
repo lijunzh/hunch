@@ -125,9 +125,8 @@ src/
 
 tests/
 ├── integration.rs      # 27 hand-written end-to-end tests
-├── guessit_regression.rs # 22 regression suites (ratchet floors)
+├── guessit_regression.rs # 22 regression suites + compatibility report
 ├── helpers/mod.rs      # Custom YAML fixture parser
-├── validate_guessit.py # Detailed compatibility report generator
 └── fixtures/           # Copied from guessit (self-contained)
     ├── movies.yml, episodes.yml, various.yml
     └── rules/          # 19 per-property test files

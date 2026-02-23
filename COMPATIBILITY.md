@@ -155,19 +155,23 @@ are unusual and low-priority.
 
 ## How This Is Measured
 
-The validation script (`tests/validate_guessit.py`) does the following:
+The regression test suite (`tests/guessit_regression.rs`) does the following:
 
-1. Loads guessit's YAML test vectors from `../guessit/guessit/test/`.
-2. Runs `hunch` (CLI) against each filename.
-3. Compares every expected property value against hunch's JSON output.
+1. Loads guessit's YAML test vectors from `tests/fixtures/` (bundled, self-contained).
+2. Runs `hunch()` as a library against each filename.
+3. Compares every expected property value against hunch's output.
 4. A test "passes" only if **all** asserted properties match exactly.
 5. Language values are normalized (ISO 2-letter, 3-letter, and full
    names are treated as equivalent, e.g. `fr` = `fre` = `French`).
 
-To run locally:
+To run the full compatibility report:
 
 ```bash
-# Requires guessit repo at ../guessit
-cargo build --release
-python3 tests/validate_guessit.py
+cargo test compatibility_report -- --ignored --nocapture
+```
+
+To run the regression guards (CI):
+
+```bash
+cargo test --test guessit_regression
 ```

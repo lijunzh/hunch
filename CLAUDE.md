@@ -231,12 +231,12 @@ the first language.
 2. **Integration tests** (`tests/integration.rs`) — 27 hand-written end-to-end tests.
 3. **Regression tests** (`tests/guessit_regression.rs`) — 22 fixture files with
    ratchet-pattern minimum pass rates. Floors are set to (actual − 2%) and should
-   only go up. All fixtures are self-contained in `tests/fixtures/`.
-4. **Compatibility report** (`tests/validate_guessit.py`) — detailed per-property
-   accuracy breakdown with language normalization. Reads from `tests/fixtures/`
-   (no external `../guessit` repo needed).
+   only go up. Includes language normalization (ISO codes).
+4. **Compatibility report** — run `cargo test compatibility_report -- --ignored --nocapture`
+   for a full per-property and per-file accuracy breakdown.
 5. **Benchmarks** (`benches/parse.rs`) — Criterion benchmarks for parse performance.
-6. All 22 fixture files: `movies.yml`, `episodes.yml`, `various.yml`,
+6. All fixtures are self-contained in `tests/fixtures/` (no external repos needed).
+   22 fixture files: `movies.yml`, `episodes.yml`, `various.yml`,
    `rules/{audio_codec,bonus,cd,common_words,country,date,edition,episodes,film,
    language,other,part,release_group,screen_size,size,source,title,video_codec,
    website}.yml`.
