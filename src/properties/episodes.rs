@@ -93,6 +93,17 @@ lazy_static! {
     static ref SXX_DASH_XXX: Regex = Regex::new(
         r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[-. ]+[xX](?P<episode>\d{1,4})(?![a-z0-9])"
     ).unwrap();
+
+    /// Versioned episode: `07v4`, `312v1` → episode is the number before 'v'.
+    static ref VERSIONED_EPISODE: Regex = Regex::new(
+        r"(?<![a-z0-9])(?P<episode>\d{1,4})v\d{1,2}(?![a-z0-9])"
+    ).unwrap();
+
+    /// Leading episode number: `01 - Ep Name`, `003. Show Name`.
+    /// Only matches at the very start of the filename portion.
+    static ref LEADING_EPISODE: Regex = Regex::new(
+        r"^(?P<episode>0\d{1,3}|\d{1,3})(?:\s*[-.]\s+[A-Za-z])"
+    ).unwrap();
 }
 
 /// Helper: iterate fancy_regex captures.
@@ -368,7 +379,46 @@ impl PropertyMatcher for EpisodeMatcher {
             }
         }
 
-        // 9. 3/4-digit episode number decomposition: 101→S1E01, 2401→S24E01.
+        // 9. Versioned episode: `Show.07v4` or `312v1`.
+        if !matches.iter().any(|m| m.property == Property::Episode) {
+            for cap in captures_iter(&VERSIONED_EPISODE, input) {
+                let full = cap.get(0).unwrap();
+                let episode = parse_num(&cap, "episode");
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                        .with_tag("versioned")
+                        .with_priority(1),
+                );
+                break;
+            }
+        }
+
+        // 9b. Leading episode: `01 - Ep Name`, `003. Show Name`.
+        if !matches.iter().any(|m| m.property == Property::Episode) {
+            let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+            let filename = &input[fn_start..];
+            for cap in captures_iter(&LEADING_EPISODE, filename) {
+                let ep_match = cap.name("episode").unwrap();
+                let ep_num: u32 = ep_match.as_str().parse().unwrap_or(0);
+                if ep_num == 0 || ep_num > 999 {
+                    continue;
+                }
+                // Don't match if looks like a year.
+                if (1900..=2039).contains(&ep_num) {
+                    continue;
+                }
+                let abs_start = fn_start + ep_match.start();
+                let abs_end = fn_start + ep_match.end();
+                matches.push(
+                    MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
+                        .with_tag("leading")
+                        .with_priority(0),
+                );
+                break;
+            }
+        }
+
+        // 10. 3/4-digit episode number decomposition: 101→S1E01, 2401→S24E01.
         // Only fires when no season/episode found yet.
         // Must appear after the title portion (not in first 5 chars of filename).
         if !matches.iter().any(|m| m.property == Property::Season)
