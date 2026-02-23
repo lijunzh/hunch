@@ -29,7 +29,7 @@ implemented (zero skipped).
 | ✅ 95%+ | video_codec, container, aspect_ratio, year, edition, crc32, website | 7 |
 | ✅ 90–95% | source, audio_codec, screen_size, audio_channels, date, type, country | 7 |
 | ✅ 80–90% | season, uuid, release_group, subtitle_language, episode | 5 |
-| ⚠️ 60–80% | title, audio_profile, proper_count, other, episode_title, video_profile, part, cd, size | 9 |
+| ⚠️ 60–80% | title, audio_profile, proper_count, other, episode_title, video_profile, part, cd, cd_count, size, bonus_title | 11 |
 | ✅ 100% | color_depth, streaming_service, bonus, episode_details, film | 5 |
 | ❌ <60% | disc, episode_format, film_title, week | 4 |
 
@@ -146,6 +146,10 @@ src/
 - [x] `Pipeline` (orchestration)
 - [x] CLI binary (`hunch "filename.mkv"`)
 - [x] Integration tests via `tests/validate_guessit.py`
+- [x] Rust integration tests (`tests/integration.rs` — 27 tests)
+- [x] Rust regression suite (`tests/guessit_regression.rs` — 22 fixture files with ratchet floors)
+- [x] Benchmark suite (`benches/parse.rs`)
+- [x] Self-contained test fixtures in `tests/fixtures/` (no external `../guessit` repo needed)
 - [x] Git init + .gitignore
 
 ### Phase 2 — Feature Parity ✅ COMPLETE
@@ -223,14 +227,19 @@ the first language.
 
 ### Testing strategy
 
-1. **Unit tests** in each property matcher (`#[cfg(test)]` blocks).
-2. **Compatibility tests** via `tests/validate_guessit.py` — runs hunch
-   against guessit's YAML test vectors from `../guessit/guessit/test/`.
-   Includes language normalization (ISO 2-letter, 3-letter, full names).
-3. Test files validated: `movies.yml`, `episodes.yml`, `various.yml`,
-   `rules/video_codec.yml`, `rules/audio_codec.yml`, `rules/screen_size.yml`,
-   `rules/source.yml`, `rules/edition.yml`, `rules/other.yml`,
-   `rules/release_group.yml`, `rules/title.yml`, `rules/episodes.yml`.
+1. **Unit tests** in each property matcher (`#[cfg(test)]` blocks) — 140 tests.
+2. **Integration tests** (`tests/integration.rs`) — 27 hand-written end-to-end tests.
+3. **Regression tests** (`tests/guessit_regression.rs`) — 22 fixture files with
+   ratchet-pattern minimum pass rates. Floors are set to (actual − 2%) and should
+   only go up. All fixtures are self-contained in `tests/fixtures/`.
+4. **Compatibility report** (`tests/validate_guessit.py`) — detailed per-property
+   accuracy breakdown with language normalization. Reads from `tests/fixtures/`
+   (no external `../guessit` repo needed).
+5. **Benchmarks** (`benches/parse.rs`) — Criterion benchmarks for parse performance.
+6. All 22 fixture files: `movies.yml`, `episodes.yml`, `various.yml`,
+   `rules/{audio_codec,bonus,cd,common_words,country,date,edition,episodes,film,
+   language,other,part,release_group,screen_size,size,source,title,video_codec,
+   website}.yml`.
 
 ### Adding a new property matcher
 
