@@ -66,6 +66,8 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])RC(?![a-z0-9])", "Region C"),
         // Screener.
         ValuePattern::new(r"(?i)(?<![a-z])Screener(?![a-z])", "Screener"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:DVD|BD|BR|WEB)?[-. ]?Scr(?:eener)?(?![a-z])", "Screener"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Advance[-. ]?)?Screener(?![a-z])", "Screener"),
         // Mux / encode.
         ValuePattern::new(r"(?i)(?<![a-z])Hybrid(?![a-z])", "Hybrid"),
         // Extras / bonus / complete.
@@ -87,7 +89,7 @@ lazy_static! {
         // Straight to Video.
         ValuePattern::new(r"(?i)(?<![a-z])(?:STV|Straight[-. ]?to[-. ]?Video)(?![a-z])", "Straight to Video"),
         // Fix (generic and specific).
-        ValuePattern::new(r"(?i)(?<![a-z])(?:DIRFIX|NFOFIX|SAMPLEFIX)(?![a-z])", "Fix"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:DIRFIX|NFOFIX|SAMPLEFIX|PROOFFIX)(?![a-z])", "Fix"),
         ValuePattern::new(r"(?i)(?<![a-z])FIX(?![a-z])", "Fix"),
         // XXX.
         ValuePattern::new(r"(?i)(?<![a-z])XXX(?![a-z])", "XXX"),
@@ -99,6 +101,9 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])DOCU(?:MENTARY)?(?![a-z])", "Documentary"),
         // Original Video.
         ValuePattern::new(r"(?i)(?<![a-z])OVA(?![a-z])", "Original Video"),
+        ValuePattern::new(r"(?i)(?<![a-z])OAD(?![a-z])", "Original Video"),
+        // Original Aspect Ratio.
+        ValuePattern::new(r"(?i)(?<![a-z])(?:OAR|Original[-. ]?Aspect[-. ]?Ratio)(?![a-z])", "Original Aspect Ratio"),
         // Colorized.
         ValuePattern::new(r"(?i)(?<![a-z])Colorized(?![a-z])", "Colorized"),
         // East/West Coast Feed.
