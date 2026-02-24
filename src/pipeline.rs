@@ -15,6 +15,7 @@ use crate::properties::country::CountryMatcher;
 use crate::properties::crc32::Crc32Matcher;
 use crate::properties::date::DateMatcher;
 use crate::properties::edition::EditionMatcher;
+use crate::properties::episode_count::EpisodeCountMatcher;
 use crate::properties::episode_details::EpisodeDetailsMatcher;
 use crate::properties::episodes::EpisodeMatcher;
 use crate::properties::frame_rate::FrameRateMatcher;
@@ -64,6 +65,7 @@ impl Pipeline {
             Box::new(DateMatcher),
             Box::new(EpisodeMatcher),
             Box::new(EpisodeDetailsMatcher),
+            Box::new(EpisodeCountMatcher),
             Box::new(EditionMatcher),
             Box::new(OtherMatcher),
             Box::new(LanguageMatcher),
