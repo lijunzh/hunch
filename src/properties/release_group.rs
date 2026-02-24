@@ -192,8 +192,15 @@ impl PropertyMatcher for ReleaseGroupMatcher {
 
         // (Prefix pattern disabled — too many false positives.)
 
-        // 8. Also check parent directory for group if filename didn't have one.
-        if matches.is_empty() && filename_start > 0 {
+        // 8. Check parent directory for release group.
+        // Two cases:
+        //   a) Filename has no group at all — always try parent.
+        //   b) Filename is an abbreviated scene release (e.g., `wthd-cab.avi`)
+        //      and the parent dir has the real group (e.g., `DVDRip.XviD-TheWretched`).
+        //      We prefer the parent when ALL of:
+        //        - filename is short (< 20 chars) with no technical tokens
+        //        - parent dir has technical tokens AND a `-GROUP` pattern
+        if filename_start > 0 {
             let parent = &input[..filename_start.saturating_sub(1)];
             let parent_name = parent.rsplit(['/', '\\']).next().unwrap_or("");
             if let Some(cap) = RELEASE_GROUP_END.captures(parent_name)
@@ -201,11 +208,25 @@ impl PropertyMatcher for ReleaseGroupMatcher {
             {
                 let value = group.as_str();
                 if !is_known_token(value) {
-                    matches.push(
-                        MatchSpan::new(0, 0, Property::ReleaseGroup, value)
-                            .with_tag("parent-dir")
-                            .with_priority(-3),
-                    );
+                    let filename_is_abbreviated = !has_technical_tokens(filename)
+                        && filename.len() < 20
+                        && has_technical_tokens(parent_name);
+
+                    if matches.is_empty() || filename_is_abbreviated {
+                        if filename_is_abbreviated {
+                            matches.clear();
+                        }
+                        let mut parent_value = value.to_string();
+                        // Also check for bracket suffix in parent: `-GROUP[bb]`
+                        if let Some(suffix) = cap.name("suffix") {
+                            parent_value = format!("{}[{}]", parent_value, suffix.as_str());
+                        }
+                        matches.push(
+                            MatchSpan::new(0, 0, Property::ReleaseGroup, parent_value)
+                                .with_tag("parent-dir")
+                                .with_priority(-3),
+                        );
+                    }
                 }
             }
         }
