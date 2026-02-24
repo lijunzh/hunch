@@ -14,8 +14,9 @@ use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
 /// Matches `-GROUP` at the end with optional bracket suffix.
+/// Tolerates known tags, subtitle markers, and language codes between the group and extension.
 static RELEASE_GROUP_END: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"-(?P<group>[A-Za-z0-9@µ!]+)(?:\[(?P<suffix>[A-Za-z0-9]+)\])?(?:\.[a-z0-9]{2,5})?$")
+    Regex::new(r"(?i)-(?P<group>[A-Za-z0-9@µ!]+)(?:\[(?P<suffix>[A-Za-z0-9]+)\])?(?:\.(?:sample|proof|nfo|srt|sub|subs|proper|repack|real|dubbed|hebsubs|nlsubs|swesub|hardcoded|[a-z]{2,3}))*(?:\.[a-z0-9]{2,5})?$")
         .unwrap()
 });
 
@@ -50,42 +51,50 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let filename = &input[filename_start..];
 
+    // Strip trailing metadata suffixes that appear after the release group.
+    // e.g., `-Belex.-.Dual.Audio.-.Dublado` → `-Belex`
+    //        `-AFG.HebSubs` → `-AFG`
+    let cleaned_filename = strip_trailing_metadata(filename);
+
     // 1. Check for simple `-GROUP` at end with optional bracket suffix.
-    if let Some(cap) = RELEASE_GROUP_END.captures(filename)
-        && let Some(group) = cap.name("group")
-    {
-        let mut value = group.as_str().to_string();
-        let mut start = group.start();
-
-        // Expand backwards past hyphens to capture multi-segment group names.
-        // e.g., `x264-MARINE-FORD.mkv` → MARINE-FORD (not just FORD)
-        //        `x264.D-Z0N3.mkv`    → D-Z0N3 (not just Z0N3)
-        // We stop when we hit a known token or a non-hyphen/dot separator.
-        let before_group = &filename[..start.saturating_sub(1)]; // before the '-'
-        let expanded = expand_group_backwards(before_group, &value);
-        if expanded != value {
-            // Recalculate start position.
-            start = start.saturating_sub(expanded.len() - value.len());
-            value = expanded;
+    //    Try the cleaned filename first (metadata stripped), fall back to original.
+    let candidates = [cleaned_filename.as_str(), filename];
+    for fname in candidates {
+        if !matches.is_empty() {
+            break;
         }
+        if let Some(cap) = RELEASE_GROUP_END.captures(fname)
+            && let Some(group) = cap.name("group")
+        {
+            let mut value = group.as_str().to_string();
+            let mut start = group.start();
 
-        if let Some(suffix) = cap.name("suffix") {
-            value = format!("{}[{}]", value, suffix.as_str());
-        }
-        if !is_known_token(&value) {
-            let end = cap
-                .name("suffix")
-                .map(|s| s.end() + 1)
-                .unwrap_or(group.end());
-            matches.push(
-                MatchSpan::new(
-                    filename_start + start,
-                    filename_start + end,
-                    Property::ReleaseGroup,
-                    value,
-                )
-                .with_priority(-1),
-            );
+            // Expand backwards past hyphens to capture multi-segment group names.
+            let before_group = &fname[..start.saturating_sub(1)];
+            let expanded = expand_group_backwards(before_group, &value);
+            if expanded != value {
+                start = start.saturating_sub(expanded.len() - value.len());
+                value = expanded;
+            }
+
+            if let Some(suffix) = cap.name("suffix") {
+                value = format!("{}[{}]", value, suffix.as_str());
+            }
+            if !is_known_token(&value) {
+                let end = cap
+                    .name("suffix")
+                    .map(|s| s.end() + 1)
+                    .unwrap_or(group.end());
+                matches.push(
+                    MatchSpan::new(
+                        filename_start + start,
+                        filename_start + end,
+                        Property::ReleaseGroup,
+                        value,
+                    )
+                    .with_priority(-1),
+                );
+            }
         }
     }
 
@@ -108,26 +117,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         }
     }
 
-    // 3. Bracket group at start: `[GROUP] Title`.
-    if matches.is_empty()
-        && let Some(cap) = RELEASE_GROUP_START_BRACKET.captures(filename)
-        && let Some(group) = cap.name("group")
-    {
-        let value = group.as_str().trim();
-        if !is_known_token(value) && !is_hex_crc(value) {
-            matches.push(
-                MatchSpan::new(
-                    filename_start + group.start(),
-                    filename_start + group.end(),
-                    Property::ReleaseGroup,
-                    value,
-                )
-                .with_priority(-1),
-            );
-        }
-    }
-
-    // 4. Bracket group at end: `Title [GROUP].ext`.
+    // 3. Bracket group at end: `Title [GROUP].ext` — checked before start bracket
+    //    so that `[StartGroup]...[EndGroup]` picks the end one.
     if matches.is_empty()
         && let Some(cap) = RELEASE_GROUP_END_BRACKET.captures(filename)
         && let Some(group) = cap.name("group")
@@ -142,6 +133,25 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                     value,
                 )
                 .with_priority(-2),
+            );
+        }
+    }
+
+    // 4. Bracket group at start: `[GROUP] Title`.
+    if matches.is_empty()
+        && let Some(cap) = RELEASE_GROUP_START_BRACKET.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let value = group.as_str().trim();
+        if !is_known_token(value) && !is_hex_crc(value) {
+            matches.push(
+                MatchSpan::new(
+                    filename_start + group.start(),
+                    filename_start + group.end(),
+                    Property::ReleaseGroup,
+                    value,
+                )
+                .with_priority(-1),
             );
         }
     }
@@ -324,7 +334,125 @@ fn is_known_token(s: &str) -> bool {
             | "vostfr"
             | "vff"
             | "vost"
+            // Audio codecs / profiles.
+            | "eac3"
+            | "ddp"
+            | "dd2"
+            | "dd5"
+            | "dd7"
+            // Source / container variants.
+            | "dvdr"
+            | "dvd5"
+            | "dvd9"
+            | "dvdscr"
+            | "hddvd"
+            | "sdtv"
+            | "pdtv"
+            | "dsr"
+            | "hdrip"
+            | "r5"
+            | "stv"
+            // Release tags (not group names).
+            | "preair"
+            | "prooffix"
+            | "proof"
+            | "readnfo"
+            | "sample"
+            | "subbed"
+            | "reenc"
+            | "reencoded"
+            | "re-enc"
+            | "re-encoded"
+            | "dublado"
+            | "legendas"
+            | "legendado"
+            | "subtitulado"
+            | "hebsubs"
+            | "nlsubs"
+            | "swesub"
+            | "nogroup"
+            | "noreleasegroup"
     )
+}
+
+/// Strip trailing metadata tokens that follow the release group.
+///
+/// Handles patterns like:
+///   `-Belex.-.Dual.Audio.-.Dublado` → `-Belex`
+///   `-AFG.HebSubs` → `-AFG`
+///   `-demand.sample.mkv` → `-demand.mkv`
+fn strip_trailing_metadata(filename: &str) -> String {
+    // Known metadata tokens that appear after the group (case-insensitive).
+    static META_TOKENS: &[&str] = &[
+        "dual",
+        "audio",
+        "dublado",
+        "legendas",
+        "legendado",
+        "subtitulado",
+        "hebsubs",
+        "nlsubs",
+        "swesub",
+        "subbed",
+        "dubbed",
+        "sample",
+        "proof",
+        "proper",
+        "repack",
+        "real",
+        "internal",
+        "hardcoded",
+        "eng",
+        "fre",
+        "fra",
+        "spa",
+        "ger",
+        "deu",
+        "ita",
+        "por",
+        "jpn",
+        "kor",
+        "rus",
+        "chi",
+        "cze",
+        "pol",
+        "hun",
+        "swe",
+        "nor",
+        "dan",
+        "fin",
+        "espanol",
+        "esp",
+    ];
+
+    // Strip the file extension first.
+    let (base, ext) = match filename.rfind('.') {
+        Some(dot) if filename.len() - dot <= 6 => (&filename[..dot], &filename[dot..]),
+        _ => (filename, ""),
+    };
+
+    // Walk backwards through dot-separated segments stripping metadata.
+    let mut result = base.to_string();
+    loop {
+        // Strip trailing `.-.` separators.
+        let trimmed = result.trim_end_matches(['.', '-', '_', ' ', '+']);
+        if trimmed.len() < result.len() {
+            result = trimmed.to_string();
+            continue;
+        }
+
+        // Check if the last dot-segment is a metadata token.
+        if let Some(dot) = result.rfind('.') {
+            let segment = &result[dot + 1..];
+            if META_TOKENS.iter().any(|t| segment.eq_ignore_ascii_case(t)) {
+                result = result[..dot].to_string();
+                continue;
+            }
+        }
+        break;
+    }
+
+    format!("{result}{ext}")
 }
 
 /// Check if a string looks like a CRC32 hex value.
@@ -355,10 +483,22 @@ fn expand_group_backwards(before: &str, current: &str) -> String {
     let before_sep = &before[..sep_pos];
 
     // The segment must be alphanumeric and not a known token.
+    // Also reject if the segment forms a known compound with the preceding word
+    // (e.g., DVD + R = DVDR, WEB + DL = WEBDL).
     if segment.is_empty()
         || !segment.chars().all(|c| c.is_ascii_alphanumeric())
         || is_known_token(segment)
     {
+        return current.to_string();
+    }
+
+    // Check if segment + preceding token form a known compound.
+    let last_word_before = before_sep
+        .rsplit(|c: char| !c.is_ascii_alphanumeric())
+        .next()
+        .unwrap_or("");
+    let compound = format!("{}{}", last_word_before, segment).to_lowercase();
+    if is_known_token(&compound) {
         return current.to_string();
     }
 
