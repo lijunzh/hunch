@@ -16,11 +16,13 @@ impl Options {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_type(mut self, media_type: &str) -> Self {
         self.media_type = Some(media_type.to_string());
         self
     }
 
+    #[must_use]
     pub fn name_only(mut self) -> Self {
         self.name_only = true;
         self

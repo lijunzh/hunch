@@ -14,26 +14,25 @@ pub enum MediaType {
     Episode,
 }
 
-/// Convenience alias for the media type (re-exported from lib).
+#[deprecated(since = "0.1.0", note = "Use `MediaType` instead")]
 pub type GuessType = MediaType;
 
 /// The result of parsing a media filename.
 ///
 /// Provides typed accessors for common properties and a generic
 /// `get(property)` for everything else.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Guess {
-    /// All properties extracted, keyed by property name.
-    #[serde(flatten)]
-    props: BTreeMap<String, Vec<String>>,
+    /// All properties extracted, keyed by property.
+    props: BTreeMap<Property, Vec<String>>,
 }
 
 impl Guess {
     /// Build a `Guess` from resolved match spans, deduplicating values.
     pub(crate) fn from_matches(matches: &[MatchSpan]) -> Self {
-        let mut props: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut props: BTreeMap<Property, Vec<String>> = BTreeMap::new();
         for m in matches {
-            let values = props.entry(m.property.to_string()).or_default();
+            let values = props.entry(m.property).or_default();
             if !values.contains(&m.value) {
                 values.push(m.value.clone());
             }
@@ -138,7 +137,7 @@ impl Guess {
     /// Get the first value for a property.
     pub fn first(&self, property: Property) -> Option<&str> {
         self.props
-            .get(&property.to_string())
+            .get(&property)
             .and_then(|v| v.first())
             .map(|s| s.as_str())
     }
@@ -146,13 +145,13 @@ impl Guess {
     /// Get all values for a property.
     pub fn all(&self, property: Property) -> Vec<&str> {
         self.props
-            .get(&property.to_string())
+            .get(&property)
             .map(|v| v.iter().map(|s| s.as_str()).collect())
             .unwrap_or_default()
     }
 
     /// Get the full properties map.
-    pub fn properties(&self) -> &BTreeMap<String, Vec<String>> {
+    pub fn properties(&self) -> &BTreeMap<Property, Vec<String>> {
         &self.props
     }
 
@@ -160,12 +159,13 @@ impl Guess {
     pub fn to_flat_map(&self) -> BTreeMap<String, serde_json::Value> {
         let mut map = BTreeMap::new();
         for (k, v) in &self.props {
+            let key = k.to_string();
             if v.len() == 1 {
                 // Try to parse as number for year/season/episode
                 if let Ok(n) = v[0].parse::<i64>() {
-                    map.insert(k.clone(), serde_json::Value::Number(n.into()));
+                    map.insert(key, serde_json::Value::Number(n.into()));
                 } else {
-                    map.insert(k.clone(), serde_json::Value::String(v[0].clone()));
+                    map.insert(key, serde_json::Value::String(v[0].clone()));
                 }
             } else {
                 let arr: Vec<serde_json::Value> = v
@@ -178,7 +178,7 @@ impl Guess {
                         }
                     })
                     .collect();
-                map.insert(k.clone(), serde_json::Value::Array(arr));
+                map.insert(key, serde_json::Value::Array(arr));
             }
         }
         map

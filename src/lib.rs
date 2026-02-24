@@ -29,6 +29,7 @@ mod guess;
 mod options;
 mod pipeline;
 
+#[allow(deprecated)]
 pub use guess::{Guess, GuessType, MediaType};
 pub use options::Options;
 pub use pipeline::Pipeline;
@@ -52,11 +53,12 @@ pub fn hunch_with(input: &str, options: Options) -> Guess {
 }
 
 // Backwards-compatible aliases.
-#[doc(hidden)]
+#[deprecated(since = "0.1.0", note = "Use `hunch()` instead")]
 pub fn guess(input: &str) -> Guess {
     hunch(input)
 }
-#[doc(hidden)]
+
+#[deprecated(since = "0.1.0", note = "Use `hunch_with()` instead")]
 pub fn guess_with(input: &str, options: Options) -> Guess {
     hunch_with(input, options)
 }

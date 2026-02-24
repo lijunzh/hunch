@@ -1,10 +1,18 @@
 //! Pipeline: orchestrates matchers → conflict resolution → post-processing → Guess.
 
 use crate::guess::Guess;
-use crate::matcher::engine::MatchEngine;
+use crate::matcher::engine;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::options::Options;
 use crate::properties::PropertyMatcher;
+
+use std::sync::LazyLock;
+
+static REAL_RE: LazyLock<fancy_regex::Regex> =
+    LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^REAL$").unwrap());
+
+static REPACK_RE: LazyLock<fancy_regex::Regex> =
+    LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap());
 use crate::properties::aspect_ratio::AspectRatioMatcher;
 use crate::properties::audio_codec::AudioCodecMatcher;
 use crate::properties::audio_profile::AudioProfileMatcher;
@@ -95,7 +103,7 @@ impl Pipeline {
             .collect();
 
         // Step 2: Resolve overlapping conflicts.
-        MatchEngine::resolve_conflicts(&mut all_matches);
+        engine::resolve_conflicts(&mut all_matches);
 
         // Step 2b: Remove language matches that appear in the title zone.
         // The "title zone" is the region before the first technical property.
@@ -134,14 +142,12 @@ impl Pipeline {
             .filter(|m| m.property == Property::Other && m.value == "Proper" && m.start >= fn_start)
         {
             let raw = &input[m.start..m.end];
-            let real_re = fancy_regex::Regex::new(r"(?i)^REAL$").unwrap();
-            if real_re.is_match(raw).unwrap_or(false) {
+            if REAL_RE.is_match(raw).unwrap_or(false) {
                 has_real = true;
                 continue;
             }
             // Check for trailing digit: REPACK5 → 5.
-            let repack_re = fancy_regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap();
-            if let Ok(Some(caps)) = repack_re.captures(raw) {
+            if let Ok(Some(caps)) = REPACK_RE.captures(raw) {
                 if let Some(num) = caps.get(1) {
                     repack_count += num.as_str().parse::<u32>().unwrap_or(1);
                 } else {
