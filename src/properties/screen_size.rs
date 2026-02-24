@@ -1,35 +1,38 @@
 //! Screen size / resolution detection (720p, 1080p, 2160p, 4K, etc.).
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref STANDARD_RES: ValuePattern = ValuePattern::new(
+static STANDARD_RES: LazyLock<ValuePattern> = LazyLock::new(|| {
+    ValuePattern::new(
         r"(?i)(?<![a-z0-9])(?:(?:\d{3,4})[x*])?(?:240|360|368|480|540|576|720|900|1080|1440|2160|4320)(?:[ip](?:x|HD|\d{2,3})?|hd)(?![a-z0-9])",
-        "",  // value computed dynamically
-    );
-    static ref EXPLICIT_RES: ValuePattern = ValuePattern::new(
+        "", // value computed dynamically
+    )
+});
+
+static EXPLICIT_RES: LazyLock<ValuePattern> = LazyLock::new(|| {
+    ValuePattern::new(
         r"(?i)(?<![a-z0-9])(\d{3,4})\s*[x*]\s*(\d{3,4})(?![a-z0-9])",
         "",
-    );
-    /// Bare resolution number followed by Hi10p or similar profile marker.
-    /// e.g. `[720.Hi10p]`, `[1080.Hi10p]`
-    static ref BARE_RES_BEFORE_PROFILE: ValuePattern = ValuePattern::new(
+    )
+});
+
+/// Bare resolution number followed by Hi10p or similar profile marker.
+/// e.g. `[720.Hi10p]`, `[1080.Hi10p]`
+static BARE_RES_BEFORE_PROFILE: LazyLock<ValuePattern> = LazyLock::new(|| {
+    ValuePattern::new(
         r"(?i)(?<![a-z0-9])(?:720|1080|480|2160)[. ]Hi(?:10|8)?p(?![a-z])",
         "",
-    );
-    static ref FOUR_K: ValuePattern = ValuePattern::new(
-        r"(?i)(?<![a-z0-9])4K(?![a-z0-9])",
-        "2160p",
-    );
-    static ref EIGHT_K: ValuePattern = ValuePattern::new(
-        r"(?i)(?<![a-z0-9])8K(?![a-z0-9])",
-        "4320p",
-    );
-}
+    )
+});
+
+static FOUR_K: LazyLock<ValuePattern> =
+    LazyLock::new(|| ValuePattern::new(r"(?i)(?<![a-z0-9])4K(?![a-z0-9])", "2160p"));
+
+static EIGHT_K: LazyLock<ValuePattern> =
+    LazyLock::new(|| ValuePattern::new(r"(?i)(?<![a-z0-9])8K(?![a-z0-9])", "4320p"));
 
 pub struct ScreenSizeMatcher;
 

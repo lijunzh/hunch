@@ -3,11 +3,10 @@
 //! Handles combined patterns like `DD5.1`, `AAC2.0`, `TrueHD51` that
 //! encode both codec + channel info in a single token.
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
 /// A combined codec+channel pattern that emits two MatchSpans.
 struct CombinedPattern {
@@ -26,18 +25,27 @@ impl CombinedPattern {
     }
 }
 
-lazy_static! {
-    static ref AUDIO_CODEC_PATTERNS: Vec<ValuePattern> = vec![
+static AUDIO_CODEC_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         // Order matters: more specific patterns first.
         ValuePattern::new(r"(?i)(?<![a-z])DTS[-:]?X(?![a-z])", "DTS:X"),
-        ValuePattern::new(r"(?i)(?<![a-z])DTS[-]?HD(?:[-. ]?(?:MA|Master(?:[-. ]?Audio)?))?(?![a-z])", "DTS-HD"),
+        ValuePattern::new(
+            r"(?i)(?<![a-z])DTS[-]?HD(?:[-. ]?(?:MA|Master(?:[-. ]?Audio)?))?(?![a-z])",
+            "DTS-HD",
+        ),
         ValuePattern::new(r"(?i)(?<![a-z])DTS[-]?ES(?![a-z])", "DTS"),
         ValuePattern::new(r"(?i)(?<![a-z])DTS(?![a-z:])", "DTS"),
         ValuePattern::new(r"(?i)(?<![a-z])True[-]?HD(?![a-z0-9])", "Dolby TrueHD"),
         ValuePattern::new(r"(?i)(?<![a-z])Dolby[-. ]?Atmos(?![a-z])", "Dolby Atmos"),
         ValuePattern::new(r"(?i)(?<![a-z])Atmos(?![a-z])", "Dolby Atmos"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:E[-]?AC[-]?3|DDP|DD\+)(?![a-z0-9])", "Dolby Digital Plus"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:Dolby(?:[-. ]?Digital)?|DD|AC[-]?3D?)(?![a-z0-9+])", "Dolby Digital"),
+        ValuePattern::new(
+            r"(?i)(?<![a-z])(?:E[-]?AC[-]?3|DDP|DD\+)(?![a-z0-9])",
+            "Dolby Digital Plus",
+        ),
+        ValuePattern::new(
+            r"(?i)(?<![a-z])(?:Dolby(?:[-. ]?Digital)?|DD|AC[-]?3D?)(?![a-z0-9+])",
+            "Dolby Digital",
+        ),
         ValuePattern::new(r"(?i)(?<![a-z])AAC(?![a-z0-9])", "AAC"),
         ValuePattern::new(r"(?i)(?<![a-z])FLAC(?![a-z])", "FLAC"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:MP3|LAME(?:\d+-?\d+)?)(?![a-z])", "MP3"),
@@ -46,32 +54,74 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])Vorbis(?![a-z])", "Vorbis"),
         ValuePattern::new(r"(?i)(?<![a-z])PCM(?![a-z])", "PCM"),
         ValuePattern::new(r"(?i)(?<![a-z])LPCM(?![a-z])", "LPCM"),
-    ];
+    ]
+});
 
-    /// Combined codec+channel patterns (checked BEFORE standalone channels).
-    static ref COMBINED_PATTERNS: Vec<CombinedPattern> = vec![
-        CombinedPattern::new(r"(?i)(?<![a-z])DD[-.]?5[\W_]?1(?![a-z0-9])", "Dolby Digital", "5.1"),
-        CombinedPattern::new(r"(?i)(?<![a-z])DD[-.]?51(?![a-z0-9])", "Dolby Digital", "5.1"),
-        CombinedPattern::new(r"(?i)(?<![a-z])DD[-.]?7[\W_]?1(?![a-z0-9])", "Dolby Digital", "7.1"),
-        CombinedPattern::new(r"(?i)(?<![a-z])True[-]?HD[-.]?51(?![a-z0-9])", "Dolby TrueHD", "5.1"),
-        CombinedPattern::new(r"(?i)(?<![a-z])True[-]?HD[-.]?5[\W_]1(?![a-z0-9])", "Dolby TrueHD", "5.1"),
+/// Combined codec+channel patterns (checked BEFORE standalone channels).
+static COMBINED_PATTERNS: LazyLock<Vec<CombinedPattern>> = LazyLock::new(|| {
+    vec![
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])DD[-.]?5[\W_]?1(?![a-z0-9])",
+            "Dolby Digital",
+            "5.1",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])DD[-.]?51(?![a-z0-9])",
+            "Dolby Digital",
+            "5.1",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])DD[-.]?7[\W_]?1(?![a-z0-9])",
+            "Dolby Digital",
+            "7.1",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])True[-]?HD[-.]?51(?![a-z0-9])",
+            "Dolby TrueHD",
+            "5.1",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])True[-]?HD[-.]?5[\W_]1(?![a-z0-9])",
+            "Dolby TrueHD",
+            "5.1",
+        ),
         CombinedPattern::new(r"(?i)(?<![a-z])AAC[-.]?2[\W_]?0(?![a-z0-9])", "AAC", "2.0"),
         CombinedPattern::new(r"(?i)(?<![a-z])AAC[-.]?20(?![a-z0-9])", "AAC", "2.0"),
-        CombinedPattern::new(r"(?i)(?<![a-z])DDP[-.]?5[\W_]?1(?![a-z0-9])", "Dolby Digital Plus", "5.1"),
-        CombinedPattern::new(r"(?i)(?<![a-z])DDP[-.]?51(?![a-z0-9])", "Dolby Digital Plus", "5.1"),
-        CombinedPattern::new(r"(?i)(?<![a-z])DD\+[-.]?5[\W_]?1(?![a-z0-9])", "Dolby Digital Plus", "5.1"),
-    ];
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])DDP[-.]?5[\W_]?1(?![a-z0-9])",
+            "Dolby Digital Plus",
+            "5.1",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])DDP[-.]?51(?![a-z0-9])",
+            "Dolby Digital Plus",
+            "5.1",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])DD\+[-.]?5[\W_]?1(?![a-z0-9])",
+            "Dolby Digital Plus",
+            "5.1",
+        ),
+    ]
+});
 
-    static ref AUDIO_CHANNELS_PATTERNS: Vec<ValuePattern> = vec![
+static AUDIO_CHANNELS_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         // Explicit channel counts.
         ValuePattern::new(r"(?i)(?<![a-z0-9])(?:8ch|7[\W_]1(?:ch)?)(?=[^\d]|$)", "7.1"),
         ValuePattern::new(r"(?i)(?<![a-z0-9])7ch(?=[^\d]|$)", "7.1"),
         ValuePattern::new(r"(?i)(?<![a-z0-9])(?:6ch|5[\W_]1(?:ch)?)(?=[^\d]|$)", "5.1"),
         ValuePattern::new(r"(?i)(?<![a-z0-9])5ch(?=[^\d]|$)", "5.1"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])(?:2ch|2[\W_]0(?:ch)?|stereo)(?=[^\d]|$)", "2.0"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])(?:mono|1ch|1[\W_]0(?:ch)?)(?=[^\d]|$)", "1.0"),
-    ];
-}
+        ValuePattern::new(
+            r"(?i)(?<![a-z0-9])(?:2ch|2[\W_]0(?:ch)?|stereo)(?=[^\d]|$)",
+            "2.0",
+        ),
+        ValuePattern::new(
+            r"(?i)(?<![a-z0-9])(?:mono|1ch|1[\W_]0(?:ch)?)(?=[^\d]|$)",
+            "1.0",
+        ),
+    ]
+});
 
 pub struct AudioCodecMatcher;
 

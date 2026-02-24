@@ -2,24 +2,23 @@
 //!
 //! Detects special episode markers: Special, Pilot, Unaired, OVA, etc.
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref EPISODE_DETAILS_PATTERNS: Vec<ValuePattern> = vec![
+static EPISODE_DETAILS_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         ValuePattern::new(
             r"(?i)(?<![a-z])Special(?![-. ]*(?:Edition|Feature|Effect))(?![a-z])",
-            "Special"
+            "Special",
         ),
         ValuePattern::new(r"(?i)(?<![a-z])Pilot(?![a-z])", "Pilot"),
         ValuePattern::new(r"(?i)(?<![a-z])Unaired(?![a-z])", "Unaired"),
         ValuePattern::new(r"(?i)(?<![a-z])Final(?![a-z])", "Final"),
         ValuePattern::new(r"(?i)(?<![a-z])Premiere(?![a-z])", "Premiere"),
-    ];
-}
+    ]
+});
 
 pub struct EpisodeDetailsMatcher;
 

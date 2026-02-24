@@ -3,22 +3,22 @@
 //! Detects bonus/extras markers: x01, x02 (used for bonus features).
 
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Bonus number: x01, x02, x09.
-    static ref BONUS_PATTERN: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])[xX](?P<num>0[0-9]|[1-9][0-9]?)(?![a-z0-9])"
-    ).unwrap();
+/// Bonus number: x01, x02, x09.
+static BONUS_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])[xX](?P<num>0[0-9]|[1-9][0-9]?)(?![a-z0-9])").unwrap()
+});
 
-    /// Bonus title after the bonus number: x01-Title_Here.
-    static ref BONUS_TITLE_PATTERN: Regex = Regex::new(
-        r"(?i)[xX](?:0[0-9]|[1-9][0-9]?)[-. ](?P<title>[A-Za-z][A-Za-z0-9_ .',-]+?)(?:\.(?:mkv|avi|mp4|srt|sub|ass|ssa|idx|m4v|wmv|flv|webm|ts|m2ts|vob|divx|ogm|rmvb)$|$|-[a-zA-Z0-9]+$)"
-    ).unwrap();
-}
+/// Bonus title after the bonus number: x01-Title_Here.
+static BONUS_TITLE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)[xX](?:0[0-9]|[1-9][0-9]?)[-. ](?P<title>[A-Za-z][A-Za-z0-9_ .',-]+?)(?:\.(?:mkv|avi|mp4|srt|sub|ass|ssa|idx|m4v|wmv|flv|webm|ts|m2ts|vob|divx|ogm|rmvb)$|$|-[a-zA-Z0-9]+$)"
+    ).unwrap()
+});
 
 pub struct BonusMatcher;
 

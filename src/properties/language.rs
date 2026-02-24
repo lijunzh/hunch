@@ -5,15 +5,15 @@
 //! babelfish), we detect the most common language tokens to help
 //! title extraction stop at the right place.
 
-use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref LANGUAGE_PATTERNS: Vec<ValuePattern> = vec![
+static LANGUAGE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         // Full names (case-insensitive, word-bounded).
         ValuePattern::new(r"(?i)(?<![a-z])English(?![a-z])", "English"),
         ValuePattern::new(r"(?i)(?<![a-z])French(?![a-z])", "French"),
@@ -79,13 +79,12 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])Ukr(?![a-z])", "Ukrainian"),
         ValuePattern::new(r"(?i)(?<![a-z])DUBLADO(?![a-z])", "und"),
         ValuePattern::new(r"(?i)(?<![a-z])Dual[. ]?Audio(?![a-z])", "und"),
-    ];
+    ]
+});
 
-    /// Matches bracketed multi-language codes: [ENG+RU+PT], [ENG+DE+IT].
-    static ref BRACKET_LANGS: Regex = Regex::new(
-        r"\[([A-Za-z]{2,4}(?:[+][A-Za-z]{2,4})+)\]"
-    ).unwrap();
-}
+/// Matches bracketed multi-language codes: [ENG+RU+PT], [ENG+DE+IT].
+static BRACKET_LANGS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[([A-Za-z]{2,4}(?:[+][A-Za-z]{2,4})+)\]").unwrap());
 
 pub struct LanguageMatcher;
 

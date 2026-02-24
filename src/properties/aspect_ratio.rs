@@ -3,18 +3,16 @@
 //! Aspect ratio is derived from explicit WxH resolution patterns.
 //! When we see "1920x1080", we compute 1920/1080 = 1.778.
 
-use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Matches WxH resolution: 1920x1080, 640x480, etc.
-    static ref RESOLUTION_WXH: Regex = Regex::new(
-        r"(?i)(?P<w>[0-9]{3,4})\s*[xX×]\s*(?P<h>[0-9]{3,4})(?:i|p)?"
-    ).unwrap();
-}
+/// Matches WxH resolution: 1920x1080, 640x480, etc.
+static RESOLUTION_WXH: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?P<w>[0-9]{3,4})\s*[xX×]\s*(?P<h>[0-9]{3,4})(?:i|p)?").unwrap()
+});
 
 pub struct AspectRatioMatcher;
 

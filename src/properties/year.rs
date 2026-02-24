@@ -1,20 +1,19 @@
 //! Year detection (4-digit years in a reasonable range).
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
 const MIN_YEAR: i32 = 1920;
 const MAX_YEAR: i32 = 2030;
 
-lazy_static! {
-    static ref YEAR_RE: ValuePattern = ValuePattern::new(
+static YEAR_RE: LazyLock<ValuePattern> = LazyLock::new(|| {
+    ValuePattern::new(
         r"(?<![0-9])(?:19|20)\d{2}(?![0-9])",
-        "",  // value computed dynamically
-    );
-}
+        "", // value computed dynamically
+    )
+});
 
 pub struct YearMatcher;
 

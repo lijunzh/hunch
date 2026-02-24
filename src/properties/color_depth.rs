@@ -2,25 +2,27 @@
 //!
 //! Detects color bit depth: 8bit, 10bit, 12bit, etc.
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref COLOR_DEPTH_PATTERNS: Vec<ValuePattern> = vec![
+static COLOR_DEPTH_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         ValuePattern::new(r"(?i)(?<![a-z0-9])12[- ]?bits?(?![a-z0-9])", "12-bit"),
         ValuePattern::new(r"(?i)(?<![a-z0-9])10[- ]?bits?(?![a-z0-9])", "10-bit"),
         ValuePattern::new(r"(?i)(?<![a-z0-9])8[- ]?bits?(?![a-z0-9])", "8-bit"),
         // Hi10P / Hi10 implies 10-bit
         ValuePattern::new(r"(?i)(?<![a-z])Hi10(?:P|p)?(?![a-z0-9])", "10-bit"),
         // HEVC10 / x265-10 implies 10-bit
-        ValuePattern::new(r"(?i)(?:HEVC|[xh]265|[xh]\.?265)[-. ]?10(?![0-9])", "10-bit"),
+        ValuePattern::new(
+            r"(?i)(?:HEVC|[xh]265|[xh]\.?265)[-. ]?10(?![0-9])",
+            "10-bit",
+        ),
         // yuv420p10 pixel format → 10-bit
         ValuePattern::new(r"(?i)yuv\d+p10", "10-bit"),
-    ];
-}
+    ]
+});
 
 pub struct ColorDepthMatcher;
 

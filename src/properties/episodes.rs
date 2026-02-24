@@ -4,106 +4,110 @@
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// S01E02, S01E02E03, S01E02-E05, S01E02-05, S01E02+E03, S01.E02.E03.
-    static ref SXXEXX: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[. ]?E(?P<ep_start>\d{1,4})(?:(?:[-+. ]E?|E)(?P<ep2>\d{1,4}))*(?![a-z0-9])"
-    ).unwrap();
+/// S01E02, S01E02E03, S01E02-E05, S01E02-05, S01E02+E03, S01.E02.E03.
+static SXXEXX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[. ]?E(?P<ep_start>\d{1,4})(?:(?:[-+. ]E?|E)(?P<ep2>\d{1,4}))*(?![a-z0-9])"
+    ).unwrap()
+});
 
-    /// S03-E01 (dash between S and E).
-    static ref SXX_DASH_EXX: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[-. ]+E(?P<episode>\d{1,4})(?![a-z0-9])"
-    ).unwrap();
+/// S03-E01 (dash between S and E).
+static SXX_DASH_EXX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[-. ]+E(?P<episode>\d{1,4})(?![a-z0-9])")
+        .unwrap()
+});
 
-    /// S06xE01 (x separator).
-    static ref SXX_X_EXX: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[xX]E(?P<episode>\d{1,4})(?![a-z0-9])"
-    ).unwrap();
+/// S06xE01 (x separator).
+static SXX_X_EXX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[xX]E(?P<episode>\d{1,4})(?![a-z0-9])")
+        .unwrap()
+});
 
-    /// NxN format: 1x03, 5x9, 5x44x45.
-    static ref NXN: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])(?P<season>\d{1,2})[xX](?P<ep_start>\d{1,4})(?:[xX](?P<ep2>\d{1,4}))*(?![a-z0-9])"
-    ).unwrap();
+/// NxN format: 1x03, 5x9, 5x44x45.
+static NXN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z0-9])(?P<season>\d{1,2})[xX](?P<ep_start>\d{1,4})(?:[xX](?P<ep2>\d{1,4}))*(?![a-z0-9])"
+    ).unwrap()
+});
 
-    /// Standalone episode: E01, Ep01, Ep.01, E02-03, E02-E03.
-    static ref EP_ONLY: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?:[-+]E?(?P<ep2>\d{1,4}))?(?![a-z0-9])"
-    ).unwrap();
+/// Standalone episode: E01, Ep01, Ep.01, E02-03, E02-E03.
+static EP_ONLY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?:[-+]E?(?P<ep2>\d{1,4}))?(?![a-z0-9])"
+    ).unwrap()
+});
 
-    static ref SEASON_ONLY: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Tem\.?)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])"
-    ).unwrap();
+static SEASON_ONLY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Tem\.?)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])",
+    )
+    .unwrap()
+});
 
-    static ref SEASON_ROMAN: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<season>(?:X{0,3})(?:IX|IV|V?I{0,3}))(?![a-z])"
-    ).unwrap();
+static SEASON_ROMAN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<season>(?:X{0,3})(?:IX|IV|V?I{0,3}))(?![a-z])"
+    ).unwrap()
+});
 
-    static ref SEASON_DIR: Regex = Regex::new(
-        r"(?i)(?:Season|Saison|Temporada)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])"
-    ).unwrap();
+static SEASON_DIR: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:Season|Saison|Temporada)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])").unwrap()
+});
 
-    /// Episode-only: Episode 1, Episode.01.
-    static ref EPISODE_WORD: Regex = Regex::new(
-        r"(?i)(?<![a-z])Episode\s*\.?\s*(?P<episode>\d{1,4})(?![a-z0-9])"
-    ).unwrap();
+/// Episode-only: Episode 1, Episode.01.
+static EPISODE_WORD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z])Episode\s*\.?\s*(?P<episode>\d{1,4})(?![a-z0-9])").unwrap()
+});
 
-    /// 3-4 digit episode number: 101, 117, 2401 → season/episode decomposition.
-    /// Must be preceded by a separator and not be a year (1900-2099).
-    /// Only matches after a dot/dash/space and NOT at the very start of filename.
-    static ref THREE_DIGIT: Regex = Regex::new(
-        r"(?<=[.\-_ ])(?P<num>\d{3,4})(?=[.\-_ ]|$)"
-    ).unwrap();
+/// 3-4 digit episode number: 101, 117, 2401 → season/episode decomposition.
+/// Must be preceded by a separator and not be a year (1900-2099).
+/// Only matches after a dot/dash/space and NOT at the very start of filename.
+static THREE_DIGIT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?<=[.\-_ ])(?P<num>\d{3,4})(?=[.\-_ ]|$)").unwrap());
 
-    /// Bracket episode: [401], [S01E02].
-    static ref BRACKET_EPISODE: Regex = Regex::new(
-        r"(?i)\[(?P<num>\d{3,4})\]"
-    ).unwrap();
+/// Anime episode: `- 01`, `- 001` (preceded by dash + space).
+static ANIME_EPISODE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?<![a-z0-9])[-]\s+(?P<episode>\d{1,4})(?:\s|[.]|$)").unwrap());
 
-    /// Anime episode: `- 01`, `- 001` (preceded by dash + space).
-    static ref ANIME_EPISODE: Regex = Regex::new(
-        r"(?<![a-z0-9])[-]\s+(?P<episode>\d{1,4})(?:\s|[.]|$)"
-    ).unwrap();
+/// Bare episode number after dots: `Show.05.Title` → episode 5.
+/// Very weak, only leading-zero or two-digit, must be between dots.
+static BARE_EPISODE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\.(?P<episode>0\d|\d{2})\.(?![0-9])").unwrap());
 
-    /// Bare episode number after dots: `Show.05.Title` → episode 5.
-    /// Very weak, only leading-zero or two-digit, must be between dots.
-    static ref BARE_EPISODE: Regex = Regex::new(
-        r"\.(?P<episode>0\d|\d{2})\.(?![0-9])"
-    ).unwrap();
+/// S01-only without episode (e.g., `S01Extras`, `S01.Special`).
+/// The lookahead avoids matching S01E02 (which is handled by SXXEXX).
+static S_ONLY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})(?!\d|E\d|[xX]\d)").unwrap()
+});
 
-    /// S01-only without episode (e.g., `S01Extras`, `S01.Special`).
-    /// The lookahead avoids matching S01E02 (which is handled by SXXEXX).
-    static ref S_ONLY: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})(?!\d|E\d|[xX]\d)"
-    ).unwrap();
+/// S01-S10 multi-season range.
+static S_RANGE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<s1>\d{1,3})[-]S(?P<s2>\d{1,3})(?![a-z0-9])").unwrap()
+});
 
-    /// S01-S10 multi-season range.
-    static ref S_RANGE: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])S(?P<s1>\d{1,3})[-]S(?P<s2>\d{1,3})(?![a-z0-9])"
-    ).unwrap();
+/// Season 1-3, Season 1&3, Season 1.3.4 (word-based multi-season).
+static SEASON_MULTI: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<seasons>\d{1,2}(?:\s*[-&.,]\s*\d{1,2})+)(?![a-z0-9])"
+    ).unwrap()
+});
 
-    /// Season 1-3, Season 1&3, Season 1.3.4 (word-based multi-season).
-    static ref SEASON_MULTI: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<seasons>\d{1,2}(?:\s*[-&.,]\s*\d{1,2})+)(?![a-z0-9])"
-    ).unwrap();
+/// S03-X01 for bonus/extras (x as episode prefix).
+static SXX_DASH_XXX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[-. ]+[xX](?P<episode>\d{1,4})(?![a-z0-9])")
+        .unwrap()
+});
 
-    /// S03-X01 for bonus/extras (x as episode prefix).
-    static ref SXX_DASH_XXX: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[-. ]+[xX](?P<episode>\d{1,4})(?![a-z0-9])"
-    ).unwrap();
+/// Versioned episode: `07v4`, `312v1` → episode is the number before 'v'.
+static VERSIONED_EPISODE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?<![a-z0-9])(?P<episode>\d{1,4})v\d{1,2}(?![a-z0-9])").unwrap());
 
-    /// Versioned episode: `07v4`, `312v1` → episode is the number before 'v'.
-    static ref VERSIONED_EPISODE: Regex = Regex::new(
-        r"(?<![a-z0-9])(?P<episode>\d{1,4})v\d{1,2}(?![a-z0-9])"
-    ).unwrap();
-
-    /// Leading episode number: `01 - Ep Name`, `003. Show Name`.
-    /// Only matches at the very start of the filename portion.
-    static ref LEADING_EPISODE: Regex = Regex::new(
-        r"^(?P<episode>0\d{1,3}|\d{1,3})(?:\s*[-.]\s+[A-Za-z])"
-    ).unwrap();
-}
+/// Leading episode number: `01 - Ep Name`, `003. Show Name`.
+/// Only matches at the very start of the filename portion.
+static LEADING_EPISODE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(?P<episode>0\d{1,3}|\d{1,3})(?:\s*[-.]\s+[A-Za-z])").unwrap());
 
 /// Helper: iterate fancy_regex captures.
 fn captures_iter<'a>(re: &'a Regex, input: &'a str) -> Vec<fancy_regex::Captures<'a>> {

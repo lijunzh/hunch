@@ -79,6 +79,7 @@ Input string
 | `PropertyMatcher` trait | Each property module is self-contained and testable in isolation. 30 modules. |
 | `BTreeMap` output | Deterministic key ordering for JSON output and tests. |
 | `fancy_regex` for look-arounds | Rust's `regex` crate doesn't support look-behind/ahead; `fancy_regex` fills that gap. |
+| `std::sync::LazyLock` | Compile regexes once at startup (std, no external dep). |
 | `ValuePattern` helper | Pairs a compiled regex with a canonical output value for clean pattern tables. |
 | Edition 2024 | Latest Rust edition for modern syntax. |
 
@@ -283,7 +284,6 @@ curly-brace patterns like `ST{Fr-Eng}` are not yet handled.
 | ------------- | --------------------------------- |
 | `regex`       | Pattern matching (no look-around) |
 | `fancy-regex` | Pattern matching with look-around |
-| `lazy_static` | Compile regexes once at startup   |
 | `serde`       | Serialization for Guess output    |
 | `serde_json`  | JSON output for CLI               |
 | `clap`        | CLI argument parsing              |

@@ -1,13 +1,12 @@
 //! Streaming service detection.
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref STREAMING_PATTERNS: Vec<ValuePattern> = vec![
+static STREAMING_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         ValuePattern::new(r"(?i)(?<![a-z])AMZN(?![a-z])", "Amazon Prime"),
         ValuePattern::new(r"(?i)(?<![a-z])Amazon(?:HD)?(?![a-z])", "Amazon Prime"),
         ValuePattern::new(r"(?i)(?<![a-z])NFLX(?![a-z])", "Netflix"),
@@ -32,8 +31,8 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])AE\.(?=WEB)", "A&E"),
         ValuePattern::new(r"(?i)(?<![a-z])MBCVOD(?![a-z])", "MBC"),
         ValuePattern::new(r"(?i)(?<![a-z])MBC(?![a-z])", "MBC"),
-    ];
-}
+    ]
+});
 
 pub struct StreamingServiceMatcher;
 

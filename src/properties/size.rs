@@ -3,17 +3,17 @@
 //! Detects file sizes: 700MB, 1.4GB, 4.7GB, etc.
 
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref SIZE_PATTERN: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])(?P<size>[0-9]+(?:\.[0-9]+)?\s*(?:GB|MB|TB|GiB|MiB|TiB))(?![a-z])"
+static SIZE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?<![a-z0-9])(?P<size>[0-9]+(?:\.[0-9]+)?\s*(?:GB|MB|TB|GiB|MiB|TiB))(?![a-z])",
     )
-    .unwrap();
-}
+    .unwrap()
+});
 
 pub struct SizeMatcher;
 

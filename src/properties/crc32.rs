@@ -2,18 +2,15 @@
 //!
 //! Detects CRC32 checksums commonly found in anime filenames: `[ABCD1234]`.
 
-use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Matches 8-char hex CRC32 in square brackets: [ABCD1234]
-    static ref CRC32_BRACKET: Regex = Regex::new(
-        r"\[(?P<crc>[0-9A-Fa-f]{8})\]"
-    ).unwrap();
-}
+/// Matches 8-char hex CRC32 in square brackets: [ABCD1234]
+static CRC32_BRACKET: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[(?P<crc>[0-9A-Fa-f]{8})\]").unwrap());
 
 pub struct Crc32Matcher;
 

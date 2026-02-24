@@ -4,17 +4,15 @@
 //! found in anime fansub releases (e.g., `Episode.366v2`, `[Group] Show 07v4`).
 
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Matches `v2`, `v3`, etc. (case-insensitive), not preceded by a letter
-    /// (to avoid matching inside `XviD`, `DivX`, etc.).
-    static ref VERSION_REGEX: Regex =
-        Regex::new(r"(?i)(?<![a-z])v(\d+)(?![a-z0-9])").unwrap();
-}
+/// Matches `v2`, `v3`, etc. (case-insensitive), not preceded by a letter
+/// (to avoid matching inside `XviD`, `DivX`, etc.).
+static VERSION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])v(\d+)(?![a-z0-9])").unwrap());
 
 pub struct VersionMatcher;
 

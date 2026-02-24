@@ -6,14 +6,13 @@
 //! - AVCHD → Advanced Video Codec High Definition
 //! - SVC/SDH → Scalable Video Coding
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref VIDEO_PROFILE_PATTERNS: Vec<ValuePattern> = vec![
+static VIDEO_PROFILE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         // AVCHD → Advanced Video Codec High Definition
         ValuePattern::new(
             r"(?i)(?<![a-z])AVCHD(?![a-z])",
@@ -42,12 +41,9 @@ lazy_static! {
             "High Efficiency Video Coding",
         ),
         // SDH → Scalable Video Coding
-        ValuePattern::new(
-            r"(?<![a-zA-Z])S[CD]H(?![a-zA-Z])",
-            "Scalable Video Coding",
-        ),
-    ];
-}
+        ValuePattern::new(r"(?<![a-zA-Z])S[CD]H(?![a-zA-Z])", "Scalable Video Coding"),
+    ]
+});
 
 pub struct VideoProfileMatcher;
 

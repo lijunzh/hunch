@@ -6,20 +6,18 @@
 //! - `14.of.21` → episode=14, episode_count=21
 
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Matches `Season.Xof Y` or `Season.X of Y` → season_count.
-    static ref SEASON_COUNT_RE: Regex =
-        Regex::new(r"(?i)(?:season|saison)[._ ](\d+)\s*of\s*(\d+)").unwrap();
+/// Matches `Season.Xof Y` or `Season.X of Y` → season_count.
+static SEASON_COUNT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:season|saison)[._ ](\d+)\s*of\s*(\d+)").unwrap());
 
-    /// Matches `XofY` or `X of Y` or `X.of.Y` → episode + episode_count.
-    static ref EPISODE_COUNT_RE: Regex =
-        Regex::new(r"(?i)(?<![a-z])(\d+)[. _]*of[. _]*(\d+)(?![a-z0-9])").unwrap();
-}
+/// Matches `XofY` or `X of Y` or `X.of.Y` → episode + episode_count.
+static EPISODE_COUNT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])(\d+)[. _]*of[. _]*(\d+)(?![a-z0-9])").unwrap());
 
 pub struct EpisodeCountMatcher;
 

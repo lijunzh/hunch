@@ -1,13 +1,12 @@
 //! Video codec detection (H.264, H.265, HEVC, XviD, etc.).
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref CODEC_PATTERNS: Vec<ValuePattern> = vec![
+static CODEC_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         ValuePattern::new(r"(?i)(?<![a-z])(?:x|h)[-.]?265(?![a-z])", "H.265"),
         ValuePattern::new(r"(?i)(?<![a-z])HEVC(?![a-z])", "H.265"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:x|h)[-.]?264(?![a-z])", "H.264"),
@@ -26,8 +25,8 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])VP7(?![a-z])", "VP7"),
         ValuePattern::new(r"(?i)(?<![a-z])AV1(?![a-z])", "AV1"),
         ValuePattern::new(r"(?i)(?<![a-z])Rv\d{2}(?![a-z])", "RealVideo"),
-    ];
-}
+    ]
+});
 
 pub struct VideoCodecMatcher;
 

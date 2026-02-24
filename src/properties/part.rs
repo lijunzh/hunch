@@ -3,38 +3,38 @@
 //! Detects part/disc/cd/film numbers commonly used in media filenames.
 
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Part number: Part 1, Part.2, pt1, pt.2
-    static ref PART_PATTERN: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:Part|Pt)[-. ]?(?P<num>[0-9]+|I{1,4}|IV|VI{0,3})(?![a-z0-9])"
-    ).unwrap();
+/// Part number: Part 1, Part.2, pt1, pt.2
+static PART_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z])(?:Part|Pt)[-. ]?(?P<num>[0-9]+|I{1,4}|IV|VI{0,3})(?![a-z0-9])")
+        .unwrap()
+});
 
-    /// Disc number: Disc 1, Disk.2, D1, S01D01
-    static ref DISC_PATTERN: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:Disc?k?|S\d+D)[-. ]?(?P<num>[0-9]+)(?:[-](?P<to>[0-9]+))?(?![a-z0-9])"
-    ).unwrap();
+/// Disc number: Disc 1, Disk.2, D1, S01D01
+static DISC_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?<![a-z])(?:Disc?k?|S\d+D)[-. ]?(?P<num>[0-9]+)(?:[-](?P<to>[0-9]+))?(?![a-z0-9])",
+    )
+    .unwrap()
+});
 
-    /// CD count: 2 CD, 2CD, X cd
-    static ref CD_COUNT_PATTERN: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])(?P<num>[0-9]+)\s*CD(?:s)?(?![a-z0-9])"
-    ).unwrap();
+/// CD count: 2 CD, 2CD, X cd
+static CD_COUNT_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])(?P<num>[0-9]+)\s*CD(?:s)?(?![a-z0-9])").unwrap()
+});
 
-    /// CD number: CD1, CD 2
-    static ref CD_PATTERN: Regex = Regex::new(
-        r"(?i)(?<![a-z])CD[-. ]?(?P<num>[0-9]+)(?![a-z0-9])"
-    ).unwrap();
+/// CD number: CD1, CD 2
+static CD_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])CD[-. ]?(?P<num>[0-9]+)(?![a-z0-9])").unwrap());
 
-    /// Film number: f01, f21 (used in collections like James Bond)
-    /// Only match when preceded by separator and followed by separator.
-    static ref FILM_PATTERN: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])f(?P<num>[0-9]{1,2})(?![a-z0-9])"
-    ).unwrap();
-}
+/// Film number: f01, f21 (used in collections like James Bond)
+/// Only match when preceded by separator and followed by separator.
+static FILM_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z0-9])f(?P<num>[0-9]{1,2})(?![a-z0-9])").unwrap());
 
 fn roman_to_int(s: &str) -> Option<u32> {
     match s.to_uppercase().as_str() {

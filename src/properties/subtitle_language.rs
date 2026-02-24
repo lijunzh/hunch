@@ -8,72 +8,85 @@
 //! - Generic sub markers: Subbed, Legendado, Subtitles
 
 use fancy_regex::Regex;
-use lazy_static::lazy_static;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Subtitle file with language code: movie.eng.srt, movie.fr.sub
-    static ref SUB_LANG_EXT: Regex = Regex::new(
-        r"(?i)\.(?P<lang>[a-z]{2,3})\.(srt|sub|ass|ssa|idx|smi|vtt|sup)$"
-    ).unwrap();
+/// Subtitle file with language code: movie.eng.srt, movie.fr.sub
+static SUB_LANG_EXT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)\.(?P<lang>[a-z]{2,3})\.(srt|sub|ass|ssa|idx|smi|vtt|sup)$").unwrap()
+});
 
-    /// VOSTFR / VOST.FR / vostfr → French subtitles
-    static ref VOSTFR: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:VOSTFR|FASTSUB(?:\.VOSTFR)?)(?![a-z])"
-    ).unwrap();
+/// VOSTFR / VOST.FR / vostfr → French subtitles
+static VOSTFR: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z])(?:VOSTFR|FASTSUB(?:\.VOSTFR)?)(?![a-z])").unwrap()
+});
 
-    /// SubForced / SUBFORCED (language from nearby context)
-    static ref SUB_FORCED: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:(?P<lang>FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN)\s+)?SUBFORCED(?![a-z])"
-    ).unwrap();
+/// SubForced / SUBFORCED (language from nearby context)
+static SUB_FORCED: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?<![a-z])(?:(?P<lang>FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN)\s+)?SUBFORCED(?![a-z])",
+    )
+    .unwrap()
+});
 
-    /// LANG SubForced pattern (reversed order)
-    static ref LANG_SUBFORCED: Regex = Regex::new(
-        r"(?i)(?<![a-z])SUBFORCED\s+(?P<lang>FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN)(?![a-z])"
-    ).unwrap();
+/// LANG SubForced pattern (reversed order)
+static LANG_SUBFORCED: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?<![a-z])SUBFORCED\s+(?P<lang>FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN)(?![a-z])",
+    )
+    .unwrap()
+});
 
-    /// Explicit: Sub.French, sub FR, ST(Fr-Eng), Sub_ITA, sub.ita.eng
-    static ref SUB_LANG: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:sub(?:s|titled|titles)?|ST|Soft[-. ]?sub)[-. _({\[]?(?P<langs>[a-z]{2,}(?:[-. _+,)}&\]]+[a-z]{2,})*)(?![a-z])"
-    ).unwrap();
+/// Explicit: Sub.French, sub FR, ST(Fr-Eng), Sub_ITA, sub.ita.eng
+static SUB_LANG: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z])(?:sub(?:s|titled|titles)?|ST|Soft[-. ]?sub)[-. _({\[]?(?P<langs>[a-z]{2,}(?:[-. _+,)}&\]]+[a-z]{2,})*)(?![a-z])"
+    ).unwrap()
+});
 
-    /// Compound sub markers: HebSubs, SWESUB, NLsubs, Nlsubs, PLsub
-    static ref COMPOUND_SUB: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?P<lang>Heb|Swe|Nl|Pl|Ro|De|Kor|Eng|Fre|Ita|Spa|Dan|Nor|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Ukr|Bul|Hun|Cze|Hrv|Slk|Slv|Est|Lav|Lit|Cat|Pt|Br)[-. ]?(?:sub(?:s|bed|titles?)?)(?![a-z])"
-    ).unwrap();
+/// Compound sub markers: HebSubs, SWESUB, NLsubs, Nlsubs, PLsub
+static COMPOUND_SUB: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z])(?P<lang>Heb|Swe|Nl|Pl|Ro|De|Kor|Eng|Fre|Ita|Spa|Dan|Nor|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Ukr|Bul|Hun|Cze|Hrv|Slk|Slv|Est|Lav|Lit|Cat|Pt|Br)[-. ]?(?:sub(?:s|bed|titles?)?)(?![a-z])"
+    ).unwrap()
+});
 
-    /// LANG SUBS pattern: ENG SUBS, SPANISH SUBBED, German.Subbed, German.Custom.Subbed
-    static ref LANG_SUBS: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?P<lang>English|French|Spanish|German|Italian|Portuguese|Dutch|Swedish|Norwegian|Danish|Finnish|Greek|Turkish|Arabic|Russian|Hindi|Chinese|Japanese|Korean|Hebrew|Romanian|Polish|Czech|Hungarian|Croatian|Serbian|Slovak|Slovenian|Estonian|Latvian|Lithuanian|Catalan|Eng|Fre|Spa|Ger|Ita|Por|Dut|Swe|Nor|Dan|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Kor|Heb|Ron|Pol|Cze|Hun|Hrv|Srp|Slk|Slv|Est|Lav|Lit|Cat)[-. ]+(?:(?:Soft|Custom|Hard|Forced)[-. ])*(?:sub(?:s|bed|titled|titles)?)(?![a-z])"
-    ).unwrap();
+/// LANG SUBS pattern: ENG SUBS, SPANISH SUBBED, German.Subbed, German.Custom.Subbed
+static LANG_SUBS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z])(?P<lang>English|French|Spanish|German|Italian|Portuguese|Dutch|Swedish|Norwegian|Danish|Finnish|Greek|Turkish|Arabic|Russian|Hindi|Chinese|Japanese|Korean|Hebrew|Romanian|Polish|Czech|Hungarian|Croatian|Serbian|Slovak|Slovenian|Estonian|Latvian|Lithuanian|Catalan|Eng|Fre|Spa|Ger|Ita|Por|Dut|Swe|Nor|Dan|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Kor|Heb|Ron|Pol|Cze|Hun|Hrv|Srp|Slk|Slv|Est|Lav|Lit|Cat)[-. ]+(?:(?:Soft|Custom|Hard|Forced)[-. ])*(?:sub(?:s|bed|titled|titles)?)(?![a-z])"
+    ).unwrap()
+});
 
-    /// EN-SUB, EN.SUB pattern
-    static ref LANG_DASH_SUB: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?P<lang>[a-z]{2,3})[-.]SUB(?:S)?(?![a-z])"
-    ).unwrap();
+/// EN-SUB, EN.SUB pattern
+static LANG_DASH_SUB: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z])(?P<lang>[a-z]{2,3})[-.]SUB(?:S)?(?![a-z])").unwrap()
+});
 
-    /// Legendado/Legendas → undetermined, unless followed by PT/PT-BR
-    static ref LEGENDADO: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:Legenda(?:do|s|))(?:\.(?P<lang>PT(?:-BR)?|EN|ES|FR))?(?![a-z])"
-    ).unwrap();
+/// Legendado/Legendas → undetermined, unless followed by PT/PT-BR
+static LEGENDADO: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z])(?:Legenda(?:do|s|))(?:\.(?P<lang>PT(?:-BR)?|EN|ES|FR))?(?![a-z])")
+        .unwrap()
+});
 
-    /// Subtitulado → Spanish subtitle convention, may have language after it
-    static ref SUBTITULADO: Regex = Regex::new(
-        r"(?i)(?<![a-z])Subtitulado(?:\s+(?P<lang>Espa[ñn]ol|Spanish|PT|EN|FR))?(?![a-z])"
-    ).unwrap();
+/// Subtitulado → Spanish subtitle convention, may have language after it
+static SUBTITULADO: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z])Subtitulado(?:\s+(?P<lang>Espa[ñn]ol|Spanish|PT|EN|FR))?(?![a-z])")
+        .unwrap()
+});
 
-    /// Generic sub markers without language context: ESub, subs, subbed, Subtitles
-    static ref GENERIC_SUB: Regex = Regex::new(
-        r"(?i)(?<![a-z])(?:E[-. ]?Sub(?:s|bed|titles?)?|Sub(?:s|bed|titles)?|HC)(?![a-z])"
-    ).unwrap();
+/// Generic sub markers without language context: ESub, subs, subbed, Subtitles
+static GENERIC_SUB: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z])(?:E[-. ]?Sub(?:s|bed|titles?)?|Sub(?:s|bed|titles)?|HC)(?![a-z])")
+        .unwrap()
+});
 
-    /// Multiple Subtitle marker
-    static ref MULTIPLE_SUB: Regex = Regex::new(
-        r"(?i)(?:Multiple|Multi)\s+Sub(?:s|title|titles)?(?![a-z])"
-    ).unwrap();
-}
+/// Multiple Subtitle marker
+static MULTIPLE_SUB: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:Multiple|Multi)\s+Sub(?:s|title|titles)?(?![a-z])").unwrap()
+});
 
 /// Maps ISO 639 codes & full names to guessit-style language output.
 fn normalize_language(code: &str) -> Option<&'static str> {

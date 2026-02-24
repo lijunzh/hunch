@@ -8,49 +8,41 @@
 //! - Groups with `@`: `HiS@SiLUHD`
 //! - Bracket prefix groups: `[SubGroup] Anime`
 
-use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Matches `-GROUP` at the end with optional bracket suffix.
-    static ref RELEASE_GROUP_END: Regex = Regex::new(
-        r"-(?P<group>[A-Za-z0-9@µ!]+)(?:\[(?P<suffix>[A-Za-z0-9]+)\])?(?:\.[a-z0-9]{2,5})?$"
-    ).unwrap();
+/// Matches `-GROUP` at the end with optional bracket suffix.
+static RELEASE_GROUP_END: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"-(?P<group>[A-Za-z0-9@µ!]+)(?:\[(?P<suffix>[A-Za-z0-9]+)\])?(?:\.[a-z0-9]{2,5})?$")
+        .unwrap()
+});
 
-    /// Matches `-GROUP` before a `[website]` suffix.
-    static ref RELEASE_GROUP_BEFORE_BRACKET: Regex = Regex::new(
-        r"-(?P<group>[A-Za-z0-9@µ!]+)\s*\.?\s*\["
-    ).unwrap();
+/// Matches `-GROUP` before a `[website]` suffix.
+static RELEASE_GROUP_BEFORE_BRACKET: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"-(?P<group>[A-Za-z0-9@µ!]+)\s*\.?\s*\[").unwrap());
 
-    /// Release group in brackets at the start: `[GROUP] Title`.
-    static ref RELEASE_GROUP_START_BRACKET: Regex = Regex::new(
-        r"^\[(?P<group>[A-Za-z][A-Za-z0-9 _.!-]{0,20})\]\s*"
-    ).unwrap();
+/// Release group in brackets at the start: `[GROUP] Title`.
+static RELEASE_GROUP_START_BRACKET: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\[(?P<group>[A-Za-z][A-Za-z0-9 _.!-]{0,20})\]\s*").unwrap());
 
-    /// Release group in brackets at the end: `Title [GROUP].ext`.
-    /// Excludes website-like content (containing dots) and hex CRC values.
-    static ref RELEASE_GROUP_END_BRACKET: Regex = Regex::new(
-        r"\[(?P<group>[A-Za-z][A-Za-z0-9 _!-]{0,20})\](?:\.[a-z0-9]{2,5})?$"
-    ).unwrap();
+/// Release group in brackets at the end: `Title [GROUP].ext`.
+/// Excludes website-like content (containing dots) and hex CRC values.
+static RELEASE_GROUP_END_BRACKET: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[(?P<group>[A-Za-z][A-Za-z0-9 _!-]{0,20})\](?:\.[a-z0-9]{2,5})?$").unwrap()
+});
 
-    /// Space-separated group at end: `x264.dxva EuReKA.mkv` or `AC3 TiTAN.mkv`.
-    static ref RELEASE_GROUP_SPACE_END: Regex = Regex::new(
-        r"\s(?P<group>[A-Za-z][A-Za-z0-9]{1,15})(?:\.[a-z0-9]{2,5})?$"
-    ).unwrap();
+/// Space-separated group at end: `x264.dxva EuReKA.mkv` or `AC3 TiTAN.mkv`.
+static RELEASE_GROUP_SPACE_END: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\s(?P<group>[A-Za-z][A-Za-z0-9]{1,15})(?:\.[a-z0-9]{2,5})?$").unwrap()
+});
 
-    /// Last token after dots as fallback: `720p.YIFY` or `x264.anoXmous`.
-    static ref RELEASE_GROUP_LAST_DOT: Regex = Regex::new(
-        r"\.(?P<group>[A-Za-z][A-Za-z0-9]{2,15})(?:\.[a-z0-9]{2,5})?$"
-    ).unwrap();
-
-    /// Prefix before dash (lowercase, only when filename starts with lowercase): `blow-how.to.be.single`.
-    static ref RELEASE_GROUP_PREFIX: Regex = Regex::new(
-        r"^(?P<group>[a-z][a-z0-9]{2,10})-[a-z].*\."
-    ).unwrap();
-}
+/// Last token after dots as fallback: `720p.YIFY` or `x264.anoXmous`.
+static RELEASE_GROUP_LAST_DOT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\.(?P<group>[A-Za-z][A-Za-z0-9]{2,15})(?:\.[a-z0-9]{2,5})?$").unwrap()
+});
 
 pub struct ReleaseGroupMatcher;
 

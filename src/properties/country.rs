@@ -2,22 +2,21 @@
 //!
 //! Detects country codes/names in media filenames.
 
-use lazy_static::lazy_static;
-
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    static ref COUNTRY_PATTERNS: Vec<ValuePattern> = vec![
+static COUNTRY_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
+    vec![
         ValuePattern::new(r"(?<![a-zA-Z0-9])US(?![a-zA-Z0-9])", "US"),
         ValuePattern::new(r"(?<![a-zA-Z0-9])UK(?![a-zA-Z0-9])", "GB"),
         ValuePattern::new(r"(?<![a-zA-Z0-9])GB(?![a-zA-Z0-9])", "GB"),
         ValuePattern::new(r"(?<![a-zA-Z0-9])CA(?![a-zA-Z0-9])", "CA"),
         ValuePattern::new(r"(?<![a-zA-Z0-9])AU(?![a-zA-Z0-9])", "AU"),
         ValuePattern::new(r"(?<![a-zA-Z0-9])NZ(?![a-zA-Z0-9])", "NZ"),
-    ];
-}
+    ]
+});
 
 pub struct CountryMatcher;
 

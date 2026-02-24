@@ -1,11 +1,11 @@
 //! Container / file extension detection.
 
 use fancy_regex::Regex as FancyRegex;
-use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
 const VIDEO_EXTS: &[&str] = &[
     "3g2", "3gp", "asf", "avi", "divx", "flv", "m2ts", "m4v", "mk3d", "mkv", "mov", "mp4", "mpeg",
@@ -21,30 +21,28 @@ const INFO_EXTS: &[&str] = &["nfo"];
 const TORRENT_EXTS: &[&str] = &["torrent"];
 const NZB_EXTS: &[&str] = &["nzb"];
 
-lazy_static! {
-    static ref EXT_REGEX: Regex = {
-        let all_exts: Vec<&str> = VIDEO_EXTS
-            .iter()
-            .chain(SUBTITLE_EXTS)
-            .chain(INFO_EXTS)
-            .chain(TORRENT_EXTS)
-            .chain(NZB_EXTS)
-            .copied()
-            .collect();
-        let pattern = format!(r"(?i)\.({})$", all_exts.join("|"));
-        Regex::new(&pattern).unwrap()
-    };
-    /// Match container as standalone uppercase token (e.g., MP4-GUSH, WMV-NOVO).
-    static ref EXT_STANDALONE: FancyRegex = {
-        let all_exts: Vec<&str> = VIDEO_EXTS
-            .iter()
-            .chain(SUBTITLE_EXTS)
-            .copied()
-            .collect();
-        let pattern = format!(r"(?i)(?<=[.\-_ \[])({})(?=[.\-_ \]\)]|$)", all_exts.join("|"));
-        FancyRegex::new(&pattern).unwrap()
-    };
-}
+static EXT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    let all_exts: Vec<&str> = VIDEO_EXTS
+        .iter()
+        .chain(SUBTITLE_EXTS)
+        .chain(INFO_EXTS)
+        .chain(TORRENT_EXTS)
+        .chain(NZB_EXTS)
+        .copied()
+        .collect();
+    let pattern = format!(r"(?i)\.({})$", all_exts.join("|"));
+    Regex::new(&pattern).unwrap()
+});
+
+/// Match container as standalone uppercase token (e.g., MP4-GUSH, WMV-NOVO).
+static EXT_STANDALONE: LazyLock<FancyRegex> = LazyLock::new(|| {
+    let all_exts: Vec<&str> = VIDEO_EXTS.iter().chain(SUBTITLE_EXTS).copied().collect();
+    let pattern = format!(
+        r"(?i)(?<=[.\-_ \[])({})(?=[.\-_ \]\)]|$)",
+        all_exts.join("|")
+    );
+    FancyRegex::new(&pattern).unwrap()
+});
 
 pub struct ContainerMatcher;
 

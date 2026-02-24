@@ -3,22 +3,31 @@
 //! Detects frame rates like `24fps`, `25fps`, `120fps`, `29.97fps`,
 //! or resolution-attached rates like `1080p25`.
 
-use lazy_static::lazy_static;
-
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Explicit fps patterns: `24fps`, `29.97fps`, `120fps`.
-    static ref FPS_PATTERNS: Vec<(fancy_regex::Regex, bool)> = vec![
+/// Explicit fps patterns: `24fps`, `29.97fps`, `120fps`.
+static FPS_PATTERNS: LazyLock<Vec<(fancy_regex::Regex, bool)>> = LazyLock::new(|| {
+    vec![
         // Explicit: `24fps`, `120fps`
-        (fancy_regex::Regex::new(r"(?i)(?<![a-z0-9])(\d+(?:\.\d+)?)\s*fps(?![a-z0-9])").unwrap(), true),
+        (
+            fancy_regex::Regex::new(r"(?i)(?<![a-z0-9])(\d+(?:\.\d+)?)\s*fps(?![a-z0-9])").unwrap(),
+            true,
+        ),
         // Resolution-attached: `1080p25`, `720p50`
-        (fancy_regex::Regex::new(r"(?i)(?:1080|720|1440|2160)[pi](\d{2,3})(?![a-z0-9])").unwrap(), false),
+        (
+            fancy_regex::Regex::new(r"(?i)(?:1080|720|1440|2160)[pi](\d{2,3})(?![a-z0-9])")
+                .unwrap(),
+            false,
+        ),
         // Standalone broadcast: `24p` at end or with separator
-        (fancy_regex::Regex::new(r"(?i)(?<![a-z0-9])(\d{2,3})p(?![a-z0-9])").unwrap(), false),
-    ];
-}
+        (
+            fancy_regex::Regex::new(r"(?i)(?<![a-z0-9])(\d{2,3})p(?![a-z0-9])").unwrap(),
+            false,
+        ),
+    ]
+});
 
 /// Known frame rates for validation of ambiguous patterns.
 const VALID_FRAME_RATES: &[&str] = &["23", "24", "25", "29", "30", "48", "50", "59", "60", "120"];

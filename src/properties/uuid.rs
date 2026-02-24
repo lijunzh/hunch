@@ -2,23 +2,21 @@
 //!
 //! Detects UUIDs in filenames (commonly used in obfuscated releases).
 
-use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Standard UUID: 8-4-4-4-12 hex chars
-    static ref UUID_STANDARD: Regex = Regex::new(
-        r"(?i)(?P<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"
-    ).unwrap();
+/// Standard UUID: 8-4-4-4-12 hex chars
+static UUID_STANDARD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?P<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")
+        .unwrap()
+});
 
-    /// Non-standard UUID: 32 hex chars without dashes (common in obfuscated releases)
-    static ref UUID_NODASH: Regex = Regex::new(
-        r"(?i)(?:^|/)(?P<uuid>[0-9a-f]{32})(?:[/.]|$)"
-    ).unwrap();
-}
+/// Non-standard UUID: 32 hex chars without dashes (common in obfuscated releases)
+static UUID_NODASH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:^|/)(?P<uuid>[0-9a-f]{32})(?:[/.]|$)").unwrap());
 
 pub struct UuidMatcher;
 

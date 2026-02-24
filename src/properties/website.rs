@@ -2,30 +2,34 @@
 //!
 //! Detects website names in brackets or prefixed in filenames.
 
-use lazy_static::lazy_static;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::properties::PropertyMatcher;
+use std::sync::LazyLock;
 
-lazy_static! {
-    /// Website in brackets with multi-part TLD: [tvu.org.ru], [www.site.com]
-    /// Also handles [.www.site.com.] with optional leading/trailing dots.
-    static ref WEBSITE_BRACKET: Regex = Regex::new(
-        r"\[[. ]*(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+\.[a-zA-Z]{2,})[. ]*\]"
-    ).unwrap();
+/// Website in brackets with multi-part TLD: [tvu.org.ru], [www.site.com]
+/// Also handles [.www.site.com.] with optional leading/trailing dots.
+static WEBSITE_BRACKET: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"\[[. ]*(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+\.[a-zA-Z]{2,})[. ]*\]"
+    ).unwrap()
+});
 
-    /// Website prefixed: "From [ site.com ] -"
-    static ref WEBSITE_FROM: Regex = Regex::new(
-        r"(?i)from\s*\[?\s*(?P<site>(?:www\.)?[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})\s*\]?"
-    ).unwrap();
+/// Website prefixed: "From [ site.com ] -"
+static WEBSITE_FROM: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)from\s*\[?\s*(?P<site>(?:www\.)?[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,})\s*\]?"
+    ).unwrap()
+});
 
-    /// Unbracketed website in filename: MkvCage.com, www.divx-overnet.com
-    /// Excludes common file extensions to prevent over-matching.
-    static ref WEBSITE_INLINE: Regex = Regex::new(
-        r"(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.(?:com|org|net|info|tv|io|ru|cc|me|to))"
-    ).unwrap();
-}
+/// Unbracketed website in filename: MkvCage.com, www.divx-overnet.com
+/// Excludes common file extensions to prevent over-matching.
+static WEBSITE_INLINE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.(?:com|org|net|info|tv|io|ru|cc|me|to))"
+    ).unwrap()
+});
 
 pub struct WebsiteMatcher;
 
