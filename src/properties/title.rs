@@ -481,8 +481,9 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
 pub fn infer_media_type(matches: &[MatchSpan]) -> Option<MatchSpan> {
     let has_episode = matches.iter().any(|m| m.property == Property::Episode);
     let has_season = matches.iter().any(|m| m.property == Property::Season);
+    let has_date = matches.iter().any(|m| m.property == Property::Date);
 
-    if has_episode || has_season {
+    if has_episode || has_season || has_date {
         Some(MatchSpan::new(0, 0, Property::MediaType, "episode"))
     } else {
         Some(MatchSpan::new(0, 0, Property::MediaType, "movie"))

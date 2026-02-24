@@ -325,6 +325,7 @@ fn compatibility_report() {
     let mut prop_stats: HashMap<String, (usize, usize)> = HashMap::new();
     let mut sample_failures: Vec<(String, String, Vec<String>)> = Vec::new();
     let mut single_prop_failures: HashMap<String, usize> = HashMap::new();
+    let mut single_prop_details: Vec<(String, String)> = Vec::new();
 
     eprintln!("\n{}", "=".repeat(70));
     eprintln!("HUNCH COMPATIBILITY REPORT");
@@ -370,6 +371,8 @@ fn compatibility_report() {
                     *single_prop_failures
                         .entry(prop_name.to_string())
                         .or_insert(0) += 1;
+                    // Collect single-prop failure details for targeted debugging.
+                    single_prop_details.push((tc.filename.clone(), failures[0].clone()));
                 }
                 if sample_failures.len() < 30 {
                     sample_failures.push((label.to_string(), tc.filename.clone(), failures));
@@ -450,6 +453,34 @@ fn compatibility_report() {
         eprintln!("  {:<25} {:>7}", "-".repeat(25), "-".repeat(7));
         for (prop, count) in &spf {
             eprintln!("  {:<25} {:>7}", prop, count);
+        }
+
+        // Show single-property failure details for targeted debugging.
+        let target_props = [
+            "type",
+            "screen_size",
+            "proper_count",
+            "container",
+            "video_profile",
+            "disc",
+            "audio_channels",
+            "edition",
+            "video_codec",
+            "audio_codec",
+            "year",
+        ];
+        eprintln!("\nSINGLE-PROPERTY FAILURE DETAILS (targeted):");
+        for (filename, failure) in &single_prop_details {
+            let prop = failure.split(':').next().unwrap_or("").trim();
+            if target_props.contains(&prop) {
+                let short_fn = if filename.len() > 70 {
+                    format!("{}...", &filename[..67])
+                } else {
+                    filename.clone()
+                };
+                eprintln!("  [{prop}] {short_fn}");
+                eprintln!("    {failure}");
+            }
         }
 
         eprintln!("\nSAMPLE FAILURES (first 30):");

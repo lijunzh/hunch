@@ -26,6 +26,20 @@ impl PropertyMatcher for YearMatcher {
             if let Ok(year) = raw.parse::<i32>()
                 && (MIN_YEAR..=MAX_YEAR).contains(&year)
             {
+                // Skip years that are part of technical terms (BT2020, x1920, etc.).
+                if start > 0 {
+                    let prev = input.as_bytes()[start - 1];
+                    if prev.is_ascii_alphabetic() {
+                        continue;
+                    }
+                }
+                // Skip "1920x1080" and similar resolution patterns.
+                if end < input.len() {
+                    let next = input.as_bytes()[end];
+                    if next == b'x' || next == b'X' {
+                        continue;
+                    }
+                }
                 matches.push(MatchSpan::new(start, end, Property::Year, raw).with_priority(-1));
             }
         }

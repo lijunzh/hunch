@@ -45,6 +45,12 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])(?:4[Kk][-. ]?)?Restor(?:ed?)?(?![a-z])", "Restored"),
         // Uncensored.
         ValuePattern::new(r"(?i)(?<![a-z])Uncensored(?![a-z])", "Uncensored"),
+        // Uncut.
+        ValuePattern::new(r"(?i)(?<![a-z])Uncut(?:[-. ]?(?:Cut|Edition))?(?![a-z])", "Uncut"),
+        // Festival.
+        ValuePattern::new(r"(?i)(?<![a-z])Festival(?:[-. ]?(?:Cut|Edition))?(?![a-z])", "Festival"),
+        // Edition Special (reversed order).
+        ValuePattern::new(r"(?i)(?<![a-z])Edition[-. ]?Special(?![a-z])", "Special"),
     ];
 }
 

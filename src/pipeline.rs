@@ -121,22 +121,35 @@ impl Pipeline {
 
         // 3d: Compute proper_count from Other:Proper matches in the filename.
         let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-        let mut proper_count: u32 = 0;
+        let mut has_real = false;
+        let mut proper_count_raw: u32 = 0;
+        let mut repack_count: u32 = 0;
         for m in all_matches
             .iter()
             .filter(|m| m.property == Property::Other && m.value == "Proper" && m.start >= fn_start)
         {
             let raw = &input[m.start..m.end];
-            // Check for trailing digit: REPACK5 → 5.
-            let re = fancy_regex::Regex::new(r"(?i)(?:REPACK|RERIP)(\d+)$").unwrap();
-            if let Ok(Some(caps)) = re.captures(raw)
-                && let Some(num) = caps.get(1)
-            {
-                proper_count += num.as_str().parse::<u32>().unwrap_or(1);
+            let real_re = fancy_regex::Regex::new(r"(?i)^REAL$").unwrap();
+            if real_re.is_match(raw).unwrap_or(false) {
+                has_real = true;
                 continue;
             }
-            proper_count += 1;
+            // Check for trailing digit: REPACK5 → 5.
+            let repack_re = fancy_regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap();
+            if let Ok(Some(caps)) = repack_re.captures(raw) {
+                if let Some(num) = caps.get(1) {
+                    repack_count += num.as_str().parse::<u32>().unwrap_or(1);
+                } else {
+                    repack_count += 1;
+                }
+                continue;
+            }
+            // PROPER.
+            proper_count_raw += 1;
         }
+        // REAL replaces PROPER (counts as 2), then REPACKs add on top.
+        let mut proper_count = if has_real { 2 } else { proper_count_raw };
+        proper_count += repack_count;
         if proper_count > 0 {
             all_matches.push(MatchSpan::new(
                 0,

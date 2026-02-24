@@ -15,6 +15,12 @@ lazy_static! {
         r"(?i)(?<![a-z0-9])(\d{3,4})\s*[x*]\s*(\d{3,4})(?![a-z0-9])",
         "",
     );
+    /// Bare resolution number followed by Hi10p or similar profile marker.
+    /// e.g. `[720.Hi10p]`, `[1080.Hi10p]`
+    static ref BARE_RES_BEFORE_PROFILE: ValuePattern = ValuePattern::new(
+        r"(?i)(?<![a-z0-9])(?:720|1080|480|2160)[. ]Hi(?:10|8)?p(?![a-z])",
+        "",
+    );
     static ref FOUR_K: ValuePattern = ValuePattern::new(
         r"(?i)(?<![a-z0-9])4K(?![a-z0-9])",
         "2160p",
@@ -77,12 +83,42 @@ impl PropertyMatcher for ScreenSizeMatcher {
             }
         }
 
-        // 4K / 8K shorthands.
+        // 4K / 8K shorthands — skip when part of edition ("4K Restored", "4K Remastered").
         for (start, end) in FOUR_K.find_iter(input) {
-            matches.push(MatchSpan::new(start, end, Property::ScreenSize, "2160p"));
+            let after = &input[end..];
+            let is_edition_qualifier = after
+                .trim_start_matches(['.', ' ', '-', '_'])
+                .to_lowercase()
+                .starts_with("restor")
+                || after
+                    .trim_start_matches(['.', ' ', '-', '_'])
+                    .to_lowercase()
+                    .starts_with("remaster");
+            if !is_edition_qualifier {
+                matches.push(MatchSpan::new(start, end, Property::ScreenSize, "2160p"));
+            }
         }
         for (start, end) in EIGHT_K.find_iter(input) {
             matches.push(MatchSpan::new(start, end, Property::ScreenSize, "4320p"));
+        }
+
+        // Bare resolution before Hi10p profile: `[720.Hi10p]` → 720p.
+        if matches.is_empty() {
+            for (start, end) in BARE_RES_BEFORE_PROFILE.find_iter(input) {
+                let raw = &input[start..end];
+                let re = fancy_regex::Regex::new(r"(\d+)").unwrap();
+                if let Ok(Some(caps)) = re.captures(raw)
+                    && let Some(num) = caps.get(1)
+                {
+                    let value = format!("{}p", num.as_str());
+                    matches.push(MatchSpan::new(
+                        start,
+                        start + num.end(),
+                        Property::ScreenSize,
+                        value,
+                    ));
+                }
+            }
         }
 
         matches

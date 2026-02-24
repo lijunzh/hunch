@@ -32,7 +32,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])DTS[-:]?X(?![a-z])", "DTS:X"),
         ValuePattern::new(r"(?i)(?<![a-z])DTS[-]?HD(?:[-. ]?(?:MA|Master(?:[-. ]?Audio)?))?(?![a-z])", "DTS-HD"),
         ValuePattern::new(r"(?i)(?<![a-z])DTS[-]?ES(?![a-z])", "DTS"),
-        ValuePattern::new(r"(?i)(?<![a-z])DTS(?![a-z:-])", "DTS"),
+        ValuePattern::new(r"(?i)(?<![a-z])DTS(?![a-z:])", "DTS"),
         ValuePattern::new(r"(?i)(?<![a-z])True[-]?HD(?![a-z0-9])", "Dolby TrueHD"),
         ValuePattern::new(r"(?i)(?<![a-z])Dolby[-. ]?Atmos(?![a-z])", "Dolby Atmos"),
         ValuePattern::new(r"(?i)(?<![a-z])Atmos(?![a-z])", "Dolby Atmos"),
@@ -59,6 +59,7 @@ lazy_static! {
         CombinedPattern::new(r"(?i)(?<![a-z])AAC[-.]?20(?![a-z0-9])", "AAC", "2.0"),
         CombinedPattern::new(r"(?i)(?<![a-z])DDP[-.]?5[\W_]?1(?![a-z0-9])", "Dolby Digital Plus", "5.1"),
         CombinedPattern::new(r"(?i)(?<![a-z])DDP[-.]?51(?![a-z0-9])", "Dolby Digital Plus", "5.1"),
+        CombinedPattern::new(r"(?i)(?<![a-z])DD\+[-.]?5[\W_]?1(?![a-z0-9])", "Dolby Digital Plus", "5.1"),
     ];
 
     static ref AUDIO_CHANNELS_PATTERNS: Vec<ValuePattern> = vec![
