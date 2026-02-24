@@ -24,6 +24,13 @@ static SXX_DASH_EXX: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 
+/// S01E01-S01E21 full range (same season, episode range).
+static SXXEXX_TO_SXXEXX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z0-9])S(?P<s1>\d{1,3})E(?P<e1>\d{1,4})[-]S(?P<s2>\d{1,3})E(?P<e2>\d{1,4})(?![a-z0-9])"
+    ).unwrap()
+});
+
 /// S06xE01 (x separator).
 static SXX_X_EXX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[xX]E(?P<episode>\d{1,4})(?![a-z0-9])")
@@ -48,15 +55,19 @@ static NXN: LazyLock<Regex> = LazyLock::new(|| {
 // ── Standalone episode patterns ──
 
 /// Standalone episode: E01, Ep01, Ep.01, EP01, E02-03, E02-E03, E01-02-03.
+/// Does not support space-separated episodes (too ambiguous, causes backtracking).
 static EP_ONLY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?P<ep_rest>(?:(?:[-+ ]E?|E)\d{1,4})+)?(?![a-z0-9])"
+    r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?P<ep_rest>(?:(?:[-+]E?|E)\d{1,4})+)?(?![a-z0-9])"
     ).unwrap()
 });
 
 /// Episode-only: Episode 1, Episode.01.
 static EPISODE_WORD: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])Episode\s*\.?\s*(?P<episode>\d{1,4})(?![a-z0-9])").unwrap()
+    Regex::new(
+        r"(?i)(?<![a-z])Episodes?\s*\.?\s*(?P<episode>\d{1,4})(?:\s*[-~]\s*(?P<ep_end>\d{1,4}))?(?![a-z0-9])",
+    )
+    .unwrap()
 });
 
 /// Versioned episode: `07v4`, `312v1` → episode is the number before 'v'.
@@ -308,6 +319,23 @@ fn roman_to_int(s: &str) -> Option<u32> {
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
+
+    // 0. S01E01-S01E21 full range (must come before SxxExx to win).
+    for cap in captures_iter(&SXXEXX_TO_SXXEXX, input) {
+        let full = cap.get(0).unwrap();
+        let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
+        let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
+        let e1: u32 = parse_num(&cap, "e1").parse().unwrap_or(0);
+        let e2: u32 = parse_num(&cap, "e2").parse().unwrap_or(0);
+        // Only expand if same season and valid range.
+        if s1 == s2 && e2 >= e1 {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::Season, s1.to_string())
+                    .with_priority(5),
+            );
+            matches.extend(episode_range(e1, e2, full.start(), full.end(), 5));
+        }
+    }
 
     // 1. S01E02 (highest priority).
     for cap in captures_iter(&SXXEXX, input) {
@@ -685,7 +713,27 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     if !has_property(&matches, Property::Episode) {
-        match_episode(&EPISODE_WORD, input, 2, &mut matches);
+        // "Episode 1" or "Episodes 1-12" (word-based, possibly with range).
+        for cap in captures_iter(&EPISODE_WORD, input) {
+            let full = cap.get(0).unwrap();
+            let ep_start: u32 = parse_num(&cap, "episode").parse().unwrap_or(0);
+            let ep_end = cap.name("ep_end").and_then(|m| m.as_str().parse::<u32>().ok());
+            if let Some(end) = ep_end {
+                if end > ep_start {
+                    matches.extend(episode_range(ep_start, end, full.start(), full.end(), 2));
+                }
+            } else {
+                matches.push(
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        ep_start.to_string(),
+                    )
+                    .with_priority(2),
+                );
+            }
+        }
     }
 
     // 7. Anime-style episode: `Show - 03` or `Show - 003`.
