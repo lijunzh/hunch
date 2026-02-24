@@ -39,7 +39,8 @@ impl MatchEngine {
                 // Allow same-span Other with different values (e.g., Other:Rip + Other:Reencoded).
                 // Also allow same-span Episode with different values (multi-episode: E01E02).
                 if (matches[i].property == Property::Other
-                    || matches[i].property == Property::Episode)
+                    || matches[i].property == Property::Episode
+                    || matches[i].property == Property::Season)
                     && matches[i].value != matches[j].value
                     && matches[i].start == matches[j].start
                     && matches[i].end == matches[j].end

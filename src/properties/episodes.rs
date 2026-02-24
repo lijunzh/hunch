@@ -78,6 +78,16 @@ lazy_static! {
         r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})(?!\d|E\d|[xX]\d)"
     ).unwrap();
 
+    /// S01-S10 multi-season range.
+    static ref S_RANGE: Regex = Regex::new(
+        r"(?i)(?<![a-z0-9])S(?P<s1>\d{1,3})[-]S(?P<s2>\d{1,3})(?![a-z0-9])"
+    ).unwrap();
+
+    /// Season 1-3, Season 1&3, Season 1.3.4 (word-based multi-season).
+    static ref SEASON_MULTI: Regex = Regex::new(
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<seasons>\d{1,2}(?:\s*[-&.,]\s*\d{1,2})+)(?![a-z0-9])"
+    ).unwrap();
+
     /// S03-X01 for bonus/extras (x as episode prefix).
     static ref SXX_DASH_XXX: Regex = Regex::new(
         r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[-. ]+[xX](?P<episode>\d{1,4})(?![a-z0-9])"
@@ -347,7 +357,63 @@ impl PropertyMatcher for EpisodeMatcher {
             }
         }
 
-        // 6. Standalone season/episode words.
+        // 6. Multi-season patterns (must come before single season).
+        if !matches.iter().any(|m| m.property == Property::Season) {
+            // S01-S10 range.
+            for cap in captures_iter(&S_RANGE, input) {
+                let full = cap.get(0).unwrap();
+                let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
+                let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
+                for s in s1..=s2 {
+                    matches.push(
+                        MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                            .with_priority(1),
+                    );
+                }
+            }
+        }
+
+        if !matches.iter().any(|m| m.property == Property::Season) {
+            // Season 1-3, Season 1&3, Season 1.3.4.
+            for cap in captures_iter(&SEASON_MULTI, input) {
+                let full = cap.get(0).unwrap();
+                let seasons_str = cap.name("seasons").unwrap().as_str();
+                let nums: Vec<u32> = seasons_str
+                    .split(|c: char| !c.is_ascii_digit())
+                    .filter(|s| !s.is_empty())
+                    .filter_map(|s| s.parse().ok())
+                    .collect();
+                // Determine if it's a range (only two nums with dash) or a list.
+                let is_range = seasons_str.contains('-') && nums.len() == 2;
+                if is_range {
+                    for s in nums[0]..=nums[1] {
+                        matches.push(
+                            MatchSpan::new(
+                                full.start(),
+                                full.end(),
+                                Property::Season,
+                                s.to_string(),
+                            )
+                            .with_priority(1),
+                        );
+                    }
+                } else {
+                    for s in &nums {
+                        matches.push(
+                            MatchSpan::new(
+                                full.start(),
+                                full.end(),
+                                Property::Season,
+                                s.to_string(),
+                            )
+                            .with_priority(1),
+                        );
+                    }
+                }
+            }
+        }
+
+        // 6b. Standalone season/episode words.
         if !matches.iter().any(|m| m.property == Property::Season) {
             for cap in captures_iter(&SEASON_ONLY, input) {
                 let full = cap.get(0).unwrap();
@@ -764,6 +830,27 @@ mod tests {
         assert!(
             m.iter()
                 .any(|x| x.property == Property::Episode && x.value == "5")
+        );
+    }
+
+    #[test]
+    fn test_s_range() {
+        let m = EpisodeMatcher.find_matches("Friends.S01-S10.COMPLETE.720p.BluRay.x264-PtM");
+        eprintln!(
+            "matches: {:?}",
+            m.iter()
+                .map(|x| format!("{:?}={}", x.property, x.value))
+                .collect::<Vec<_>>()
+        );
+        let seasons: Vec<&str> = m
+            .iter()
+            .filter(|x| x.property == Property::Season)
+            .map(|x| x.value.as_str())
+            .collect();
+        assert!(
+            seasons.len() >= 2,
+            "Expected multi-season, got: {:?}",
+            seasons
         );
     }
 }
