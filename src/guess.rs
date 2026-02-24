@@ -14,9 +14,6 @@ pub enum MediaType {
     Episode,
 }
 
-#[deprecated(since = "0.1.0", note = "Use `MediaType` instead")]
-pub type GuessType = MediaType;
-
 /// The result of parsing a media filename.
 ///
 /// Provides typed accessors for common properties and a generic

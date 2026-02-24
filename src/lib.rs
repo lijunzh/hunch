@@ -29,8 +29,7 @@ mod guess;
 mod options;
 mod pipeline;
 
-#[allow(deprecated)]
-pub use guess::{Guess, GuessType, MediaType};
+pub use guess::{Guess, MediaType};
 pub use options::Options;
 pub use pipeline::Pipeline;
 
@@ -50,15 +49,4 @@ pub fn hunch(input: &str) -> Guess {
 /// Parse a media filename with custom options.
 pub fn hunch_with(input: &str, options: Options) -> Guess {
     Pipeline::new(options).run(input)
-}
-
-// Backwards-compatible aliases.
-#[deprecated(since = "0.1.0", note = "Use `hunch()` instead")]
-pub fn guess(input: &str) -> Guess {
-    hunch(input)
-}
-
-#[deprecated(since = "0.1.0", note = "Use `hunch_with()` instead")]
-pub fn guess_with(input: &str, options: Options) -> Guess {
-    hunch_with(input, options)
 }
