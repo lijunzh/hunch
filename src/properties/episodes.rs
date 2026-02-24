@@ -11,9 +11,10 @@ use std::sync::LazyLock;
 // ── SxxExx patterns ──
 
 /// S01E02, S01E02E03, S01E02-E05, S01E02-05, S01E02+E03, S01.E02.E03.
+/// The continuation only allows: -/+ with optional E, or . /space with required E.
 static SXXEXX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[. ]?E(?P<ep_start>\d{1,4})(?:(?:[-+. ]E?|E)(?P<ep2>\d{1,4}))*(?![a-z0-9])"
+    r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[. ]?E(?:P)?(?P<ep_start>\d{1,4})(?:(?:[-+]E?|[. ]E|E)(?P<ep2>\d{1,4}))*(?![a-z0-9])"
     ).unwrap()
 });
 
@@ -37,16 +38,16 @@ static SXX_DASH_XXX: LazyLock<Regex> = LazyLock::new(|| {
 
 // ── NxN patterns ──
 
-/// NxN format: 1x03, 5x9, 5x44x45.
+/// NxN format: 1x03, 5x9, 5x44x45, 4x05-06.
 static NXN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z0-9])(?P<season>\d{1,2})[xX](?P<ep_start>\d{1,4})(?:[xX](?P<ep2>\d{1,4}))*(?![a-z0-9])"
+    r"(?i)(?<![a-z0-9])(?P<season>\d{1,2})[xX](?P<ep_start>\d{1,4})(?:[-xX](?P<ep2>\d{1,4}))*(?![a-z0-9])"
     ).unwrap()
 });
 
 // ── Standalone episode patterns ──
 
-/// Standalone episode: E01, Ep01, Ep.01, E02-03, E02-E03.
+/// Standalone episode: E01, Ep01, Ep.01, EP01, E02-03, E02-E03.
 static EP_ONLY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
     r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?:[-+]E?(?P<ep2>\d{1,4}))?(?![a-z0-9])"
@@ -110,6 +111,46 @@ static SEASON_MULTI: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
     r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<seasons>\d{1,2}(?:\s*[-&.,]\s*\d{1,2})+)(?![a-z0-9])"
     ).unwrap()
+});
+
+/// Season 1 to 3, Season 1~3, Saison 1 a 3 (word-based range with separators).
+static SEASON_RANGE_WORD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<s1>\d{1,2})\s*\.?\s*(?:to|~|a|\.\.)\s*\.?\s*(?P<s2>\d{1,2})(?![a-z0-9])"
+    ).unwrap()
+});
+
+/// S01S02S03 (concatenated S-prefixed seasons).
+static S_CONCAT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<first>\d{1,3})(?:S(?P<rest>\d{1,3}))+(?![a-z0-9])").unwrap()
+});
+
+/// S01-02-03 (S-prefixed dash/space separated multi-season without S prefix on rest).
+static S_MULTI_NUM: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<seasons>\d{1,3}(?:[-. ]\d{1,3})+)(?![a-z0-9])").unwrap()
+});
+
+/// s01.to.s04, s01-to-s04 (S-prefixed range with "to").
+static S_TO_S: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<s1>\d{1,3})\.?(?:to|\.to\.)\.?S(?P<s2>\d{1,3})(?![a-z0-9])").unwrap()
+});
+
+/// Season word with "and" / "&" list: Season 1.3 and 5, Season 1.3&5.
+static SEASON_LIST_AND: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<nums>\d{1,2}(?:[. ]\d{1,2})*)[. ](?:and|&)\s*(?P<last>\d{1,2})(?![a-z0-9])"
+    ).unwrap()
+});
+
+// ── Spanish Cap patterns ──
+
+/// Spanish `[Cap.NNN]` or `[Cap.NNNN]`: e.g., Cap.102 → S1E02, Cap.1503 → S15E03.
+/// Also handles ranges: `[Cap.102_104]` → episodes 2-4.
+static CAP_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r"(?i)(?<![a-z])Cap\.?\s*(?P<num1>\d{3,4})(?:[_](?P<num2>\d{3,4}))?(?:\.[A-Za-z]|[\]\[]|$)"
+    )
+    .unwrap()
 });
 
 // ── Digit decomposition ──
@@ -367,6 +408,96 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         }
     }
 
+    // s01.to.s04 range.
+    if !has_property(&matches, Property::Season) {
+        for cap in captures_iter(&S_TO_S, input) {
+            let full = cap.get(0).unwrap();
+            let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
+            let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
+            for s in s1..=s2 {
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                        .with_priority(1),
+                );
+            }
+        }
+    }
+
+    // S01S02S03 concatenated.
+    if !has_property(&matches, Property::Season) {
+        for cap in captures_iter(&S_CONCAT, input) {
+            let full = cap.get(0).unwrap();
+            let text = &input[full.start()..full.end()];
+            // Extract all season numbers from SxxSxx pattern.
+            for num_cap in regex::Regex::new(r"(?i)S(\d{1,3})").unwrap().find_iter(text) {
+                let num_str = &num_cap.as_str()[1..];
+                if let Ok(s) = num_str.parse::<u32>() {
+                    matches.push(
+                        MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                            .with_priority(1),
+                    );
+                }
+            }
+        }
+    }
+
+    // S01-02-03 (S prefix + dash/space separated numbers).
+    if !has_property(&matches, Property::Season) {
+        for cap in captures_iter(&S_MULTI_NUM, input) {
+            let full = cap.get(0).unwrap();
+            let seasons_str = cap.name("seasons").unwrap().as_str();
+            let nums: Vec<u32> = seasons_str
+                .split(|c: char| !c.is_ascii_digit())
+                .filter(|s| !s.is_empty())
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            for s in &nums {
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                        .with_priority(1),
+                );
+            }
+        }
+    }
+
+    if !has_property(&matches, Property::Season) {
+        // Season 1 to 3, Season 1~3, Saison 1 a 3 (word-based range).
+        for cap in captures_iter(&SEASON_RANGE_WORD, input) {
+            let full = cap.get(0).unwrap();
+            let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
+            let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
+            if s2 > s1 {
+                for s in s1..=s2 {
+                    matches.push(
+                        MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                            .with_priority(1),
+                    );
+                }
+            }
+        }
+    }
+
+    if !has_property(&matches, Property::Season) {
+        // Season 1.3 and 5, Season 1.3&5 (word-based list with "and"/"&").
+        for cap in captures_iter(&SEASON_LIST_AND, input) {
+            let full = cap.get(0).unwrap();
+            let nums_str = cap.name("nums").unwrap().as_str();
+            let last: u32 = parse_num(&cap, "last").parse().unwrap_or(0);
+            let mut nums: Vec<u32> = nums_str
+                .split(|c: char| !c.is_ascii_digit())
+                .filter(|s| !s.is_empty())
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            nums.push(last);
+            for s in &nums {
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                        .with_priority(1),
+                );
+            }
+        }
+    }
+
     if !has_property(&matches, Property::Season) {
         // Season 1-3, Season 1&3, Season 1.3.4.
         for cap in captures_iter(&SEASON_MULTI, input) {
@@ -377,14 +508,32 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 .filter(|s| !s.is_empty())
                 .filter_map(|s| s.parse().ok())
                 .collect();
-            // Determine if it's a range (only two nums with dash) or a list.
-            let is_range = seasons_str.contains('-') && nums.len() == 2;
-            if is_range {
-                for s in nums[0]..=nums[1] {
+            // Check if the last separator indicates a range.
+            let last_sep_is_range = seasons_str
+                .rfind(|c: char| !c.is_ascii_digit())
+                .map(|i| {
+                    let sep = seasons_str[i..].chars().next().unwrap_or(' ');
+                    sep == '-' || sep == '~'
+                })
+                .unwrap_or(false);
+
+            if last_sep_is_range && nums.len() >= 2 {
+                // All nums except the last two are discrete, last two form a range.
+                let range_start = nums[nums.len() - 2];
+                let range_end = nums[nums.len() - 1];
+                for s in &nums[..nums.len() - 2] {
                     matches.push(
                         MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
                             .with_priority(1),
                     );
+                }
+                if range_end > range_start {
+                    for s in range_start..=range_end {
+                        matches.push(
+                            MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                                .with_priority(1),
+                        );
+                    }
                 }
             } else {
                 for s in &nums {
@@ -517,53 +666,139 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         }
     }
 
+    // 9c. Spanish Cap.NNN pattern: [Cap.102] → S1E02, [Cap.1503] → S15E03.
+    // Cap patterns provide episode (and optionally verify season) via digit decomposition.
+    if !has_property(&matches, Property::Episode) {
+        for cap in captures_iter(&CAP_PATTERN, input) {
+            let full = cap.get(0).unwrap();
+            let num1_str = cap.name("num1").unwrap().as_str();
+            let num1: u32 = num1_str.parse().unwrap_or(0);
+            if num1 == 0 {
+                continue;
+            }
+            let (_, ep1) = (num1 / 100, num1 % 100);
+            if ep1 == 0 {
+                continue;
+            }
+
+            // Check for range: Cap.102_104 → episodes 2..4.
+            if let Some(num2_match) = cap.name("num2") {
+                let num2: u32 = num2_match.as_str().parse().unwrap_or(0);
+                let ep2 = num2 % 100;
+                if ep2 > ep1 {
+                    matches.extend(episode_range(
+                        ep1,
+                        ep2,
+                        full.start(),
+                        full.end(),
+                        3,
+                    ));
+                } else {
+                    matches.push(
+                        MatchSpan::new(
+                            full.start(),
+                            full.end(),
+                            Property::Episode,
+                            ep1.to_string(),
+                        )
+                        .with_priority(3),
+                    );
+                }
+            } else {
+                matches.push(
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        ep1.to_string(),
+                    )
+                    .with_priority(3),
+                );
+            }
+        }
+    }
+
     // 10. 3/4-digit episode number decomposition: 101→S1E01, 2401→S24E01.
     // Only fires when no season/episode found yet.
     // Must appear after the title portion (not in first 5 chars of filename).
+    // Skipped for anime-style filenames (bracket groups, underscore separators)
+    // where 3-digit numbers are absolute episode counts.
     if !has_property(&matches, Property::Season) && !has_property(&matches, Property::Episode) {
         let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-        for cap in captures_iter(&THREE_DIGIT, input) {
-            let full = cap.get(0).unwrap();
-            // Skip if too close to the start of the filename (likely title).
-            if full.start() < fn_start + 5 {
-                continue;
+        let filename = &input[fn_start..];
+        let is_anime_style = filename.starts_with('[') || filename.contains('_');
+
+        if is_anime_style {
+            // For anime, try to find a bare 3-digit episode number after the title.
+            for cap in captures_iter(&THREE_DIGIT, input) {
+                let full = cap.get(0).unwrap();
+                if full.start() < fn_start + 5 {
+                    continue;
+                }
+                let num_str = cap.name("num").unwrap().as_str();
+                let num: u32 = num_str.parse().unwrap_or(0);
+                if num == 0 || num_str.len() == 4 && (1920..=2039).contains(&num) {
+                    continue;
+                }
+                if num == 264 || num == 265 || num == 128 {
+                    continue;
+                }
+                // Emit as absolute episode (no season decomposition).
+                matches.push(
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        num.to_string(),
+                    )
+                    .with_priority(0),
+                );
+                break;
             }
-            let num_str = cap.name("num").unwrap().as_str();
-            let num: u32 = num_str.parse().unwrap_or(0);
-            if num == 0 {
-                continue;
+        } else {
+            for cap in captures_iter(&THREE_DIGIT, input) {
+                let full = cap.get(0).unwrap();
+                // Skip if too close to the start of the filename (likely title).
+                if full.start() < fn_start + 5 {
+                    continue;
+                }
+                let num_str = cap.name("num").unwrap().as_str();
+                let num: u32 = num_str.parse().unwrap_or(0);
+                if num == 0 {
+                    continue;
+                }
+                // Skip year-like and codec-related numbers.
+                if num_str.len() == 4 && (1920..=2039).contains(&num) {
+                    continue;
+                }
+                if num == 264 || num == 265 || num == 128 {
+                    continue;
+                }
+                // Decompose: e.g., 501 → S5E01, 117 → S1E17, 2401 → S24E01.
+                let (season, episode) = (num / 100, num % 100);
+                if season == 0 || episode == 0 || season > 30 || episode > 99 {
+                    continue;
+                }
+                matches.push(
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Season,
+                        season.to_string(),
+                    )
+                    .with_priority(0),
+                );
+                matches.push(
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        episode.to_string(),
+                    )
+                    .with_priority(0),
+                );
+                break; // Only decompose the first occurrence.
             }
-            // Skip year-like and codec-related numbers.
-            if num_str.len() == 4 && (1920..=2039).contains(&num) {
-                continue;
-            }
-            if num == 264 || num == 265 || num == 128 {
-                continue;
-            }
-            // Decompose: e.g., 501 → S5E01, 117 → S1E17, 2401 → S24E01.
-            let (season, episode) = (num / 100, num % 100);
-            if season == 0 || episode == 0 || season > 30 || episode > 99 {
-                continue;
-            }
-            matches.push(
-                MatchSpan::new(
-                    full.start(),
-                    full.end(),
-                    Property::Season,
-                    season.to_string(),
-                )
-                .with_priority(0),
-            );
-            matches.push(
-                MatchSpan::new(
-                    full.start(),
-                    full.end(),
-                    Property::Episode,
-                    episode.to_string(),
-                )
-                .with_priority(0),
-            );
-            break; // Only decompose the first occurrence.
         }
     }
 
@@ -776,23 +1011,72 @@ mod tests {
     }
 
     #[test]
+    fn test_cap_single() {
+        let m = find_matches("Show.Name.-.Temporada.1.720p.HDTV.x264[Cap.102]SPANISH.AUDIO");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+    }
+
+    #[test]
+    fn test_cap_range() {
+        let m = find_matches("Show.Name.-.Temporada.1.720p.HDTV.x264[Cap.102_104]SPANISH.AUDIO");
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "4"));
+    }
+
+    #[test]
+    fn test_cap_four_digit() {
+        let m = find_matches("Show.Name.-.Temporada.15.720p.HDTV.x264[Cap.1503]SPANISH.AUDIO");
+        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "15"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
+    }
+
+    #[test]
+    fn test_cap_four_digit_range() {
+        let m = find_matches("Show.Name.-.Temporada.15.720p.HDTV.x264[Cap.1503_1506]SPANISH.AUDIO");
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
+        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "6"));
+    }
+
+    #[test]
     fn test_s_range() {
         let m = find_matches("Friends.S01-S10.COMPLETE.720p.BluRay.x264-PtM");
-        eprintln!(
-            "matches: {:?}",
-            m.iter()
-                .map(|x| format!("{:?}={}", x.property, x.value))
-                .collect::<Vec<_>>()
-        );
         let seasons: Vec<&str> = m
             .iter()
             .filter(|x| x.property == Property::Season)
             .map(|x| x.value.as_str())
             .collect();
-        assert!(
-            seasons.len() >= 2,
-            "Expected multi-season, got: {:?}",
-            seasons
-        );
+        assert!(seasons.len() >= 2, "Expected multi-season, got: {:?}", seasons);
+    }
+
+    #[test]
+    fn test_s_concat() {
+        let m = find_matches("Some Series S01S02S03");
+        let seasons: Vec<&str> = m.iter()
+            .filter(|x| x.property == Property::Season)
+            .map(|x| x.value.as_str())
+            .collect();
+        assert_eq!(seasons.len(), 3, "Expected 3 seasons, got: {:?}", seasons);
+    }
+
+    #[test]
+    fn test_s_multi_num() {
+        let m = find_matches("Some Series S01-02-03");
+        let seasons: Vec<&str> = m.iter()
+            .filter(|x| x.property == Property::Season)
+            .map(|x| x.value.as_str())
+            .collect();
+        assert_eq!(seasons.len(), 3, "Expected 3 seasons, got: {:?}", seasons);
+    }
+
+    #[test]
+    fn test_season_range_word() {
+        let m = find_matches("Show.Name.-.Season.1.to.3.-.Mp4.1080p");
+        let seasons: Vec<&str> = m.iter()
+            .filter(|x| x.property == Property::Season)
+            .map(|x| x.value.as_str())
+            .collect();
+        assert_eq!(seasons.len(), 3, "Expected 3 seasons, got: {:?}", seasons);
     }
 }

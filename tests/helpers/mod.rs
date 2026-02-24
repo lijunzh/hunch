@@ -65,11 +65,26 @@ pub fn load_test_cases(path: &str) -> Vec<TestCase> {
 /// Parse the YAML-ish file into groups of (keys, properties).
 ///
 /// Each group is one or more `? key` lines followed by `: prop: value` lines.
+/// Handles YAML list values (`- item`) by joining them as comma-separated.
 fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
     let mut groups: Vec<(Vec<String>, HashMap<String, String>)> = Vec::new();
     let mut current_keys: Vec<String> = Vec::new();
     let mut current_props: HashMap<String, String> = HashMap::new();
     let mut in_value = false;
+    let mut current_list_key: Option<String> = None;
+    let mut current_list_items: Vec<String> = Vec::new();
+
+    let flush_list = |key: &Option<String>, items: &mut Vec<String>, props: &mut HashMap<String, String>| {
+        if let Some(k) = key {
+            if items.is_empty() {
+                // Key declared with no list items → preserve empty string.
+                props.entry(k.clone()).or_default();
+            } else {
+                props.insert(k.clone(), items.join(", "));
+            }
+            items.clear();
+        }
+    };
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -81,7 +96,10 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
         // New key: `? filename`
         if let Some(rest) = trimmed.strip_prefix("? ") {
             if in_value {
-                // We were reading props — flush the previous group.
+                // Flush any pending list.
+                flush_list(&current_list_key, &mut current_list_items, &mut current_props);
+                current_list_key = None;
+                // Flush the previous group.
                 groups.push((current_keys.clone(), current_props.clone()));
                 current_keys.clear();
                 current_props.clear();
@@ -95,18 +113,30 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
         // Value block starts: `: prop: value`
         if let Some(rest) = trimmed.strip_prefix(": ") {
             in_value = true;
-            parse_prop_line(rest, &mut current_props);
+            // Flush any pending list.
+            flush_list(&current_list_key, &mut current_list_items, &mut current_props);
+            current_list_key = None;
+            parse_prop_line(rest, &mut current_props, &mut current_list_key);
             continue;
         }
 
         // Continuation of value block (indented).
         if in_value && (line.starts_with(' ') || line.starts_with('\t')) {
-            parse_prop_line(trimmed, &mut current_props);
+            // Check if this is a YAML list item: `  - value`
+            if let Some(item) = trimmed.strip_prefix("- ") {
+                current_list_items.push(strip_yaml_quotes(item.trim()));
+            } else {
+                // Flush any pending list, then parse as normal prop.
+                flush_list(&current_list_key, &mut current_list_items, &mut current_props);
+                current_list_key = None;
+                parse_prop_line(trimmed, &mut current_props, &mut current_list_key);
+            }
             continue;
         }
     }
 
-    // Flush last group.
+    // Flush last pending list and group.
+    flush_list(&current_list_key, &mut current_list_items, &mut current_props);
     if !current_keys.is_empty() {
         groups.push((current_keys, current_props));
     }
@@ -114,12 +144,17 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
     groups
 }
 
-fn parse_prop_line(line: &str, props: &mut HashMap<String, String>) {
+fn parse_prop_line(line: &str, props: &mut HashMap<String, String>, list_key: &mut Option<String>) {
     if let Some((key, value)) = line.split_once(':') {
         let key = key.trim().to_string();
         let value = strip_yaml_quotes(value.trim());
         if !key.is_empty() {
-            props.insert(key, value);
+            if value.is_empty() {
+                // Empty value means a YAML list follows.
+                *list_key = Some(key);
+            } else {
+                props.insert(key, value);
+            }
         }
     }
 }

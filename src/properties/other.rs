@@ -17,10 +17,12 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         // Quality / resolution flags.
         ValuePattern::new(r"(?i)(?<![a-z])(?:Full[-. ]?HD|FHD)(?![a-z])", "Full HD"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:Ultra[-. ]?HD|UHD)(?![a-z])", "Ultra HD"),
+        ValuePattern::new(r"(?i)(?<![a-z])Netflix[-. ]?UHD(?![a-z])", "Ultra HD"),
+        ValuePattern::new(r"(?i)(?<![a-z])iTunes[-. ]?HD(?![a-z])", "HD"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:mHD|HDLight)(?![a-z])", "Micro HD"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])HD(?![a-zTV0-9-])", "HD"),
+        ValuePattern::new(r"(?i)(?<![a-z0-9\-])HD(?![a-zTV0-9\-])", "HD"),
         ValuePattern::new(r"(?i)(?<![a-z])HQ(?![a-z])", "High Quality"),
-        ValuePattern::new(r"(?i)(?<![a-z])HR(?![a-z])", "High Resolution"),
+        ValuePattern::new(r"(?i)(?<![a-z])HR(?![a-z])(?=.*[.\-_ ][a-zA-Z])", "High Resolution"),
         ValuePattern::new(r"(?i)(?<![a-z])LDTV(?![a-z])", "Low Definition"),
         ValuePattern::new(r"(?i)(?<![a-z])Upscale[d]?(?![a-z])", "Upscaled"),
         // Release quality flags.
@@ -43,14 +45,13 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])Sync[-. ]?Fix(?:ed)?(?![a-z])", "Sync Fixed"),
         // Dub / Sub flags (require explicit markers, not bare words).
         ValuePattern::new(r"(?i)(?<![a-z])DUBBED(?![a-z])", "Dubbed"),
-        ValuePattern::new(r"(?i)(?<![a-z])SUBBED(?![a-z])", "Subbed"),
-        ValuePattern::new(r"(?i)(?<![a-z])HC(?![a-z])", "Hardcoded Subtitles"),
+        ValuePattern::new(r"(?i)(?<![a-z])HC(?![a-z])(?=.*(?:SUB|sub|SUBS|subs))", "Hardcoded Subtitles"),
         ValuePattern::new(
             r"(?i)(?<![a-z])(?:HARDCODED|HC)[-. ]?SUBS?(?![a-z])",
             "Hardcoded Subtitles",
         ),
         ValuePattern::new(
-            r"(?i)(?<![a-z])Fan[-. ]Sub(?:bed|titled|s)(?![a-z])",
+            r"(?i)(?<![a-z])Fan[-. ]?Sub(?:bed|titled|s)?(?![a-z])",
             "Fan Subtitled",
         ),
         ValuePattern::new(
@@ -90,12 +91,8 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         // Region codes.
         ValuePattern::new(r"(?i)(?<![a-z])R5(?![a-z0-9])", "Region 5"),
         ValuePattern::new(r"(?i)(?<![a-z])RC(?![a-z0-9])", "Region C"),
-        // Screener.
+        // Screener (standalone only — DVD/BD/BR/WEB prefixed forms are handled by source).
         ValuePattern::new(r"(?i)(?<![a-z])Screener(?![a-z])", "Screener"),
-        ValuePattern::new(
-            r"(?i)(?<![a-z])(?:DVD|BD|BR|WEB)?[-. ]?Scr(?:eener)?(?![a-z])",
-            "Screener",
-        ),
         ValuePattern::new(
             r"(?i)(?<![a-z])(?:Advance[-. ]?)?Screener(?![a-z])",
             "Screener",
@@ -143,7 +140,7 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])DOCU(?:MENTARY)?(?![a-z])", "Documentary"),
         // Original Video.
         ValuePattern::new(r"(?i)(?<![a-z])OVA(?![a-z])", "Original Video"),
-        ValuePattern::new(r"(?i)(?<![a-z])OAD(?![a-z])", "Original Video"),
+        ValuePattern::new(r"(?i)(?<![a-z])OAD(?![a-z])", "Original Animation DVD"),
         // Original Aspect Ratio.
         ValuePattern::new(
             r"(?i)(?<![a-z])(?:OAR|Original[-. ]?Aspect[-. ]?Ratio)(?![a-z])",

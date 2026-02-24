@@ -96,6 +96,10 @@ impl Pipeline {
         // is a title word, not a source, because "WEB-DL" after year is the real source.
         self.prune_early_source_duplicates(input, &mut all_matches);
 
+        // Step 2d: Prune redundant "Ultra HD" / "HD" Other tags when screen_size
+        // already conveys the same information (e.g., 2160p + 4K + UHD).
+        self.prune_redundant_hd_tags(&mut all_matches);
+
         // Step 3: Post-processing.
         // 3a: Extract title from remaining gaps.
         if let Some(title_match) = title::extract_title(input, &all_matches) {
@@ -205,6 +209,20 @@ impl Pipeline {
         if has_early_source && has_late_source {
             matches.retain(|m| {
                 !(m.property == Property::Source && m.start < anchor && m.start >= fn_start)
+            });
+        }
+    }
+
+    /// Prune "Ultra HD" Other tag when the source already conveys UHD
+    /// (e.g., source = "Ultra HD Blu-ray"). If no source captures UHD, keep it.
+    fn prune_redundant_hd_tags(&self, matches: &mut Vec<MatchSpan>) {
+        let source_has_uhd = matches.iter().any(|m| {
+            m.property == Property::Source && m.value.contains("Ultra HD")
+        });
+
+        if source_has_uhd {
+            matches.retain(|m| {
+                !(m.property == Property::Other && m.value == "Ultra HD")
             });
         }
     }

@@ -31,10 +31,11 @@ impl SourcePattern {
     }
 }
 
-/// Detects whether the matched text ends with "Rip".
+/// Detects whether the matched text ends with "Rip" or "Cap" (capture = rip).
 static REENCODED_RIP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^BR[-.]?Rip$").unwrap());
 
-static RIP_SUFFIX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)Rip$").unwrap());
+static RIP_SUFFIX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:Rip|Cap)$").unwrap());
 
 /// BRRip/BDRip are re-encoded from Blu-ray (not direct rips like BluRay.Rip).
 static SOURCE_PATTERNS: LazyLock<Vec<SourcePattern>> = LazyLock::new(|| {

@@ -163,6 +163,13 @@ fn parse_value_list(s: &str) -> Vec<String> {
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty())
             .collect()
+    } else if trimmed.contains(", ") {
+        // Handle comma-separated values from YAML list parsing.
+        trimmed
+            .split(',')
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .collect()
     } else {
         vec![trimmed.to_string()]
     }
