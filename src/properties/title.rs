@@ -34,8 +34,18 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
         Some(m) => m.start,
         None => {
             // All matches are extensions or outside filename.
+            // Only strip if the trailing segment looks like a real extension.
             let ext_start = filename.rfind('.').unwrap_or(filename.len());
-            filename_start + ext_start
+            if ext_start < filename.len() {
+                let candidate_ext = &filename[ext_start + 1..];
+                if is_likely_extension(&candidate_ext.to_lowercase()) {
+                    filename_start + ext_start
+                } else {
+                    filename_start + filename.len()
+                }
+            } else {
+                filename_start + filename.len()
+            }
         }
     };
 
@@ -403,14 +413,29 @@ fn collapse_spaces(s: &str) -> String {
 }
 
 /// Strip a file extension from the end of a string.
+/// Only strips if the extension looks like a real file extension
+/// (lowercase, known media/subtitle/metadata format).
 fn strip_extension(s: &str) -> &str {
     if let Some(dot) = s.rfind('.') {
         let ext = &s[dot + 1..];
-        if ext.len() <= 5 && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+        let ext_lower = ext.to_lowercase();
+        if ext.len() <= 5 && is_likely_extension(&ext_lower) {
             return &s[..dot];
         }
     }
     s
+}
+
+/// Check if a string looks like a real file extension.
+fn is_likely_extension(ext: &str) -> bool {
+    matches!(
+        ext,
+        "mkv" | "mp4" | "avi" | "wmv" | "flv" | "mov" | "webm" | "ogm" | "ogv"
+            | "ts" | "m2ts" | "m4v" | "mpg" | "mpeg" | "vob" | "divx" | "3gp"
+            | "srt" | "sub" | "ssa" | "ass" | "idx" | "sup" | "vtt"
+            | "nfo" | "txt" | "jpg" | "jpeg" | "png" | "nzb" | "par" | "par2"
+            | "iso" | "img" | "rar" | "zip" | "7z"
+    )
 }
 
 /// Extract episode title: the text between the last episode/season marker
