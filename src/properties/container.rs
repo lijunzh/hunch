@@ -58,7 +58,7 @@ impl PropertyMatcher for ContainerMatcher {
                     Property::Container,
                     ext.to_lowercase(),
                 )
-                .with_tag("extension")
+                .as_extension()
                 .with_priority(10),
             );
         }

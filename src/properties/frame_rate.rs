@@ -67,7 +67,8 @@ impl PropertyMatcher for FrameRateMatcher {
                         end: full.end(),
                         property: Property::FrameRate,
                         value: format!("{fps_val}fps"),
-                        tags: vec![],
+                        is_extension: false,
+                        is_path_based: false,
                         priority: if *is_explicit { 0 } else { -1 },
                     });
                 }

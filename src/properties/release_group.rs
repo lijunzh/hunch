@@ -88,7 +88,6 @@ impl PropertyMatcher for ReleaseGroupMatcher {
                         Property::ReleaseGroup,
                         value,
                     )
-                    .with_tag("end-dash")
                     .with_priority(-1),
                 );
             }
@@ -108,7 +107,6 @@ impl PropertyMatcher for ReleaseGroupMatcher {
                         Property::ReleaseGroup,
                         value,
                     )
-                    .with_tag("before-bracket")
                     .with_priority(-2),
                 );
             }
@@ -128,7 +126,6 @@ impl PropertyMatcher for ReleaseGroupMatcher {
                         Property::ReleaseGroup,
                         value,
                     )
-                    .with_tag("start-bracket")
                     .with_priority(-1),
                 );
             }
@@ -148,7 +145,6 @@ impl PropertyMatcher for ReleaseGroupMatcher {
                         Property::ReleaseGroup,
                         value,
                     )
-                    .with_tag("end-bracket")
                     .with_priority(-2),
                 );
             }
@@ -168,7 +164,6 @@ impl PropertyMatcher for ReleaseGroupMatcher {
                         Property::ReleaseGroup,
                         value,
                     )
-                    .with_tag("space-end")
                     .with_priority(-3),
                 );
             }
@@ -190,7 +185,6 @@ impl PropertyMatcher for ReleaseGroupMatcher {
                         Property::ReleaseGroup,
                         value,
                     )
-                    .with_tag("last-dot")
                     .with_priority(-4),
                 );
             }
@@ -229,7 +223,6 @@ impl PropertyMatcher for ReleaseGroupMatcher {
                         }
                         matches.push(
                             MatchSpan::new(0, 0, Property::ReleaseGroup, parent_value)
-                                .with_tag("parent-dir")
                                 .with_priority(-3),
                         );
                     }

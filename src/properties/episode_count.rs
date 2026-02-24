@@ -48,7 +48,8 @@ impl PropertyMatcher for EpisodeCountMatcher {
                     end: full.end(),
                     property: Property::SeasonCount,
                     value: count_val.to_string(),
-                    tags: vec![],
+                    is_extension: false,
+                    is_path_based: false,
                     priority: 0,
                 });
             }
@@ -86,7 +87,8 @@ impl PropertyMatcher for EpisodeCountMatcher {
                     end: full.end(),
                     property: Property::EpisodeCount,
                     value: count_val.to_string(),
-                    tags: vec![],
+                    is_extension: false,
+                    is_path_based: false,
                     priority: 0,
                 });
             }

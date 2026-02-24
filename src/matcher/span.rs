@@ -118,8 +118,10 @@ pub struct MatchSpan {
     pub property: Property,
     /// The normalized/canonical value.
     pub value: String,
-    /// Tags for rule processing (e.g., "extension", "weak").
-    pub tags: Vec<String>,
+    /// True if this match came from a file extension (e.g., `.mkv`).
+    pub is_extension: bool,
+    /// True if this match came from a path component (e.g., `/Season 1/`).
+    pub is_path_based: bool,
     /// Priority for conflict resolution (higher wins).
     pub priority: i32,
 }
@@ -131,14 +133,21 @@ impl MatchSpan {
             end,
             property,
             value: value.into(),
-            tags: Vec::new(),
+            is_extension: false,
+            is_path_based: false,
             priority: 0,
         }
     }
 
     #[must_use]
-    pub fn with_tag(mut self, tag: impl Into<String>) -> Self {
-        self.tags.push(tag.into());
+    pub fn as_extension(mut self) -> Self {
+        self.is_extension = true;
+        self
+    }
+
+    #[must_use]
+    pub fn as_path_based(mut self) -> Self {
+        self.is_path_based = true;
         self
     }
 

@@ -27,7 +27,7 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
     let first_match_in_filename = matches
         .iter()
         .filter(|m| m.start >= filename_start)
-        .filter(|m| !m.tags.contains(&"extension".to_string()))
+        .filter(|m| !m.is_extension)
         .min_by_key(|m| m.start);
 
     let title_end_abs = match first_match_in_filename {
@@ -119,8 +119,8 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
         let first_match_in_dir = matches
             .iter()
             .filter(|m| m.start >= dir_start && m.start < dir_end)
-            .filter(|m| !m.tags.contains(&"extension".to_string()))
-            .filter(|m| !m.tags.contains(&"path-season".to_string()))
+            .filter(|m| !m.is_extension)
+            .filter(|m| !m.is_path_based)
             .min_by_key(|m| m.start);
 
         let title_end = match first_match_in_dir {
@@ -181,7 +181,7 @@ fn extract_after_bracket_group(
     let next_match = matches
         .iter()
         .filter(|m| m.start >= title_start_abs && m.start < filename_end)
-        .filter(|m| !m.tags.contains(&"extension".to_string()))
+        .filter(|m| !m.is_extension)
         .min_by_key(|m| m.start);
 
     let title_end_abs = match next_match {

@@ -38,7 +38,8 @@ impl PropertyMatcher for VersionMatcher {
                     end: full.end(),
                     property: Property::Version,
                     value: version_num.to_string(),
-                    tags: vec![],
+                    is_extension: false,
+                    is_path_based: false,
                     priority: 0,
                 });
             }

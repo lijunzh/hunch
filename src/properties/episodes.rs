@@ -206,8 +206,7 @@ impl PropertyMatcher for EpisodeMatcher {
                     Property::Season,
                     season.to_string(),
                 )
-                .with_tag("SxxExx")
-                .with_priority(5),
+                .with_priority(-1),
             );
 
             // Check for multi-episode.
@@ -450,8 +449,8 @@ impl PropertyMatcher for EpisodeMatcher {
                 let season = parse_num(&cap, "season");
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Season, season)
-                        .with_tag("path-season")
-                        .with_priority(1),
+                        .as_path_based()
+                        .with_priority(-2),
                 );
             }
         }
@@ -519,7 +518,6 @@ impl PropertyMatcher for EpisodeMatcher {
                 let episode = parse_num(&cap, "episode");
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                        .with_tag("anime")
                         .with_priority(1),
                 );
             }
@@ -533,7 +531,6 @@ impl PropertyMatcher for EpisodeMatcher {
             let episode = parse_num(&cap, "episode");
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                    .with_tag("bare")
                     .with_priority(-1),
             );
         }
@@ -546,7 +543,6 @@ impl PropertyMatcher for EpisodeMatcher {
             let episode = parse_num(&cap, "episode");
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                    .with_tag("versioned")
                     .with_priority(1),
             );
         }
@@ -569,7 +565,6 @@ impl PropertyMatcher for EpisodeMatcher {
                 let abs_end = fn_start + ep_match.end();
                 matches.push(
                     MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
-                        .with_tag("leading")
                         .with_priority(0),
                 );
                 break;
