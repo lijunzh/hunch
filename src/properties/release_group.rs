@@ -67,6 +67,20 @@ impl PropertyMatcher for ReleaseGroupMatcher {
             && let Some(group) = cap.name("group")
         {
             let mut value = group.as_str().to_string();
+            let mut start = group.start();
+
+            // Expand backwards past hyphens to capture multi-segment group names.
+            // e.g., `x264-MARINE-FORD.mkv` → MARINE-FORD (not just FORD)
+            //        `x264.D-Z0N3.mkv`    → D-Z0N3 (not just Z0N3)
+            // We stop when we hit a known token or a non-hyphen/dot separator.
+            let before_group = &filename[..start.saturating_sub(1)]; // before the '-'
+            let mut expanded = expand_group_backwards(before_group, &value);
+            if expanded != value {
+                // Recalculate start position.
+                start = start.saturating_sub(expanded.len() - value.len());
+                value = expanded;
+            }
+
             if let Some(suffix) = cap.name("suffix") {
                 value = format!("{}[{}]", value, suffix.as_str());
             }
@@ -77,7 +91,7 @@ impl PropertyMatcher for ReleaseGroupMatcher {
                     .unwrap_or(group.end());
                 matches.push(
                     MatchSpan::new(
-                        filename_start + group.start(),
+                        filename_start + start,
                         filename_start + end,
                         Property::ReleaseGroup,
                         value,
@@ -265,6 +279,8 @@ fn is_known_token(s: &str) -> bool {
             | "mp3"
             | "pcm"
             | "opus"
+            | "atmos"
+            | "truehd"
             | "ma"
             | "bluray"
             | "bdrip"
@@ -334,6 +350,45 @@ fn is_hex_crc(s: &str) -> bool {
     s.len() == 8 && s.chars().all(|c| c.is_ascii_hexdigit())
 }
 
+/// Expand a release group name backwards past hyphens to capture
+/// multi-segment names like `MARINE-FORD` or `D-Z0N3`.
+///
+/// `before` is the text preceding the hyphen (e.g., "x264.MARINE" for "-FORD").
+/// `current` is the matched group so far (e.g., "FORD").
+///
+/// Only expand when the segment BEFORE the group is separated by a dot
+/// (not a hyphen) from a known technical token. This ensures we capture
+/// `x264.D-Z0N3` (dot before D, x264 is known) but not `Movie-x264`
+/// (Movie is not separated by dot from anything known).
+fn expand_group_backwards(before: &str, current: &str) -> String {
+    // Look for a segment before the group that should be included.
+    // Pattern: `KNOWN_TOKEN.SEGMENT-CURRENT` or `KNOWN_TOKEN-SEGMENT-CURRENT`
+    // where SEGMENT is not a known token.
+    let sep_pos = match before.rfind(['.', '-', '_']) {
+        Some(pos) => pos,
+        None => return current.to_string(),
+    };
+
+    let segment = &before[sep_pos + 1..];
+    let before_sep = &before[..sep_pos];
+
+    // The segment must be alphanumeric and not a known token.
+    if segment.is_empty()
+        || !segment.chars().all(|c| c.is_ascii_alphanumeric())
+        || is_known_token(segment)
+    {
+        return current.to_string();
+    }
+
+    // The text before the separator must end with a known technical token.
+    let last_token = before_sep.rsplit(['.', '-', '_', ' ']).next().unwrap_or("");
+    if !is_known_token(last_token) {
+        return current.to_string();
+    }
+
+    format!("{segment}-{current}")
+}
+
 /// Returns true if the filename contains recognizable technical tokens
 /// (codecs, resolutions, sources, etc.). This helps the "last-dot" fallback
 /// avoid false positives on simple filenames like `Title Only.avi`.
@@ -342,7 +397,7 @@ fn has_technical_tokens(filename: &str) -> bool {
     let technical = [
         "x264", "x265", "h264", "h265", "hevc", "xvid", "divx", "av1", "aac", "ac3", "dts", "flac",
         "opus", "720p", "1080p", "2160p", "4k", "bluray", "bdrip", "brrip", "dvdrip", "webrip",
-        "webdl", "hdtv", "hdrip", "remux", "cam", "screener",
+        "webdl", "hdtv", "hdrip", "remux", "cam", "screener", "atmos", "truehd",
     ];
     technical.iter().any(|t| lower.contains(t))
 }

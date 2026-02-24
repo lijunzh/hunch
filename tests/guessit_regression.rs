@@ -468,6 +468,12 @@ fn compatibility_report() {
             "video_codec",
             "audio_codec",
             "year",
+            "title",
+            "episode",
+            "season",
+            "source",
+            "release_group",
+            "episode_title",
         ];
         eprintln!("\nSINGLE-PROPERTY FAILURE DETAILS (targeted):");
         for (filename, failure) in &single_prop_details {
