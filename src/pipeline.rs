@@ -17,6 +17,7 @@ use crate::properties::date::DateMatcher;
 use crate::properties::edition::EditionMatcher;
 use crate::properties::episode_details::EpisodeDetailsMatcher;
 use crate::properties::episodes::EpisodeMatcher;
+use crate::properties::frame_rate::FrameRateMatcher;
 use crate::properties::language::LanguageMatcher;
 use crate::properties::other::OtherMatcher;
 use crate::properties::part::PartMatcher;
@@ -28,6 +29,7 @@ use crate::properties::streaming_service::StreamingServiceMatcher;
 use crate::properties::subtitle_language::SubtitleLanguageMatcher;
 use crate::properties::title;
 use crate::properties::uuid::UuidMatcher;
+use crate::properties::version::VersionMatcher;
 use crate::properties::video_codec::VideoCodecMatcher;
 use crate::properties::video_profile::VideoProfileMatcher;
 use crate::properties::website::WebsiteMatcher;
@@ -74,6 +76,8 @@ impl Pipeline {
             Box::new(SizeMatcher),
             Box::new(PartMatcher),
             Box::new(BonusMatcher),
+            Box::new(VersionMatcher),
+            Box::new(FrameRateMatcher),
             Box::new(ReleaseGroupMatcher),
         ];
         Self { options, matchers }

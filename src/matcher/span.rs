@@ -48,6 +48,9 @@ pub enum Property {
     AspectRatio,
     ProperCount,
     MediaType,
+    Version,
+    EpisodeCount,
+    SeasonCount,
 }
 
 impl fmt::Display for Property {
@@ -96,6 +99,9 @@ impl fmt::Display for Property {
             Self::AspectRatio => "aspect_ratio",
             Self::ProperCount => "proper_count",
             Self::MediaType => "type",
+            Self::Version => "version",
+            Self::EpisodeCount => "episode_count",
+            Self::SeasonCount => "season_count",
         };
         write!(f, "{s}")
     }
