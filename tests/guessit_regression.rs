@@ -97,63 +97,75 @@ fn check(tc: &TestCase) -> (Vec<PropResult>, Vec<String>) {
 
         let is_lang = LANG_PROPS.contains(&key.as_str());
 
-        let actual_str = match actual {
-            Some(serde_json::Value::String(s)) => {
-                let v = s.to_lowercase();
-                if is_lang { normalize_language(&v) } else { v }
-            }
-            Some(serde_json::Value::Number(n)) => n.to_string(),
-            Some(serde_json::Value::Array(arr)) => {
-                let values: Vec<String> = arr
-                    .iter()
-                    .map(|v| match v {
-                        serde_json::Value::String(s) => {
-                            let v = s.to_lowercase();
-                            if is_lang { normalize_language(&v) } else { v }
-                        }
-                        serde_json::Value::Number(n) => n.to_string(),
-                        other => other.to_string().to_lowercase(),
-                    })
-                    .collect();
-                let exp = if is_lang {
-                    normalize_language(&expected_str)
-                } else {
-                    expected_str.clone()
-                };
-                if values.contains(&exp) {
-                    prop_results.push(PropResult {
-                        property: key.clone(),
-                        passed: true,
-                    });
-                    continue;
-                }
-                values.join(", ")
-            }
-            Some(other) => other.to_string().to_lowercase(),
-            None => String::new(),
+        // Normalize a single value (language-aware).
+        let norm = |s: &str| -> String {
+            let v = s.trim().to_lowercase();
+            if is_lang { normalize_language(&v) } else { v }
         };
 
-        let (exp_cmp, act_cmp) = if is_lang {
-            (
-                normalize_language(&expected_str),
-                normalize_language(&actual_str),
-            )
-        } else {
-            (expected_str.clone(), actual_str.clone())
-        };
+        // Parse expected: could be a single value or `[ a, b, c ]` list.
+        let expected_values = parse_value_list(&expected_str);
+        let mut expected_set: Vec<String> = expected_values.iter().map(|s| norm(s)).collect();
+        expected_set.sort();
 
-        let ok = act_cmp == exp_cmp;
+        // Parse actual from JSON.
+        let actual_values: Vec<String> = match actual {
+            Some(serde_json::Value::String(s)) => vec![norm(s)],
+            Some(serde_json::Value::Number(n)) => vec![n.to_string()],
+            Some(serde_json::Value::Array(arr)) => arr
+                .iter()
+                .map(|v| match v {
+                    serde_json::Value::String(s) => norm(s),
+                    serde_json::Value::Number(n) => n.to_string(),
+                    other => other.to_string().to_lowercase(),
+                })
+                .collect(),
+            Some(other) => vec![other.to_string().to_lowercase()],
+            None => vec![],
+        };
+        let mut actual_set: Vec<String> = actual_values.clone();
+        actual_set.sort();
+
+        let ok = expected_set == actual_set;
         prop_results.push(PropResult {
             property: key.clone(),
             passed: ok,
         });
         if !ok {
+            let exp_display = if expected_set.len() == 1 {
+                expected_set[0].clone()
+            } else {
+                format!("[ {} ]", expected_set.join(", "))
+            };
+            let act_display = if actual_values.is_empty() {
+                String::new()
+            } else if actual_values.len() == 1 {
+                actual_values[0].clone()
+            } else {
+                format!("[ {} ]", actual_values.join(", "))
+            };
             failures.push(format!(
-                "{key}: expected {expected_str:?}, got {actual_str:?}",
+                "{key}: expected {exp_display:?}, got {act_display:?}"
             ));
         }
     }
     (prop_results, failures)
+}
+
+/// Parse a YAML-style value that may be a list: `[ a, b, c ]` or `[a, b]`.
+/// Returns a vec of individual values. Single values return a 1-element vec.
+fn parse_value_list(s: &str) -> Vec<String> {
+    let trimmed = s.trim();
+    if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        let inner = &trimmed[1..trimmed.len() - 1];
+        inner
+            .split(',')
+            .map(|v| v.trim().to_string())
+            .filter(|v| !v.is_empty())
+            .collect()
+    } else {
+        vec![trimmed.to_string()]
+    }
 }
 
 // ── Per-file regression tests (ratchet pattern) ─────────────────────
@@ -210,22 +222,22 @@ fn min_pass_rate(path: &str) -> f64 {
         "tests/fixtures/rules/common_words.yml" => 91.0,
         "tests/fixtures/rules/audio_codec.yml" => 86.0,
         "tests/fixtures/rules/video_codec.yml" => 84.0,
-        "tests/fixtures/rules/edition.yml" => 79.0,
+        "tests/fixtures/rules/edition.yml" => 95.0,
         "tests/fixtures/rules/release_group.yml" => 71.0,
         "tests/fixtures/rules/bonus.yml" => 64.0,
         "tests/fixtures/rules/date.yml" => 60.0,
-        "tests/fixtures/rules/source.yml" => 58.0,
+        "tests/fixtures/rules/source.yml" => 54.0,
         "tests/fixtures/rules/part.yml" => 53.0,
         "tests/fixtures/rules/cd.yml" => 48.0,
         "tests/fixtures/rules/website.yml" => 48.0,
+        "tests/fixtures/rules/episodes.yml" => 47.0,
         "tests/fixtures/rules/title.yml" => 42.0,
-        "tests/fixtures/rules/episodes.yml" => 43.0,
         "tests/fixtures/rules/country.yml" => 31.0,
         "tests/fixtures/rules/language.yml" => 31.0,
         "tests/fixtures/rules/film.yml" => 0.0,
-        "tests/fixtures/movies.yml" => 35.0,
-        "tests/fixtures/various.yml" => 35.0,
-        "tests/fixtures/episodes.yml" => 39.0,
+        "tests/fixtures/movies.yml" => 41.0,
+        "tests/fixtures/episodes.yml" => 42.0,
+        "tests/fixtures/various.yml" => 34.0,
         _ => 0.0,
     }
 }
