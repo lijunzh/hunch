@@ -33,10 +33,12 @@ pub fn resolve_conflicts(matches: &mut Vec<MatchSpan>) {
                 continue;
             }
             // Allow same-span Other with different values (e.g., Other:Rip + Other:Reencoded).
-            // Also allow same-span Episode/Season with different values (multi-episode/season).
+            // Also allow same-span Episode/Season/Language with different values.
             if (matches[i].property == Property::Other
                 || matches[i].property == Property::Episode
-                || matches[i].property == Property::Season)
+                || matches[i].property == Property::Season
+                || matches[i].property == Property::Language
+                || matches[i].property == Property::SubtitleLanguage)
                 && matches[i].value != matches[j].value
                 && matches[i].start == matches[j].start
                 && matches[i].end == matches[j].end

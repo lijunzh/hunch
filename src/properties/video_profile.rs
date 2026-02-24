@@ -12,9 +12,13 @@ use std::sync::LazyLock;
 
 static VIDEO_PROFILE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     vec![
-        // AVCHD → Advanced Video Codec High Definition
+        // AVCHD/AVC → Advanced Video Codec High Definition
         ValuePattern::new(
             r"(?i)(?<![a-z])AVCHD(?![a-z])",
+            "Advanced Video Codec High Definition",
+        ),
+        ValuePattern::new(
+            r"(?i)(?<![a-z])AVC(?![HD]|[a-z])",
             "Advanced Video Codec High Definition",
         ),
         // Hi10P / Hi10 → High 10
@@ -39,8 +43,9 @@ static VIDEO_PROFILE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
             r"(?i)(?<![a-z])HEVC(?![a-z])",
             "High Efficiency Video Coding",
         ),
-        // SDH → Scalable Video Coding
+        // SDH/SCH/SC → Scalable Video Coding
         ValuePattern::new(r"(?<![a-zA-Z])S[CD]H(?![a-zA-Z])", "Scalable Video Coding"),
+        ValuePattern::new(r"(?<![a-zA-Z])SC(?![a-zA-Z])", "Scalable Video Coding"),
     ]
 });
 

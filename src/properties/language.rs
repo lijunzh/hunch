@@ -74,10 +74,12 @@ static LANGUAGE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])JPN(?![a-z])", "Japanese"),
         ValuePattern::new(r"(?i)(?<![a-z])RUS(?![a-z])", "Russian"),
         ValuePattern::new(r"(?i)(?<![a-z])KOR(?![a-z])", "Korean"),
-        ValuePattern::new(r"(?i)(?<![a-z])FLEMISH(?![a-z])", "Dutch"),
+        ValuePattern::new(r"(?i)(?<![a-z])FLEMISH(?![a-z])", "nl"),
         ValuePattern::new(r"(?i)(?<![a-z])Ukr(?![a-z])", "Ukrainian"),
         ValuePattern::new(r"(?i)(?<![a-z])DUBLADO(?![a-z])", "und"),
         ValuePattern::new(r"(?i)(?<![a-z])Dual[. ]?Audio(?![a-z])", "und"),
+        // DL = Dual Language / multilingual.
+        ValuePattern::new(r"(?i)(?<![a-z])DL(?![a-z])", "mul"),
     ]
 });
 
