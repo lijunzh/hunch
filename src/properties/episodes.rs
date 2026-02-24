@@ -11,10 +11,10 @@ use std::sync::LazyLock;
 // ── SxxExx patterns ──
 
 /// S01E02, S01E02E03, S01E02-E05, S01E02-05, S01E02+E03, S01.E02.E03.
-/// The continuation only allows: -/+ with optional E, or . /space with required E.
+/// Captures the full multi-episode suffix for manual parsing.
 static SXXEXX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[. ]?E(?:P)?(?P<ep_start>\d{1,4})(?:(?:[-+]E?|[. ]E|E)(?P<ep2>\d{1,4}))*(?![a-z0-9])"
+    r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[. ]?E(?:P)?(?P<ep_start>\d{1,4})(?P<ep_rest>(?:(?:[-+]E?|[. ]E|E)\d{1,4})+)?(?![a-z0-9])"
     ).unwrap()
 });
 
@@ -47,10 +47,10 @@ static NXN: LazyLock<Regex> = LazyLock::new(|| {
 
 // ── Standalone episode patterns ──
 
-/// Standalone episode: E01, Ep01, Ep.01, EP01, E02-03, E02-E03.
+/// Standalone episode: E01, Ep01, Ep.01, EP01, E02-03, E02-E03, E01-02-03.
 static EP_ONLY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?:[-+]E?(?P<ep2>\d{1,4}))?(?![a-z0-9])"
+    r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?P<ep_rest>(?:(?:[-+ ]E?|E)\d{1,4})+)?(?![a-z0-9])"
     ).unwrap()
 });
 
@@ -216,6 +216,41 @@ fn has_property(matches: &[MatchSpan], property: Property) -> bool {
 }
 
 /// Generate a range of episode numbers as MatchSpans.
+/// Parse a multi-episode suffix like "E03" or "-05" or "-E07" into episode numbers.
+/// Segments joined by just `E` (no separator) are discrete.
+/// Segments joined by `-` or `+` indicate ranges.
+fn parse_multi_episodes(first_ep: u32, rest: &str) -> Vec<u32> {
+    let mut episodes = vec![first_ep];
+    let mut prev = first_ep;
+
+    // Split rest into segments: each starts with a separator and then digits.
+    let segment_re = regex::Regex::new(r"(?i)([-+]E?|[. ]E|E)(\d{1,4})").unwrap();
+    for cap in segment_re.captures_iter(rest) {
+        let sep = cap.get(1).unwrap().as_str();
+        let num: u32 = cap.get(2).unwrap().as_str().parse().unwrap_or(0);
+
+        // Determine if this segment is a range or discrete.
+        let is_range = sep.starts_with('-') || sep.starts_with('+');
+        let sep_upper = sep.to_uppercase();
+        let is_discrete = sep_upper == "E" || sep_upper.ends_with("E") && !is_range;
+
+        if is_range && !is_discrete && num > prev {
+            // Range: fill in episodes from prev+1 to num.
+            for ep in (prev + 1)..=num {
+                episodes.push(ep);
+            }
+        } else {
+            // Discrete: just add the episode number.
+            episodes.push(num);
+        }
+        prev = num;
+    }
+
+    episodes.sort();
+    episodes.dedup();
+    episodes
+}
+
 fn episode_range(
     start_ep: u32,
     end_ep: u32,
@@ -290,36 +325,30 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             .with_priority(-1),
         );
 
-        // Check for multi-episode.
-        let ep_end = cap.name("ep2").and_then(|m| m.as_str().parse::<u32>().ok());
+        // Parse multi-episode suffix.
+        let ep_rest = cap.name("ep_rest").map(|m| m.as_str()).unwrap_or("");
 
-        match ep_end {
-            Some(end) if end > ep_start => {
-                matches.extend(episode_range(ep_start, end, full.start(), full.end(), 5));
-            }
-            Some(end) => {
-                // E01E02 style (not a range, individual episodes).
+        if ep_rest.is_empty() {
+            // Single episode.
+            matches.push(
+                MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Episode,
+                    ep_start.to_string(),
+                )
+                .with_priority(5),
+            );
+        } else {
+            // Parse each segment in the multi-episode suffix.
+            let episodes = parse_multi_episodes(ep_start, ep_rest);
+            for ep in &episodes {
                 matches.push(
                     MatchSpan::new(
                         full.start(),
                         full.end(),
                         Property::Episode,
-                        ep_start.to_string(),
-                    )
-                    .with_priority(5),
-                );
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, end.to_string())
-                        .with_priority(5),
-                );
-            }
-            None => {
-                matches.push(
-                    MatchSpan::new(
-                        full.start(),
-                        full.end(),
-                        Property::Episode,
-                        ep_start.to_string(),
+                        ep.to_string(),
                     )
                     .with_priority(5),
                 );
@@ -626,16 +655,9 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         for cap in captures_iter(&EP_ONLY, input) {
             let full = cap.get(0).unwrap();
             let ep_start: u32 = parse_num(&cap, "ep_start").parse().unwrap_or(0);
-            let ep2: Option<u32> = cap.name("ep2").and_then(|m| m.as_str().parse().ok());
-            if let Some(ep_end) = ep2 {
-                // Multi-episode: E02-03 or E02-E03.
-                for ep in ep_start..=ep_end {
-                    matches.push(
-                        MatchSpan::new(full.start(), full.end(), Property::Episode, ep.to_string())
-                            .with_priority(2),
-                    );
-                }
-            } else {
+            let ep_rest = cap.name("ep_rest").map(|m| m.as_str()).unwrap_or("");
+
+            if ep_rest.is_empty() {
                 matches.push(
                     MatchSpan::new(
                         full.start(),
@@ -645,6 +667,19 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                     )
                     .with_priority(2),
                 );
+            } else {
+                let episodes = parse_multi_episodes(ep_start, ep_rest);
+                for ep in &episodes {
+                    matches.push(
+                        MatchSpan::new(
+                            full.start(),
+                            full.end(),
+                            Property::Episode,
+                            ep.to_string(),
+                        )
+                        .with_priority(2),
+                    );
+                }
             }
         }
     }

@@ -34,10 +34,11 @@ static EXT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Match container as standalone uppercase token (e.g., MP4-GUSH, WMV-NOVO).
+/// Also matches bare extension as entire input (e.g., "mkv", "avi").
 static EXT_STANDALONE: LazyLock<FancyRegex> = LazyLock::new(|| {
     let all_exts: Vec<&str> = VIDEO_EXTS.iter().chain(SUBTITLE_EXTS).copied().collect();
     let pattern = format!(
-        r"(?i)(?<=[.\-_ \[])({})(?=[.\-_ \]\)]|$)",
+        r"(?i)(?:(?<=[.\-_ \[])|^)({})(?=[.\-_ \]\)]|$)",
         all_exts.join("|")
     );
     FancyRegex::new(&pattern).unwrap()
