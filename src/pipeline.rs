@@ -111,34 +111,7 @@ impl Pipeline {
         let media_type = title::infer_media_type(&all_matches);
 
         // 3d: Compute proper_count from Other:Proper matches in the filename.
-        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-        let mut has_real = false;
-        let mut proper_count_raw: u32 = 0;
-        let mut repack_count: u32 = 0;
-        for m in all_matches
-            .iter()
-            .filter(|m| m.property == Property::Other && m.value == "Proper" && m.start >= fn_start)
-        {
-            let raw = &input[m.start..m.end];
-            if REAL_RE.is_match(raw).unwrap_or(false) {
-                has_real = true;
-                continue;
-            }
-            // Check for trailing digit: REPACK5 → 5.
-            if let Ok(Some(caps)) = REPACK_RE.captures(raw) {
-                if let Some(num) = caps.get(1) {
-                    repack_count += num.as_str().parse::<u32>().unwrap_or(1);
-                } else {
-                    repack_count += 1;
-                }
-                continue;
-            }
-            // PROPER.
-            proper_count_raw += 1;
-        }
-        // REAL replaces PROPER (counts as 2), then REPACKs add on top.
-        let mut proper_count = if has_real { 2 } else { proper_count_raw };
-        proper_count += repack_count;
+        let proper_count = compute_proper_count(input, &all_matches);
 
         // Step 4: Build the Guess from real matches, then set computed values.
         let mut guess = Guess::from_matches(&all_matches);
@@ -235,6 +208,42 @@ impl Pipeline {
             });
         }
     }
+}
+
+/// Compute the proper count from PROPER/REPACK/REAL matches in the filename.
+///
+/// Rules:
+/// - REAL replaces PROPER (counts as 2)
+/// - REPACK/RERIP adds 1 (or the trailing digit, e.g., REPACK5 → 5)
+/// - Each PROPER keyword adds 1
+fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
+    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let mut has_real = false;
+    let mut proper_count_raw: u32 = 0;
+    let mut repack_count: u32 = 0;
+
+    for m in matches
+        .iter()
+        .filter(|m| m.property == Property::Other && m.value == "Proper" && m.start >= fn_start)
+    {
+        let raw = &input[m.start..m.end];
+        if REAL_RE.is_match(raw).unwrap_or(false) {
+            has_real = true;
+            continue;
+        }
+        if let Ok(Some(caps)) = REPACK_RE.captures(raw) {
+            if let Some(num) = caps.get(1) {
+                repack_count += num.as_str().parse::<u32>().unwrap_or(1);
+            } else {
+                repack_count += 1;
+            }
+            continue;
+        }
+        proper_count_raw += 1;
+    }
+
+    let base = if has_real { 2 } else { proper_count_raw };
+    base + repack_count
 }
 
 #[cfg(test)]
