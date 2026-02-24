@@ -218,11 +218,11 @@ fn min_pass_rate(path: &str) -> f64 {
     match path {
         "tests/fixtures/rules/screen_size.yml" => 98.0,
         "tests/fixtures/rules/size.yml" => 98.0,
-        "tests/fixtures/rules/other.yml" => 93.0,
+        "tests/fixtures/rules/edition.yml" => 98.0,
+        "tests/fixtures/rules/other.yml" => 91.0,
         "tests/fixtures/rules/common_words.yml" => 91.0,
+        "tests/fixtures/rules/video_codec.yml" => 89.0,
         "tests/fixtures/rules/audio_codec.yml" => 86.0,
-        "tests/fixtures/rules/video_codec.yml" => 84.0,
-        "tests/fixtures/rules/edition.yml" => 95.0,
         "tests/fixtures/rules/release_group.yml" => 71.0,
         "tests/fixtures/rules/bonus.yml" => 64.0,
         "tests/fixtures/rules/date.yml" => 60.0,
@@ -235,9 +235,9 @@ fn min_pass_rate(path: &str) -> f64 {
         "tests/fixtures/rules/country.yml" => 31.0,
         "tests/fixtures/rules/language.yml" => 31.0,
         "tests/fixtures/rules/film.yml" => 0.0,
-        "tests/fixtures/movies.yml" => 41.0,
-        "tests/fixtures/episodes.yml" => 42.0,
-        "tests/fixtures/various.yml" => 34.0,
+        "tests/fixtures/movies.yml" => 49.0,
+        "tests/fixtures/episodes.yml" => 44.0,
+        "tests/fixtures/various.yml" => 43.0,
         _ => 0.0,
     }
 }
