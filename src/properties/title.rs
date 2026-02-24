@@ -56,18 +56,22 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
         return extract_title_from_parent(input, matches);
     }
 
-    // If parent directory has the same title with better casing, use it.
+    // If parent directory has the same title (case-insensitive), pick the version
+    // with better casing: prefer proper title case over ALL CAPS or all lowercase.
     if has_parent_dir(input)
         && let Some(parent_match) = extract_title_from_parent(input, matches)
         && parent_match.value.to_lowercase() == cleaned.to_lowercase()
         && parent_match.value != cleaned
     {
-        return Some(MatchSpan::new(
-            filename_start,
-            title_end_abs,
-            Property::Title,
-            parent_match.value,
-        ));
+        let best = pick_better_casing(&cleaned, &parent_match.value);
+        if best != cleaned {
+            return Some(MatchSpan::new(
+                filename_start,
+                title_end_abs,
+                Property::Title,
+                best,
+            ));
+        }
     }
 
     // If the filename looks like a scene abbreviation (very short, no spaces/dots
@@ -266,6 +270,39 @@ fn is_abbreviated(title: &str) -> bool {
             && w.chars()
                 .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
     }) && title.len() <= 20
+}
+
+/// Pick the string with better casing when two titles match case-insensitively.
+///
+/// Prefers proper case ("Some Title") over ALL CAPS ("SOME TITLE") or all
+/// lowercase ("some title"). Scores by counting words that start with an
+/// uppercase letter followed by lowercase (proper-cased words).
+fn pick_better_casing<'a>(a: &'a str, b: &'a str) -> &'a str {
+    fn casing_score(s: &str) -> i32 {
+        // Penalize ALL CAPS heavily.
+        if s.chars()
+            .filter(|c| c.is_alphabetic())
+            .all(|c| c.is_uppercase())
+        {
+            return -10;
+        }
+        // Penalize all lowercase.
+        if s.chars()
+            .filter(|c| c.is_alphabetic())
+            .all(|c| c.is_lowercase())
+        {
+            return -5;
+        }
+        // Score: count words starting with uppercase.
+        s.split_whitespace()
+            .filter(|w| w.starts_with(|c: char| c.is_uppercase()))
+            .count() as i32
+    }
+    if casing_score(a) >= casing_score(b) {
+        a
+    } else {
+        b
+    }
 }
 
 /// Clean up a raw title: replace separators with spaces, strip brackets, trim.
