@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- YAML fixture parser now strips surrounding quotes from values and keys.
 - Regression floors tightened to (actual − 2%) across all fixture files.
 
 ### Removed
@@ -50,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CLI binary (`hunch "filename.mkv"`) with JSON output.
 - Library API: `hunch()` and `hunch_with()` entry points.
 - 140 unit tests + doc-tests.
-- Validation against guessit's 1,330-case test suite (58.5% pass rate).
+- Validation against guessit's 1,309-case test suite (53.6% pass rate).
 - 191 Rust tests (140 unit + 22 regression + 27 integration + 2 doc-tests).
 - Benchmark suite (`benches/parse.rs`).
 

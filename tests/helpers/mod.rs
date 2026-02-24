@@ -87,7 +87,7 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
                 current_props.clear();
                 in_value = false;
             }
-            let key = rest.trim().to_string();
+            let key = strip_yaml_quotes(rest.trim());
             current_keys.push(key);
             continue;
         }
@@ -117,9 +117,18 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
 fn parse_prop_line(line: &str, props: &mut HashMap<String, String>) {
     if let Some((key, value)) = line.split_once(':') {
         let key = key.trim().to_string();
-        let value = value.trim().to_string();
+        let value = strip_yaml_quotes(value.trim());
         if !key.is_empty() {
             props.insert(key, value);
         }
+    }
+}
+
+/// Strip surrounding YAML quotes: `"5.1"` → `5.1`, `'7.1'` → `7.1`.
+fn strip_yaml_quotes(s: &str) -> String {
+    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
+        s[1..s.len() - 1].to_string()
+    } else {
+        s.to_string()
     }
 }

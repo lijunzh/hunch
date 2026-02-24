@@ -19,19 +19,19 @@
 
 ## Current Status
 
-**Pass rate: 58.5%** (778 / 1,330 guessit test cases) with all 39 properties
+**Pass rate: 53.6%** (702 / 1,309 guessit test cases) with all 39 properties
 implemented (zero skipped).
 
 ### Accuracy Tiers
 
 | Tier | Properties | Count |
 |------|-----------|-------|
-| ✅ 95%+ | video_codec, container, aspect_ratio, year, edition, crc32, website | 7 |
-| ✅ 90–95% | source, audio_codec, screen_size, audio_channels, date, type, country | 7 |
-| ✅ 80–90% | season, uuid, release_group, subtitle_language, episode | 5 |
-| ⚠️ 60–80% | title, audio_profile, proper_count, other, episode_title, video_profile, part, cd, cd_count, size, bonus_title | 11 |
-| ✅ 100% | color_depth, streaming_service, bonus, episode_details, film | 5 |
-| ❌ <60% | disc, episode_format, film_title, week | 4 |
+| ✅ 100% | year, aspect_ratio, bonus, color_depth, film, size, streaming_service | 7 |
+| ✅ 95–99% | video_codec, screen_size, container, crc32, source | 5 |
+| ✅ 90–95% | audio_codec, type, website, audio_channels, season | 5 |
+| 🟡 80–90% | date, uuid, episode_details, release_group, audio_profile, title, edition, subtitle_language | 8 |
+| ⚠️ 60–80% | country, episode, proper_count, other, part, language, episode_title, bonus_title, cd, video_profile | 10 |
+| ❌ <60% | disc, cd_count, alternative_title, version, absolute_episode, frame_rate, film_title, episode_count, + 5 more | 15 |
 
 ---
 
@@ -143,10 +143,9 @@ src/
 - [x] All core matchers: Container, VideoCodec, AudioCodec, Source,
       ScreenSize, Year, Episodes, Edition, Other, ReleaseGroup
 - [x] `TitleExtractor` (post-processing rule)
+- [x] Integration tests (`tests/integration.rs` — 27 tests)
 - [x] `Pipeline` (orchestration)
 - [x] CLI binary (`hunch "filename.mkv"`)
-- [x] Integration tests (`tests/integration.rs` — 27 tests)
-- [x] Rust integration tests (`tests/integration.rs` — 27 tests)
 - [x] Rust regression suite (`tests/guessit_regression.rs` — 22 fixture files with ratchet floors)
 - [x] Benchmark suite (`benches/parse.rs`)
 - [x] Self-contained test fixtures in `tests/fixtures/` (no external `../guessit` repo needed)
@@ -186,7 +185,7 @@ src/
 
 ## Known Gaps & Improvement Areas
 
-### Title extraction (78.5%)
+### Title extraction (81.6%)
 
 The hardest problem. Title is "everything that's left" after all technical
 tokens are claimed. Key challenges:
@@ -195,13 +194,13 @@ tokens are claimed. Key challenges:
 - Titles containing year-like numbers (e.g., "2001: A Space Odyssey")
 - Anime titles with brackets and group tags
 
-### Episode title (62.1%)
+### Episode title (61.7%)
 
 Requires positional awareness: the episode title is typically the unclaimed
 region between the episode number and the first technical token. Tricky
 because it overlaps with the release group zone.
 
-### Other flags (73.7%)
+### Other flags (71.1%)
 
 Many niche patterns remain: OAD, OAR, PROOFFIX, various Screener variants,
 FanSub markers, etc. Each is a small regex addition.

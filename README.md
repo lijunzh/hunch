@@ -3,9 +3,9 @@
 **A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
 for extracting media metadata from filenames.**
 
-> ⚠️ **Work in progress.** Hunch currently passes **58.5%** of guessit's own
-> 1,330-case test suite. Core properties like video codec, container, source,
-> and screen size are 93–99% accurate, but title extraction and episode
+> ⚠️ **Work in progress.** Hunch currently passes **53.6%** of guessit's own
+> 1,309-case test suite. Core properties like video codec, container, source,
+> and screen size are 95–100% accurate, but title extraction and episode
 > title inference are still maturing. See
 > [COMPATIBILITY.md](COMPATIBILITY.md) for the full breakdown.
 
@@ -66,19 +66,18 @@ implemented. We validate against guessit's own YAML test suite:
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% (by definition) | **58.5%** (778 / 1,330) |
+| Overall pass rate | 100% (by definition) | **53.6%** (702 / 1,309) |
 | Properties implemented | 39 | 39 |
-| Properties at 90%+ | 39 | 19 |
-| Properties at 100% | 39 | 5 |
+| Properties at 90%+ | 39 | 17 |
+| Properties at 100% | 39 | 7 |
 
-**Where hunch matches guessit** (93–100% accuracy):
-video_codec, container, source, screen_size, audio_codec, edition,
-year, color_depth, streaming_service, crc32, website, date,
-audio_channels, aspect_ratio.
+**Where hunch matches guessit** (95–100% accuracy):
+year, video_codec, container, source, screen_size, crc32, color_depth,
+streaming_service, bonus, film, aspect_ratio, size.
 
-**Where hunch diverges** (<80% accuracy):
-title extraction (78%), other flags (74%), episode_title (62%),
-video_profile (64%), bonus_title (60%).
+**Where hunch diverges** (<70% accuracy):
+episode_title (62%), language (63%), video_profile (57%),
+bonus_title (62%), alternative_title (13%).
 
 For per-property breakdowns, per-file results, and known gaps,
 see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
