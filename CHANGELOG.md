@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Version matcher** (`version.rs`) — detects release versions like `v2`, `V3`,
+  `366v2` from anime fansub releases. 13/13 tests pass (100%).
+- **Frame rate matcher** (`frame_rate.rs`) — detects `24fps`, `120fps`, `1080p25`
+  patterns. 7/7 tests pass (100%).
+- **Episode count matcher** (`episode_count.rs`) — detects `X of Y` patterns for
+  episode and season totals. `Season.2of5` → season_count=5, `14.of.21` →
+  episode_count=21. 8/8 tests pass (100%).
+- `Version`, `EpisodeCount`, `SeasonCount` variants added to `Property` enum.
+- Single-property failure analysis in compatibility report for prioritization.
 - 10 new rule fixture files from guessit: bonus, cd, common_words, country,
   date, film, language, part, size, website.
 - All 22 fixture files now wired into Rust regression tests (was 12).
@@ -16,10 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Language normalization in regression tests (ISO 2/3-letter, full names).
 - Compatibility report: `cargo test compatibility_report -- --ignored --nocapture`
   for full per-property and per-file accuracy breakdown.
-- 192 total Rust tests (140 unit + 23 regression + 27 integration + 2 doc-tests).
+- 204 total Rust tests (153 unit + 22 regression + 27 integration + 2 doc-tests).
 
 ### Changed
 
+- **Overall pass rate: 53.6% → 57.4%** (702 → 751 / 1,309 test cases).
+- **Properties at 100%: 7 → 11** (added version, frame_rate, episode_count,
+  season_count, episode_details).
+- BDRip no longer falsely emits `Reencoded` (only BRRip does).
 - YAML fixture parser now strips surrounding quotes from values and keys.
 - Regression floors tightened to (actual − 2%) across all fixture files.
 

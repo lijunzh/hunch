@@ -14,14 +14,14 @@ YAML files).
 | Metric | Value |
 |---|---|
 | Total test cases | 1,309 |
-| Passed (all props correct) | 702 |
-| Failed (any prop wrong) | 607 |
-| **Pass rate** | **53.6%** |
-| Properties implemented | 39 / 39 |
+| Passed (all props correct) | 751 |
+| Failed (any prop wrong) | 558 |
+| **Pass rate** | **57.4%** |
+| Properties implemented | 42 / 39+ |
 | Properties skipped | 0 |
 
 guessit passes 100% of its own tests by definition. Hunch currently
-reproduces 53.6% of those results identically.
+reproduces 57.4% of those results identically.
 
 ---
 
@@ -36,22 +36,22 @@ simultaneously.
 |---|---|---|---|
 | rules/screen_size.yml | 9 | 9 | **100%** |
 | rules/size.yml | 3 | 3 | **100%** |
+| rules/edition.yml | 43 | 44 | **98%** |
 | rules/other.yml | 44 | 46 | **96%** |
 | rules/common_words.yml | 146 | 156 | **94%** |
 | rules/audio_codec.yml | 15 | 17 | **88%** |
 | rules/video_codec.yml | 39 | 45 | **87%** |
-| rules/edition.yml | 36 | 44 | **82%** |
 | rules/release_group.yml | 14 | 19 | 74% |
 | rules/bonus.yml | 2 | 3 | 67% |
 | rules/date.yml | 5 | 8 | 63% |
-| rules/source.yml | 14 | 23 | 61% |
+| rules/source.yml | 13 | 23 | 57% |
 | rules/part.yml | 5 | 9 | 56% |
 | rules/cd.yml | 1 | 2 | 50% |
 | rules/website.yml | 1 | 2 | 50% |
-| rules/episodes.yml | 36 | 79 | 46% |
+| rules/episodes.yml | 39 | 79 | 49% |
+| movies.yml | 92 | 199 | 46% |
+| episodes.yml | 222 | 488 | 46% |
 | rules/title.yml | 8 | 18 | 44% |
-| episodes.yml | 200 | 488 | 41% |
-| movies.yml | 74 | 199 | 37% |
 | various.yml | 46 | 124 | 37% |
 | rules/country.yml | 1 | 3 | 33% |
 | rules/language.yml | 3 | 9 | 33% |
@@ -65,75 +65,101 @@ Each row shows how often hunch produces the correct value for that
 property, across all test cases that assert it. guessit scores 100%
 on all of these by definition.
 
-### ✅ Excellent (90%+)
+### ✅ Perfect (100%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
 | aspect_ratio | 2 | 0 | **100.0%** |
 | bonus | 13 | 0 | **100.0%** |
 | color_depth | 28 | 0 | **100.0%** |
+| episode_count | 6 | 0 | **100.0%** |
+| episode_details | 16 | 0 | **100.0%** |
 | film | 8 | 0 | **100.0%** |
+| frame_rate | 7 | 0 | **100.0%** |
+| season_count | 2 | 0 | **100.0%** |
 | size | 9 | 0 | **100.0%** |
 | streaming_service | 31 | 0 | **100.0%** |
-| year | 230 | 0 | **100.0%** |
-| video_codec | 498 | 6 | 98.8% |
-| screen_size | 420 | 8 | 98.1% |
+| version | 13 | 0 | **100.0%** |
+
+### ✅ Excellent (90%+)
+
+| Property | Passed | Failed | Rate |
+|---|---|---|---|
+| video_codec | 497 | 7 | 98.6% |
+| screen_size | 418 | 10 | 97.7% |
 | container | 146 | 5 | 96.7% |
+| edition | 80 | 3 | 96.4% |
+| year | 221 | 9 | 96.1% |
 | crc32 | 24 | 1 | 96.0% |
-| source | 532 | 28 | 95.0% |
-| audio_codec | 208 | 18 | 92.0% |
+| source | 527 | 33 | 94.1% |
+| audio_codec | 210 | 16 | 92.9% |
 | type | 753 | 69 | 91.6% |
 | website | 20 | 2 | 90.9% |
 | audio_channels | 107 | 11 | 90.7% |
-| season | 428 | 46 | 90.3% |
+| season | 427 | 47 | 90.1% |
 
-### ⚠️ Good (70–90%)
+### 🟡 Good (70–90%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
 | date | 23 | 3 | 88.5% |
 | uuid | 7 | 1 | 87.5% |
-| episode_details | 14 | 2 | 87.5% |
 | release_group | 449 | 90 | 83.3% |
-| audio_profile | 28 | 6 | 82.4% |
-| title | 862 | 194 | 81.6% |
-| edition | 67 | 16 | 80.7% |
+| title | 865 | 191 | 81.9% |
+| episode | 450 | 105 | 81.1% |
 | subtitle_language | 65 | 16 | 80.2% |
 | country | 10 | 3 | 76.9% |
-| episode | 424 | 131 | 76.4% |
+| other | 268 | 81 | 76.8% |
+| audio_profile | 26 | 8 | 76.5% |
 | proper_count | 23 | 8 | 74.2% |
-| other | 248 | 101 | 71.1% |
 
 ### ⚠️ Developing (50–70%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
+| language | 95 | 47 | 66.9% |
 | part | 12 | 7 | 63.2% |
-| language | 89 | 53 | 62.7% |
 | episode_title | 124 | 77 | 61.7% |
 | bonus_title | 8 | 5 | 61.5% |
 | cd | 3 | 2 | 60.0% |
 | video_profile | 8 | 6 | 57.1% |
-| disc | 3 | 3 | 50.0% |
 | cd_count | 2 | 2 | 50.0% |
+| disc | 3 | 3 | 50.0% |
 
-### ❌ Weak (<50%)
+### ❌ Not Yet Implemented (<50%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| alternative_title | 2 | 14 | 12.5% |
-| version | 0 | 13 | 0.0% |
+| alternative_title | 0 | 16 | 0.0% |
 | absolute_episode | 0 | 10 | 0.0% |
 | film_title | 0 | 8 | 0.0% |
-| frame_rate | 0 | 7 | 0.0% |
-| episode_count | 0 | 6 | 0.0% |
 | audio_bit_rate | 0 | 4 | 0.0% |
 | video_bit_rate | 0 | 4 | 0.0% |
 | video_api | 0 | 3 | 0.0% |
 | mimetype | 0 | 3 | 0.0% |
 | episode_format | 0 | 2 | 0.0% |
-| season_count | 0 | 2 | 0.0% |
 | week | 0 | 1 | 0.0% |
+
+---
+
+## Highest-ROI Improvements
+
+324 test cases currently fail on **exactly 1 property**. Fixing that single
+property would flip them from fail to pass. These are the highest-leverage
+targets:
+
+| Property | Single-prop fails | Impact |
+|---|---|---|
+| title | 61 | +4.7pp |
+| release_group | 46 | +3.5pp |
+| episode | 41 | +3.1pp |
+| other | 33 | +2.5pp |
+| episode_title | 24 | +1.8pp |
+| season | 19 | +1.5pp |
+| language | 18 | +1.4pp |
+| source | 13 | +1.0pp |
+
+Fixing all 324 would bring the pass rate from 57.4% to ~82%.
 
 ---
 
@@ -142,7 +168,7 @@ on all of these by definition.
 These are the areas where hunch diverges most from guessit, with
 explanations of why.
 
-### Title extraction (81.6%)
+### Title extraction (81.9%)
 
 The hardest problem. Title is "everything that's left" after all
 technical tokens are claimed. guessit uses multi-pass rules and
@@ -166,13 +192,11 @@ Patterns like `ST{Fr-Eng}` (both French and English subtitles) require
 compound parsing that splits within brackets. Hunch currently extracts
 only the first language in these cases.
 
-### Niche properties
+### Niche properties at 0%
 
-`alternative_title`, `version`, `absolute_episode`, `frame_rate`,
-`film_title`, `episode_count`, `audio_bit_rate`, `video_bit_rate`,
-`video_api`, `mimetype`, `episode_format`, `season_count`, and `week`
-are rare properties at 0% or near-0%. They aren't yet implemented
-because the patterns are unusual and low-priority.
+`alternative_title`, `absolute_episode`, `film_title`, `audio_bit_rate`,
+`video_bit_rate`, `video_api`, `mimetype`, `episode_format`, and `week`
+are rare properties that haven't been implemented yet.
 
 ---
 

@@ -19,19 +19,19 @@
 
 ## Current Status
 
-**Pass rate: 53.6%** (702 / 1,309 guessit test cases) with all 39 properties
+**Pass rate: 57.4%** (751 / 1,309 guessit test cases) with 42 properties
 implemented (zero skipped).
 
 ### Accuracy Tiers
 
 | Tier | Properties | Count |
 |------|-----------|-------|
-| ✅ 100% | year, aspect_ratio, bonus, color_depth, film, size, streaming_service | 7 |
-| ✅ 95–99% | video_codec, screen_size, container, crc32, source | 5 |
-| ✅ 90–95% | audio_codec, type, website, audio_channels, season | 5 |
-| 🟡 80–90% | date, uuid, episode_details, release_group, audio_profile, title, edition, subtitle_language | 8 |
-| ⚠️ 60–80% | country, episode, proper_count, other, part, language, episode_title, bonus_title, cd, video_profile | 10 |
-| ❌ <60% | disc, cd_count, alternative_title, version, absolute_episode, frame_rate, film_title, episode_count, + 5 more | 15 |
+| ✅ 100% | aspect_ratio, bonus, color_depth, film, size, streaming_service, episode_details, version, frame_rate, episode_count, season_count | 11 |
+| ✅ 95–99% | video_codec, screen_size, container, edition, crc32, year | 6 |
+| ✅ 90–95% | source, audio_codec, type, website, audio_channels, season | 6 |
+| 🟡 80–90% | date, uuid, release_group, title, episode, subtitle_language | 6 |
+| ⚠️ 60–80% | country, other, audio_profile, proper_count, language, part, episode_title, bonus_title, cd, video_profile | 10 |
+| ❌ <60% | disc, cd_count, alternative_title, absolute_episode, film_title, + 4 more | 9+ |
 
 ---
 
@@ -55,7 +55,7 @@ Input string
   │
   ├─ 1. Pre-process: split by path separators, strip extension
   │
-  ├─ 2. Property matchers (27 modules, each impl `PropertyMatcher`)
+  ├─ 2. Property matchers (30 modules, each impl `PropertyMatcher`)
   │     Each returns Vec<MatchSpan> with priority levels
   │
   ├─ 3. Conflict resolution (MatchEngine::resolve_conflicts)
@@ -76,7 +76,7 @@ Input string
 | -------- | --------- |
 | No rebulk port | rebulk is deeply Pythonic. A flat `Vec<MatchSpan>` + sort-and-sweep is simpler and faster. |
 | Patterns in code, not JSON | Rust's `lazy_static!` + `Regex` gives compile-time validation. Config override can come later. |
-| `PropertyMatcher` trait | Each property module is self-contained and testable in isolation. |
+| `PropertyMatcher` trait | Each property module is self-contained and testable in isolation. 30 modules. |
 | `BTreeMap` output | Deterministic key ordering for JSON output and tests. |
 | `fancy_regex` for look-arounds | Rust's `regex` crate doesn't support look-behind/ahead; `fancy_regex` fills that gap. |
 | `ValuePattern` helper | Pairs a compiled regex with a canonical output value for clean pattern tables. |
@@ -95,13 +95,14 @@ src/
 ├── pipeline.rs             # Orchestrates matchers → conflicts → rules → Guess
 ├── matcher/
 │   ├── mod.rs              # Re-exports
-│   ├── span.rs             # MatchSpan, Property enum (39 variants)
+│   ├── span.rs             # MatchSpan, Property enum (42 variants)
 │   ├── engine.rs           # Conflict resolution (priority + length)
 │   └── regex_utils.rs      # ValuePattern: compiled regex + canonical value
-└── properties/             # 27 property matcher modules
+└── properties/             # 30 property matcher modules
     ├── mod.rs              # PropertyMatcher trait definition
     ├── title.rs            # Title extraction (positional / leftover) ~560 lines
-    ├── episodes.rs         # S01E02, 1x03, season/episode, multi-ep ~599 lines
+    ├── episodes.rs         # S01E02, 1x03, season/episode, multi-ep ~748 lines (needs split)
+    ├── episode_count.rs    # "X of Y" episode/season count detection
     ├── year.rs             # 4-digit year detection
     ├── container.rs        # File extension (.mkv, .mp4, .srt, …)
     ├── video_codec.rs      # H.264, H.265, AV1, Xvid, …
@@ -126,7 +127,9 @@ src/
     ├── bonus.rs            # x01/x02 extras, bonus titles
     ├── part.rs             # Part/Disc/CD/Film numbering
     ├── size.rs             # 700MB, 1.4GB file sizes
-    └── episode_details.rs  # Special, Pilot, Unaired, Final
+    ├── episode_details.rs  # Special, Pilot, Unaired, Final
+    ├── version.rs          # Release version: v2, V3, 366v2
+    └── frame_rate.rs       # 24fps, 120fps, 1080p25
 ```
 
 ---
@@ -185,7 +188,7 @@ src/
 
 ## Known Gaps & Improvement Areas
 
-### Title extraction (81.6%)
+### Title extraction (81.9%)
 
 The hardest problem. Title is "everything that's left" after all technical
 tokens are claimed. Key challenges:
@@ -200,10 +203,11 @@ Requires positional awareness: the episode title is typically the unclaimed
 region between the episode number and the first technical token. Tricky
 because it overlaps with the release group zone.
 
-### Other flags (71.1%)
+### Other flags (76.8%)
 
 Many niche patterns remain: OAD, OAR, PROOFFIX, various Screener variants,
-FanSub markers, etc. Each is a small regex addition.
+FanSub markers, etc. Each is a small regex addition. BRRip/BDRip Reencoded
+logic is now correct.
 
 ### Multi-value subtitle_language
 
@@ -221,18 +225,20 @@ the first language.
 - **DRY**: shared regex helpers go in `matcher/regex_utils.rs` (`ValuePattern`).
 - **YAGNI**: don't build Phase 3 infra now.
 - **Files under 600 lines**. If a file grows past that, split it.
-  `episodes.rs` (599) and `title.rs` (560) are at the limit.
+  `episodes.rs` (748) is over the limit and needs splitting.
+  `title.rs` (560) is approaching it.
 - **Tests in each module** (`#[cfg(test)] mod tests`).
 
 ### Testing strategy
 
-1. **Unit tests** in each property matcher (`#[cfg(test)]` blocks) — 140 tests.
+1. **Unit tests** in each property matcher (`#[cfg(test)]` blocks) — 153 tests.
 2. **Integration tests** (`tests/integration.rs`) — 27 hand-written end-to-end tests.
 3. **Regression tests** (`tests/guessit_regression.rs`) — 22 fixture files with
    ratchet-pattern minimum pass rates. Floors are set to (actual − 2%) and should
    only go up. Includes language normalization (ISO codes).
 4. **Compatibility report** — run `cargo test compatibility_report -- --ignored --nocapture`
    for a full per-property and per-file accuracy breakdown.
+   Includes single-property failure analysis for prioritization.
 5. **Benchmarks** (`benches/parse.rs`) — Criterion benchmarks for parse performance.
 6. All fixtures are self-contained in `tests/fixtures/` (no external repos needed).
    22 fixture files: `movies.yml`, `episodes.yml`, `various.yml`,
@@ -246,8 +252,8 @@ the first language.
 2. Define a struct implementing `PropertyMatcher`.
 3. Use `lazy_static!` for compiled regexes (or `ValuePattern` for simple cases).
 4. Add unit tests in the same file.
-5. Add `Property::YourProp` variant to `src/matcher/span.rs`.
-6. Register in `src/pipeline.rs` (add to matcher list + map to output key).
+5. Add `Property::YourProp` variant to `src/matcher/span.rs` (and its Display impl).
+6. Register in `src/pipeline.rs` (add to matcher list).
 7. Update this file.
 
 ### Regex conventions

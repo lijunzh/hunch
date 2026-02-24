@@ -3,14 +3,14 @@
 **A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
 for extracting media metadata from filenames.**
 
-> ⚠️ **Work in progress.** Hunch currently passes **53.6%** of guessit's own
+> ⚠️ **Work in progress.** Hunch currently passes **57.4%** of guessit's own
 > 1,309-case test suite. Core properties like video codec, container, source,
-> and screen size are 95–100% accurate, but title extraction and episode
+> year, and screen size are 96–100% accurate, but title extraction and episode
 > title inference are still maturing. See
 > [COMPATIBILITY.md](COMPATIBILITY.md) for the full breakdown.
 
 Hunch extracts title, year, season, episode, resolution, codec, language,
-and 35+ other properties from messy media filenames — the same job guessit
+and 40+ other properties from messy media filenames — the same job guessit
 does, rewritten from scratch for Rust.
 
 ## Quick Start
@@ -61,23 +61,24 @@ $ hunch "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
 
 ## guessit Compatibility
 
-Hunch is a port of guessit. All 39 of guessit's properties are
+Hunch is a port of guessit. All 39+ of guessit's properties are
 implemented. We validate against guessit's own YAML test suite:
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% (by definition) | **53.6%** (702 / 1,309) |
-| Properties implemented | 39 | 39 |
-| Properties at 90%+ | 39 | 17 |
-| Properties at 100% | 39 | 7 |
+| Overall pass rate | 100% (by definition) | **57.4%** (751 / 1,309) |
+| Properties implemented | 39 | 42 |
+| Properties at 90%+ | 39 | 23 |
+| Properties at 100% | 39 | 11 |
 
-**Where hunch matches guessit** (95–100% accuracy):
+**Where hunch matches guessit** (96–100% accuracy):
 year, video_codec, container, source, screen_size, crc32, color_depth,
-streaming_service, bonus, film, aspect_ratio, size.
+streaming_service, bonus, film, aspect_ratio, size, edition,
+episode_details, version, frame_rate, episode_count, season_count.
 
 **Where hunch diverges** (<70% accuracy):
-episode_title (62%), language (63%), video_profile (57%),
-bonus_title (62%), alternative_title (13%).
+episode_title (62%), language (67%), video_profile (57%),
+bonus_title (62%), alternative_title (0%).
 
 For per-property breakdowns, per-file results, and known gaps,
 see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
@@ -87,7 +88,7 @@ see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
 Hunch does **not** port guessit's `rebulk` engine. Instead it uses a
 simpler **span-based architecture**:
 
-1. **Match** — 27 property matchers scan the input independently and
+1. **Match** — 30 property matchers scan the input independently and
    produce `MatchSpan`s (start, end, property, value) with priorities.
 2. **Resolve** — Overlapping spans are resolved by priority, then by
    length (longer matches win ties).
@@ -98,7 +99,7 @@ simpler **span-based architecture**:
 Input: "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
   │
   ├─ 1. Pre-process: strip path, extract extension
-  ├─ 2. Run 27 property matchers → Vec<MatchSpan>
+  ├─ 2. Run 30 property matchers → Vec<MatchSpan>
   ├─ 3. Resolve conflicts (priority, then length)
   ├─ 4. Extract title from unclaimed leading region
   ├─ 5. Infer media type (episode vs movie)
@@ -115,11 +116,11 @@ src/
 ├── options.rs          # Configuration
 ├── pipeline.rs         # Orchestration: matchers → resolve → extract
 ├── matcher/
-│   ├── span.rs         # MatchSpan + Property enum (39 variants)
+│   ├── span.rs         # MatchSpan + Property enum (42 variants)
 │   ├── engine.rs       # Conflict resolution
 │   └── regex_utils.rs  # ValuePattern helper
-└── properties/         # 27 property matcher modules
-    ├── title.rs, episodes.rs, year.rs, ...
+└── properties/         # 30 property matcher modules
+    ├── title.rs, episodes.rs, year.rs, version.rs, ...
     └── mod.rs          # PropertyMatcher trait
 
 tests/
