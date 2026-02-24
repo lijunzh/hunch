@@ -7,9 +7,9 @@ use fancy_regex::Regex;
 use lazy_static::lazy_static;
 
 lazy_static! {
-    /// S01E02, S01E02E03, S01E02-E05, S01E02-05.
+    /// S01E02, S01E02E03, S01E02-E05, S01E02-05, S01E02+E03, S01.E02.E03.
     static ref SXXEXX: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})\s*E(?P<ep_start>\d{1,4})(?:(?:[-]E?|E)(?P<ep2>\d{1,4}))*(?![a-z0-9])"
+        r"(?i)(?<![a-z0-9])S(?P<season>\d{1,3})[. ]?E(?P<ep_start>\d{1,4})(?:(?:[-+. ]E?|E)(?P<ep2>\d{1,4}))*(?![a-z0-9])"
     ).unwrap();
 
     /// S03-E01 (dash between S and E).
@@ -27,9 +27,9 @@ lazy_static! {
         r"(?i)(?<![a-z0-9])(?P<season>\d{1,2})[xX](?P<ep_start>\d{1,4})(?:[xX](?P<ep2>\d{1,4}))*(?![a-z0-9])"
     ).unwrap();
 
-    /// Standalone episode: E01, Ep01, Ep.01.
+    /// Standalone episode: E01, Ep01, Ep.01, E02-03, E02-E03.
     static ref EP_ONLY: Regex = Regex::new(
-        r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<episode>\d{1,4})(?![a-z0-9])"
+        r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?:[-+]E?(?P<ep2>\d{1,4}))?(?![a-z0-9])"
     ).unwrap();
 
     static ref SEASON_ONLY: Regex = Regex::new(
@@ -402,11 +402,32 @@ impl PropertyMatcher for EpisodeMatcher {
         if !matches.iter().any(|m| m.property == Property::Episode) {
             for cap in captures_iter(&EP_ONLY, input) {
                 let full = cap.get(0).unwrap();
-                let episode = parse_num(&cap, "episode");
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                let ep_start: u32 = parse_num(&cap, "ep_start").parse().unwrap_or(0);
+                let ep2: Option<u32> = cap.name("ep2").and_then(|m| m.as_str().parse().ok());
+                if let Some(ep_end) = ep2 {
+                    // Multi-episode: E02-03 or E02-E03.
+                    for ep in ep_start..=ep_end {
+                        matches.push(
+                            MatchSpan::new(
+                                full.start(),
+                                full.end(),
+                                Property::Episode,
+                                ep.to_string(),
+                            )
+                            .with_priority(2),
+                        );
+                    }
+                } else {
+                    matches.push(
+                        MatchSpan::new(
+                            full.start(),
+                            full.end(),
+                            Property::Episode,
+                            ep_start.to_string(),
+                        )
                         .with_priority(2),
-                );
+                    );
+                }
             }
         }
 
