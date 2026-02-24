@@ -222,12 +222,13 @@ curly-brace patterns like `ST{Fr-Eng}` are not yet handled.
 
 ### Code style
 
-- **Zen of Python applies**: simple > complex, explicit > implicit, flat > nested.
+- **Idiomatic Rust**: follow standard Rust conventions — ownership, strong
+  types, exhaustive matches, `clippy` clean.
 - **DRY**: shared regex helpers go in `matcher/regex_utils.rs` (`ValuePattern`).
 - **YAGNI**: don't build Phase 3 infra now.
-- **Files under 600 lines**. If a file grows past that, split it.
-  `episodes.rs` is approaching the limit and may need splitting.
-  `title.rs` is within bounds.
+- **Split by responsibility, not line count**: keep each file focused on one
+  concern. If a file handles multiple distinct responsibilities, split it.
+  A long file that's cohesive (e.g., all episode parsing) is fine.
 - **Tests in each module** (`#[cfg(test)] mod tests`).
 
 ### Testing strategy
