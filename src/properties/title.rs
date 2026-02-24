@@ -491,15 +491,15 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
 }
 
 /// Infer media type from the set of matched properties.
-pub fn infer_media_type(matches: &[MatchSpan]) -> Option<MatchSpan> {
+pub fn infer_media_type(matches: &[MatchSpan]) -> &'static str {
     let has_episode = matches.iter().any(|m| m.property == Property::Episode);
     let has_season = matches.iter().any(|m| m.property == Property::Season);
     let has_date = matches.iter().any(|m| m.property == Property::Date);
 
     if has_episode || has_season || has_date {
-        Some(MatchSpan::new(0, 0, Property::MediaType, "episode"))
+        "episode"
     } else {
-        Some(MatchSpan::new(0, 0, Property::MediaType, "movie"))
+        "movie"
     }
 }
 
@@ -571,14 +571,12 @@ mod tests {
             MatchSpan::new(0, 5, Property::Season, "1"),
             MatchSpan::new(5, 10, Property::Episode, "3"),
         ];
-        let mt = infer_media_type(&matches).unwrap();
-        assert_eq!(mt.value, "episode");
+        assert_eq!(infer_media_type(&matches), "episode");
     }
 
     #[test]
     fn test_infer_movie() {
         let matches = vec![MatchSpan::new(0, 4, Property::Year, "2024")];
-        let mt = infer_media_type(&matches).unwrap();
-        assert_eq!(mt.value, "movie");
+        assert_eq!(infer_media_type(&matches), "movie");
     }
 }

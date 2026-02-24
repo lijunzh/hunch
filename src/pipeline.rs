@@ -108,9 +108,7 @@ impl Pipeline {
         }
 
         // 3c: Infer media type.
-        if let Some(type_match) = title::infer_media_type(&all_matches) {
-            all_matches.push(type_match);
-        }
+        let media_type = title::infer_media_type(&all_matches);
 
         // 3d: Compute proper_count from Other:Proper matches in the filename.
         let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
@@ -141,17 +139,14 @@ impl Pipeline {
         // REAL replaces PROPER (counts as 2), then REPACKs add on top.
         let mut proper_count = if has_real { 2 } else { proper_count_raw };
         proper_count += repack_count;
-        if proper_count > 0 {
-            all_matches.push(MatchSpan::new(
-                0,
-                0,
-                Property::ProperCount,
-                proper_count.to_string(),
-            ));
-        }
 
-        // Step 4: Build the Guess result.
-        Guess::from_matches(&all_matches)
+        // Step 4: Build the Guess from real matches, then set computed values.
+        let mut guess = Guess::from_matches(&all_matches);
+        guess.set(Property::MediaType, media_type);
+        if proper_count > 0 {
+            guess.set(Property::ProperCount, proper_count.to_string());
+        }
+        guess
     }
 
     /// Remove language matches that appear before any "technical" property.

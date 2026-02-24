@@ -37,6 +37,15 @@ impl Guess {
         Self { props }
     }
 
+    /// Set a computed property value directly (not from a match span).
+    pub(crate) fn set(&mut self, property: Property, value: impl Into<String>) {
+        let values = self.props.entry(property).or_default();
+        let v = value.into();
+        if !values.contains(&v) {
+            values.push(v);
+        }
+    }
+
     // ── Typed accessors (return first value) ──
 
     /// The main title (movie name or series name).
