@@ -101,6 +101,39 @@ static COMBINED_PATTERNS: LazyLock<Vec<CombinedPattern>> = LazyLock::new(|| {
             "Dolby Digital Plus",
             "5.1",
         ),
+        // FLAC with channel count: FLAC1.0, FLAC2.0.
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])FLAC[-.]?2[\W_]?0(?![a-z0-9])",
+            "FLAC",
+            "2.0",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])FLAC[-.]?1[\W_]?0(?![a-z0-9])",
+            "FLAC",
+            "1.0",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])FLAC[-.]?5[\W_]?1(?![a-z0-9])",
+            "FLAC",
+            "5.1",
+        ),
+        // DTS-HD MA with channels: DTS-HD.MA5.1, DTS-HD MA7.1.
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])DTS[-. ]?HD[-. ]?(?:MA|HR)[-.]?5[\W_]?1(?![a-z0-9])",
+            "DTS-HD",
+            "5.1",
+        ),
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])DTS[-. ]?HD[-. ]?(?:MA|HR)[-.]?7[\W_]?1(?![a-z0-9])",
+            "DTS-HD",
+            "7.1",
+        ),
+        // MP2 with channels: MP2.2.0.
+        CombinedPattern::new(
+            r"(?i)(?<![a-z])MP2[-.]?2[\W_]?0(?![a-z0-9])",
+            "MP2",
+            "2.0",
+        ),
     ]
 });
 

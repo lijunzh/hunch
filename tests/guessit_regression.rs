@@ -156,22 +156,29 @@ fn check(tc: &TestCase) -> (Vec<PropResult>, Vec<String>) {
 /// Returns a vec of individual values. Single values return a 1-element vec.
 fn parse_value_list(s: &str) -> Vec<String> {
     let trimmed = s.trim();
+    let strip_quotes = |v: &str| -> String {
+        let v = v.trim();
+        if (v.starts_with('"') && v.ends_with('"')) || (v.starts_with('\'') && v.ends_with('\'')) {
+            v[1..v.len() - 1].to_string()
+        } else {
+            v.to_string()
+        }
+    };
     if trimmed.starts_with('[') && trimmed.ends_with(']') {
         let inner = &trimmed[1..trimmed.len() - 1];
         inner
             .split(',')
-            .map(|v| v.trim().to_string())
+            .map(|v| strip_quotes(v))
             .filter(|v| !v.is_empty())
             .collect()
     } else if trimmed.contains(", ") {
-        // Handle comma-separated values from YAML list parsing.
         trimmed
             .split(',')
-            .map(|v| v.trim().to_string())
+            .map(|v| strip_quotes(v))
             .filter(|v| !v.is_empty())
             .collect()
     } else {
-        vec![trimmed.to_string()]
+        vec![strip_quotes(trimmed)]
     }
 }
 

@@ -41,8 +41,13 @@ static RIP_SUFFIX: LazyLock<Regex> =
 static SOURCE_PATTERNS: LazyLock<Vec<SourcePattern>> = LazyLock::new(|| {
     vec![
         // Ultra HD Blu-ray (must come before Blu-ray).
+        // Allow extra tokens (8bit, HDR, HQ, etc.) between UHD and Bluray.
         SourcePattern::plain(
-            r"(?i)(?<![a-z])(?:UHD|Ultra[-. ]?HD)[-. ]?(?:Blu[-.]?ray|BD|BR)(?![a-z])",
+            r"(?i)(?<![a-z])(?:UHD|Ultra[-. ]?HD)(?:[-. ]\w+){0,3}[-. ](?:Blu[-.]?ray|BD|BR)(?![a-z])",
+            "Ultra HD Blu-ray",
+        ),
+        SourcePattern::plain(
+            r"(?i)(?<![a-z])Ultra[-. ](?:Blu[-.]?ray|BD|BR)(?![a-z])",
             "Ultra HD Blu-ray",
         ),
         SourcePattern::plain(
