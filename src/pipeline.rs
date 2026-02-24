@@ -4,7 +4,6 @@ use crate::guess::Guess;
 use crate::matcher::engine;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::options::Options;
-use crate::properties::PropertyMatcher;
 
 use std::sync::LazyLock;
 
@@ -13,42 +12,23 @@ static REAL_RE: LazyLock<fancy_regex::Regex> =
 
 static REPACK_RE: LazyLock<fancy_regex::Regex> =
     LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap());
-use crate::properties::aspect_ratio::AspectRatioMatcher;
-use crate::properties::audio_codec::AudioCodecMatcher;
-use crate::properties::audio_profile::AudioProfileMatcher;
-use crate::properties::bonus::BonusMatcher;
-use crate::properties::color_depth::ColorDepthMatcher;
-use crate::properties::container::ContainerMatcher;
-use crate::properties::country::CountryMatcher;
-use crate::properties::crc32::Crc32Matcher;
-use crate::properties::date::DateMatcher;
-use crate::properties::edition::EditionMatcher;
-use crate::properties::episode_count::EpisodeCountMatcher;
-use crate::properties::episode_details::EpisodeDetailsMatcher;
-use crate::properties::episodes::EpisodeMatcher;
-use crate::properties::frame_rate::FrameRateMatcher;
-use crate::properties::language::LanguageMatcher;
-use crate::properties::other::OtherMatcher;
-use crate::properties::part::PartMatcher;
-use crate::properties::release_group::ReleaseGroupMatcher;
-use crate::properties::screen_size::ScreenSizeMatcher;
-use crate::properties::size::SizeMatcher;
-use crate::properties::source::SourceMatcher;
-use crate::properties::streaming_service::StreamingServiceMatcher;
-use crate::properties::subtitle_language::SubtitleLanguageMatcher;
+
 use crate::properties::title;
-use crate::properties::uuid::UuidMatcher;
-use crate::properties::version::VersionMatcher;
-use crate::properties::video_codec::VideoCodecMatcher;
-use crate::properties::video_profile::VideoProfileMatcher;
-use crate::properties::website::WebsiteMatcher;
-use crate::properties::year::YearMatcher;
+use crate::properties::{
+    aspect_ratio, audio_codec, audio_profile, bonus, color_depth, container, country, crc32, date,
+    edition, episode_count, episode_details, episodes, frame_rate, language, other, part,
+    release_group, screen_size, size, source, streaming_service, subtitle_language, uuid, version,
+    video_codec, video_profile, website, year,
+};
+
+/// A matcher function: takes input, returns property matches.
+type MatcherFn = fn(&str) -> Vec<MatchSpan>;
 
 /// The parsing pipeline.
 pub struct Pipeline {
     #[allow(dead_code)]
     options: Options,
-    matchers: Vec<Box<dyn PropertyMatcher>>,
+    matchers: Vec<MatcherFn>,
 }
 
 impl Default for Pipeline {
@@ -59,36 +39,36 @@ impl Default for Pipeline {
 
 impl Pipeline {
     pub fn new(options: Options) -> Self {
-        let matchers: Vec<Box<dyn PropertyMatcher>> = vec![
-            Box::new(ContainerMatcher),
-            Box::new(VideoCodecMatcher),
-            Box::new(AudioCodecMatcher),
-            Box::new(AudioProfileMatcher),
-            Box::new(VideoProfileMatcher),
-            Box::new(ColorDepthMatcher),
-            Box::new(SourceMatcher),
-            Box::new(ScreenSizeMatcher),
-            Box::new(AspectRatioMatcher),
-            Box::new(YearMatcher),
-            Box::new(DateMatcher),
-            Box::new(EpisodeMatcher),
-            Box::new(EpisodeDetailsMatcher),
-            Box::new(EpisodeCountMatcher),
-            Box::new(EditionMatcher),
-            Box::new(OtherMatcher),
-            Box::new(LanguageMatcher),
-            Box::new(SubtitleLanguageMatcher),
-            Box::new(CountryMatcher),
-            Box::new(StreamingServiceMatcher),
-            Box::new(Crc32Matcher),
-            Box::new(UuidMatcher),
-            Box::new(WebsiteMatcher),
-            Box::new(SizeMatcher),
-            Box::new(PartMatcher),
-            Box::new(BonusMatcher),
-            Box::new(VersionMatcher),
-            Box::new(FrameRateMatcher),
-            Box::new(ReleaseGroupMatcher),
+        let matchers: Vec<MatcherFn> = vec![
+            container::find_matches,
+            video_codec::find_matches,
+            audio_codec::find_matches,
+            audio_profile::find_matches,
+            video_profile::find_matches,
+            color_depth::find_matches,
+            source::find_matches,
+            screen_size::find_matches,
+            aspect_ratio::find_matches,
+            year::find_matches,
+            date::find_matches,
+            episodes::find_matches,
+            episode_details::find_matches,
+            episode_count::find_matches,
+            edition::find_matches,
+            other::find_matches,
+            language::find_matches,
+            subtitle_language::find_matches,
+            country::find_matches,
+            streaming_service::find_matches,
+            crc32::find_matches,
+            uuid::find_matches,
+            website::find_matches,
+            size::find_matches,
+            part::find_matches,
+            bonus::find_matches,
+            version::find_matches,
+            frame_rate::find_matches,
+            release_group::find_matches,
         ];
         Self { options, matchers }
     }
@@ -99,7 +79,7 @@ impl Pipeline {
         let mut all_matches: Vec<MatchSpan> = self
             .matchers
             .iter()
-            .flat_map(|m| m.find_matches(input))
+            .flat_map(|matcher| matcher(input))
             .collect();
 
         // Step 2: Resolve overlapping conflicts.

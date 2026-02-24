@@ -5,7 +5,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 /// A combined codec+channel pattern that emits two MatchSpans.
@@ -123,51 +122,45 @@ static AUDIO_CHANNELS_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct AudioCodecMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
 
-impl PropertyMatcher for AudioCodecMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-
-        // Combined codec+channels patterns first (higher priority).
-        for cp in COMBINED_PATTERNS.iter() {
-            for (start, end) in cp.vp.find_iter(input) {
-                matches.push(
-                    MatchSpan::new(start, end, Property::AudioCodec, cp.codec).with_priority(2),
-                );
-                matches.push(
-                    MatchSpan::new(start, end, Property::AudioChannels, cp.channels)
-                        .with_priority(2),
-                );
-            }
+    // Combined codec+channels patterns first (higher priority).
+    for cp in COMBINED_PATTERNS.iter() {
+        for (start, end) in cp.vp.find_iter(input) {
+            matches
+                .push(MatchSpan::new(start, end, Property::AudioCodec, cp.codec).with_priority(2));
+            matches.push(
+                MatchSpan::new(start, end, Property::AudioChannels, cp.channels).with_priority(2),
+            );
         }
-
-        // Standalone codec patterns.
-        for pattern in AUDIO_CODEC_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(
-                    start,
-                    end,
-                    Property::AudioCodec,
-                    pattern.value,
-                ));
-            }
-        }
-
-        // Standalone channel patterns.
-        for pattern in AUDIO_CHANNELS_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(
-                    start,
-                    end,
-                    Property::AudioChannels,
-                    pattern.value,
-                ));
-            }
-        }
-
-        matches
     }
+
+    // Standalone codec patterns.
+    for pattern in AUDIO_CODEC_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(MatchSpan::new(
+                start,
+                end,
+                Property::AudioCodec,
+                pattern.value,
+            ));
+        }
+    }
+
+    // Standalone channel patterns.
+    for pattern in AUDIO_CHANNELS_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(MatchSpan::new(
+                start,
+                end,
+                Property::AudioChannels,
+                pattern.value,
+            ));
+        }
+    }
+
+    matches
 }
 
 #[cfg(test)]
@@ -176,25 +169,25 @@ mod tests {
 
     #[test]
     fn test_aac() {
-        let m = AudioCodecMatcher.find_matches("Movie.AAC.mkv");
+        let m = find_matches("Movie.AAC.mkv");
         assert!(m.iter().any(|x| x.value == "AAC"));
     }
 
     #[test]
     fn test_dts_hd_ma() {
-        let m = AudioCodecMatcher.find_matches("Movie.DTS-HD.MA.mkv");
+        let m = find_matches("Movie.DTS-HD.MA.mkv");
         assert!(m.iter().any(|x| x.value == "DTS-HD"));
     }
 
     #[test]
     fn test_atmos() {
-        let m = AudioCodecMatcher.find_matches("Movie.Atmos.mkv");
+        let m = find_matches("Movie.Atmos.mkv");
         assert!(m.iter().any(|x| x.value == "Dolby Atmos"));
     }
 
     #[test]
     fn test_channels_51() {
-        let m = AudioCodecMatcher.find_matches("Movie.5.1.mkv");
+        let m = find_matches("Movie.5.1.mkv");
         assert!(
             m.iter()
                 .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
@@ -203,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_6ch_is_51() {
-        let m = AudioCodecMatcher.find_matches("Movie.6ch.mkv");
+        let m = find_matches("Movie.6ch.mkv");
         assert!(
             m.iter()
                 .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
@@ -212,13 +205,13 @@ mod tests {
 
     #[test]
     fn test_eac3() {
-        let m = AudioCodecMatcher.find_matches("Movie.EAC3.mkv");
+        let m = find_matches("Movie.EAC3.mkv");
         assert!(m.iter().any(|x| x.value == "Dolby Digital Plus"));
     }
 
     #[test]
     fn test_dd51_combined() {
-        let m = AudioCodecMatcher.find_matches("Movie.DD5.1.mkv");
+        let m = find_matches("Movie.DD5.1.mkv");
         assert!(
             m.iter()
                 .any(|x| x.value == "Dolby Digital" && x.property == Property::AudioCodec)
@@ -231,7 +224,7 @@ mod tests {
 
     #[test]
     fn test_aac20_combined() {
-        let m = AudioCodecMatcher.find_matches("Movie.AAC2.0.mkv");
+        let m = find_matches("Movie.AAC2.0.mkv");
         assert!(
             m.iter()
                 .any(|x| x.value == "AAC" && x.property == Property::AudioCodec)
@@ -244,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_truehd51_combined() {
-        let m = AudioCodecMatcher.find_matches("Movie.TrueHD51.mkv");
+        let m = find_matches("Movie.TrueHD51.mkv");
         assert!(
             m.iter()
                 .any(|x| x.value == "Dolby TrueHD" && x.property == Property::AudioCodec)

@@ -11,7 +11,6 @@
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 /// Matches `-GROUP` at the end with optional bracket suffix.
@@ -44,194 +43,190 @@ static RELEASE_GROUP_LAST_DOT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\.(?P<group>[A-Za-z][A-Za-z0-9]{2,15})(?:\.[a-z0-9]{2,5})?$").unwrap()
 });
 
-pub struct ReleaseGroupMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
 
-impl PropertyMatcher for ReleaseGroupMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
+    // Use the filename portion for matching.
+    let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let filename = &input[filename_start..];
 
-        // Use the filename portion for matching.
-        let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-        let filename = &input[filename_start..];
+    // 1. Check for simple `-GROUP` at end with optional bracket suffix.
+    if let Some(cap) = RELEASE_GROUP_END.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let mut value = group.as_str().to_string();
+        let mut start = group.start();
 
-        // 1. Check for simple `-GROUP` at end with optional bracket suffix.
-        if let Some(cap) = RELEASE_GROUP_END.captures(filename)
-            && let Some(group) = cap.name("group")
-        {
-            let mut value = group.as_str().to_string();
-            let mut start = group.start();
-
-            // Expand backwards past hyphens to capture multi-segment group names.
-            // e.g., `x264-MARINE-FORD.mkv` → MARINE-FORD (not just FORD)
-            //        `x264.D-Z0N3.mkv`    → D-Z0N3 (not just Z0N3)
-            // We stop when we hit a known token or a non-hyphen/dot separator.
-            let before_group = &filename[..start.saturating_sub(1)]; // before the '-'
-            let expanded = expand_group_backwards(before_group, &value);
-            if expanded != value {
-                // Recalculate start position.
-                start = start.saturating_sub(expanded.len() - value.len());
-                value = expanded;
-            }
-
-            if let Some(suffix) = cap.name("suffix") {
-                value = format!("{}[{}]", value, suffix.as_str());
-            }
-            if !is_known_token(&value) {
-                let end = cap
-                    .name("suffix")
-                    .map(|s| s.end() + 1)
-                    .unwrap_or(group.end());
-                matches.push(
-                    MatchSpan::new(
-                        filename_start + start,
-                        filename_start + end,
-                        Property::ReleaseGroup,
-                        value,
-                    )
-                    .with_priority(-1),
-                );
-            }
+        // Expand backwards past hyphens to capture multi-segment group names.
+        // e.g., `x264-MARINE-FORD.mkv` → MARINE-FORD (not just FORD)
+        //        `x264.D-Z0N3.mkv`    → D-Z0N3 (not just Z0N3)
+        // We stop when we hit a known token or a non-hyphen/dot separator.
+        let before_group = &filename[..start.saturating_sub(1)]; // before the '-'
+        let expanded = expand_group_backwards(before_group, &value);
+        if expanded != value {
+            // Recalculate start position.
+            start = start.saturating_sub(expanded.len() - value.len());
+            value = expanded;
         }
 
-        // 2. Check for `-GROUP[website]` or `-GROUP.[website]`.
-        if matches.is_empty()
-            && let Some(cap) = RELEASE_GROUP_BEFORE_BRACKET.captures(filename)
+        if let Some(suffix) = cap.name("suffix") {
+            value = format!("{}[{}]", value, suffix.as_str());
+        }
+        if !is_known_token(&value) {
+            let end = cap
+                .name("suffix")
+                .map(|s| s.end() + 1)
+                .unwrap_or(group.end());
+            matches.push(
+                MatchSpan::new(
+                    filename_start + start,
+                    filename_start + end,
+                    Property::ReleaseGroup,
+                    value,
+                )
+                .with_priority(-1),
+            );
+        }
+    }
+
+    // 2. Check for `-GROUP[website]` or `-GROUP.[website]`.
+    if matches.is_empty()
+        && let Some(cap) = RELEASE_GROUP_BEFORE_BRACKET.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let value = group.as_str();
+        if !is_known_token(value) {
+            matches.push(
+                MatchSpan::new(
+                    filename_start + group.start(),
+                    filename_start + group.end(),
+                    Property::ReleaseGroup,
+                    value,
+                )
+                .with_priority(-2),
+            );
+        }
+    }
+
+    // 3. Bracket group at start: `[GROUP] Title`.
+    if matches.is_empty()
+        && let Some(cap) = RELEASE_GROUP_START_BRACKET.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let value = group.as_str().trim();
+        if !is_known_token(value) && !is_hex_crc(value) {
+            matches.push(
+                MatchSpan::new(
+                    filename_start + group.start(),
+                    filename_start + group.end(),
+                    Property::ReleaseGroup,
+                    value,
+                )
+                .with_priority(-1),
+            );
+        }
+    }
+
+    // 4. Bracket group at end: `Title [GROUP].ext`.
+    if matches.is_empty()
+        && let Some(cap) = RELEASE_GROUP_END_BRACKET.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let value = group.as_str().trim();
+        if !is_known_token(value) && !is_hex_crc(value) {
+            matches.push(
+                MatchSpan::new(
+                    filename_start + group.start(),
+                    filename_start + group.end(),
+                    Property::ReleaseGroup,
+                    value,
+                )
+                .with_priority(-2),
+            );
+        }
+    }
+
+    // 5. Space-separated at end: `x264.dxva EuReKA.mkv`.
+    if matches.is_empty()
+        && let Some(cap) = RELEASE_GROUP_SPACE_END.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let value = group.as_str();
+        if !is_known_token(value) {
+            matches.push(
+                MatchSpan::new(
+                    filename_start + group.start(),
+                    filename_start + group.end(),
+                    Property::ReleaseGroup,
+                    value,
+                )
+                .with_priority(-3),
+            );
+        }
+    }
+
+    // 6. Last dot-separated token (fallback): `720p.YIFY`.
+    // Only if the filename has recognizable technical tokens.
+    if matches.is_empty()
+        && has_technical_tokens(filename)
+        && let Some(cap) = RELEASE_GROUP_LAST_DOT.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let value = group.as_str();
+        if !is_known_token(value) && value.len() >= 3 {
+            matches.push(
+                MatchSpan::new(
+                    filename_start + group.start(),
+                    filename_start + group.end(),
+                    Property::ReleaseGroup,
+                    value,
+                )
+                .with_priority(-4),
+            );
+        }
+    }
+
+    // (Prefix pattern disabled — too many false positives.)
+
+    // 8. Check parent directory for release group.
+    // Two cases:
+    //   a) Filename has no group at all — always try parent.
+    //   b) Filename is an abbreviated scene release (e.g., `wthd-cab.avi`)
+    //      and the parent dir has the real group (e.g., `DVDRip.XviD-TheWretched`).
+    //      We prefer the parent when ALL of:
+    //        - filename is short (< 20 chars) with no technical tokens
+    //        - parent dir has technical tokens AND a `-GROUP` pattern
+    if filename_start > 0 {
+        let parent = &input[..filename_start.saturating_sub(1)];
+        let parent_name = parent.rsplit(['/', '\\']).next().unwrap_or("");
+        if let Some(cap) = RELEASE_GROUP_END.captures(parent_name)
             && let Some(group) = cap.name("group")
         {
             let value = group.as_str();
             if !is_known_token(value) {
-                matches.push(
-                    MatchSpan::new(
-                        filename_start + group.start(),
-                        filename_start + group.end(),
-                        Property::ReleaseGroup,
-                        value,
-                    )
-                    .with_priority(-2),
-                );
-            }
-        }
+                let filename_is_abbreviated = !has_technical_tokens(filename)
+                    && filename.len() < 20
+                    && has_technical_tokens(parent_name);
 
-        // 3. Bracket group at start: `[GROUP] Title`.
-        if matches.is_empty()
-            && let Some(cap) = RELEASE_GROUP_START_BRACKET.captures(filename)
-            && let Some(group) = cap.name("group")
-        {
-            let value = group.as_str().trim();
-            if !is_known_token(value) && !is_hex_crc(value) {
-                matches.push(
-                    MatchSpan::new(
-                        filename_start + group.start(),
-                        filename_start + group.end(),
-                        Property::ReleaseGroup,
-                        value,
-                    )
-                    .with_priority(-1),
-                );
-            }
-        }
-
-        // 4. Bracket group at end: `Title [GROUP].ext`.
-        if matches.is_empty()
-            && let Some(cap) = RELEASE_GROUP_END_BRACKET.captures(filename)
-            && let Some(group) = cap.name("group")
-        {
-            let value = group.as_str().trim();
-            if !is_known_token(value) && !is_hex_crc(value) {
-                matches.push(
-                    MatchSpan::new(
-                        filename_start + group.start(),
-                        filename_start + group.end(),
-                        Property::ReleaseGroup,
-                        value,
-                    )
-                    .with_priority(-2),
-                );
-            }
-        }
-
-        // 5. Space-separated at end: `x264.dxva EuReKA.mkv`.
-        if matches.is_empty()
-            && let Some(cap) = RELEASE_GROUP_SPACE_END.captures(filename)
-            && let Some(group) = cap.name("group")
-        {
-            let value = group.as_str();
-            if !is_known_token(value) {
-                matches.push(
-                    MatchSpan::new(
-                        filename_start + group.start(),
-                        filename_start + group.end(),
-                        Property::ReleaseGroup,
-                        value,
-                    )
-                    .with_priority(-3),
-                );
-            }
-        }
-
-        // 6. Last dot-separated token (fallback): `720p.YIFY`.
-        // Only if the filename has recognizable technical tokens.
-        if matches.is_empty()
-            && has_technical_tokens(filename)
-            && let Some(cap) = RELEASE_GROUP_LAST_DOT.captures(filename)
-            && let Some(group) = cap.name("group")
-        {
-            let value = group.as_str();
-            if !is_known_token(value) && value.len() >= 3 {
-                matches.push(
-                    MatchSpan::new(
-                        filename_start + group.start(),
-                        filename_start + group.end(),
-                        Property::ReleaseGroup,
-                        value,
-                    )
-                    .with_priority(-4),
-                );
-            }
-        }
-
-        // (Prefix pattern disabled — too many false positives.)
-
-        // 8. Check parent directory for release group.
-        // Two cases:
-        //   a) Filename has no group at all — always try parent.
-        //   b) Filename is an abbreviated scene release (e.g., `wthd-cab.avi`)
-        //      and the parent dir has the real group (e.g., `DVDRip.XviD-TheWretched`).
-        //      We prefer the parent when ALL of:
-        //        - filename is short (< 20 chars) with no technical tokens
-        //        - parent dir has technical tokens AND a `-GROUP` pattern
-        if filename_start > 0 {
-            let parent = &input[..filename_start.saturating_sub(1)];
-            let parent_name = parent.rsplit(['/', '\\']).next().unwrap_or("");
-            if let Some(cap) = RELEASE_GROUP_END.captures(parent_name)
-                && let Some(group) = cap.name("group")
-            {
-                let value = group.as_str();
-                if !is_known_token(value) {
-                    let filename_is_abbreviated = !has_technical_tokens(filename)
-                        && filename.len() < 20
-                        && has_technical_tokens(parent_name);
-
-                    if matches.is_empty() || filename_is_abbreviated {
-                        if filename_is_abbreviated {
-                            matches.clear();
-                        }
-                        let mut parent_value = value.to_string();
-                        // Also check for bracket suffix in parent: `-GROUP[bb]`
-                        if let Some(suffix) = cap.name("suffix") {
-                            parent_value = format!("{}[{}]", parent_value, suffix.as_str());
-                        }
-                        matches.push(
-                            MatchSpan::new(0, 0, Property::ReleaseGroup, parent_value)
-                                .with_priority(-3),
-                        );
+                if matches.is_empty() || filename_is_abbreviated {
+                    if filename_is_abbreviated {
+                        matches.clear();
                     }
+                    let mut parent_value = value.to_string();
+                    // Also check for bracket suffix in parent: `-GROUP[bb]`
+                    if let Some(suffix) = cap.name("suffix") {
+                        parent_value = format!("{}[{}]", parent_value, suffix.as_str());
+                    }
+                    matches.push(
+                        MatchSpan::new(0, 0, Property::ReleaseGroup, parent_value)
+                            .with_priority(-3),
+                    );
                 }
             }
         }
-
-        matches
     }
+
+    matches
 }
 
 /// Check if a string is a known token that shouldn't be a release group.
@@ -393,34 +388,34 @@ mod tests {
 
     #[test]
     fn test_group_at_end() {
-        let m = ReleaseGroupMatcher.find_matches("Movie.2024.1080p.BluRay.x264-SPARKS.mkv");
+        let m = find_matches("Movie.2024.1080p.BluRay.x264-SPARKS.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "SPARKS");
     }
 
     #[test]
     fn test_group_no_extension() {
-        let m = ReleaseGroupMatcher.find_matches("Movie.2024.1080p.BluRay.x264-YTS");
+        let m = find_matches("Movie.2024.1080p.BluRay.x264-YTS");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "YTS");
     }
 
     #[test]
     fn test_no_false_positive_codec() {
-        let m = ReleaseGroupMatcher.find_matches("Movie-x264.mkv");
+        let m = find_matches("Movie-x264.mkv");
         assert!(m.is_empty());
     }
 
     #[test]
     fn test_group_with_at() {
-        let m = ReleaseGroupMatcher.find_matches("Movie.BDRip.720p-HiS@SiLUHD.mkv");
+        let m = find_matches("Movie.BDRip.720p-HiS@SiLUHD.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "HiS@SiLUHD");
     }
 
     #[test]
     fn test_group_before_bracket_website() {
-        let m = ReleaseGroupMatcher.find_matches("Movie.x264-FtS.[sharethefiles.com].mkv");
+        let m = find_matches("Movie.x264-FtS.[sharethefiles.com].mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "FtS");
     }
@@ -428,13 +423,13 @@ mod tests {
     #[test]
     fn test_group_from_parent_dir() {
         // When filename has no group pattern, fall back to parent dir.
-        let m = ReleaseGroupMatcher.find_matches("movies/Movie.DVDRip.XviD-DiAMOND/somefile.avi");
+        let m = find_matches("movies/Movie.DVDRip.XviD-DiAMOND/somefile.avi");
         assert!(m.iter().any(|x| x.value == "DiAMOND"));
     }
 
     #[test]
     fn test_group_with_crc() {
-        let m = ReleaseGroupMatcher.find_matches("[SubGroup] Anime - 01 [1080p][DEADBEEF].mkv");
+        let m = find_matches("[SubGroup] Anime - 01 [1080p][DEADBEEF].mkv");
         // Bracket groups handled separately.
         assert!(m.is_empty() || m.iter().all(|x| !x.value.is_empty()));
     }

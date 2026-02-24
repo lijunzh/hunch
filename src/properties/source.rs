@@ -7,7 +7,6 @@ use fancy_regex::Regex;
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 /// A source pattern that may also flag "Rip".
@@ -170,31 +169,27 @@ static SOURCE_PATTERNS: LazyLock<Vec<SourcePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct SourceMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for sp in SOURCE_PATTERNS.iter() {
+        for (start, end) in sp.vp.find_iter(input) {
+            matches.push(MatchSpan::new(start, end, Property::Source, sp.vp.value));
 
-impl PropertyMatcher for SourceMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for sp in SOURCE_PATTERNS.iter() {
-            for (start, end) in sp.vp.find_iter(input) {
-                matches.push(MatchSpan::new(start, end, Property::Source, sp.vp.value));
-
-                // If this pattern has a rip variant AND the text ends with "Rip",
-                // also emit Other: "Rip".
-                if sp.has_rip_variant {
-                    let matched_text = &input[start..end];
-                    if RIP_SUFFIX.is_match(matched_text).unwrap_or(false) {
-                        matches.push(MatchSpan::new(start, end, Property::Other, "Rip"));
-                        // BRRip is re-encoded from Blu-ray (BDRip is not).
-                        if REENCODED_RIP.is_match(matched_text).unwrap_or(false) {
-                            matches.push(MatchSpan::new(start, end, Property::Other, "Reencoded"));
-                        }
+            // If this pattern has a rip variant AND the text ends with "Rip",
+            // also emit Other: "Rip".
+            if sp.has_rip_variant {
+                let matched_text = &input[start..end];
+                if RIP_SUFFIX.is_match(matched_text).unwrap_or(false) {
+                    matches.push(MatchSpan::new(start, end, Property::Other, "Rip"));
+                    // BRRip is re-encoded from Blu-ray (BDRip is not).
+                    if REENCODED_RIP.is_match(matched_text).unwrap_or(false) {
+                        matches.push(MatchSpan::new(start, end, Property::Other, "Reencoded"));
                     }
                 }
             }
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -203,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_bluray() {
-        let m = SourceMatcher.find_matches("Movie.BluRay.mkv");
+        let m = find_matches("Movie.BluRay.mkv");
         assert!(
             m.iter()
                 .any(|x| x.value == "Blu-ray" && x.property == Property::Source)
@@ -214,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_dvdrip_emits_rip() {
-        let m = SourceMatcher.find_matches("Movie.DVDRip.mkv");
+        let m = find_matches("Movie.DVDRip.mkv");
         assert!(
             m.iter()
                 .any(|x| x.value == "DVD" && x.property == Property::Source)
@@ -227,19 +222,19 @@ mod tests {
 
     #[test]
     fn test_webdl() {
-        let m = SourceMatcher.find_matches("Movie.WEB-DL.mkv");
+        let m = find_matches("Movie.WEB-DL.mkv");
         assert!(m.iter().any(|x| x.value == "Web"));
     }
 
     #[test]
     fn test_hdtv() {
-        let m = SourceMatcher.find_matches("Movie.HDTV.mkv");
+        let m = find_matches("Movie.HDTV.mkv");
         assert!(m.iter().any(|x| x.value == "HDTV"));
     }
 
     #[test]
     fn test_webrip() {
-        let m = SourceMatcher.find_matches("Movie.WEBRip.mkv");
+        let m = find_matches("Movie.WEBRip.mkv");
         assert!(m.iter().any(|x| x.value == "Web"));
         assert!(
             m.iter()
@@ -249,19 +244,19 @@ mod tests {
 
     #[test]
     fn test_hd_dvd() {
-        let m = SourceMatcher.find_matches("Movie.HDDVD.mkv");
+        let m = find_matches("Movie.HDDVD.mkv");
         assert!(m.iter().any(|x| x.value == "HD-DVD"));
     }
 
     #[test]
     fn test_hd_camera() {
-        let m = SourceMatcher.find_matches("Movie.HDCam.mkv");
+        let m = find_matches("Movie.HDCam.mkv");
         assert!(m.iter().any(|x| x.value == "HD Camera"));
     }
 
     #[test]
     fn test_satellite_rip() {
-        let m = SourceMatcher.find_matches("Movie.SatRip.mkv");
+        let m = find_matches("Movie.SatRip.mkv");
         assert!(m.iter().any(|x| x.value == "Satellite"));
         assert!(m.iter().any(|x| x.value == "Rip"));
     }

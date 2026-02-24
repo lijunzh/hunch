@@ -2,7 +2,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static STANDARD_RES: LazyLock<ValuePattern> = LazyLock::new(|| {
@@ -34,98 +33,94 @@ static FOUR_K: LazyLock<ValuePattern> =
 static EIGHT_K: LazyLock<ValuePattern> =
     LazyLock::new(|| ValuePattern::new(r"(?i)(?<![a-z0-9])8K(?![a-z0-9])", "4320p"));
 
-pub struct ScreenSizeMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
 
-impl PropertyMatcher for ScreenSizeMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
+    // Standard: 720p, 1080p, 1080i, 720hd, 720p60, etc.
+    for (start, end) in STANDARD_RES.find_iter(input) {
+        let raw = &input[start..end];
+        let lower = raw.to_lowercase();
 
-        // Standard: 720p, 1080p, 1080i, 720hd, 720p60, etc.
-        for (start, end) in STANDARD_RES.find_iter(input) {
-            let raw = &input[start..end];
-            let lower = raw.to_lowercase();
+        // Strip optional WxH prefix.
+        let height_part = if let Some(idx) = lower.rfind(['x', '*']) {
+            &lower[idx + 1..]
+        } else {
+            &lower
+        };
 
-            // Strip optional WxH prefix.
-            let height_part = if let Some(idx) = lower.rfind(['x', '*']) {
-                &lower[idx + 1..]
-            } else {
-                &lower
-            };
+        // Extract the resolution number and scan type.
+        let value = if let Some(caps) = fancy_regex::Regex::new(r"(?i)(\d+)([ip]|hd)")
+            .unwrap()
+            .captures(height_part)
+            .ok()
+            .flatten()
+        {
+            let num = caps.get(1).unwrap().as_str();
+            let scan = caps.get(2).unwrap().as_str().to_lowercase();
+            let scan_char = if scan == "hd" { "p" } else { &scan };
+            format!("{num}{scan_char}")
+        } else {
+            height_part.to_string()
+        };
+        matches.push(MatchSpan::new(start, end, Property::ScreenSize, value));
+    }
 
-            // Extract the resolution number and scan type.
-            let value = if let Some(caps) = fancy_regex::Regex::new(r"(?i)(\d+)([ip]|hd)")
-                .unwrap()
-                .captures(height_part)
-                .ok()
-                .flatten()
-            {
-                let num = caps.get(1).unwrap().as_str();
-                let scan = caps.get(2).unwrap().as_str().to_lowercase();
-                let scan_char = if scan == "hd" { "p" } else { &scan };
-                format!("{num}{scan_char}")
-            } else {
-                height_part.to_string()
-            };
+    // Explicit WxH: 1920x1080 -> 1080p.
+    for (start, end) in EXPLICIT_RES.find_iter(input) {
+        if matches.iter().any(|m| m.start == start && m.end == end) {
+            continue;
+        }
+        if matches.iter().any(|m| !(m.end <= start || m.start >= end)) {
+            continue; // Already matched by STANDARD_RES.
+        }
+        let raw = &input[start..end];
+        // Extract height from WxH.
+        if let Some(sep) = raw.find(['x', '*', 'X']) {
+            let height_str = raw[sep + 1..].trim();
+            let value = format!("{height_str}p");
             matches.push(MatchSpan::new(start, end, Property::ScreenSize, value));
         }
+    }
 
-        // Explicit WxH: 1920x1080 -> 1080p.
-        for (start, end) in EXPLICIT_RES.find_iter(input) {
-            if matches.iter().any(|m| m.start == start && m.end == end) {
-                continue;
-            }
-            if matches.iter().any(|m| !(m.end <= start || m.start >= end)) {
-                continue; // Already matched by STANDARD_RES.
-            }
-            let raw = &input[start..end];
-            // Extract height from WxH.
-            if let Some(sep) = raw.find(['x', '*', 'X']) {
-                let height_str = raw[sep + 1..].trim();
-                let value = format!("{height_str}p");
-                matches.push(MatchSpan::new(start, end, Property::ScreenSize, value));
-            }
-        }
-
-        // 4K / 8K shorthands — skip when part of edition ("4K Restored", "4K Remastered").
-        for (start, end) in FOUR_K.find_iter(input) {
-            let after = &input[end..];
-            let is_edition_qualifier = after
+    // 4K / 8K shorthands — skip when part of edition ("4K Restored", "4K Remastered").
+    for (start, end) in FOUR_K.find_iter(input) {
+        let after = &input[end..];
+        let is_edition_qualifier = after
+            .trim_start_matches(['.', ' ', '-', '_'])
+            .to_lowercase()
+            .starts_with("restor")
+            || after
                 .trim_start_matches(['.', ' ', '-', '_'])
                 .to_lowercase()
-                .starts_with("restor")
-                || after
-                    .trim_start_matches(['.', ' ', '-', '_'])
-                    .to_lowercase()
-                    .starts_with("remaster");
-            if !is_edition_qualifier {
-                matches.push(MatchSpan::new(start, end, Property::ScreenSize, "2160p"));
-            }
+                .starts_with("remaster");
+        if !is_edition_qualifier {
+            matches.push(MatchSpan::new(start, end, Property::ScreenSize, "2160p"));
         }
-        for (start, end) in EIGHT_K.find_iter(input) {
-            matches.push(MatchSpan::new(start, end, Property::ScreenSize, "4320p"));
-        }
-
-        // Bare resolution before Hi10p profile: `[720.Hi10p]` → 720p.
-        if matches.is_empty() {
-            for (start, end) in BARE_RES_BEFORE_PROFILE.find_iter(input) {
-                let raw = &input[start..end];
-                let re = fancy_regex::Regex::new(r"(\d+)").unwrap();
-                if let Ok(Some(caps)) = re.captures(raw)
-                    && let Some(num) = caps.get(1)
-                {
-                    let value = format!("{}p", num.as_str());
-                    matches.push(MatchSpan::new(
-                        start,
-                        start + num.end(),
-                        Property::ScreenSize,
-                        value,
-                    ));
-                }
-            }
-        }
-
-        matches
     }
+    for (start, end) in EIGHT_K.find_iter(input) {
+        matches.push(MatchSpan::new(start, end, Property::ScreenSize, "4320p"));
+    }
+
+    // Bare resolution before Hi10p profile: `[720.Hi10p]` → 720p.
+    if matches.is_empty() {
+        for (start, end) in BARE_RES_BEFORE_PROFILE.find_iter(input) {
+            let raw = &input[start..end];
+            let re = fancy_regex::Regex::new(r"(\d+)").unwrap();
+            if let Ok(Some(caps)) = re.captures(raw)
+                && let Some(num) = caps.get(1)
+            {
+                let value = format!("{}p", num.as_str());
+                matches.push(MatchSpan::new(
+                    start,
+                    start + num.end(),
+                    Property::ScreenSize,
+                    value,
+                ));
+            }
+        }
+    }
+
+    matches
 }
 
 #[cfg(test)]
@@ -134,42 +129,42 @@ mod tests {
 
     #[test]
     fn test_1080p() {
-        let m = ScreenSizeMatcher.find_matches("Movie.1080p.mkv");
+        let m = find_matches("Movie.1080p.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "1080p");
     }
 
     #[test]
     fn test_720p() {
-        let m = ScreenSizeMatcher.find_matches("Movie.720p.mkv");
+        let m = find_matches("Movie.720p.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "720p");
     }
 
     #[test]
     fn test_4k() {
-        let m = ScreenSizeMatcher.find_matches("Movie.4K.mkv");
+        let m = find_matches("Movie.4K.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "2160p");
     }
 
     #[test]
     fn test_2160p() {
-        let m = ScreenSizeMatcher.find_matches("Movie.2160p.mkv");
+        let m = find_matches("Movie.2160p.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "2160p");
     }
 
     #[test]
     fn test_1080i() {
-        let m = ScreenSizeMatcher.find_matches("Movie.1080i.mkv");
+        let m = find_matches("Movie.1080i.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "1080i");
     }
 
     #[test]
     fn test_explicit_1920x1080() {
-        let m = ScreenSizeMatcher.find_matches("Movie.1920x1080.mkv");
+        let m = find_matches("Movie.1920x1080.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "1080p");
     }

@@ -4,7 +4,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static AUDIO_PROFILE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -51,21 +50,16 @@ static AUDIO_PROFILE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct AudioProfileMatcher;
-
-impl PropertyMatcher for AudioProfileMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in AUDIO_PROFILE_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(
-                    MatchSpan::new(start, end, Property::AudioProfile, pattern.value)
-                        .with_priority(1),
-                );
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in AUDIO_PROFILE_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(
+                MatchSpan::new(start, end, Property::AudioProfile, pattern.value).with_priority(1),
+            );
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -74,19 +68,19 @@ mod tests {
 
     #[test]
     fn test_hd_ma() {
-        let m = AudioProfileMatcher.find_matches("Movie.DTS-HD.MA.mkv");
+        let m = find_matches("Movie.DTS-HD.MA.mkv");
         assert!(m.iter().any(|x| x.value == "Master Audio"));
     }
 
     #[test]
     fn test_atmos() {
-        let m = AudioProfileMatcher.find_matches("Movie.Atmos.mkv");
+        let m = find_matches("Movie.Atmos.mkv");
         assert!(m.iter().any(|x| x.value == "Atmos"));
     }
 
     #[test]
     fn test_truehd() {
-        let m = AudioProfileMatcher.find_matches("Movie.TrueHD.mkv");
+        let m = find_matches("Movie.TrueHD.mkv");
         assert!(m.iter().any(|x| x.value == "TrueHD"));
     }
 }

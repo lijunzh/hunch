@@ -2,7 +2,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static EDITION_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -95,18 +94,14 @@ static EDITION_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct EditionMatcher;
-
-impl PropertyMatcher for EditionMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in EDITION_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(start, end, Property::Edition, pattern.value));
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in EDITION_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(MatchSpan::new(start, end, Property::Edition, pattern.value));
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -115,67 +110,67 @@ mod tests {
 
     #[test]
     fn test_directors_cut() {
-        let m = EditionMatcher.find_matches("Movie.Directors.Cut.mkv");
+        let m = find_matches("Movie.Directors.Cut.mkv");
         assert!(m.iter().any(|x| x.value == "Director's Cut"));
     }
 
     #[test]
     fn test_extended() {
-        let m = EditionMatcher.find_matches("Movie.Extended.Edition.mkv");
+        let m = find_matches("Movie.Extended.Edition.mkv");
         assert!(m.iter().any(|x| x.value == "Extended"));
     }
 
     #[test]
     fn test_collector() {
-        let m = EditionMatcher.find_matches("Movie.Collector.Edition.mkv");
+        let m = find_matches("Movie.Collector.Edition.mkv");
         assert!(m.iter().any(|x| x.value == "Collector"));
     }
 
     #[test]
     fn test_special_edition() {
-        let m = EditionMatcher.find_matches("Movie.Special.Edition.mkv");
+        let m = find_matches("Movie.Special.Edition.mkv");
         assert!(m.iter().any(|x| x.value == "Special"));
     }
 
     #[test]
     fn test_imax() {
-        let m = EditionMatcher.find_matches("Movie.IMAX.mkv");
+        let m = find_matches("Movie.IMAX.mkv");
         assert!(m.iter().any(|x| x.value == "IMAX"));
     }
 
     #[test]
     fn test_remastered() {
-        let m = EditionMatcher.find_matches("Movie.Remastered.mkv");
+        let m = find_matches("Movie.Remastered.mkv");
         assert!(m.iter().any(|x| x.value == "Remastered"));
     }
 
     #[test]
     fn test_limited() {
-        let m = EditionMatcher.find_matches("Movie.LiMiTED.mkv");
+        let m = find_matches("Movie.LiMiTED.mkv");
         assert!(m.iter().any(|x| x.value == "Limited"));
     }
 
     #[test]
     fn test_deluxe() {
-        let m = EditionMatcher.find_matches("Movie.Deluxe.Edition.mkv");
+        let m = find_matches("Movie.Deluxe.Edition.mkv");
         assert!(m.iter().any(|x| x.value == "Deluxe"));
     }
 
     #[test]
     fn test_alternative_cut() {
-        let m = EditionMatcher.find_matches("Movie.Alternate.Cut.mkv");
+        let m = find_matches("Movie.Alternate.Cut.mkv");
         assert!(m.iter().any(|x| x.value == "Alternative Cut"));
     }
 
     #[test]
     fn test_ddc() {
-        let m = EditionMatcher.find_matches("Movie.DDC.mkv");
+        let m = find_matches("Movie.DDC.mkv");
         assert!(m.iter().any(|x| x.value == "Director's Definitive Cut"));
     }
 
     #[test]
     fn test_4k_remastered() {
-        let m = EditionMatcher.find_matches("Movie.4k.Remastered.mkv");
+        let m = find_matches("Movie.4k.Remastered.mkv");
         assert!(m.iter().any(|x| x.value == "Remastered"));
     }
 }

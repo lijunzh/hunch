@@ -4,7 +4,6 @@ use fancy_regex::Regex as FancyRegex;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 const VIDEO_EXTS: &[&str] = &[
@@ -44,41 +43,37 @@ static EXT_STANDALONE: LazyLock<FancyRegex> = LazyLock::new(|| {
     FancyRegex::new(&pattern).unwrap()
 });
 
-pub struct ContainerMatcher;
-
-impl PropertyMatcher for ContainerMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        if let Some(cap) = EXT_REGEX.find(input) {
-            let ext = &input[cap.start() + 1..cap.end()];
-            matches.push(
-                MatchSpan::new(
-                    cap.start() + 1,
-                    cap.end(),
-                    Property::Container,
-                    ext.to_lowercase(),
-                )
-                .as_extension()
-                .with_priority(10),
-            );
-        }
-        // Fallback: standalone container token (e.g., "MP4-GUSH", "[.mp4]").
-        if matches.is_empty()
-            && let Ok(Some(cap)) = EXT_STANDALONE.find(input)
-        {
-            let ext = &input[cap.start()..cap.end()];
-            matches.push(
-                MatchSpan::new(
-                    cap.start(),
-                    cap.end(),
-                    Property::Container,
-                    ext.to_lowercase(),
-                )
-                .with_priority(5),
-            );
-        }
-        matches
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    if let Some(cap) = EXT_REGEX.find(input) {
+        let ext = &input[cap.start() + 1..cap.end()];
+        matches.push(
+            MatchSpan::new(
+                cap.start() + 1,
+                cap.end(),
+                Property::Container,
+                ext.to_lowercase(),
+            )
+            .as_extension()
+            .with_priority(10),
+        );
     }
+    // Fallback: standalone container token (e.g., "MP4-GUSH", "[.mp4]").
+    if matches.is_empty()
+        && let Ok(Some(cap)) = EXT_STANDALONE.find(input)
+    {
+        let ext = &input[cap.start()..cap.end()];
+        matches.push(
+            MatchSpan::new(
+                cap.start(),
+                cap.end(),
+                Property::Container,
+                ext.to_lowercase(),
+            )
+            .with_priority(5),
+        );
+    }
+    matches
 }
 
 #[cfg(test)]
@@ -87,21 +82,21 @@ mod tests {
 
     #[test]
     fn test_mkv() {
-        let m = ContainerMatcher.find_matches("Movie.2020.mkv");
+        let m = find_matches("Movie.2020.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "mkv");
     }
 
     #[test]
     fn test_srt() {
-        let m = ContainerMatcher.find_matches("Movie.srt");
+        let m = find_matches("Movie.srt");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "srt");
     }
 
     #[test]
     fn test_no_extension() {
-        let m = ContainerMatcher.find_matches("Movie 2020 1080p");
+        let m = find_matches("Movie 2020 1080p");
         assert!(m.is_empty());
     }
 }

@@ -6,7 +6,6 @@
 use fancy_regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 /// Matches `v2`, `v3`, etc. (case-insensitive), not preceded by a letter
@@ -14,38 +13,34 @@ use std::sync::LazyLock;
 static VERSION_REGEX: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])v(\d+)(?![a-z0-9])").unwrap());
 
-pub struct VersionMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    let mut search_start = 0;
+    while search_start < input.len() {
+        let Some(cap) = VERSION_REGEX
+            .captures_from_pos(input, search_start)
+            .ok()
+            .flatten()
+        else {
+            break;
+        };
+        let full = cap.get(0).unwrap();
+        search_start = full.end();
 
-impl PropertyMatcher for VersionMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        let mut search_start = 0;
-        while search_start < input.len() {
-            let Some(cap) = VERSION_REGEX
-                .captures_from_pos(input, search_start)
-                .ok()
-                .flatten()
-            else {
-                break;
-            };
-            let full = cap.get(0).unwrap();
-            search_start = full.end();
-
-            if let Some(m) = cap.get(1) {
-                let version_num = &input[m.start()..m.end()];
-                matches.push(MatchSpan {
-                    start: full.start(),
-                    end: full.end(),
-                    property: Property::Version,
-                    value: version_num.to_string(),
-                    is_extension: false,
-                    is_path_based: false,
-                    priority: 0,
-                });
-            }
+        if let Some(m) = cap.get(1) {
+            let version_num = &input[m.start()..m.end()];
+            matches.push(MatchSpan {
+                start: full.start(),
+                end: full.end(),
+                property: Property::Version,
+                value: version_num.to_string(),
+                is_extension: false,
+                is_path_based: false,
+                priority: 0,
+            });
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -54,28 +49,28 @@ mod tests {
 
     #[test]
     fn version_v2() {
-        let m = VersionMatcher.find_matches("Episode.366v2.VOSTFR.avi");
+        let m = find_matches("Episode.366v2.VOSTFR.avi");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "2");
     }
 
     #[test]
     fn version_v4() {
-        let m = VersionMatcher.find_matches("FooBar.07v4.PDTV-FlexGet");
+        let m = find_matches("FooBar.07v4.PDTV-FlexGet");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "4");
     }
 
     #[test]
     fn version_uppercase() {
-        let m = VersionMatcher.find_matches("[Group] Show V2.mp4");
+        let m = find_matches("[Group] Show V2.mp4");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "2");
     }
 
     #[test]
     fn no_false_positive_xvid() {
-        let m = VersionMatcher.find_matches("Movie.XviD.mkv");
+        let m = find_matches("Movie.XviD.mkv");
         assert!(m.is_empty());
     }
 }

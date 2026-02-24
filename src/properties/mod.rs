@@ -30,11 +30,3 @@ pub mod video_codec;
 pub mod video_profile;
 pub mod website;
 pub mod year;
-
-use crate::matcher::span::MatchSpan;
-
-/// Trait for a property matcher.
-pub trait PropertyMatcher: Send + Sync {
-    /// Find all matches of this property in the input string.
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan>;
-}

@@ -4,7 +4,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static COLOR_DEPTH_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -24,23 +23,19 @@ static COLOR_DEPTH_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct ColorDepthMatcher;
-
-impl PropertyMatcher for ColorDepthMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in COLOR_DEPTH_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(
-                    start,
-                    end,
-                    Property::ColorDepth,
-                    pattern.value,
-                ));
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in COLOR_DEPTH_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(MatchSpan::new(
+                start,
+                end,
+                Property::ColorDepth,
+                pattern.value,
+            ));
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -49,13 +44,13 @@ mod tests {
 
     #[test]
     fn test_10bit() {
-        let m = ColorDepthMatcher.find_matches("Movie.10bit.mkv");
+        let m = find_matches("Movie.10bit.mkv");
         assert_eq!(m[0].value, "10-bit");
     }
 
     #[test]
     fn test_8bit() {
-        let m = ColorDepthMatcher.find_matches("Movie.8bit.mkv");
+        let m = find_matches("Movie.8bit.mkv");
         assert_eq!(m[0].value, "8-bit");
     }
 }

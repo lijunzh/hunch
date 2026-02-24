@@ -2,7 +2,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static STREAMING_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -34,21 +33,17 @@ static STREAMING_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct StreamingServiceMatcher;
-
-impl PropertyMatcher for StreamingServiceMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in STREAMING_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(
-                    MatchSpan::new(start, end, Property::StreamingService, pattern.value)
-                        .with_priority(1),
-                );
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in STREAMING_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(
+                MatchSpan::new(start, end, Property::StreamingService, pattern.value)
+                    .with_priority(1),
+            );
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -57,13 +52,13 @@ mod tests {
 
     #[test]
     fn test_amzn() {
-        let m = StreamingServiceMatcher.find_matches("Movie.1080p.AMZN.WEB-DL.mkv");
+        let m = find_matches("Movie.1080p.AMZN.WEB-DL.mkv");
         assert!(m.iter().any(|x| x.value == "Amazon Prime"));
     }
 
     #[test]
     fn test_netflix() {
-        let m = StreamingServiceMatcher.find_matches("Show.S01E01.NFLX.WEB-DL.mkv");
+        let m = find_matches("Show.S01E01.NFLX.WEB-DL.mkv");
         assert!(m.iter().any(|x| x.value == "Netflix"));
     }
 }

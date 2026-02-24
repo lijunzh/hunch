@@ -10,7 +10,6 @@
 use fancy_regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 /// Subtitle file with language code: movie.eng.srt, movie.fr.sub
@@ -148,208 +147,202 @@ fn split_languages(s: &str) -> Vec<&str> {
         .collect()
 }
 
-pub struct SubtitleLanguageMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
 
-impl PropertyMatcher for SubtitleLanguageMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
+    // 1. Subtitle file extension: movie.eng.srt
+    if let Ok(Some(cap)) = SUB_LANG_EXT.captures(input)
+        && let Some(lang) = cap.name("lang")
+        && let Some(normalized) = normalize_language(lang.as_str())
+    {
+        matches.push(
+            MatchSpan::new(
+                lang.start(),
+                lang.end(),
+                Property::SubtitleLanguage,
+                normalized,
+            )
+            .with_priority(2),
+        );
+    }
 
-        // 1. Subtitle file extension: movie.eng.srt
-        if let Ok(Some(cap)) = SUB_LANG_EXT.captures(input)
-            && let Some(lang) = cap.name("lang")
-            && let Some(normalized) = normalize_language(lang.as_str())
-        {
-            matches.push(
-                MatchSpan::new(
-                    lang.start(),
-                    lang.end(),
-                    Property::SubtitleLanguage,
-                    normalized,
-                )
+    // 2. VOSTFR/FASTSUB → French
+    if let Ok(Some(cap)) = VOSTFR.captures(input) {
+        let full = cap.get(0).unwrap();
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "fr")
                 .with_priority(2),
-            );
-        }
+        );
+    }
 
-        // 2. VOSTFR/FASTSUB → French
-        if let Ok(Some(cap)) = VOSTFR.captures(input) {
-            let full = cap.get(0).unwrap();
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "fr")
-                    .with_priority(2),
-            );
-        }
-
-        // 3. SUBFORCED with language
-        if let Ok(Some(cap)) = SUB_FORCED.captures(input) {
-            let full = cap.get(0).unwrap();
-            let lang = cap
-                .name("lang")
-                .and_then(|l| normalize_language(l.as_str()));
-            if let Some(lang) = lang {
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                        .with_priority(2),
-                );
-            }
-        }
-        if let Ok(Some(cap)) = LANG_SUBFORCED.captures(input) {
-            let full = cap.get(0).unwrap();
-            if let Some(lang) = cap
-                .name("lang")
-                .and_then(|l| normalize_language(l.as_str()))
-                && !matches.iter().any(|m| {
-                    m.overlaps(&MatchSpan::new(
-                        full.start(),
-                        full.end(),
-                        Property::SubtitleLanguage,
-                        "",
-                    ))
-                })
-            {
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                        .with_priority(2),
-                );
-            }
-        }
-
-        // 4. LANG SUBS: English Subs, German.Subbed, SPANISH SUBBED
-        if let Ok(Some(cap)) = LANG_SUBS.captures(input)
-            && let Some(lang) = cap
-                .name("lang")
-                .and_then(|l| normalize_language(l.as_str()))
-        {
-            let full = cap.get(0).unwrap();
+    // 3. SUBFORCED with language
+    if let Ok(Some(cap)) = SUB_FORCED.captures(input) {
+        let full = cap.get(0).unwrap();
+        let lang = cap
+            .name("lang")
+            .and_then(|l| normalize_language(l.as_str()));
+        if let Some(lang) = lang {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
                     .with_priority(2),
             );
         }
-
-        // 5. Compound: HebSubs, SWESUB, NLsubs, PLsub
-        if let Ok(Some(cap)) = COMPOUND_SUB.captures(input)
-            && let Some(lang) = cap
-                .name("lang")
-                .and_then(|l| normalize_language(l.as_str()))
-        {
-            let full = cap.get(0).unwrap();
-            if !matches.iter().any(|m| {
+    }
+    if let Ok(Some(cap)) = LANG_SUBFORCED.captures(input) {
+        let full = cap.get(0).unwrap();
+        if let Some(lang) = cap
+            .name("lang")
+            .and_then(|l| normalize_language(l.as_str()))
+            && !matches.iter().any(|m| {
                 m.overlaps(&MatchSpan::new(
                     full.start(),
                     full.end(),
                     Property::SubtitleLanguage,
                     "",
                 ))
-            }) {
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                        .with_priority(1),
-                );
-            }
+            })
+        {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                    .with_priority(2),
+            );
         }
+    }
 
-        // 6. Sub.French, Sub_ITA, ST(Fr-Eng)
-        if let Ok(Some(cap)) = SUB_LANG.captures(input)
-            && let Some(langs) = cap.name("langs")
-        {
-            let full = cap.get(0).unwrap();
-            if !matches.iter().any(|m| {
-                m.overlaps(&MatchSpan::new(
-                    full.start(),
-                    full.end(),
-                    Property::SubtitleLanguage,
-                    "",
-                ))
-            }) {
-                let parts = split_languages(langs.as_str());
-                for part in parts {
-                    if let Some(normalized) = normalize_language(part) {
-                        matches.push(
-                            MatchSpan::new(
-                                full.start(),
-                                full.end(),
-                                Property::SubtitleLanguage,
-                                normalized,
-                            )
-                            .with_priority(1),
-                        );
-                    }
+    // 4. LANG SUBS: English Subs, German.Subbed, SPANISH SUBBED
+    if let Ok(Some(cap)) = LANG_SUBS.captures(input)
+        && let Some(lang) = cap
+            .name("lang")
+            .and_then(|l| normalize_language(l.as_str()))
+    {
+        let full = cap.get(0).unwrap();
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                .with_priority(2),
+        );
+    }
+
+    // 5. Compound: HebSubs, SWESUB, NLsubs, PLsub
+    if let Ok(Some(cap)) = COMPOUND_SUB.captures(input)
+        && let Some(lang) = cap
+            .name("lang")
+            .and_then(|l| normalize_language(l.as_str()))
+    {
+        let full = cap.get(0).unwrap();
+        if !matches.iter().any(|m| {
+            m.overlaps(&MatchSpan::new(
+                full.start(),
+                full.end(),
+                Property::SubtitleLanguage,
+                "",
+            ))
+        }) {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                    .with_priority(1),
+            );
+        }
+    }
+
+    // 6. Sub.French, Sub_ITA, ST(Fr-Eng)
+    if let Ok(Some(cap)) = SUB_LANG.captures(input)
+        && let Some(langs) = cap.name("langs")
+    {
+        let full = cap.get(0).unwrap();
+        if !matches.iter().any(|m| {
+            m.overlaps(&MatchSpan::new(
+                full.start(),
+                full.end(),
+                Property::SubtitleLanguage,
+                "",
+            ))
+        }) {
+            let parts = split_languages(langs.as_str());
+            for part in parts {
+                if let Some(normalized) = normalize_language(part) {
+                    matches.push(
+                        MatchSpan::new(
+                            full.start(),
+                            full.end(),
+                            Property::SubtitleLanguage,
+                            normalized,
+                        )
+                        .with_priority(1),
+                    );
                 }
             }
         }
-
-        // 7. LANG-SUB / LANG.SUB: EN-SUB
-        if matches.is_empty()
-            && let Ok(Some(cap)) = LANG_DASH_SUB.captures(input)
-            && let Some(lang) = cap
-                .name("lang")
-                .and_then(|l| normalize_language(l.as_str()))
-        {
-            let full = cap.get(0).unwrap();
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                    .with_priority(1),
-            );
-        }
-
-        // 8. Legendado/Legendas with optional language
-        if matches.is_empty()
-            && let Ok(Some(cap)) = LEGENDADO.captures(input)
-        {
-            let full = cap.get(0).unwrap();
-            let lang = cap
-                .name("lang")
-                .and_then(|l| normalize_language(l.as_str()))
-                .unwrap_or("und");
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                    .with_priority(0),
-            );
-        }
-
-        // 9. Subtitulado with optional language
-        if matches.is_empty()
-            && let Ok(Some(cap)) = SUBTITULADO.captures(input)
-        {
-            let full = cap.get(0).unwrap();
-            let lang = cap
-                .name("lang")
-                .and_then(|l| normalize_language(l.as_str()))
-                .unwrap_or("und");
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                    .with_priority(0),
-            );
-        }
-
-        // 10. Multiple Subtitle
-        if let Ok(Some(cap)) = MULTIPLE_SUB.captures(input) {
-            let full = cap.get(0).unwrap();
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "mul")
-                    .with_priority(1),
-            );
-        }
-
-        // 11. Generic sub markers (only if no specific language found): subs, subbed
-        if matches.is_empty()
-            && let Ok(Some(cap)) = GENERIC_SUB.captures(input)
-        {
-            let full = cap.get(0).unwrap();
-            // Check it's not part of another word we already matched
-            let text = full.as_str().to_lowercase();
-            if ["subs", "sub", "subbed", "subtitles", "hc", "esub", "esubs"]
-                .contains(&text.as_str())
-            {
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "und")
-                        .with_priority(-1),
-                );
-            }
-        }
-
-        matches
     }
+
+    // 7. LANG-SUB / LANG.SUB: EN-SUB
+    if matches.is_empty()
+        && let Ok(Some(cap)) = LANG_DASH_SUB.captures(input)
+        && let Some(lang) = cap
+            .name("lang")
+            .and_then(|l| normalize_language(l.as_str()))
+    {
+        let full = cap.get(0).unwrap();
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                .with_priority(1),
+        );
+    }
+
+    // 8. Legendado/Legendas with optional language
+    if matches.is_empty()
+        && let Ok(Some(cap)) = LEGENDADO.captures(input)
+    {
+        let full = cap.get(0).unwrap();
+        let lang = cap
+            .name("lang")
+            .and_then(|l| normalize_language(l.as_str()))
+            .unwrap_or("und");
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                .with_priority(0),
+        );
+    }
+
+    // 9. Subtitulado with optional language
+    if matches.is_empty()
+        && let Ok(Some(cap)) = SUBTITULADO.captures(input)
+    {
+        let full = cap.get(0).unwrap();
+        let lang = cap
+            .name("lang")
+            .and_then(|l| normalize_language(l.as_str()))
+            .unwrap_or("und");
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                .with_priority(0),
+        );
+    }
+
+    // 10. Multiple Subtitle
+    if let Ok(Some(cap)) = MULTIPLE_SUB.captures(input) {
+        let full = cap.get(0).unwrap();
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "mul")
+                .with_priority(1),
+        );
+    }
+
+    // 11. Generic sub markers (only if no specific language found): subs, subbed
+    if matches.is_empty()
+        && let Ok(Some(cap)) = GENERIC_SUB.captures(input)
+    {
+        let full = cap.get(0).unwrap();
+        // Check it's not part of another word we already matched
+        let text = full.as_str().to_lowercase();
+        if ["subs", "sub", "subbed", "subtitles", "hc", "esub", "esubs"].contains(&text.as_str()) {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "und")
+                    .with_priority(-1),
+            );
+        }
+    }
+
+    matches
 }
 
 #[cfg(test)]
@@ -358,32 +351,32 @@ mod tests {
 
     #[test]
     fn test_srt_extension() {
-        let m = SubtitleLanguageMatcher.find_matches("movie.eng.srt");
+        let m = find_matches("movie.eng.srt");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "en");
     }
 
     #[test]
     fn test_vostfr() {
-        let m = SubtitleLanguageMatcher.find_matches("One.Piece.E576.VOSTFR.720p.mkv");
+        let m = find_matches("One.Piece.E576.VOSTFR.720p.mkv");
         assert!(m.iter().any(|x| x.value == "fr"));
     }
 
     #[test]
     fn test_eng_subs() {
-        let m = SubtitleLanguageMatcher.find_matches("Movie [ENG SUBS].mkv");
+        let m = find_matches("Movie [ENG SUBS].mkv");
         assert!(m.iter().any(|x| x.value == "en"));
     }
 
     #[test]
     fn test_hebsubs() {
-        let m = SubtitleLanguageMatcher.find_matches("Show.S01E01.HDTV.HebSubs.mkv");
+        let m = find_matches("Show.S01E01.HDTV.HebSubs.mkv");
         assert!(m.iter().any(|x| x.value == "he"));
     }
 
     #[test]
     fn test_swesub() {
-        let m = SubtitleLanguageMatcher.find_matches("Show.S06E16.HC.SWESUB.HDTV.x264");
+        let m = find_matches("Show.S06E16.HC.SWESUB.HDTV.x264");
         assert!(m.iter().any(|x| x.value == "sv"));
     }
 }

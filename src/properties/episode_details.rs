@@ -4,7 +4,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static EPISODE_DETAILS_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -20,21 +19,17 @@ static EPISODE_DETAILS_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| 
     ]
 });
 
-pub struct EpisodeDetailsMatcher;
-
-impl PropertyMatcher for EpisodeDetailsMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in EPISODE_DETAILS_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(
-                    MatchSpan::new(start, end, Property::EpisodeDetails, pattern.value)
-                        .with_priority(-1),
-                );
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in EPISODE_DETAILS_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(
+                MatchSpan::new(start, end, Property::EpisodeDetails, pattern.value)
+                    .with_priority(-1),
+            );
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -43,13 +38,13 @@ mod tests {
 
     #[test]
     fn test_special() {
-        let m = EpisodeDetailsMatcher.find_matches("Show.S01.Special.mkv");
+        let m = find_matches("Show.S01.Special.mkv");
         assert!(m.iter().any(|x| x.value == "Special"));
     }
 
     #[test]
     fn test_pilot() {
-        let m = EpisodeDetailsMatcher.find_matches("Show.Pilot.720p.mkv");
+        let m = find_matches("Show.Pilot.720p.mkv");
         assert!(m.iter().any(|x| x.value == "Pilot"));
     }
 }

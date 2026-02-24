@@ -5,7 +5,6 @@
 use fancy_regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 /// Part number: Part 1, Part.2, pt1, pt.2
@@ -52,76 +51,69 @@ fn roman_to_int(s: &str) -> Option<u32> {
     }
 }
 
-pub struct PartMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
 
-impl PropertyMatcher for PartMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-
-        if let Ok(Some(cap)) = PART_PATTERN.captures(input)
-            && let Some(num) = cap.name("num")
-        {
-            let value = if let Ok(n) = num.as_str().parse::<u32>() {
-                n.to_string()
-            } else if let Some(n) = roman_to_int(num.as_str()) {
-                n.to_string()
-            } else {
-                String::new()
-            };
-            if !value.is_empty() {
-                let full = cap.get(0).unwrap();
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Part, &value)
-                        .with_priority(1),
-                );
-            }
-        }
-
-        if let Ok(Some(cap)) = DISC_PATTERN.captures(input)
-            && let Some(num) = cap.name("num")
-        {
+    if let Ok(Some(cap)) = PART_PATTERN.captures(input)
+        && let Some(num) = cap.name("num")
+    {
+        let value = if let Ok(n) = num.as_str().parse::<u32>() {
+            n.to_string()
+        } else if let Some(n) = roman_to_int(num.as_str()) {
+            n.to_string()
+        } else {
+            String::new()
+        };
+        if !value.is_empty() {
             let full = cap.get(0).unwrap();
             matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Disc, num.as_str())
-                    .with_priority(1),
+                MatchSpan::new(full.start(), full.end(), Property::Part, &value).with_priority(1),
             );
         }
-
-        if let Ok(Some(cap)) = CD_COUNT_PATTERN.captures(input)
-            && let Some(num) = cap.name("num")
-        {
-            let full = cap.get(0).unwrap();
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::CdCount, num.as_str())
-                    .with_priority(1),
-            );
-        }
-
-        if let Ok(Some(cap)) = CD_PATTERN.captures(input)
-            && let Some(num) = cap.name("num")
-        {
-            let full = cap.get(0).unwrap();
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Cd, num.as_str())
-                    .with_priority(1),
-            );
-        }
-
-        if let Ok(Some(cap)) = FILM_PATTERN.captures(input)
-            && let Some(num) = cap.name("num")
-        {
-            let n: u32 = num.as_str().parse().unwrap_or(0);
-            if n > 0 {
-                let full = cap.get(0).unwrap();
-                matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Film, n.to_string())
-                        .with_priority(1),
-                );
-            }
-        }
-
-        matches
     }
+
+    if let Ok(Some(cap)) = DISC_PATTERN.captures(input)
+        && let Some(num) = cap.name("num")
+    {
+        let full = cap.get(0).unwrap();
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Disc, num.as_str()).with_priority(1),
+        );
+    }
+
+    if let Ok(Some(cap)) = CD_COUNT_PATTERN.captures(input)
+        && let Some(num) = cap.name("num")
+    {
+        let full = cap.get(0).unwrap();
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::CdCount, num.as_str())
+                .with_priority(1),
+        );
+    }
+
+    if let Ok(Some(cap)) = CD_PATTERN.captures(input)
+        && let Some(num) = cap.name("num")
+    {
+        let full = cap.get(0).unwrap();
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Cd, num.as_str()).with_priority(1),
+        );
+    }
+
+    if let Ok(Some(cap)) = FILM_PATTERN.captures(input)
+        && let Some(num) = cap.name("num")
+    {
+        let n: u32 = num.as_str().parse().unwrap_or(0);
+        if n > 0 {
+            let full = cap.get(0).unwrap();
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::Film, n.to_string())
+                    .with_priority(1),
+            );
+        }
+    }
+
+    matches
 }
 
 #[cfg(test)]
@@ -130,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_part() {
-        let m = PartMatcher.find_matches("Movie.Part.2.mkv");
+        let m = find_matches("Movie.Part.2.mkv");
         assert!(
             m.iter()
                 .any(|x| x.property == Property::Part && x.value == "2")
@@ -139,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_disc() {
-        let m = PartMatcher.find_matches("Movie.Disc1.mkv");
+        let m = find_matches("Movie.Disc1.mkv");
         assert!(
             m.iter()
                 .any(|x| x.property == Property::Disc && x.value == "1")
@@ -148,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_cd() {
-        let m = PartMatcher.find_matches("Movie.CD2.mkv");
+        let m = find_matches("Movie.CD2.mkv");
         assert!(
             m.iter()
                 .any(|x| x.property == Property::Cd && x.value == "2")
@@ -157,7 +149,7 @@ mod tests {
 
     #[test]
     fn test_film() {
-        let m = PartMatcher.find_matches("James_Bond-f21-Casino.mkv");
+        let m = find_matches("James_Bond-f21-Casino.mkv");
         assert!(
             m.iter()
                 .any(|x| x.property == Property::Film && x.value == "21")

@@ -5,7 +5,6 @@
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 /// Standard UUID: 8-4-4-4-12 hex chars
@@ -18,14 +17,22 @@ static UUID_STANDARD: LazyLock<Regex> = LazyLock::new(|| {
 static UUID_NODASH: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)(?:^|/)(?P<uuid>[0-9a-f]{32})(?:[/.]|$)").unwrap());
 
-pub struct UuidMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
 
-impl PropertyMatcher for UuidMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
+    // Standard UUID with dashes
+    for cap in UUID_STANDARD.captures_iter(input) {
+        if let Some(uuid) = cap.name("uuid") {
+            matches.push(
+                MatchSpan::new(uuid.start(), uuid.end(), Property::Uuid, uuid.as_str())
+                    .with_priority(2),
+            );
+        }
+    }
 
-        // Standard UUID with dashes
-        for cap in UUID_STANDARD.captures_iter(input) {
+    // Non-standard UUID: 32 hex chars without dashes
+    if matches.is_empty() {
+        for cap in UUID_NODASH.captures_iter(input) {
             if let Some(uuid) = cap.name("uuid") {
                 matches.push(
                     MatchSpan::new(uuid.start(), uuid.end(), Property::Uuid, uuid.as_str())
@@ -33,21 +40,9 @@ impl PropertyMatcher for UuidMatcher {
                 );
             }
         }
-
-        // Non-standard UUID: 32 hex chars without dashes
-        if matches.is_empty() {
-            for cap in UUID_NODASH.captures_iter(input) {
-                if let Some(uuid) = cap.name("uuid") {
-                    matches.push(
-                        MatchSpan::new(uuid.start(), uuid.end(), Property::Uuid, uuid.as_str())
-                            .with_priority(2),
-                    );
-                }
-            }
-        }
-
-        matches
     }
+
+    matches
 }
 
 #[cfg(test)]
@@ -56,7 +51,7 @@ mod tests {
 
     #[test]
     fn test_uuid() {
-        let m = UuidMatcher.find_matches("Movie.a1b2c3d4-e5f6-7890-abcd-ef1234567890.mkv");
+        let m = find_matches("Movie.a1b2c3d4-e5f6-7890-abcd-ef1234567890.mkv");
         assert_eq!(m.len(), 1);
     }
 }

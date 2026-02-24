@@ -2,7 +2,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -164,18 +163,14 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct OtherMatcher;
-
-impl PropertyMatcher for OtherMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in OTHER_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(start, end, Property::Other, pattern.value));
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in OTHER_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(MatchSpan::new(start, end, Property::Other, pattern.value));
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -184,79 +179,79 @@ mod tests {
 
     #[test]
     fn test_hdr10() {
-        let m = OtherMatcher.find_matches("Movie.HDR10.mkv");
+        let m = find_matches("Movie.HDR10.mkv");
         assert!(m.iter().any(|x| x.value == "HDR10"));
     }
 
     #[test]
     fn test_hdr_maps_to_hdr10() {
-        let m = OtherMatcher.find_matches("Movie.HDR.mkv");
+        let m = find_matches("Movie.HDR.mkv");
         assert!(m.iter().any(|x| x.value == "HDR10"));
     }
 
     #[test]
     fn test_remux() {
-        let m = OtherMatcher.find_matches("Movie.Remux.mkv");
+        let m = find_matches("Movie.Remux.mkv");
         assert!(m.iter().any(|x| x.value == "Remux"));
     }
 
     #[test]
     fn test_proper() {
-        let m = OtherMatcher.find_matches("Movie.PROPER.mkv");
+        let m = find_matches("Movie.PROPER.mkv");
         assert!(m.iter().any(|x| x.value == "Proper"));
     }
 
     #[test]
     fn test_repack_is_proper() {
-        let m = OtherMatcher.find_matches("Movie.REPACK.mkv");
+        let m = find_matches("Movie.REPACK.mkv");
         assert!(m.iter().any(|x| x.value == "Proper"));
     }
 
     #[test]
     fn test_dual_audio() {
-        let m = OtherMatcher.find_matches("Movie.Dual.Audio.mkv");
+        let m = find_matches("Movie.Dual.Audio.mkv");
         assert!(m.iter().any(|x| x.value == "Dual Audio"));
     }
 
     #[test]
     fn test_dolby_vision() {
-        let m = OtherMatcher.find_matches("Movie.Dolby.Vision.mkv");
+        let m = find_matches("Movie.Dolby.Vision.mkv");
         assert!(m.iter().any(|x| x.value == "Dolby Vision"));
     }
 
     #[test]
     fn test_region_5() {
-        let m = OtherMatcher.find_matches("Movie.R5.mkv");
+        let m = find_matches("Movie.R5.mkv");
         assert!(m.iter().any(|x| x.value == "Region 5"));
     }
 
     #[test]
     fn test_widescreen() {
-        let m = OtherMatcher.find_matches("Movie.WideScreen.mkv");
+        let m = find_matches("Movie.WideScreen.mkv");
         assert!(m.iter().any(|x| x.value == "Widescreen"));
     }
 
     #[test]
     fn test_pal() {
-        let m = OtherMatcher.find_matches("Movie.PAL.mkv");
+        let m = find_matches("Movie.PAL.mkv");
         assert!(m.iter().any(|x| x.value == "PAL"));
     }
 
     #[test]
     fn test_sdr() {
-        let m = OtherMatcher.find_matches("Movie.SDR.mkv");
+        let m = find_matches("Movie.SDR.mkv");
         assert!(m.iter().any(|x| x.value == "Standard Dynamic Range"));
     }
 
     #[test]
     fn test_reencoded() {
-        let m = OtherMatcher.find_matches("Movie.re-enc.mkv");
+        let m = find_matches("Movie.re-enc.mkv");
         assert!(m.iter().any(|x| x.value == "Reencoded"));
     }
 
     #[test]
     fn test_bdrip_no_reencoded() {
-        let m = OtherMatcher.find_matches("Movie.BDRip.720p.mkv");
+        let m = find_matches("Movie.BDRip.720p.mkv");
         let reenc: Vec<_> = m.iter().filter(|x| x.value == "Reencoded").collect();
         assert!(
             reenc.is_empty(),
@@ -267,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_complete_season() {
-        let m = OtherMatcher.find_matches("Movie.Season.Complete.mkv");
+        let m = find_matches("Movie.Season.Complete.mkv");
         assert!(m.iter().any(|x| x.value == "Complete"));
     }
 }

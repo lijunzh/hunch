@@ -9,7 +9,6 @@ use regex::Regex;
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static LANGUAGE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -86,34 +85,30 @@ static LANGUAGE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
 static BRACKET_LANGS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\[([A-Za-z]{2,4}(?:[+][A-Za-z]{2,4})+)\]").unwrap());
 
-pub struct LanguageMatcher;
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in LANGUAGE_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(
+                MatchSpan::new(start, end, Property::Language, pattern.value).with_priority(-1),
+            );
+        }
+    }
 
-impl PropertyMatcher for LanguageMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in LANGUAGE_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
+    // Parse bracketed multi-language codes: [ENG+RU+PT].
+    for cap in BRACKET_LANGS.find_iter(input) {
+        let inner = &input[cap.start() + 1..cap.end() - 1];
+        for code in inner.split('+') {
+            if let Some(lang) = lang_code_to_name(code) {
                 matches.push(
-                    MatchSpan::new(start, end, Property::Language, pattern.value).with_priority(-1),
+                    MatchSpan::new(cap.start(), cap.end(), Property::Language, lang)
+                        .with_priority(0),
                 );
             }
         }
-
-        // Parse bracketed multi-language codes: [ENG+RU+PT].
-        for cap in BRACKET_LANGS.find_iter(input) {
-            let inner = &input[cap.start() + 1..cap.end() - 1];
-            for code in inner.split('+') {
-                if let Some(lang) = lang_code_to_name(code) {
-                    matches.push(
-                        MatchSpan::new(cap.start(), cap.end(), Property::Language, lang)
-                            .with_priority(0),
-                    );
-                }
-            }
-        }
-
-        matches
     }
+
+    matches
 }
 
 /// Map common 2-3 letter language codes to language names.
@@ -160,25 +155,25 @@ mod tests {
 
     #[test]
     fn test_french() {
-        let m = LanguageMatcher.find_matches("Movie.FRENCH.DVDRip.mkv");
+        let m = find_matches("Movie.FRENCH.DVDRip.mkv");
         assert!(m.iter().any(|x| x.value == "French"));
     }
 
     #[test]
     fn test_english() {
-        let m = LanguageMatcher.find_matches("Movie.English.mkv");
+        let m = find_matches("Movie.English.mkv");
         assert!(m.iter().any(|x| x.value == "English"));
     }
 
     #[test]
     fn test_spanish() {
-        let m = LanguageMatcher.find_matches("Movie.Spanish.mkv");
+        let m = find_matches("Movie.Spanish.mkv");
         assert!(m.iter().any(|x| x.value == "Spanish"));
     }
 
     #[test]
     fn test_multi() {
-        let m = LanguageMatcher.find_matches("Movie.MULTi.1080p.mkv");
+        let m = find_matches("Movie.MULTi.1080p.mkv");
         assert!(m.iter().any(|x| x.value == "mul"));
     }
 }

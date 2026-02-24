@@ -4,7 +4,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static COUNTRY_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -18,20 +17,16 @@ static COUNTRY_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct CountryMatcher;
-
-impl PropertyMatcher for CountryMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in COUNTRY_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(
-                    MatchSpan::new(start, end, Property::Country, pattern.value).with_priority(-2),
-                );
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in COUNTRY_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(
+                MatchSpan::new(start, end, Property::Country, pattern.value).with_priority(-2),
+            );
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -40,7 +35,7 @@ mod tests {
 
     #[test]
     fn test_us() {
-        let m = CountryMatcher.find_matches("The Office (US) S01E01.mkv");
+        let m = find_matches("The Office (US) S01E01.mkv");
         assert!(m.iter().any(|x| x.value == "US"));
     }
 }

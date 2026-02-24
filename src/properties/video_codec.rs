@@ -2,7 +2,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static CODEC_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -28,23 +27,19 @@ static CODEC_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct VideoCodecMatcher;
-
-impl PropertyMatcher for VideoCodecMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in CODEC_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(MatchSpan::new(
-                    start,
-                    end,
-                    Property::VideoCodec,
-                    pattern.value,
-                ));
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in CODEC_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(MatchSpan::new(
+                start,
+                end,
+                Property::VideoCodec,
+                pattern.value,
+            ));
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -53,28 +48,28 @@ mod tests {
 
     #[test]
     fn test_h264() {
-        let m = VideoCodecMatcher.find_matches("Movie.x264.mkv");
+        let m = find_matches("Movie.x264.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "H.264");
     }
 
     #[test]
     fn test_hevc() {
-        let m = VideoCodecMatcher.find_matches("Movie.HEVC.mkv");
+        let m = find_matches("Movie.HEVC.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "H.265");
     }
 
     #[test]
     fn test_x265() {
-        let m = VideoCodecMatcher.find_matches("Movie.x265.mkv");
+        let m = find_matches("Movie.x265.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "H.265");
     }
 
     #[test]
     fn test_av1() {
-        let m = VideoCodecMatcher.find_matches("Movie.AV1.mkv");
+        let m = find_matches("Movie.AV1.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "AV1");
     }

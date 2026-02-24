@@ -8,7 +8,6 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::properties::PropertyMatcher;
 use std::sync::LazyLock;
 
 static VIDEO_PROFILE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
@@ -45,21 +44,16 @@ static VIDEO_PROFILE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
-pub struct VideoProfileMatcher;
-
-impl PropertyMatcher for VideoProfileMatcher {
-    fn find_matches(&self, input: &str) -> Vec<MatchSpan> {
-        let mut matches = Vec::new();
-        for pattern in VIDEO_PROFILE_PATTERNS.iter() {
-            for (start, end) in pattern.find_iter(input) {
-                matches.push(
-                    MatchSpan::new(start, end, Property::VideoProfile, pattern.value)
-                        .with_priority(-2),
-                );
-            }
+pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let mut matches = Vec::new();
+    for pattern in VIDEO_PROFILE_PATTERNS.iter() {
+        for (start, end) in pattern.find_iter(input) {
+            matches.push(
+                MatchSpan::new(start, end, Property::VideoProfile, pattern.value).with_priority(-2),
+            );
         }
-        matches
     }
+    matches
 }
 
 #[cfg(test)]
@@ -68,13 +62,13 @@ mod tests {
 
     #[test]
     fn test_high_10() {
-        let m = VideoProfileMatcher.find_matches("Movie.Hi10.mkv");
+        let m = find_matches("Movie.Hi10.mkv");
         assert!(m.iter().any(|x| x.value == "High 10"));
     }
 
     #[test]
     fn test_avchd() {
-        let m = VideoProfileMatcher.find_matches("Movie.AVCHD.mkv");
+        let m = find_matches("Movie.AVCHD.mkv");
         assert!(
             m.iter()
                 .any(|x| x.value == "Advanced Video Codec High Definition")
@@ -83,7 +77,7 @@ mod tests {
 
     #[test]
     fn test_hevc_profile() {
-        let m = VideoProfileMatcher.find_matches("Movie.HEVC.mkv");
+        let m = find_matches("Movie.HEVC.mkv");
         assert!(m.iter().any(|x| x.value == "High Efficiency Video Coding"));
     }
 }
