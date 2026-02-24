@@ -6,6 +6,7 @@
 //! title extraction stop at the right place.
 
 use lazy_static::lazy_static;
+use regex::Regex;
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
@@ -74,7 +75,16 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])JPN(?![a-z])", "Japanese"),
         ValuePattern::new(r"(?i)(?<![a-z])RUS(?![a-z])", "Russian"),
         ValuePattern::new(r"(?i)(?<![a-z])KOR(?![a-z])", "Korean"),
+        ValuePattern::new(r"(?i)(?<![a-z])FLEMISH(?![a-z])", "Dutch"),
+        ValuePattern::new(r"(?i)(?<![a-z])Ukr(?![a-z])", "Ukrainian"),
+        ValuePattern::new(r"(?i)(?<![a-z])DUBLADO(?![a-z])", "und"),
+        ValuePattern::new(r"(?i)(?<![a-z])Dual[. ]?Audio(?![a-z])", "und"),
     ];
+
+    /// Matches bracketed multi-language codes: [ENG+RU+PT], [ENG+DE+IT].
+    static ref BRACKET_LANGS: Regex = Regex::new(
+        r"\[([A-Za-z]{2,4}(?:[+][A-Za-z]{2,4})+)\]"
+    ).unwrap();
 }
 
 pub struct LanguageMatcher;
@@ -89,7 +99,59 @@ impl PropertyMatcher for LanguageMatcher {
                 );
             }
         }
+
+        // Parse bracketed multi-language codes: [ENG+RU+PT].
+        for cap in BRACKET_LANGS.find_iter(input) {
+            let inner = &input[cap.start() + 1..cap.end() - 1];
+            for code in inner.split('+') {
+                if let Some(lang) = lang_code_to_name(code) {
+                    matches.push(
+                        MatchSpan::new(cap.start(), cap.end(), Property::Language, lang)
+                            .with_priority(0),
+                    );
+                }
+            }
+        }
+
         matches
+    }
+}
+
+/// Map common 2-3 letter language codes to language names.
+fn lang_code_to_name(code: &str) -> Option<&'static str> {
+    match code.to_uppercase().as_str() {
+        "EN" | "ENG" => Some("English"),
+        "FR" | "FRE" => Some("French"),
+        "ES" | "SPA" => Some("Spanish"),
+        "DE" | "GER" => Some("German"),
+        "IT" | "ITA" => Some("Italian"),
+        "PT" | "POR" => Some("Portuguese"),
+        "RU" | "RUS" => Some("Russian"),
+        "JA" | "JP" | "JPN" => Some("Japanese"),
+        "ZH" | "CHI" => Some("Chinese"),
+        "KO" | "KOR" => Some("Korean"),
+        "AR" | "ARA" => Some("Arabic"),
+        "HI" | "HIN" => Some("Hindi"),
+        "NL" | "DUT" => Some("Dutch"),
+        "SV" | "SWE" => Some("Swedish"),
+        "NO" | "NOR" => Some("Norwegian"),
+        "DA" | "DAN" => Some("Danish"),
+        "FI" | "FIN" => Some("Finnish"),
+        "PL" | "POL" => Some("Polish"),
+        "CS" | "CZE" => Some("Czech"),
+        "TR" | "TUR" => Some("Turkish"),
+        "EL" | "GRE" => Some("Greek"),
+        "HU" | "HUN" => Some("Hungarian"),
+        "RO" | "ROM" => Some("Romanian"),
+        "TH" | "THA" => Some("Thai"),
+        "VI" | "VIE" => Some("Vietnamese"),
+        "UK" | "UKR" => Some("Ukrainian"),
+        "HE" | "HEB" => Some("Hebrew"),
+        "HR" | "HRV" => Some("Croatian"),
+        "SR" | "SRP" => Some("Serbian"),
+        "BG" | "BUL" => Some("Bulgarian"),
+        "CA" | "CAT" => Some("Catalan"),
+        _ => None,
     }
 }
 

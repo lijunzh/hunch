@@ -40,6 +40,7 @@ lazy_static! {
         // Dub / Sub flags (require explicit markers, not bare words).
         ValuePattern::new(r"(?i)(?<![a-z])DUBBED(?![a-z])", "Dubbed"),
         ValuePattern::new(r"(?i)(?<![a-z])SUBBED(?![a-z])", "Subbed"),
+        ValuePattern::new(r"(?i)(?<![a-z])HC(?![a-z])", "Hardcoded Subtitles"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:HARDCODED|HC)[-. ]?SUBS?(?![a-z])", "Hardcoded Subtitles"),
         ValuePattern::new(r"(?i)(?<![a-z])Fan[-. ]Sub(?:bed|titled|s)(?![a-z])", "Fan Subtitled"),
         ValuePattern::new(r"(?i)(?<![a-z])Fast[-. ]?Sub(?:bed|titled|s)?(?![a-z])", "Fast Subtitled"),
@@ -86,6 +87,7 @@ lazy_static! {
         ValuePattern::new(r"(?i)(?<![a-z])(?:OBFUSCATED|Obfuscation|scrambled)(?![a-z])", "Obfuscated"),
         // Complete (broader patterns).
         ValuePattern::new(r"(?i)(?<![a-z])COMPLETE(?![a-z])", "Complete"),
+        ValuePattern::new(r"(?i)(?<![a-z])COMPLET(?![a-z])", "Complete"),
         // Straight to Video.
         ValuePattern::new(r"(?i)(?<![a-z])(?:STV|Straight[-. ]?to[-. ]?Video)(?![a-z])", "Straight to Video"),
         // Fix (generic and specific).

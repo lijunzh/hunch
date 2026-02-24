@@ -474,6 +474,8 @@ fn compatibility_report() {
             "source",
             "release_group",
             "episode_title",
+            "other",
+            "language",
         ];
         eprintln!("\nSINGLE-PROPERTY FAILURE DETAILS (targeted):");
         for (filename, failure) in &single_prop_details {
