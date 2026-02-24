@@ -13,10 +13,10 @@ static PART_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         .unwrap()
 });
 
-/// Disc number: Disc 1, Disk.2, D1, S01D01
+/// Disc number: Disc 1, Disk.2, D1, S01D01, S01D02.3-5, S01D02&4-6&8
 static DISC_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])(?:Disc?k?|S\d+D)[-. ]?(?P<num>[0-9]+)(?:[-](?P<to>[0-9]+))?(?![a-z0-9])",
+        r"(?i)(?<![a-z])(?:Disc?k?|S\d+D)[-. ]?(?P<nums>[0-9]+(?:[.&-][0-9]+)*)(?![a-z0-9])",
     )
     .unwrap()
 });
@@ -73,12 +73,17 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     if let Ok(Some(cap)) = DISC_PATTERN.captures(input)
-        && let Some(num) = cap.name("num")
+        && let Some(nums) = cap.name("nums")
     {
         let full = cap.get(0).unwrap();
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Disc, num.as_str()).with_priority(1),
-        );
+        // Parse multi-disc: "2.3-5" → [2, 3, 4, 5], "2&4-6&8" → [2, 4, 5, 6, 8]
+        let disc_nums = parse_disc_nums(nums.as_str());
+        for n in disc_nums {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::Disc, n.to_string())
+                    .with_priority(1),
+            );
+        }
     }
 
     if let Ok(Some(cap)) = CD_COUNT_PATTERN.captures(input)
@@ -114,6 +119,29 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     matches
+}
+
+/// Parse disc number string with ranges and separators.
+/// "2" → [2], "2.3-5" → [2, 3, 4, 5], "2&4-6&8" → [2, 4, 5, 6, 8]
+fn parse_disc_nums(s: &str) -> Vec<u32> {
+    let mut result = Vec::new();
+    // Split by & or . to get segments, each segment can be a range "3-5" or single "2".
+    for segment in s.split(|c| c == '&' || c == '.') {
+        if let Some((start, end)) = segment.split_once('-') {
+            let s: u32 = start.parse().unwrap_or(0);
+            let e: u32 = end.parse().unwrap_or(0);
+            if s > 0 && e >= s {
+                result.extend(s..=e);
+            }
+        } else if let Ok(n) = segment.parse::<u32>() {
+            if n > 0 {
+                result.push(n);
+            }
+        }
+    }
+    result.sort();
+    result.dedup();
+    result
 }
 
 #[cfg(test)]

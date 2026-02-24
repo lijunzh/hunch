@@ -38,7 +38,8 @@ pub fn resolve_conflicts(matches: &mut Vec<MatchSpan>) {
                 || matches[i].property == Property::Episode
                 || matches[i].property == Property::Season
                 || matches[i].property == Property::Language
-                || matches[i].property == Property::SubtitleLanguage)
+                || matches[i].property == Property::SubtitleLanguage
+                || matches[i].property == Property::Disc)
                 && matches[i].value != matches[j].value
                 && matches[i].start == matches[j].start
                 && matches[i].end == matches[j].end
