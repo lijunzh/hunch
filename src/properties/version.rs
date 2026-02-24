@@ -29,15 +29,12 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
         if let Some(m) = cap.get(1) {
             let version_num = &input[m.start()..m.end()];
-            matches.push(MatchSpan {
-                start: full.start(),
-                end: full.end(),
-                property: Property::Version,
-                value: version_num.to_string(),
-                is_extension: false,
-                is_path_based: false,
-                priority: 0,
-            });
+            matches.push(MatchSpan::new(
+                full.start(),
+                full.end(),
+                Property::Version,
+                version_num,
+            ));
         }
     }
     matches

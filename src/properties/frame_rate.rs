@@ -58,15 +58,15 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                     continue;
                 }
 
-                matches.push(MatchSpan {
-                    start: full.start(),
-                    end: full.end(),
-                    property: Property::FrameRate,
-                    value: format!("{fps_val}fps"),
-                    is_extension: false,
-                    is_path_based: false,
-                    priority: if *is_explicit { 0 } else { -1 },
-                });
+                matches.push(
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::FrameRate,
+                        format!("{fps_val}fps"),
+                    )
+                    .with_priority(if *is_explicit { 0 } else { -1 }),
+                );
             }
         }
     }

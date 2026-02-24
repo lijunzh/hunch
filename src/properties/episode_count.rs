@@ -39,15 +39,12 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
         if let Some(count_m) = cap.get(2) {
             let count_val = &input[count_m.start()..count_m.end()];
-            matches.push(MatchSpan {
-                start: full.start(),
-                end: full.end(),
-                property: Property::SeasonCount,
-                value: count_val.to_string(),
-                is_extension: false,
-                is_path_based: false,
-                priority: 0,
-            });
+            matches.push(MatchSpan::new(
+                full.start(),
+                full.end(),
+                Property::SeasonCount,
+                count_val.to_string(),
+            ));
         }
     }
 
@@ -78,15 +75,12 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             if count_val.parse::<u32>().is_ok_and(|n| n <= 1) {
                 continue;
             }
-            matches.push(MatchSpan {
-                start: full.start(),
-                end: full.end(),
-                property: Property::EpisodeCount,
-                value: count_val.to_string(),
-                is_extension: false,
-                is_path_based: false,
-                priority: 0,
-            });
+            matches.push(MatchSpan::new(
+                full.start(),
+                full.end(),
+                Property::EpisodeCount,
+                count_val.to_string(),
+            ));
         }
     }
 

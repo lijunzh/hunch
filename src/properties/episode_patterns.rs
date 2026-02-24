@@ -1,5 +1,6 @@
 //! Regex patterns and helpers for season/episode detection.
 
+pub use crate::matcher::regex_utils::captures_iter;
 use crate::matcher::span::{MatchSpan, Property};
 use fancy_regex::Regex;
 use std::sync::LazyLock;
@@ -160,26 +161,7 @@ pub fn has_property(matches: &[MatchSpan], property: Property) -> bool {
     matches.iter().any(|m| m.property == property)
 }
 
-/// Iterate fancy_regex captures (non-overlapping).
-pub fn captures_iter<'a>(re: &'a Regex, input: &'a str) -> Vec<fancy_regex::Captures<'a>> {
-    let mut results = Vec::new();
-    let mut start = 0;
-    while start < input.len() {
-        match re.captures_from_pos(input, start) {
-            Ok(Some(cap)) => {
-                if let Some(full) = cap.get(0) {
-                    results.push(cap);
-                    start = full.end().max(start + 1);
-                } else {
-                    break;
-                }
-            }
-            _ => break,
-        }
-    }
-    results
-}
-
+// ── Helpers ──
 /// Generate a range of episode numbers as MatchSpans.
 pub fn episode_range(
     start_ep: u32,
