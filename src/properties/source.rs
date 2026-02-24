@@ -34,7 +34,8 @@ impl SourcePattern {
 
 lazy_static! {
     /// Detects whether the matched text ends with "Rip".
-    static ref RIP_SUFFIX: Regex = Regex::new(r"(?i)[-.]?Rip$").unwrap();
+    static ref REENCODED_RIP: Regex = Regex::new(r"(?i)^BR[-.]?Rip$").unwrap();
+    static ref RIP_SUFFIX: Regex = Regex::new(r"(?i)Rip$").unwrap();
     /// BRRip/BDRip are re-encoded from Blu-ray (not direct rips like BluRay.Rip).
 
     static ref SOURCE_PATTERNS: Vec<SourcePattern> = vec![
@@ -135,6 +136,10 @@ impl PropertyMatcher for SourceMatcher {
                     let matched_text = &input[start..end];
                     if RIP_SUFFIX.is_match(matched_text).unwrap_or(false) {
                         matches.push(MatchSpan::new(start, end, Property::Other, "Rip"));
+                        // BRRip is re-encoded from Blu-ray (BDRip is not).
+                        if REENCODED_RIP.is_match(matched_text).unwrap_or(false) {
+                            matches.push(MatchSpan::new(start, end, Property::Other, "Reencoded"));
+                        }
                     }
                 }
             }
