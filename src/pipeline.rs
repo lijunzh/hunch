@@ -103,6 +103,11 @@ impl Pipeline {
         // as language tags if they appear before any codec/year/source/resolution.
         self.prune_language_in_title_zone(input, &mut all_matches);
 
+        // Step 2c: Prune duplicate source matches in the title zone.
+        // e.g., "The.Girl.in.the.Spiders.Web.2019.WEB-DL" — "Web" before year
+        // is a title word, not a source, because "WEB-DL" after year is the real source.
+        self.prune_early_source_duplicates(input, &mut all_matches);
+
         // Step 3: Post-processing.
         // 3a: Extract title from remaining gaps.
         if let Some(title_match) = title::extract_title(input, &all_matches) {
@@ -209,6 +214,44 @@ impl Pipeline {
         } else {
             // No technical tokens at all — prune all language matches.
             matches.retain(|m| m.property != Property::Language);
+        }
+    }
+
+    /// Remove source matches that appear before a year/season/episode when
+    /// there's a later source match. This prevents short source keywords
+    /// like "Web" from eating title words.
+    fn prune_early_source_duplicates(&self, input: &str, matches: &mut Vec<MatchSpan>) {
+        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+
+        // Find the first year/season/episode position.
+        let anchor_pos = matches
+            .iter()
+            .filter(|m| {
+                m.start >= fn_start
+                    && matches!(
+                        m.property,
+                        Property::Year | Property::Season | Property::Episode
+                    )
+            })
+            .map(|m| m.start)
+            .min();
+
+        let Some(anchor) = anchor_pos else {
+            return;
+        };
+
+        // Check if there are source matches both before and after the anchor.
+        let has_early_source = matches
+            .iter()
+            .any(|m| m.property == Property::Source && m.start < anchor && m.start >= fn_start);
+        let has_late_source = matches
+            .iter()
+            .any(|m| m.property == Property::Source && m.start >= anchor);
+
+        if has_early_source && has_late_source {
+            matches.retain(|m| {
+                !(m.property == Property::Source && m.start < anchor && m.start >= fn_start)
+            });
         }
     }
 }

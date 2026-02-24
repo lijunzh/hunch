@@ -231,27 +231,40 @@ fn is_generic_dir(name: &str) -> bool {
         lower.as_str(),
         "movies"
             | "movie"
+            | "films"
+            | "film"
             | "series"
             | "tv shows"
+            | "tvshows"
             | "tv"
             | "media"
             | "video"
             | "videos"
             | "downloads"
             | "download"
+            | "mnt"
+            | "nas"
+            | "share"
+            | "shares"
+            | "data"
+            | "public"
+            | "home"
     ) || lower.starts_with("season")
         || lower.starts_with("saison")
         || lower.starts_with("temporada")
 }
 
-/// Detect if a title looks like a scene abbreviation (e.g., "dmd", "wthd", "dmd aw").
+/// Detect if a title looks like a scene abbreviation (e.g., "dmd", "wthd-cab", "i-smwhr").
 fn is_abbreviated(title: &str) -> bool {
-    let words: Vec<&str> = title.split_whitespace().collect();
-    // All words short and lowercase → probably abbreviated.
-    words.iter().all(|w| {
+    // Split on whitespace AND hyphens to check individual segments.
+    let segments: Vec<&str> = title
+        .split(|c: char| c.is_whitespace() || c == '-')
+        .collect();
+    // All segments short and lowercase → probably abbreviated.
+    segments.iter().all(|w| {
         w.len() <= 6
             && w.chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
     }) && title.len() <= 20
 }
 
