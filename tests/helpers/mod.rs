@@ -160,7 +160,14 @@ fn parse_prop_line(line: &str, props: &mut HashMap<String, String>, list_key: &m
 }
 
 /// Strip surrounding YAML quotes: `"5.1"` → `5.1`, `'7.1'` → `7.1`.
+/// Also strips inline comments: `value # comment` → `value`.
 fn strip_yaml_quotes(s: &str) -> String {
+    // Strip inline comments (but not inside quoted strings).
+    let s = if !s.starts_with('"') && !s.starts_with('\'') {
+        s.split('#').next().unwrap_or(s).trim()
+    } else {
+        s
+    };
     if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
         s[1..s.len() - 1].to_string()
     } else {

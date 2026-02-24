@@ -113,6 +113,13 @@ static SEASON_MULTI: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
+/// Season 1.2.3~5, Season 1.2.3 to 5 (discrete list ending with range).
+static SEASON_MULTI_RANGE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+    r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<prefix>\d{1,2}(?:[. ]\d{1,2})*)\s*[. ]?\s*(?:~|to)\s*\.?\s*(?P<end>\d{1,2})(?![a-z0-9])"
+    ).unwrap()
+});
+
 /// Season 1 to 3, Season 1~3, Saison 1 a 3 (word-based range with separators).
 static SEASON_RANGE_WORD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
@@ -126,8 +133,9 @@ static S_CONCAT: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// S01-02-03 (S-prefixed dash/space separated multi-season without S prefix on rest).
+/// Requires zero-padded 2+ digit numbers to avoid matching S03.1 (size context).
 static S_MULTI_NUM: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z0-9])S(?P<seasons>\d{1,3}(?:[-. ]\d{1,3})+)(?![a-z0-9])").unwrap()
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<seasons>\d{2,3}(?:[-. ]\d{2,3})+)(?![a-z0-9])").unwrap()
 });
 
 /// s01.to.s04, s01-to-s04 (S-prefixed range with "to").
@@ -494,6 +502,36 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                     MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
                         .with_priority(1),
                 );
+            }
+        }
+    }
+
+    if !has_property(&matches, Property::Season) {
+        // Season 1.2.3~5, Season 1.2.3 to 5 (discrete prefix + range end).
+        for cap in captures_iter(&SEASON_MULTI_RANGE, input) {
+            let full = cap.get(0).unwrap();
+            let prefix_str = cap.name("prefix").unwrap().as_str();
+            let end: u32 = parse_num(&cap, "end").parse().unwrap_or(0);
+            let prefix_nums: Vec<u32> = prefix_str
+                .split(|c: char| !c.is_ascii_digit())
+                .filter(|s| !s.is_empty())
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            // Emit all prefix numbers.
+            for s in &prefix_nums {
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                        .with_priority(1),
+                );
+            }
+            // Expand range from last prefix number to end.
+            if let Some(&last) = prefix_nums.last() {
+                for s in (last + 1)..=end {
+                    matches.push(
+                        MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
+                            .with_priority(1),
+                    );
+                }
             }
         }
     }
