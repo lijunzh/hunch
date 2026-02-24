@@ -340,6 +340,8 @@ fn is_known_token(s: &str) -> bool {
             | "dd2"
             | "dd5"
             | "dd7"
+            | "dtsx"
+            | "ddplus"
             // Source / container variants.
             | "dvdr"
             | "dvd5"
@@ -370,7 +372,6 @@ fn is_known_token(s: &str) -> bool {
             | "hebsubs"
             | "nlsubs"
             | "swesub"
-            | "nogroup"
             | "noreleasegroup"
     )
 }
@@ -482,11 +483,11 @@ fn expand_group_backwards(before: &str, current: &str) -> String {
     let segment = &before[sep_pos + 1..];
     let before_sep = &before[..sep_pos];
 
-    // The segment must be alphanumeric and not a known token.
-    // Also reject if the segment forms a known compound with the preceding word
-    // (e.g., DVD + R = DVDR, WEB + DL = WEBDL).
+    // The segment must be alphanumeric, not purely numeric, and not a known token.
+    // Also reject if the segment forms a known compound with the preceding word.
     if segment.is_empty()
         || !segment.chars().all(|c| c.is_ascii_alphanumeric())
+        || segment.chars().all(|c| c.is_ascii_digit())
         || is_known_token(segment)
     {
         return current.to_string();
