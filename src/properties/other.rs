@@ -16,13 +16,13 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])BT[-. ]?2020(?![0-9])", "BT.2020"),
         // Quality / resolution flags.
         ValuePattern::new(r"(?i)(?<![a-z])(?:Full[-. ]?HD|FHD)(?![a-z])", "Full HD"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:Ultra[-. ]?HD|UHD)(?![a-z])", "Ultra HD"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:Ultra(?:[-. ]?HD)?|UHD)(?![a-z])", "Ultra HD"),
         ValuePattern::new(r"(?i)(?<![a-z])Netflix[-. ]?UHD(?![a-z])", "Ultra HD"),
         ValuePattern::new(r"(?i)(?<![a-z])iTunes[-. ]?HD(?![a-z])", "HD"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:mHD|HDLight)(?![a-z])", "Micro HD"),
         ValuePattern::new(r"(?i)(?<![a-z0-9\-])HD(?![a-zTV0-9\-])", "HD"),
         ValuePattern::new(r"(?i)(?<![a-z])HQ(?![a-z])", "High Quality"),
-        ValuePattern::new(r"(?i)(?<![a-z])HR(?![a-z])(?=.*[.\-_ ][a-zA-Z])", "High Resolution"),
+        ValuePattern::new(r"(?i)(?<![a-z])HR(?![a-z])", "High Resolution"),
         ValuePattern::new(r"(?i)(?<![a-z])LDTV(?![a-z])", "Low Definition"),
         ValuePattern::new(r"(?i)(?<![a-z])Upscale[d]?(?![a-z])", "Upscaled"),
         // Release quality flags.
@@ -30,9 +30,9 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])PROPER(?![a-z])", "Proper"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:REPACK|RERIP)\d*(?![a-z])", "Proper"),
         ValuePattern::new(r"(?i)(?<![a-z])REAL(?![a-z])", "Proper"),
-        // Reencoded.
+        // Reencoded (explicit + BRRip implies re-encoding from Blu-ray).
         ValuePattern::new(
-            r"(?i)(?<![a-z])(?:re[-. ]?enc(?:oded)?|reencoded)(?![a-z])",
+            r"(?i)(?<![a-z])(?:re[-. ]?enc(?:oded)?|reencoded|BRRip)(?![a-z])",
             "Reencoded",
         ),
         // Converted.
