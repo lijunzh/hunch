@@ -20,7 +20,9 @@ fn movie_basic() {
 
 #[test]
 fn movie_with_path() {
-    let r = hunch("Movies/Fear and Loathing in Las Vegas (1998)/Fear.and.Loathing.in.Las.Vegas.720p.HDDVD.DTS.x264-ESiR.mkv");
+    let r = hunch(
+        "Movies/Fear and Loathing in Las Vegas (1998)/Fear.and.Loathing.in.Las.Vegas.720p.HDDVD.DTS.x264-ESiR.mkv",
+    );
     assert_eq!(r.title(), Some("Fear and Loathing in Las Vegas"));
     assert_eq!(r.year(), Some(1998));
     assert_eq!(r.screen_size(), Some("720p"));
@@ -260,11 +262,17 @@ fn streaming_service() {
 #[test]
 fn color_depth_10bit() {
     let r = hunch("Movie.2024.10bit.1080p.BluRay.x265.mkv");
-    assert_eq!(r.first(hunch::matcher::span::Property::ColorDepth), Some("10-bit"));
+    assert_eq!(
+        r.first(hunch::matcher::span::Property::ColorDepth),
+        Some("10-bit")
+    );
 }
 
 #[test]
 fn crc32_in_brackets() {
     let r = hunch("[SubGroup] Anime Title - 01 [720p] [ABCD1234].mkv");
-    assert_eq!(r.first(hunch::matcher::span::Property::Crc), Some("ABCD1234"));
+    assert_eq!(
+        r.first(hunch::matcher::span::Property::Crc),
+        Some("ABCD1234")
+    );
 }

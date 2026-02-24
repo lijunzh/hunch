@@ -12,7 +12,7 @@
 
 mod helpers;
 
-use helpers::{load_test_cases, TestCase};
+use helpers::{TestCase, load_test_cases};
 use hunch::hunch;
 use std::collections::HashMap;
 
@@ -85,12 +85,12 @@ fn check(tc: &TestCase) -> (Vec<PropResult>, Vec<String>) {
         // !!null means the property should be absent.
         if expected_str == "!!null" || expected_str == "null" {
             let ok = actual.is_none();
-            prop_results.push(PropResult { property: key.clone(), passed: ok });
+            prop_results.push(PropResult {
+                property: key.clone(),
+                passed: ok,
+            });
             if !ok {
-                failures.push(format!(
-                    "{key}: expected absent, got {:?}",
-                    actual.unwrap()
-                ));
+                failures.push(format!("{key}: expected absent, got {:?}", actual.unwrap()));
             }
             continue;
         }
@@ -120,8 +120,11 @@ fn check(tc: &TestCase) -> (Vec<PropResult>, Vec<String>) {
                 } else {
                     expected_str.clone()
                 };
-                if values.iter().any(|v| *v == exp) {
-                    prop_results.push(PropResult { property: key.clone(), passed: true });
+                if values.contains(&exp) {
+                    prop_results.push(PropResult {
+                        property: key.clone(),
+                        passed: true,
+                    });
                     continue;
                 }
                 values.join(", ")
@@ -131,13 +134,19 @@ fn check(tc: &TestCase) -> (Vec<PropResult>, Vec<String>) {
         };
 
         let (exp_cmp, act_cmp) = if is_lang {
-            (normalize_language(&expected_str), normalize_language(&actual_str))
+            (
+                normalize_language(&expected_str),
+                normalize_language(&actual_str),
+            )
         } else {
             (expected_str.clone(), actual_str.clone())
         };
 
         let ok = act_cmp == exp_cmp;
-        prop_results.push(PropResult { property: key.clone(), passed: ok });
+        prop_results.push(PropResult {
+            property: key.clone(),
+            passed: ok,
+        });
         if !ok {
             failures.push(format!(
                 "{key}: expected {expected_str:?}, got {actual_str:?}",
@@ -228,7 +237,10 @@ guessit_test_file!(rules_audio_codec, "tests/fixtures/rules/audio_codec.yml");
 guessit_test_file!(rules_video_codec, "tests/fixtures/rules/video_codec.yml");
 guessit_test_file!(rules_source, "tests/fixtures/rules/source.yml");
 guessit_test_file!(rules_screen_size, "tests/fixtures/rules/screen_size.yml");
-guessit_test_file!(rules_release_group, "tests/fixtures/rules/release_group.yml");
+guessit_test_file!(
+    rules_release_group,
+    "tests/fixtures/rules/release_group.yml"
+);
 guessit_test_file!(rules_episodes, "tests/fixtures/rules/episodes.yml");
 guessit_test_file!(rules_title, "tests/fixtures/rules/title.yml");
 guessit_test_file!(rules_bonus, "tests/fixtures/rules/bonus.yml");
@@ -253,10 +265,16 @@ const ALL_FIXTURES: &[(&str, &str)] = &[
     ("movies.yml", "tests/fixtures/movies.yml"),
     ("episodes.yml", "tests/fixtures/episodes.yml"),
     ("various.yml", "tests/fixtures/various.yml"),
-    ("rules/audio_codec.yml", "tests/fixtures/rules/audio_codec.yml"),
+    (
+        "rules/audio_codec.yml",
+        "tests/fixtures/rules/audio_codec.yml",
+    ),
     ("rules/bonus.yml", "tests/fixtures/rules/bonus.yml"),
     ("rules/cd.yml", "tests/fixtures/rules/cd.yml"),
-    ("rules/common_words.yml", "tests/fixtures/rules/common_words.yml"),
+    (
+        "rules/common_words.yml",
+        "tests/fixtures/rules/common_words.yml",
+    ),
     ("rules/country.yml", "tests/fixtures/rules/country.yml"),
     ("rules/date.yml", "tests/fixtures/rules/date.yml"),
     ("rules/edition.yml", "tests/fixtures/rules/edition.yml"),
@@ -265,12 +283,21 @@ const ALL_FIXTURES: &[(&str, &str)] = &[
     ("rules/language.yml", "tests/fixtures/rules/language.yml"),
     ("rules/other.yml", "tests/fixtures/rules/other.yml"),
     ("rules/part.yml", "tests/fixtures/rules/part.yml"),
-    ("rules/release_group.yml", "tests/fixtures/rules/release_group.yml"),
-    ("rules/screen_size.yml", "tests/fixtures/rules/screen_size.yml"),
+    (
+        "rules/release_group.yml",
+        "tests/fixtures/rules/release_group.yml",
+    ),
+    (
+        "rules/screen_size.yml",
+        "tests/fixtures/rules/screen_size.yml",
+    ),
     ("rules/size.yml", "tests/fixtures/rules/size.yml"),
     ("rules/source.yml", "tests/fixtures/rules/source.yml"),
     ("rules/title.yml", "tests/fixtures/rules/title.yml"),
-    ("rules/video_codec.yml", "tests/fixtures/rules/video_codec.yml"),
+    (
+        "rules/video_codec.yml",
+        "tests/fixtures/rules/video_codec.yml",
+    ),
     ("rules/website.yml", "tests/fixtures/rules/website.yml"),
 ];
 
@@ -290,8 +317,17 @@ fn compatibility_report() {
     eprintln!("HUNCH COMPATIBILITY REPORT");
     eprintln!("{}", "=".repeat(70));
     eprintln!("\nPASS RATE BY TEST FILE:");
-    eprintln!("  {:<35} {:>7} {:>7} {:>7}", "File", "Passed", "Total", "Rate");
-    eprintln!("  {:<35} {:>7} {:>7} {:>7}", "-".repeat(35), "-".repeat(7), "-".repeat(7), "-".repeat(7));
+    eprintln!(
+        "  {:<35} {:>7} {:>7} {:>7}",
+        "File", "Passed", "Total", "Rate"
+    );
+    eprintln!(
+        "  {:<35} {:>7} {:>7} {:>7}",
+        "-".repeat(35),
+        "-".repeat(7),
+        "-".repeat(7),
+        "-".repeat(7)
+    );
 
     for (label, path) in ALL_FIXTURES {
         let cases = load_test_cases(path);
@@ -316,11 +352,7 @@ fn compatibility_report() {
             } else {
                 total_failed += 1;
                 if sample_failures.len() < 30 {
-                    sample_failures.push((
-                        label.to_string(),
-                        tc.filename.clone(),
-                        failures,
-                    ));
+                    sample_failures.push((label.to_string(), tc.filename.clone(), failures));
                 }
             }
         }
@@ -331,7 +363,10 @@ fn compatibility_report() {
         } else {
             0.0
         };
-        eprintln!("  {:<35} {:>7} {:>7} {:>6.1}%", label, file_passed, total, rate);
+        eprintln!(
+            "  {:<35} {:>7} {:>7} {:>6.1}%",
+            label, file_passed, total, rate
+        );
     }
 
     // Overall summary.
@@ -340,22 +375,37 @@ fn compatibility_report() {
     } else {
         0.0
     };
-    eprintln!("\nOVERALL: {total_passed}/{total_cases} passed ({overall_rate:.1}%), {total_failed} failed");
+    eprintln!(
+        "\nOVERALL: {total_passed}/{total_cases} passed ({overall_rate:.1}%), {total_failed} failed"
+    );
 
     // Per-property breakdown.
     let mut props: Vec<_> = prop_stats.iter().collect();
     props.sort_by(|a, b| {
-        let rate_a = a.1 .0 as f64 / (a.1 .0 + a.1 .1) as f64;
-        let rate_b = b.1 .0 as f64 / (b.1 .0 + b.1 .1) as f64;
+        let rate_a = a.1.0 as f64 / (a.1.0 + a.1.1) as f64;
+        let rate_b = b.1.0 as f64 / (b.1.0 + b.1.1) as f64;
         rate_b.partial_cmp(&rate_a).unwrap()
     });
 
     eprintln!("\nPER-PROPERTY ACCURACY:");
-    eprintln!("  {:<25} {:>7} {:>7} {:>7}", "Property", "Passed", "Failed", "Rate");
-    eprintln!("  {:<25} {:>7} {:>7} {:>7}", "-".repeat(25), "-".repeat(7), "-".repeat(7), "-".repeat(7));
+    eprintln!(
+        "  {:<25} {:>7} {:>7} {:>7}",
+        "Property", "Passed", "Failed", "Rate"
+    );
+    eprintln!(
+        "  {:<25} {:>7} {:>7} {:>7}",
+        "-".repeat(25),
+        "-".repeat(7),
+        "-".repeat(7),
+        "-".repeat(7)
+    );
     for (prop, (p, f)) in &props {
         let total = p + f;
-        let rate = if total > 0 { (*p as f64 / total as f64) * 100.0 } else { 0.0 };
+        let rate = if total > 0 {
+            (*p as f64 / total as f64) * 100.0
+        } else {
+            0.0
+        };
         let emoji = if rate >= 95.0 {
             "✅"
         } else if rate >= 80.0 {

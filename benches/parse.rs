@@ -2,7 +2,7 @@
 //!
 //! Run with: `cargo bench`
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use hunch::hunch;
 
 fn bench_movie(c: &mut Criterion) {
@@ -52,9 +52,7 @@ fn bench_anime(c: &mut Criterion) {
 }
 
 fn bench_minimal(c: &mut Criterion) {
-    c.bench_function("minimal", |b| {
-        b.iter(|| hunch(black_box("movie.mkv")))
-    });
+    c.bench_function("minimal", |b| b.iter(|| hunch(black_box("movie.mkv"))));
 }
 
 criterion_group!(

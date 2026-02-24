@@ -15,8 +15,7 @@ pub struct TestCase {
 }
 
 pub fn load_test_cases(path: &str) -> Vec<TestCase> {
-    let content = fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("Failed to read {path}: {e}"));
+    let content = fs::read_to_string(path).unwrap_or_else(|e| panic!("Failed to read {path}: {e}"));
 
     let mut defaults: HashMap<String, String> = HashMap::new();
     let mut cases: Vec<TestCase> = Vec::new();
@@ -80,7 +79,7 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
         }
 
         // New key: `? filename`
-        if trimmed.starts_with("? ") {
+        if let Some(rest) = trimmed.strip_prefix("? ") {
             if in_value {
                 // We were reading props — flush the previous group.
                 groups.push((current_keys.clone(), current_props.clone()));
@@ -88,15 +87,15 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
                 current_props.clear();
                 in_value = false;
             }
-            let key = trimmed[2..].trim().to_string();
+            let key = rest.trim().to_string();
             current_keys.push(key);
             continue;
         }
 
         // Value block starts: `: prop: value`
-        if trimmed.starts_with(": ") {
+        if let Some(rest) = trimmed.strip_prefix(": ") {
             in_value = true;
-            parse_prop_line(&trimmed[2..], &mut current_props);
+            parse_prop_line(rest, &mut current_props);
             continue;
         }
 
