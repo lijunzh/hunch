@@ -14,14 +14,14 @@ YAML files).
 | Metric | Value |
 |---|---|
 | Total test cases | 1,309 |
-| Passed (all props correct) | 751 |
-| Failed (any prop wrong) | 558 |
-| **Pass rate** | **57.4%** |
+| Passed (all props correct) | 806 |
+| Failed (any prop wrong) | 503 |
+| **Pass rate** | **61.6%** |
 | Properties implemented | 42 / 39+ |
 | Properties skipped | 0 |
 
 guessit passes 100% of its own tests by definition. Hunch currently
-reproduces 57.4% of those results identically.
+reproduces 61.6% of those results identically.
 
 ---
 
@@ -36,23 +36,23 @@ simultaneously.
 |---|---|---|---|
 | rules/screen_size.yml | 9 | 9 | **100%** |
 | rules/size.yml | 3 | 3 | **100%** |
-| rules/edition.yml | 43 | 44 | **98%** |
+| rules/edition.yml | 44 | 44 | **100%** |
 | rules/other.yml | 44 | 46 | **96%** |
 | rules/common_words.yml | 146 | 156 | **94%** |
+| rules/video_codec.yml | 41 | 45 | **91%** |
 | rules/audio_codec.yml | 15 | 17 | **88%** |
-| rules/video_codec.yml | 39 | 45 | **87%** |
 | rules/release_group.yml | 14 | 19 | 74% |
 | rules/bonus.yml | 2 | 3 | 67% |
 | rules/date.yml | 5 | 8 | 63% |
 | rules/source.yml | 13 | 23 | 57% |
 | rules/part.yml | 5 | 9 | 56% |
+| rules/episodes.yml | 41 | 79 | 52% |
+| movies.yml | 110 | 199 | 55% |
+| episodes.yml | 246 | 488 | 50% |
 | rules/cd.yml | 1 | 2 | 50% |
 | rules/website.yml | 1 | 2 | 50% |
-| rules/episodes.yml | 39 | 79 | 49% |
-| movies.yml | 92 | 199 | 46% |
-| episodes.yml | 222 | 488 | 46% |
 | rules/title.yml | 8 | 18 | 44% |
-| various.yml | 46 | 124 | 37% |
+| various.yml | 54 | 124 | 44% |
 | rules/country.yml | 1 | 3 | 33% |
 | rules/language.yml | 3 | 9 | 33% |
 | rules/film.yml | 0 | 3 | 0% |
@@ -72,6 +72,7 @@ on all of these by definition.
 | aspect_ratio | 2 | 0 | **100.0%** |
 | bonus | 13 | 0 | **100.0%** |
 | color_depth | 28 | 0 | **100.0%** |
+| edition | 83 | 0 | **100.0%** |
 | episode_count | 6 | 0 | **100.0%** |
 | episode_details | 16 | 0 | **100.0%** |
 | film | 8 | 0 | **100.0%** |
@@ -85,18 +86,18 @@ on all of these by definition.
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| video_codec | 497 | 7 | 98.6% |
-| screen_size | 418 | 10 | 97.7% |
+| video_codec | 501 | 3 | 99.4% |
+| screen_size | 422 | 6 | 98.6% |
 | container | 146 | 5 | 96.7% |
-| edition | 80 | 3 | 96.4% |
-| year | 221 | 9 | 96.1% |
 | crc32 | 24 | 1 | 96.0% |
-| source | 527 | 33 | 94.1% |
-| audio_codec | 210 | 16 | 92.9% |
-| type | 753 | 69 | 91.6% |
+| source | 536 | 24 | 95.7% |
+| year | 219 | 11 | 95.2% |
+| audio_codec | 213 | 13 | 94.2% |
+| proper_count | 29 | 2 | 93.5% |
+| type | 762 | 60 | 92.7% |
+| season | 432 | 42 | 91.1% |
 | website | 20 | 2 | 90.9% |
 | audio_channels | 107 | 11 | 90.7% |
-| season | 427 | 47 | 90.1% |
 
 ### 🟡 Good (70–90%)
 
@@ -104,27 +105,26 @@ on all of these by definition.
 |---|---|---|---|
 | date | 23 | 3 | 88.5% |
 | uuid | 7 | 1 | 87.5% |
-| release_group | 449 | 90 | 83.3% |
-| title | 865 | 191 | 81.9% |
-| episode | 450 | 105 | 81.1% |
+| release_group | 458 | 81 | 85.0% |
+| title | 867 | 189 | 82.1% |
 | subtitle_language | 65 | 16 | 80.2% |
+| episode | 444 | 111 | 80.0% |
+| other | 270 | 79 | 77.4% |
 | country | 10 | 3 | 76.9% |
-| other | 268 | 81 | 76.8% |
 | audio_profile | 26 | 8 | 76.5% |
-| proper_count | 23 | 8 | 74.2% |
+| language | 100 | 42 | 70.4% |
 
 ### ⚠️ Developing (50–70%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| language | 95 | 47 | 66.9% |
 | part | 12 | 7 | 63.2% |
-| episode_title | 124 | 77 | 61.7% |
 | bonus_title | 8 | 5 | 61.5% |
+| episode_title | 123 | 78 | 61.2% |
 | cd | 3 | 2 | 60.0% |
 | video_profile | 8 | 6 | 57.1% |
-| cd_count | 2 | 2 | 50.0% |
 | disc | 3 | 3 | 50.0% |
+| cd_count | 2 | 2 | 50.0% |
 
 ### ❌ Not Yet Implemented (<50%)
 
@@ -144,22 +144,22 @@ on all of these by definition.
 
 ## Highest-ROI Improvements
 
-324 test cases currently fail on **exactly 1 property**. Fixing that single
+267 test cases currently fail on **exactly 1 property**. Fixing that single
 property would flip them from fail to pass. These are the highest-leverage
 targets:
 
 | Property | Single-prop fails | Impact |
 |---|---|---|
-| title | 61 | +4.7pp |
-| release_group | 46 | +3.5pp |
-| episode | 41 | +3.1pp |
-| other | 33 | +2.5pp |
-| episode_title | 24 | +1.8pp |
-| season | 19 | +1.5pp |
+| title | 59 | +4.5pp |
+| episode | 39 | +3.0pp |
+| release_group | 38 | +2.9pp |
+| other | 28 | +2.1pp |
+| episode_title | 22 | +1.7pp |
 | language | 18 | +1.4pp |
-| source | 13 | +1.0pp |
+| season | 13 | +1.0pp |
+| source | 6 | +0.5pp |
 
-Fixing all 324 would bring the pass rate from 57.4% to ~82%.
+Fixing all 267 would bring the pass rate from 61.6% to ~82%.
 
 ---
 
@@ -168,18 +168,27 @@ Fixing all 324 would bring the pass rate from 57.4% to ~82%.
 These are the areas where hunch diverges most from guessit, with
 explanations of why.
 
-### Title extraction (81.9%)
+### Title extraction (82.1%)
 
 The hardest problem. Title is "everything that's left" after all
 technical tokens are claimed. guessit uses multi-pass rules and
 title-specific heuristics that hunch hasn't fully replicated:
 
-- Parent-directory fallback (path-based inputs)
-- Titles containing year-like numbers ("2001: A Space Odyssey")
-- Titles with colons, hyphens, or dots that look like separators
+- Titles containing dots as acronyms (S.H.I.E.L.D., S.W.A.T.)
+- Titles with "Final", "Game", "Web" eaten by other matchers
 - Anime titles with brackets and group tags
+- Film numbering conventions (f17, f21)
 
-### Episode title (61.7%)
+### Episode parsing (80.0%)
+
+Most standard patterns work (S01E02, 1x03, E01-E03, S01-S10).
+Remaining gaps:
+
+- 3-digit anime episodes (One\_Piece\_679 → decomposed as S6E79)
+- Compact SSEE format (0106 → S01E06)
+- Spanish "Cap.102" chapter notation
+
+### Episode title (61.2%)
 
 Positional inference: the episode title is the unclaimed region between
 the episode number and the first technical token. guessit applies
@@ -189,8 +198,8 @@ handle.
 ### Multi-value subtitle languages
 
 Patterns like `ST{Fr-Eng}` (both French and English subtitles) require
-compound parsing that splits within brackets. Hunch currently extracts
-only the first language in these cases.
+compound parsing that splits within brackets. Hunch handles `[ENG+RU+PT]`
+but not curly-brace patterns yet.
 
 ### Niche properties at 0%
 

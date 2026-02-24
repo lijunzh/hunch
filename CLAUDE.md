@@ -19,18 +19,18 @@
 
 ## Current Status
 
-**Pass rate: 57.4%** (751 / 1,309 guessit test cases) with 42 properties
+**Pass rate: 61.6%** (806 / 1,309 guessit test cases) with 42 properties
 implemented (zero skipped).
 
 ### Accuracy Tiers
 
 | Tier | Properties | Count |
 |------|-----------|-------|
-| ✅ 100% | aspect_ratio, bonus, color_depth, film, size, streaming_service, episode_details, version, frame_rate, episode_count, season_count | 11 |
-| ✅ 95–99% | video_codec, screen_size, container, edition, crc32, year | 6 |
-| ✅ 90–95% | source, audio_codec, type, website, audio_channels, season | 6 |
-| 🟡 80–90% | date, uuid, release_group, title, episode, subtitle_language | 6 |
-| ⚠️ 60–80% | country, other, audio_profile, proper_count, language, part, episode_title, bonus_title, cd, video_profile | 10 |
+| ✅ 100% | aspect_ratio, bonus, color_depth, edition, film, size, streaming_service, episode_details, version, frame_rate, episode_count, season_count | 12 |
+| ✅ 95–99% | video_codec, screen_size, container, crc32, source, year | 6 |
+| ✅ 90–95% | audio_codec, proper_count, type, season, website, audio_channels | 6 |
+| 🟡 80–90% | date, uuid, release_group, title, subtitle_language, episode | 6 |
+| ⚠️ 60–80% | other, country, audio_profile, language, part, bonus_title, episode_title, cd, video_profile | 9 |
 | ❌ <60% | disc, cd_count, alternative_title, absolute_episode, film_title, + 4 more | 9+ |
 
 ---
@@ -188,7 +188,7 @@ src/
 
 ## Known Gaps & Improvement Areas
 
-### Title extraction (81.9%)
+### Title extraction (82.1%)
 
 The hardest problem. Title is "everything that's left" after all technical
 tokens are claimed. Key challenges:
@@ -197,13 +197,13 @@ tokens are claimed. Key challenges:
 - Titles containing year-like numbers (e.g., "2001: A Space Odyssey")
 - Anime titles with brackets and group tags
 
-### Episode title (61.7%)
+### Episode title (61.2%)
 
 Requires positional awareness: the episode title is typically the unclaimed
 region between the episode number and the first technical token. Tricky
 because it overlaps with the release group zone.
 
-### Other flags (76.8%)
+### Other flags (77.4%)
 
 Many niche patterns remain: OAD, OAR, PROOFFIX, various Screener variants,
 FanSub markers, etc. Each is a small regex addition. BRRip/BDRip Reencoded
@@ -212,8 +212,9 @@ logic is now correct.
 ### Multi-value subtitle_language
 
 Patterns like `ST{Fr-Eng}` (both French and English subtitles) need
-compound parsing that splits within brackets. Currently extracts only
-the first language.
+compound parsing that splits within brackets. Bracket-delimited
+multi-language codes like `[ENG+RU+PT]` are now supported, but
+curly-brace patterns like `ST{Fr-Eng}` are not yet handled.
 
 ---
 
@@ -225,8 +226,8 @@ the first language.
 - **DRY**: shared regex helpers go in `matcher/regex_utils.rs` (`ValuePattern`).
 - **YAGNI**: don't build Phase 3 infra now.
 - **Files under 600 lines**. If a file grows past that, split it.
-  `episodes.rs` (748) is over the limit and needs splitting.
-  `title.rs` (560) is approaching it.
+  `episodes.rs` is approaching the limit and may need splitting.
+  `title.rs` is within bounds.
 - **Tests in each module** (`#[cfg(test)] mod tests`).
 
 ### Testing strategy

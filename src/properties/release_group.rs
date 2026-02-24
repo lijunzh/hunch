@@ -74,7 +74,7 @@ impl PropertyMatcher for ReleaseGroupMatcher {
             //        `x264.D-Z0N3.mkv`    → D-Z0N3 (not just Z0N3)
             // We stop when we hit a known token or a non-hyphen/dot separator.
             let before_group = &filename[..start.saturating_sub(1)]; // before the '-'
-            let mut expanded = expand_group_backwards(before_group, &value);
+            let expanded = expand_group_backwards(before_group, &value);
             if expanded != value {
                 // Recalculate start position.
                 start = start.saturating_sub(expanded.len() - value.len());

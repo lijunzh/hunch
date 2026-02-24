@@ -9,37 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **Version matcher** (`version.rs`) — detects release versions like `v2`, `V3`,
-  `366v2` from anime fansub releases. 13/13 tests pass (100%).
-- **Frame rate matcher** (`frame_rate.rs`) — detects `24fps`, `120fps`, `1080p25`
-  patterns. 7/7 tests pass (100%).
-- **Episode count matcher** (`episode_count.rs`) — detects `X of Y` patterns for
-  episode and season totals. `Season.2of5` → season_count=5, `14.of.21` →
-  episode_count=21. 8/8 tests pass (100%).
-- `Version`, `EpisodeCount`, `SeasonCount` variants added to `Property` enum.
-- Single-property failure analysis in compatibility report for prioritization.
-- 10 new rule fixture files from guessit: bonus, cd, common_words, country,
-  date, film, language, part, size, website.
-- All 22 fixture files now wired into Rust regression tests (was 12).
-- `!!null` assertion support in regression test checker.
-- Language normalization in regression tests (ISO 2/3-letter, full names).
-- Compatibility report: `cargo test compatibility_report -- --ignored --nocapture`
-  for full per-property and per-file accuracy breakdown.
-- 204 total Rust tests (153 unit + 22 regression + 27 integration + 2 doc-tests).
+- **Directory-aware release group** — abbreviated scene filenames
+  (e.g., `wthd-cab.avi`) now correctly pull the group from the parent
+  directory (e.g., `DVDRip.XviD-TheWretched/`).
+- **Hyphenated release groups** — `D-Z0N3` and `MARINE-FORD` are now
+  captured as full group names by expanding backwards past hyphens.
+- **Multi-episode patterns** — `E02-03`, `S01E01+02`, `S01.E02.E03`
+  now produce proper episode arrays.
+- **Multi-season support** — `S01-S10` → `[1..10]`, `Season 1-3` →
+  `[1,2,3]`, `Season 1&3` → `[1,3]`.
+- **Bracket language parsing** — `[ENG+RU+PT]` now produces
+  `[en, pt, ru]` via `lang_code_to_name()` with 30+ ISO 639 codes.
+- **New language tags** — FLEMISH, Ukr, DUBLADO, Dual Audio.
+- **New other tags** — HC (Hardcoded Subtitles), COMPLET (French).
+- **Source improvements** — DVDSCR → source "DVD" (not "Screener"),
+  DLMux → Web, Ultra HD Blu-ray patterns expanded.
+- **Duplicate source pruning** — "Web" in title zone no longer eats
+  title words when WEB-DL appears later.
+- Single-property failure analysis expanded to cover all major properties.
 
 ### Changed
 
-- **Overall pass rate: 53.6% → 57.4%** (702 → 751 / 1,309 test cases).
-- **Properties at 100%: 7 → 11** (added version, frame_rate, episode_count,
-  season_count, episode_details).
-- BDRip no longer falsely emits `Reencoded` (only BRRip does).
-- YAML fixture parser now strips surrounding quotes from values and keys.
-- Regression floors tightened to (actual − 2%) across all fixture files.
-
-### Removed
-
-- `tests/validate_guessit.py` — replaced by Rust-native compatibility report.
-- Dependency on external `../guessit` repository. Everything is self-contained.
+- **Overall pass rate: 57.4% → 61.6%** (751 → 806 / 1,309 test cases).
+- **12 properties at 100%** (added edition to the perfect list).
+- Title extraction: added generic directory names (mnt, nas, films,
+  share, home), improved abbreviated filename detection.
+- `.ts` file extension no longer false-positives as Telesync.
+- Conflict resolver now allows same-span Season matches with different
+  values (enabling multi-season output).
+- Regression floors ratcheted up across all fixture files.
 
 ## [0.1.1] - 2026-02-22
 

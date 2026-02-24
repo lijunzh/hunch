@@ -3,11 +3,11 @@
 **A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
 for extracting media metadata from filenames.**
 
-> ⚠️ **Work in progress.** Hunch currently passes **57.4%** of guessit's own
-> 1,309-case test suite. Core properties like video codec, container, source,
-> year, and screen size are 96–100% accurate, but title extraction and episode
-> title inference are still maturing. See
-> [COMPATIBILITY.md](COMPATIBILITY.md) for the full breakdown.
+> ⚠️ **Work in progress.** Hunch currently passes **61.6%** of guessit's own
+> 1,309-case test suite (806 / 1,309). Core properties like video codec,
+> container, source, year, and screen size are 96–100% accurate. Title
+> extraction, episode parsing, and release group detection are steadily
+> improving. See [COMPATIBILITY.md](COMPATIBILITY.md) for the full breakdown.
 
 Hunch extracts title, year, season, episode, resolution, codec, language,
 and 40+ other properties from messy media filenames — the same job guessit
@@ -66,7 +66,7 @@ implemented. We validate against guessit's own YAML test suite:
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% (by definition) | **57.4%** (751 / 1,309) |
+| Overall pass rate | 100% (by definition) | **61.6%** (806 / 1,309) |
 | Properties implemented | 39 | 42 |
 | Properties at 90%+ | 39 | 23 |
 | Properties at 100% | 39 | 11 |
