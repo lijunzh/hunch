@@ -1,6 +1,6 @@
-//! Pipeline: orchestrates matchers → conflict resolution → post-processing → Guess.
+//! Pipeline: orchestrates matchers → conflict resolution → post-processing → HunchResult.
 
-use crate::guess::Guess;
+use crate::hunch_result::HunchResult;
 use crate::matcher::engine;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::options::Options;
@@ -74,7 +74,7 @@ impl Pipeline {
     }
 
     /// Run the full pipeline on an input string.
-    pub fn run(&self, input: &str) -> Guess {
+    pub fn run(&self, input: &str) -> HunchResult {
         // Step 1: Collect all matches from all matchers.
         let mut all_matches: Vec<MatchSpan> = self
             .matchers
@@ -113,13 +113,13 @@ impl Pipeline {
         // 3d: Compute proper_count from Other:Proper matches in the filename.
         let proper_count = compute_proper_count(input, &all_matches);
 
-        // Step 4: Build the Guess from real matches, then set computed values.
-        let mut guess = Guess::from_matches(&all_matches);
-        guess.set(Property::MediaType, media_type);
+        // Step 4: Build the HunchResult from real matches, then set computed values.
+        let mut result = HunchResult::from_matches(&all_matches);
+        result.set(Property::MediaType, media_type);
         if proper_count > 0 {
-            guess.set(Property::ProperCount, proper_count.to_string());
+            result.set(Property::ProperCount, proper_count.to_string());
         }
-        guess
+        result
     }
 
     /// Remove language matches that appear before any "technical" property.
@@ -253,49 +253,49 @@ mod tests {
     #[test]
     fn test_full_movie_parse() {
         let pipeline = Pipeline::default();
-        let guess = pipeline.run("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
+        let result = pipeline.run("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
 
-        assert_eq!(guess.title(), Some("The Matrix"));
-        assert_eq!(guess.year(), Some(1999));
-        assert_eq!(guess.screen_size(), Some("1080p"));
-        assert_eq!(guess.source(), Some("Blu-ray"));
-        assert_eq!(guess.video_codec(), Some("H.264"));
-        assert_eq!(guess.release_group(), Some("GROUP"));
-        assert_eq!(guess.container(), Some("mkv"));
+        assert_eq!(result.title(), Some("The Matrix"));
+        assert_eq!(result.year(), Some(1999));
+        assert_eq!(result.screen_size(), Some("1080p"));
+        assert_eq!(result.source(), Some("Blu-ray"));
+        assert_eq!(result.video_codec(), Some("H.264"));
+        assert_eq!(result.release_group(), Some("GROUP"));
+        assert_eq!(result.container(), Some("mkv"));
     }
 
     #[test]
     fn test_episode_parse() {
         let pipeline = Pipeline::default();
-        let guess = pipeline.run("Breaking.Bad.S05E16.720p.BluRay.x264-DEMAND.mkv");
+        let result = pipeline.run("Breaking.Bad.S05E16.720p.BluRay.x264-DEMAND.mkv");
 
-        assert_eq!(guess.title(), Some("Breaking Bad"));
-        assert_eq!(guess.season(), Some(5));
-        assert_eq!(guess.episode(), Some(16));
-        assert_eq!(guess.screen_size(), Some("720p"));
-        assert_eq!(guess.video_codec(), Some("H.264"));
-        assert_eq!(guess.release_group(), Some("DEMAND"));
+        assert_eq!(result.title(), Some("Breaking Bad"));
+        assert_eq!(result.season(), Some(5));
+        assert_eq!(result.episode(), Some(16));
+        assert_eq!(result.screen_size(), Some("720p"));
+        assert_eq!(result.video_codec(), Some("H.264"));
+        assert_eq!(result.release_group(), Some("DEMAND"));
     }
 
     #[test]
     fn test_minimal_input() {
         let pipeline = Pipeline::default();
-        let guess = pipeline.run("Movie.mkv");
+        let result = pipeline.run("Movie.mkv");
 
-        assert_eq!(guess.title(), Some("Movie"));
-        assert_eq!(guess.container(), Some("mkv"));
+        assert_eq!(result.title(), Some("Movie"));
+        assert_eq!(result.container(), Some("mkv"));
     }
 
     #[test]
     fn test_4k_hdr() {
         let pipeline = Pipeline::default();
-        let guess = pipeline.run("Movie.2024.2160p.UHD.BluRay.Remux.HDR.HEVC.DTS-HD.MA-GROUP.mkv");
+        let result = pipeline.run("Movie.2024.2160p.UHD.BluRay.Remux.HDR.HEVC.DTS-HD.MA-GROUP.mkv");
 
-        assert_eq!(guess.title(), Some("Movie"));
-        assert_eq!(guess.year(), Some(2024));
-        assert_eq!(guess.screen_size(), Some("2160p"));
-        assert_eq!(guess.video_codec(), Some("H.265"));
-        assert!(guess.other().contains(&"HDR10"));
-        assert!(guess.other().contains(&"Remux"));
+        assert_eq!(result.title(), Some("Movie"));
+        assert_eq!(result.year(), Some(2024));
+        assert_eq!(result.screen_size(), Some("2160p"));
+        assert_eq!(result.video_codec(), Some("H.265"));
+        assert!(result.other().contains(&"HDR10"));
+        assert!(result.other().contains(&"Remux"));
     }
 }

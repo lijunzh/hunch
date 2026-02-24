@@ -35,11 +35,11 @@
 pub mod matcher;
 pub mod properties;
 
-mod guess;
+mod hunch_result;
 mod options;
 mod pipeline;
 
-pub use guess::{Guess, MediaType};
+pub use hunch_result::{HunchResult, MediaType};
 pub use options::Options;
 pub use pipeline::Pipeline;
 
@@ -52,11 +52,11 @@ pub use pipeline::Pipeline;
 /// assert_eq!(result.title(), Some("Movie"));
 /// assert_eq!(result.year(), Some(2024));
 /// ```
-pub fn hunch(input: &str) -> Guess {
+pub fn hunch(input: &str) -> HunchResult {
     Pipeline::default().run(input)
 }
 
 /// Parse a media filename with custom options.
-pub fn hunch_with(input: &str, options: Options) -> Guess {
+pub fn hunch_with(input: &str, options: Options) -> HunchResult {
     Pipeline::new(options).run(input)
 }

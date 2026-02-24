@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - Initial release — Rust port of Python's guessit.
-- 27 property matchers covering all 39 guessit properties.
+- 27 property matchers covering all 49 guessit properties.
 - Span-based conflict resolution engine.
 - CLI binary (`hunch "filename.mkv"`) with JSON output.
 - Library API: `hunch()` and `hunch_with()` entry points.

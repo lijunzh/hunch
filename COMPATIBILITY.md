@@ -17,7 +17,7 @@ YAML files).
 | Passed (all props correct) | 806 |
 | Failed (any prop wrong) | 503 |
 | **Pass rate** | **61.6%** |
-| Properties implemented | 42 / 39+ |
+| Properties implemented | 46 / 49 |
 | Properties skipped | 0 |
 
 guessit passes 100% of its own tests by definition. Hunch currently

@@ -67,7 +67,7 @@ Input string
   │     ├─ Release group extraction (after last separator)
   │     └─ Media type inference (has season/episode → Episode, else Movie)
   │
-  └─ 5. Build Guess (BTreeMap<String, Vec<String>>) → JSON
+  └─ 5. Build HunchResult (BTreeMap<String, Vec<String>>) → JSON
 ```
 
 ### Key design decisions
@@ -91,9 +91,9 @@ Input string
 src/
 ├── lib.rs                  # Public API: parse()
 ├── main.rs                 # CLI binary (clap)
-├── guess.rs                # GuessResult type + typed accessors + JSON serialization
+├── hunch_result.rs         # HunchResult type + typed accessors + JSON serialization
 ├── options.rs              # Options / configuration
-├── pipeline.rs             # Orchestrates matchers → conflicts → rules → Guess
+├── pipeline.rs             # Orchestrates matchers → conflicts → rules → HunchResult
 ├── matcher/
 │   ├── mod.rs              # Re-exports
 │   ├── span.rs             # MatchSpan, Property enum (42 variants)
@@ -102,7 +102,7 @@ src/
 └── properties/             # 30 property matcher modules
     ├── mod.rs              # PropertyMatcher trait definition
     ├── title.rs            # Title extraction (positional / leftover) ~560 lines
-    ├── episodes.rs         # S01E02, 1x03, season/episode, multi-ep ~748 lines (needs split)
+    ├── episodes.rs         # S01E02, 1x03, season/episode, multi-ep
     ├── episode_count.rs    # "X of Y" episode/season count detection
     ├── year.rs             # 4-digit year detection
     ├── container.rs        # File extension (.mkv, .mp4, .srt, …)
@@ -140,7 +140,7 @@ src/
 ### Phase 1 — Core Engine + Most-used Properties ✅ COMPLETE
 
 - [x] Project scaffold (Cargo.toml, module structure)
-- [x] `MatchSpan` + `Property` enum (39 variants)
+- [x] `MatchSpan` + `Property` enum (46 variants)
 - [x] `MatchEngine::resolve_conflicts`
 - [x] `GuessResult` type with typed accessors
 - [x] `Options` struct
@@ -284,7 +284,7 @@ curly-brace patterns like `ST{Fr-Eng}` are not yet handled.
 | ------------- | --------------------------------- |
 | `regex`       | Pattern matching (no look-around) |
 | `fancy-regex` | Pattern matching with look-around |
-| `serde`       | Serialization for Guess output    |
+| `serde`       | Serialization for HunchResult output    |
 | `serde_json`  | JSON output for CLI               |
 | `clap`        | CLI argument parsing              |
 

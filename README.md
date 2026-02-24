@@ -61,15 +61,15 @@ $ hunch "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
 
 ## guessit Compatibility
 
-Hunch is a port of guessit. All 39+ of guessit's properties are
+Hunch is a port of guessit. All 49 of guessit's properties are
 implemented. We validate against guessit's own YAML test suite:
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
 | Overall pass rate | 100% (by definition) | **61.6%** (806 / 1,309) |
-| Properties implemented | 39 | 42 |
-| Properties at 90%+ | 39 | 23 |
-| Properties at 100% | 39 | 11 |
+| Properties implemented | 49 | 46 |
+| Properties at 90%+ | 49 | 23 |
+| Properties at 100% | 49 | 11 |
 
 **Where hunch matches guessit** (96–100% accuracy):
 year, video_codec, container, source, screen_size, crc32, color_depth,
@@ -103,7 +103,7 @@ Input: "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
   ├─ 2. Resolve conflicts (priority, then length)
   ├─ 3. Extract title from unclaimed leading region
   ├─ 4. Set computed properties (media type, proper count)
-  └─ 5. Build Guess (BTreeMap<Property, Vec<String>>)
+  └─ 5. Build HunchResult (BTreeMap<Property, Vec<String>>)
 ```
 
 ## Project Structure
@@ -112,7 +112,7 @@ Input: "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
 src/
 ├── lib.rs              # Public API: hunch(), hunch_with()
 ├── main.rs             # CLI binary (clap)
-├── guess.rs            # Guess result type + JSON serialization
+├── hunch_result.rs     # HunchResult type + JSON serialization
 ├── options.rs          # Configuration (media type hint, name-only mode)
 ├── pipeline.rs         # Orchestration: matchers → resolve → extract
 ├── matcher/

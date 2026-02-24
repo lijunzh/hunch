@@ -1,4 +1,4 @@
-//! The `Guess` result type — a structured bag of extracted metadata.
+//! The `HunchResult` type — a structured bag of extracted metadata.
 
 use std::collections::BTreeMap;
 
@@ -19,13 +19,13 @@ pub enum MediaType {
 /// Provides typed accessors for common properties and a generic
 /// `get(property)` for everything else.
 #[derive(Debug, Clone)]
-pub struct Guess {
+pub struct HunchResult {
     /// All properties extracted, keyed by property.
     props: BTreeMap<Property, Vec<String>>,
 }
 
-impl Guess {
-    /// Build a `Guess` from resolved match spans, deduplicating values.
+impl HunchResult {
+    /// Build a `HunchResult` from resolved match spans, deduplicating values.
     pub(crate) fn from_matches(matches: &[MatchSpan]) -> Self {
         let mut props: BTreeMap<Property, Vec<String>> = BTreeMap::new();
         for m in matches {
@@ -191,7 +191,7 @@ impl Guess {
     }
 }
 
-impl std::fmt::Display for Guess {
+impl std::fmt::Display for HunchResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let map = self.to_flat_map();
         match serde_json::to_string_pretty(&map) {
