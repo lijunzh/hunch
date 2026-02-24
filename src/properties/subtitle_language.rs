@@ -328,16 +328,24 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     // 11. Generic sub markers (only if no specific language found): subs, subbed
+    // Restrict to filename portion — bare "sub" in directory paths is noise.
+    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let filename = &input[fn_start..];
     if matches.is_empty()
-        && let Ok(Some(cap)) = GENERIC_SUB.captures(input)
+        && let Ok(Some(cap)) = GENERIC_SUB.captures(filename)
     {
         let full = cap.get(0).unwrap();
         // Check it's not part of another word we already matched
         let text = full.as_str().to_lowercase();
         if ["subs", "sub", "subbed", "subtitles", "hc", "esub", "esubs"].contains(&text.as_str()) {
             matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "und")
-                    .with_priority(-1),
+                MatchSpan::new(
+                    fn_start + full.start(),
+                    fn_start + full.end(),
+                    Property::SubtitleLanguage,
+                    "und",
+                )
+                .with_priority(-1),
             );
         }
     }

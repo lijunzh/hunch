@@ -147,7 +147,9 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     // 5. Space-separated at end: `x264.dxva EuReKA.mkv`.
+    // Only when filename has technical tokens — otherwise we'd eat title words.
     if matches.is_empty()
+        && has_technical_tokens(filename)
         && let Some(cap) = RELEASE_GROUP_SPACE_END.captures(filename)
         && let Some(group) = cap.name("group")
     {
