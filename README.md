@@ -1,5 +1,9 @@
 # 🔍 Hunch
 
+> 🤖 **This repository is entirely AI-generated with human guidance.** All code,
+> tests, and documentation were produced by AI (via [Code Puppy](https://puppy.walmart.com))
+> under the direction of a human collaborator.
+
 **A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
 for extracting media metadata from filenames.**
 
