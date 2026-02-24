@@ -1,11 +1,21 @@
 //! # Hunch
 //!
-//! A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
-//! for extracting media metadata from filenames.
+//! A Rust library for extracting media metadata from filenames,
+//! inspired by Python's [guessit](https://github.com/guessit-io/guessit).
 //!
 //! Hunch parses messy media filenames and release names into structured
 //! metadata: title, year, season, episode, video codec, audio codec,
-//! resolution, and 35+ other properties.
+//! resolution, and 40+ other properties.
+//!
+//! ## Architecture
+//!
+//! Hunch uses a span-based architecture with plain function pointers
+//! (no trait objects):
+//!
+//! 1. **29 matcher functions** scan the input and produce `MatchSpan`s
+//! 2. **Conflict resolution** keeps higher-priority / longer matches
+//! 3. **Title extraction** claims the unclaimed leading region
+//! 4. **Computed properties** (media type, proper count) are set directly
 //!
 //! ## Quick Start
 //!

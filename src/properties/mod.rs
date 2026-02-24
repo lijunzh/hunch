@@ -1,4 +1,4 @@
-//! Property matchers — each module knows how to find one type of property.
+//! Property matchers — each module exports a `find_matches(input) -> Vec<MatchSpan>` function.
 
 pub mod aspect_ratio;
 pub mod audio_codec;

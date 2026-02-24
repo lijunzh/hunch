@@ -1,4 +1,4 @@
-//! Match engine: collects matches from all property matchers, resolves conflicts.
+//! Conflict resolution for overlapping match spans.
 
 use super::span::{MatchSpan, Property};
 

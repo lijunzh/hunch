@@ -88,48 +88,48 @@ see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
 Hunch does **not** port guessit's `rebulk` engine. Instead it uses a
 simpler **span-based architecture**:
 
-1. **Match** — 30 property matchers scan the input independently and
-   produce `MatchSpan`s (start, end, property, value) with priorities.
+1. **Match** — 29 property matcher functions scan the input independently
+   and produce `MatchSpan`s (start, end, property, value) with priorities.
 2. **Resolve** — Overlapping spans are resolved by priority, then by
    length (longer matches win ties).
 3. **Extract** — Title is inferred from the largest unclaimed region
-   before the first technical property.
+   before the first technical property. Media type and proper count are
+   computed as derived values and set directly on the result.
 
 ```
 Input: "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
   │
-  ├─ 1. Pre-process: strip path, extract extension
-  ├─ 2. Run 30 property matchers → Vec<MatchSpan>
-  ├─ 3. Resolve conflicts (priority, then length)
-  ├─ 4. Extract title from unclaimed leading region
-  ├─ 5. Infer media type (episode vs movie)
-  └─ 6. Build JSON output (BTreeMap)
+  ├─ 1. Run 29 matcher functions → Vec<MatchSpan>
+  ├─ 2. Resolve conflicts (priority, then length)
+  ├─ 3. Extract title from unclaimed leading region
+  ├─ 4. Set computed properties (media type, proper count)
+  └─ 5. Build Guess (BTreeMap<Property, Vec<String>>)
 ```
 
 ## Project Structure
 
 ```
 src/
-├── lib.rs              # Public API: parse()
-├── main.rs             # CLI binary
-├── guess.rs            # GuessResult type + JSON serialization
-├── options.rs          # Configuration
+├── lib.rs              # Public API: hunch(), hunch_with()
+├── main.rs             # CLI binary (clap)
+├── guess.rs            # Guess result type + JSON serialization
+├── options.rs          # Configuration (media type hint, name-only mode)
 ├── pipeline.rs         # Orchestration: matchers → resolve → extract
 ├── matcher/
 │   ├── span.rs         # MatchSpan + Property enum (42 variants)
-│   ├── engine.rs       # Conflict resolution
-│   └── regex_utils.rs  # ValuePattern helper
-└── properties/         # 30 property matcher modules
-    ├── title.rs, episodes.rs, year.rs, version.rs, ...
-    └── mod.rs          # PropertyMatcher trait
+│   ├── engine.rs       # Conflict resolution (free function)
+│   └── regex_utils.rs  # ValuePattern helper for fancy_regex
+└── properties/         # 29 matcher functions (one module each)
+    ├── title.rs        # Title extraction + media type inference
+    ├── episodes.rs     # Season/episode detection (S01E02, 1x03, etc.)
+    ├── year.rs, source.rs, video_codec.rs, ...
+    └── mod.rs          # Module re-exports
 
 tests/
 ├── integration.rs      # 27 hand-written end-to-end tests
 ├── guessit_regression.rs # 22 regression suites + compatibility report
 ├── helpers/mod.rs      # Custom YAML fixture parser
 └── fixtures/           # Copied from guessit (self-contained)
-    ├── movies.yml, episodes.yml, various.yml
-    └── rules/          # 19 per-property test files
 
 benches/
 └── parse.rs            # Criterion benchmarks
