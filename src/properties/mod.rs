@@ -12,6 +12,7 @@ pub mod date;
 pub mod edition;
 pub mod episode_count;
 pub mod episode_details;
+pub mod episode_patterns;
 pub mod episodes;
 pub mod frame_rate;
 pub mod language;
