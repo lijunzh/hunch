@@ -145,7 +145,7 @@ src/
 - [x] `TitleExtractor` (post-processing rule)
 - [x] `Pipeline` (orchestration)
 - [x] CLI binary (`hunch "filename.mkv"`)
-- [x] Integration tests via `tests/validate_guessit.py`
+- [x] Integration tests (`tests/integration.rs` — 27 tests)
 - [x] Rust integration tests (`tests/integration.rs` — 27 tests)
 - [x] Rust regression suite (`tests/guessit_regression.rs` — 22 fixture files with ratchet floors)
 - [x] Benchmark suite (`benches/parse.rs`)
@@ -285,7 +285,8 @@ the first language.
 
 ## Reference: guessit source map
 
-For porting patterns, here's where to find them in `../guessit/`:
+For porting patterns, find the originals in the
+[guessit repo](https://github.com/guessit-io/guessit) under `guessit/rules/properties/`:
 
 | hunch module           | guessit source                                        |
 | ---------------------- | ----------------------------------------------------- |
