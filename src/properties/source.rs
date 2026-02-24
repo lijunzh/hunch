@@ -40,7 +40,7 @@ lazy_static! {
 
     static ref SOURCE_PATTERNS: Vec<SourcePattern> = vec![
         // Ultra HD Blu-ray (must come before Blu-ray).
-        SourcePattern::plain(r"(?i)(?<![a-z])(?:UHD|Ultra)[-. ]?(?:Blu[-.]?ray|BD|BR)(?![a-z])", "Ultra HD Blu-ray"),
+        SourcePattern::plain(r"(?i)(?<![a-z])(?:UHD|Ultra[-. ]?HD)[-. ]?(?:Blu[-.]?ray|BD|BR)(?![a-z])", "Ultra HD Blu-ray"),
         SourcePattern::plain(r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD|BR)[-. ]?(?:UHD|Ultra(?:[-. ]?HD)?)(?![a-z])", "Ultra HD Blu-ray"),
         SourcePattern::plain(r"(?i)(?<![a-z])(?:4K|2160p)[-. ]?(?:Blu[-.]?ray|BD|BR)(?![a-z])", "Ultra HD Blu-ray"),
         SourcePattern::plain(r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD|BR)[-. ]?(?:4K|2160p)(?![a-z])", "Ultra HD Blu-ray"),
@@ -61,6 +61,7 @@ lazy_static! {
         SourcePattern::plain(r"(?i)(?<![a-z])WEB[-.]?(?:UHD|HD)(?![a-z])", "Web"),
         SourcePattern::plain(r"(?i)(?<![a-z])DL[-.]?WEB(?![a-z])", "Web"),
         SourcePattern::plain(r"(?i)(?<![a-z])WEB(?![a-z])", "Web"),
+        SourcePattern::plain(r"(?i)(?<![a-z])DL[-.]?Mux(?![a-z])", "Web"),
         // HDTV.
         SourcePattern::plain(r"(?i)(?<![a-z])AHDTV(?![a-z])", "Analog HDTV"),
         SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?TV(?![a-z])", "HDTV"),
@@ -92,14 +93,16 @@ lazy_static! {
         SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]TS(?![a-z0-9])", "HD Telesync"),
         SourcePattern::plain(r"(?i)(?<![a-z])TELESYNC(?![a-z])", "Telesync"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])(?:TELESYNC|TS)[-.]?Rip(?![a-z])", "Telesync"),
-        SourcePattern::plain(r"(?i)(?<![a-z])TS(?![a-z])", "Telesync"),
+        SourcePattern::plain(r"(?i)(?<![a-z.])TS(?![a-z])", "Telesync"),
         // Camera.
         SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?CAM(?![a-z])", "HD Camera"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?CAM[-.]?Rip(?![a-z])", "HD Camera"),
         SourcePattern::plain(r"(?i)(?<![a-z])CAM(?![a-z])", "Camera"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])CAM[-.]?Rip(?![a-z])", "Camera"),
-        // Screener.
-        SourcePattern::plain(r"(?i)(?<![a-z])(?:DVD|BD|BR)?[-.]?SCR(?:eener)?(?![a-z])", "Screener"),
+        // Screener (with DVD prefix → maps to DVD source).
+        SourcePattern::plain(r"(?i)(?<![a-z])DVD[-.]?SCR(?:eener)?(?![a-z])", "DVD"),
+        // Generic screener (no prefix).
+        SourcePattern::plain(r"(?i)(?<![a-z])SCR(?:eener)?(?![a-z])", "Screener"),
         // PPV / VOD.
         SourcePattern::plain(r"(?i)(?<![a-z])PPV(?![a-z])", "Pay-per-view"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])PPV[-.]?Rip(?![a-z])", "Pay-per-view"),
