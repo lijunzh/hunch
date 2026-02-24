@@ -324,6 +324,7 @@ fn compatibility_report() {
     // property -> (passed, failed)
     let mut prop_stats: HashMap<String, (usize, usize)> = HashMap::new();
     let mut sample_failures: Vec<(String, String, Vec<String>)> = Vec::new();
+    let mut single_prop_failures: HashMap<String, usize> = HashMap::new();
 
     eprintln!("\n{}", "=".repeat(70));
     eprintln!("HUNCH COMPATIBILITY REPORT");
@@ -363,6 +364,13 @@ fn compatibility_report() {
                 total_passed += 1;
             } else {
                 total_failed += 1;
+                // Track single-property failures for prioritization.
+                if failures.len() == 1 {
+                    let prop_name = failures[0].split(':').next().unwrap_or("").trim();
+                    *single_prop_failures
+                        .entry(prop_name.to_string())
+                        .or_insert(0) += 1;
+                }
                 if sample_failures.len() < 30 {
                     sample_failures.push((label.to_string(), tc.filename.clone(), failures));
                 }
@@ -432,6 +440,18 @@ fn compatibility_report() {
 
     // Sample failures.
     if !sample_failures.is_empty() {
+        // Single-property failure analysis (highest-ROI fixes).
+        let mut spf: Vec<_> = single_prop_failures.iter().collect();
+        spf.sort_by(|a, b| b.1.cmp(a.1));
+        let total_single: usize = spf.iter().map(|(_, c)| **c).sum();
+        eprintln!("\nSINGLE-PROPERTY FAILURES ({total_single} test cases fail on exactly 1 prop):");
+        eprintln!("  Fixing any of these would directly increase the overall pass rate.");
+        eprintln!("  {:<25} {:>7}", "Property", "Cases");
+        eprintln!("  {:<25} {:>7}", "-".repeat(25), "-".repeat(7));
+        for (prop, count) in &spf {
+            eprintln!("  {:<25} {:>7}", prop, count);
+        }
+
         eprintln!("\nSAMPLE FAILURES (first 30):");
         for (file, filename, fails) in &sample_failures {
             let short = if filename.len() > 70 {
