@@ -203,6 +203,17 @@ mod tests {
     }
 
     #[test]
+    fn test_bdrip_no_reencoded() {
+        let m = OtherMatcher.find_matches("Movie.BDRip.720p.mkv");
+        let reenc: Vec<_> = m.iter().filter(|x| x.value == "Reencoded").collect();
+        assert!(
+            reenc.is_empty(),
+            "BDRip should not trigger Reencoded, got: {:?}",
+            reenc
+        );
+    }
+
+    #[test]
     fn test_complete_season() {
         let m = OtherMatcher.find_matches("Movie.Season.Complete.mkv");
         assert!(m.iter().any(|x| x.value == "Complete"));

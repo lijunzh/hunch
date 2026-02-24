@@ -36,7 +36,6 @@ lazy_static! {
     /// Detects whether the matched text ends with "Rip".
     static ref RIP_SUFFIX: Regex = Regex::new(r"(?i)[-.]?Rip$").unwrap();
     /// BRRip/BDRip are re-encoded from Blu-ray (not direct rips like BluRay.Rip).
-    static ref REENCODED_RIP: Regex = Regex::new(r"(?i)^(?:BR|BD)[-.]?Rip$").unwrap();
 
     static ref SOURCE_PATTERNS: Vec<SourcePattern> = vec![
         // Ultra HD Blu-ray (must come before Blu-ray).
@@ -136,10 +135,6 @@ impl PropertyMatcher for SourceMatcher {
                     let matched_text = &input[start..end];
                     if RIP_SUFFIX.is_match(matched_text).unwrap_or(false) {
                         matches.push(MatchSpan::new(start, end, Property::Other, "Rip"));
-                        // BRRip/BDRip are re-encoded from Blu-ray (not direct rips).
-                        if REENCODED_RIP.is_match(matched_text).unwrap_or(false) {
-                            matches.push(MatchSpan::new(start, end, Property::Other, "Reencoded"));
-                        }
                     }
                 }
             }
