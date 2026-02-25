@@ -47,6 +47,7 @@ static LANGUAGE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])Hebrew(?![a-z])", "Hebrew"),
         // Localized language names.
         ValuePattern::new(r"(?i)(?<![a-z])Fran[cç]ais(?:e)?(?![a-z])", "French"),
+        ValuePattern::new(r"(?i)(?<![a-z])Espa[nñ]ol[. ]Castellano(?![a-z])", "Catalan"),
         ValuePattern::new(r"(?i)(?<![a-z])Espa[nñ]ol(?![a-z])", "Spanish"),
         ValuePattern::new(r"(?i)(?<![a-z])Castellano(?![a-z])", "Catalan"),
         ValuePattern::new(r"(?i)(?<![a-z])Deutsch(?![a-z])", "German"),
