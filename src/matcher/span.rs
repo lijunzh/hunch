@@ -51,6 +51,7 @@ pub enum Property {
     Version,
     EpisodeCount,
     SeasonCount,
+    VideoApi,
 }
 
 impl fmt::Display for Property {
@@ -102,6 +103,7 @@ impl fmt::Display for Property {
             Self::Version => "version",
             Self::EpisodeCount => "episode_count",
             Self::SeasonCount => "season_count",
+            Self::VideoApi => "video_api",
         };
         write!(f, "{s}")
     }

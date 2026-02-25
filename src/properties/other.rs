@@ -176,6 +176,18 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             matches.push(span);
         }
     }
+
+    // Video API detection (DXVA).
+    static DXVA_PATTERN: LazyLock<ValuePattern> = LazyLock::new(|| {
+        ValuePattern::new(r"(?i)(?<![a-z])DXVA(?![a-z])", "DXVA")
+    });
+    for (start, end) in DXVA_PATTERN.find_iter(input) {
+        matches.push(
+            MatchSpan::new(start, end, Property::VideoApi, "DXVA")
+                .with_priority(0),
+        );
+    }
+
     matches
 }
 
