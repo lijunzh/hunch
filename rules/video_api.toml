@@ -1,0 +1,5 @@
+# Video API / hardware acceleration tags.
+property = "video_api"
+
+[exact]
+dxva = "DXVA"

@@ -1,0 +1,10 @@
+# Weak Other patterns (priority -2): tokens that are ambiguous but genuinely
+# unambiguous as STANDALONE tokens that can't be part of larger tech tags.
+#
+# Note: HD, DV, HQ, HR, LD, MD, SBS, OU, RC, FIX stay in legacy other.rs
+# because they need full-string lookaround assertions to avoid false positives
+# (e.g., HD in DTS-HD, HQ in filename, etc.)
+property = "other"
+
+[exact]
+sample = "Sample"

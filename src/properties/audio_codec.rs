@@ -1,7 +1,16 @@
 //! Audio codec and channel detection (AAC, DTS, Dolby, FLAC, etc.).
 //!
-//! Handles combined patterns like `DD5.1`, `AAC2.0`, `TrueHD51` that
-//! encode both codec + channel info in a single token.
+//! This module handles three things the TOML rules (rules/audio_codec.toml) cannot:
+//!
+//! 1. **Combined codec+channel patterns** (`DD5.1`, `AAC2.0`, `TrueHD51`) that emit
+//!    two properties (AudioCodec + AudioChannels) from a single match.
+//! 2. **Standalone channel counts** (`5.1`, `7.1`, `2ch`) that emit AudioChannels only.
+//! 3. **Full-input scanning** for codecs in path/directory segments (e.g.
+//!    `Show/[AC3 5.1]/episode.mkv`). The TOML tokenizer only processes the
+//!    filename portion, so directory-embedded codecs need the legacy full-string scan.
+//!
+//! Simple standalone codecs are in BOTH this module and audio_codec.toml.
+//! Duplicates are resolved by the conflict engine (same span + value → one kept).
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
@@ -24,6 +33,8 @@ impl CombinedPattern {
     }
 }
 
+/// Standalone codec patterns — needed for directory-path detection.
+/// Also mirrors audio_codec.toml so full-path inputs work correctly.
 static AUDIO_CODEC_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     vec![
         // Order matters: more specific patterns first.
@@ -47,7 +58,7 @@ static AUDIO_CODEC_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ),
         ValuePattern::new(r"(?i)(?<![a-z])AAC(?![a-z0-9])", "AAC"),
         ValuePattern::new(r"(?i)(?<![a-z])FLAC(?![a-z])", "FLAC"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:MP3|LAME(?:\d+-?\d+)?)(?![a-z])", "MP3"),
+        ValuePattern::new(r"(?i)(?<![a-z])(?:MP3|LAME(?:\d+[-.*]?\d+)?)(?![a-z])", "MP3"),
         ValuePattern::new(r"(?i)(?<![a-z])MP2(?![a-z])", "MP2"),
         ValuePattern::new(r"(?i)(?<![a-z])Opus(?![a-z])", "Opus"),
         ValuePattern::new(r"(?i)(?<![a-z])Vorbis(?![a-z])", "Vorbis"),
@@ -151,10 +162,20 @@ static AUDIO_CHANNELS_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
+/// Full-input codec scanner.
+///
+/// Handles three things the TOML rules cannot:
+/// 1. Combined codec+channel patterns (`DD5.1`, `TrueHD51`) — emit two properties.
+/// 2. Standalone channel counts (`5.1`, `6ch`) — emit AudioChannels only.
+/// 3. Directory-path codec detection — TOML tokenizer only sees the filename;
+///    Rust scans the full input including parent directory segments.
+///
+/// Standalone codecs run in both TOML (filename tokens) and Rust (full input).
+/// The conflict engine deduplicates same-span, same-value matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 
-    // Combined codec+channels patterns first (higher priority).
+    // Combined codec+channels patterns (emit both AudioCodec + AudioChannels).
     for cp in COMBINED_PATTERNS.iter() {
         for (start, end) in cp.vp.find_iter(input) {
             matches
@@ -165,7 +186,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         }
     }
 
-    // Standalone codec patterns.
+    // Standalone codec patterns — run on full input for directory-path detection.
     for pattern in AUDIO_CODEC_PATTERNS.iter() {
         for (start, end) in pattern.find_iter(input) {
             matches.push(MatchSpan::new(
@@ -177,7 +198,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         }
     }
 
-    // Standalone channel patterns.
+    // Standalone channel patterns (AudioChannels only).
     for pattern in AUDIO_CHANNELS_PATTERNS.iter() {
         for (start, end) in pattern.find_iter(input) {
             matches.push(MatchSpan::new(
@@ -196,23 +217,9 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_aac() {
-        let m = find_matches("Movie.AAC.mkv");
-        assert!(m.iter().any(|x| x.value == "AAC"));
-    }
-
-    #[test]
-    fn test_dts_hd_ma() {
-        let m = find_matches("Movie.DTS-HD.MA.mkv");
-        assert!(m.iter().any(|x| x.value == "DTS-HD"));
-    }
-
-    #[test]
-    fn test_atmos() {
-        let m = find_matches("Movie.Atmos.mkv");
-        assert!(m.iter().any(|x| x.value == "Dolby Atmos"));
-    }
+    // Note: standalone codec tests (AAC, DTS-HD, Atmos, EAC3, etc.) are intentionally
+    // absent here — those patterns moved to rules/audio_codec.toml and are covered
+    // by the guessit regression suite and pipeline integration tests.
 
     #[test]
     fn test_channels_51() {
@@ -232,11 +239,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_eac3() {
-        let m = find_matches("Movie.EAC3.mkv");
-        assert!(m.iter().any(|x| x.value == "Dolby Digital Plus"));
-    }
 
     #[test]
     fn test_dd51_combined() {

@@ -33,13 +33,19 @@ static AUDIO_CODEC_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_codec.toml")));
 static AUDIO_PROFILE_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_profile.toml")));
+static OTHER_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/other.toml")));
+static OTHER_WEAK_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/other_weak.toml")));
+static VIDEO_API_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_api.toml")));
 
 // ── Legacy matchers (not yet migrated to TOML) ─────────────────────────────
 
 use crate::properties::title;
 use crate::properties::{
-    aspect_ratio, audio_codec, audio_profile, bonus, container, crc32, date, episode_count,
-    episodes, frame_rate, language, other, part, release_group, screen_size, size, source,
+    aspect_ratio, audio_codec, bonus, container, crc32, date, episode_count, episodes,
+    frame_rate, language, other, part, release_group, screen_size, size, source,
     subtitle_language, uuid, version, website, year,
 };
 
@@ -74,13 +80,18 @@ impl Pipeline {
             (&COUNTRY_RULES, Property::Country, -2),
             (&AUDIO_CODEC_RULES, Property::AudioCodec, 0),
             (&AUDIO_PROFILE_RULES, Property::AudioProfile, 1),
+            (&OTHER_RULES, Property::Other, 0),
+            (&OTHER_WEAK_RULES, Property::Other, -2),
+            (&VIDEO_API_RULES, Property::VideoApi, 0),
         ];
 
         // Legacy matchers — everything not yet in TOML.
+        // Note: audio_codec is kept here only for combined codec+channel patterns (DD5.1,
+        // etc.) and standalone channel counts. Simple codec patterns are in audio_codec.toml.
+        // audio_profile is handled entirely by audio_profile.toml — no legacy needed.
         let legacy_matchers: Vec<LegacyMatcherFn> = vec![
             container::find_matches,
             audio_codec::find_matches,
-            audio_profile::find_matches,
             source::find_matches,
             screen_size::find_matches,
             aspect_ratio::find_matches,

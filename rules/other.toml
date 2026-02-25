@@ -1,0 +1,218 @@
+# Other property patterns: HDR, Remux, Proper, 3D, region codes, etc.
+# Matched token-by-token (or as 2–3-token windows), so no lookaround needed.
+#
+# IMPORTANT: Only put UNAMBIGUOUS patterns here — tokens that can only mean
+# one thing in a media filename. Short/ambiguous tokens (HD, DV, HQ, HR,
+# LD, MD, SBS, OU, FIX) stay in the legacy other.rs which uses full-string
+# lookaround assertions for accurate context detection.
+property = "other"
+
+# Single-token exact matches (case-insensitive).
+[exact]
+remux       = "Remux"
+proper      = "Proper"
+repack      = "Proper"
+rerip       = "Proper"
+reencoded   = "Reencoded"
+hdr10       = "HDR10"
+sdr         = "Standard Dynamic Range"
+fhd         = "Full HD"
+pal         = "PAL"
+ntsc        = "NTSC"
+secam       = "SECAM"
+r5          = "Region 5"
+screener    = "Screener"
+hybrid      = "Hybrid"
+preair      = "Preair"
+2in1        = "2in1"
+internal    = "Internal"
+xxx         = "XXX"
+colorized   = "Colorized"
+dubbed      = "Dubbed"
+3d          = "3D"
+repost      = "Repost"
+obfuscated  = "Obfuscated"
+obfuscation = "Obfuscated"
+scrambled   = "Obfuscated"
+complete    = "Complete"
+complet     = "Complete"
+proof       = "Proof"
+stv         = "Straight to Video"
+dirfix      = "Fix"
+nfofix      = "Fix"
+samplefix   = "Fix"
+prooffix    = "Fix"
+ova         = "Original Video"
+oad         = "Original Animation DVD"
+oar         = "Original Aspect Ratio"
+ws          = "Widescreen"
+upscaled    = "Upscaled"
+upscale     = "Upscaled"
+converted   = "Converted"
+convert     = "Converted"
+extras      = "Extras"
+extra       = "Extras"
+docu        = "Documentary"
+doku        = "Documentary"
+dokumentary = "Documentary"
+ldtv        = "Low Definition"
+
+# Case-sensitive exact matches — only tokens that are exclusively these values.
+[exact_sensitive]
+REAL  = "Proper"
+
+# Multi-token and complex patterns.
+
+[[patterns]]
+# HDR10+ (has + suffix, not matched by plain exact)
+match = '(?i)^hdr10\+$'
+value = "HDR10+"
+
+[[patterns]]
+# HDR without number — treat as HDR10
+match = '(?i)^hdr$'
+value = "HDR10"
+
+[[patterns]]
+# Dolby Vision / DolbyVision
+match = '(?i)^dolby[- .]?vision$'
+value = "Dolby Vision"
+
+[[patterns]]
+# BT.2020 / BT-2020 / BT 2020
+match = '(?i)^bt[- .]?2020$'
+value = "BT.2020"
+
+[[patterns]]
+# Full HD / FullHD / Full-HD
+match = '(?i)^full[- .]?hd$'
+value = "Full HD"
+
+[[patterns]]
+# Ultra HD / UltraHD
+match = '(?i)^ultra[- .]?hd$'
+value = "Ultra HD"
+
+[[patterns]]
+# UHD (standalone — not part of UHD TV which is in source)
+match = '(?i)^uhd$'
+value = "Ultra HD"
+
+[[patterns]]
+# Netflix UHD
+match = '(?i)^netflix[- .]?uhd$'
+value = "Ultra HD"
+
+[[patterns]]
+# Micro HD / mHD / HDLight
+match = '(?i)^(?:mhd|hdlight)$'
+value = "Micro HD"
+
+[[patterns]]
+# WideScreen / Wide Screen / Wide-Screen
+match = '(?i)^wide[- .]?screen$'
+value = "Widescreen"
+
+[[patterns]]
+# REPACK + digit suffix (e.g. REPACK2)
+match = '(?i)^(?:repack|rerip)\d+$'
+value = "Proper"
+
+[[patterns]]
+# Re-encoded / re.enc / reenc
+match = '(?i)^re[- .]?enc(?:oded)?$'
+value = "Reencoded"
+
+[[patterns]]
+# BRRip implies re-encoding from Blu-ray
+match = '(?i)^brrip$'
+value = "Reencoded"
+
+[[patterns]]
+# Audio Fix / Audio-Fix
+match = '(?i)^audio[- .]?fix(?:ed)?$'
+value = "Audio Fixed"
+
+[[patterns]]
+# Sync Fix / Sync-Fix
+match = '(?i)^sync[- .]?fix(?:ed)?$'
+value = "Sync Fixed"
+
+[[patterns]]
+# Hardcoded Subtitles: HCSUB / HC SUBS / HARDCODED SUBS
+match = '(?i)^(?:hardcoded|hc)[- .]?subs?$'
+value = "Hardcoded Subtitles"
+
+[[patterns]]
+# Fan Sub / FanSubbed / FanSub
+match = '(?i)^fan[- .]?sub(?:bed|titled|s)?$'
+value = "Fan Subtitled"
+
+[[patterns]]
+# Fast Sub / FastSubbed
+match = '(?i)^fast[- .]?sub(?:bed|titled|s)?$'
+value = "Fast Subtitled"
+
+[[patterns]]
+# Dual Audio / Dual-Audio
+match = '(?i)^dual[- .]?audio$'
+value = "Dual Audio"
+
+[[patterns]]
+# Multi Audio / Multi-Audio
+match = '(?i)^multi[- .]?audio$'
+value = "Multi Audio"
+
+[[patterns]]
+# Side-by-Side / Half-SBS
+match = '(?i)^(?:half[- .]?)?(?:sbs|side[- .]?by[- .]?side)$'
+value = "3D"
+
+[[patterns]]
+# Over-Under / Half-OU
+match = '(?i)^(?:half[- .]?)?(?:ou|over[- .]?under)$'
+value = "3D"
+
+[[patterns]]
+# Pre-Air / PreAir
+match = '(?i)^pre[- .]?air$'
+value = "Preair"
+
+[[patterns]]
+# Read.NFO / ReadNFO
+match = '(?i)^read\.?nfo$'
+value = "Read NFO"
+
+[[patterns]]
+# Mux variants
+match = '(?i)^(?:divx|xvid)?[- .]?mux$'
+value = "Mux"
+
+[[patterns]]
+# Straight to Video
+match = '(?i)^straight[- .]?to[- .]?video$'
+value = "Straight to Video"
+
+[[patterns]]
+# Original Aspect Ratio (multi-token)
+match = '(?i)^original[- .]?aspect[- .]?ratio$'
+value = "Original Aspect Ratio"
+
+[[patterns]]
+# Open Matte / Open-Matte
+match = '(?i)^open[- .]?matte$'
+value = "Open Matte"
+
+[[patterns]]
+# East/West Coast Feed
+match = '(?i)^(?:east|est)[- .]?(?:coast[- .]?)?feed$'
+value = "East Coast Feed"
+
+[[patterns]]
+match = '(?i)^(?:west|wst)[- .]?(?:coast[- .]?)?feed$'
+value = "West Coast Feed"
+
+[[patterns]]
+# Documentary variants: DOKU, DOCU, DOCUMENTARY
+match = '(?i)^dok[cu](?:mentary)?$'
+value = "Documentary"
