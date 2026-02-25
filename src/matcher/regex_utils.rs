@@ -2,7 +2,7 @@
 //!
 //! Patterns use standard `regex` for the core match plus post-match
 //! boundary checks to replace the lookaround assertions that would
-//! otherwise require `fancy_regex`.
+//! otherwise require a fancy-regex crate.
 
 use regex::Regex;
 
@@ -49,7 +49,7 @@ impl CharClass {
 ///
 /// Uses standard `regex::Regex` with post-match boundary checks when
 /// possible, falling back to `fancy_regex` for patterns with internal
-/// lookarounds that can't be stripped.
+/// lookarounds.
 pub struct ValuePattern {
     inner: CompiledPattern,
     pub value: &'static str,
@@ -65,24 +65,17 @@ enum CompiledPattern {
 impl ValuePattern {
     /// Create a new ValuePattern.
     ///
-    /// The `pattern` string may contain leading `(?<![charclass])` and
-    /// trailing `(?![charclass])` assertions. These are stripped and
-    /// converted to boundary specs for post-match checking.
-    ///
-    /// If the remaining pattern still contains lookarounds (internal
-    /// ones that can't be stripped), falls back to `fancy_regex`.
+    /// Leading/trailing lookaround assertions are stripped and converted
+    /// to boundary specs. If the remaining pattern still contains
+    /// lookarounds, falls back to `fancy_regex`.
     pub fn new(pattern: &str, value: &'static str) -> Self {
         let (core, boundary) = strip_boundaries(pattern);
         let inner = match Regex::new(&core) {
             Ok(re) => CompiledPattern::Standard(re),
-            Err(_) => {
-                // Standard regex failed — pattern has internal lookarounds.
-                // Fall back to fancy_regex with the ORIGINAL pattern.
-                CompiledPattern::Fancy(
-                    fancy_regex::Regex::new(pattern)
-                        .unwrap_or_else(|e| panic!("Bad regex `{pattern}`: {e}")),
-                )
-            }
+            Err(_) => CompiledPattern::Fancy(
+                fancy_regex::Regex::new(pattern)
+                    .unwrap_or_else(|e| panic!("Bad regex `{pattern}`: {e}")),
+            ),
         };
         Self {
             inner,
@@ -104,8 +97,6 @@ impl ValuePattern {
                             results.push((m.start(), m.end()));
                             pos = m.end().max(pos + 1);
                         } else {
-                            // Boundary failed — retry one byte later to find
-                            // a shorter/different match at a valid position.
                             pos = m.start() + 1;
                         }
                     } else {
@@ -115,7 +106,7 @@ impl ValuePattern {
                 results
             }
             CompiledPattern::Fancy(re) => {
-                // Fancy regex path — boundaries are embedded in the pattern.
+                // Boundaries embedded in pattern.
                 let mut results = Vec::new();
                 let mut start = 0;
                 while start < input.len() {
@@ -314,29 +305,62 @@ fn parse_char_class(s: &str, case_insensitive: bool) -> Option<CharClass> {
     }
 }
 
-/// Iterate non-overlapping captures from a `fancy_regex::Regex`.
+/// A standard `regex::Regex` paired with an auto-extracted boundary spec.
 ///
-/// The standard `fancy_regex` crate lacks a `captures_iter` method,
-/// so we implement one via `captures_from_pos`.
+/// Construct from a pattern that may include lookaround assertions — they
+/// are automatically stripped and enforced via post-match boundary checks.
 ///
-/// TODO: Remove once all patterns are migrated away from fancy_regex.
-pub fn captures_iter<'a>(
-    re: &'a fancy_regex::Regex,
+/// Panics if the core pattern (after stripping) is invalid or still contains
+/// lookarounds.
+pub struct BoundedRegex {
+    re: Regex,
+    pub boundary: BoundarySpec,
+}
+
+impl BoundedRegex {
+    /// Create from a pattern string, auto-stripping leading/trailing lookarounds.
+    pub fn new(pattern: &str) -> Self {
+        let (core, boundary) = strip_boundaries(pattern);
+        let re = Regex::new(&core).unwrap_or_else(|e| {
+            panic!("BoundedRegex: bad pattern `{core}` (from `{pattern}`): {e}")
+        });
+        Self { re, boundary }
+    }
+
+    /// Iterate all non-overlapping captures with boundary checking.
+    pub fn captures_iter<'a>(&'a self, input: &'a str) -> Vec<regex::Captures<'a>> {
+        captures_iter_bounded(&self.re, input, &self.boundary)
+    }
+
+    /// Return the first capture (with boundary checking).
+    pub fn captures<'a>(&'a self, input: &'a str) -> Option<regex::Captures<'a>> {
+        captures_iter_bounded(&self.re, input, &self.boundary)
+            .into_iter()
+            .next()
+    }
+}
+
+/// Like `captures_iter` but uses standard `regex::Regex` + boundary checking.
+pub fn captures_iter_bounded<'a>(
+    re: &'a regex::Regex,
     input: &'a str,
-) -> Vec<fancy_regex::Captures<'a>> {
+    boundary: &BoundarySpec,
+) -> Vec<regex::Captures<'a>> {
+    let bytes = input.as_bytes();
     let mut results = Vec::new();
-    let mut start = 0;
-    while start < input.len() {
-        match re.captures_from_pos(input, start) {
-            Ok(Some(cap)) => {
-                if let Some(full) = cap.get(0) {
-                    results.push(cap);
-                    start = full.end().max(start + 1);
-                } else {
-                    break;
-                }
-            }
-            _ => break,
+    let mut pos = 0;
+    while pos < input.len() {
+        let Some(cap) = re.captures_at(input, pos) else {
+            break;
+        };
+        let Some(full) = cap.get(0) else {
+            break;
+        };
+        if check_boundary(bytes, full.start(), full.end(), boundary) {
+            results.push(cap);
+            pos = full.end().max(pos + 1);
+        } else {
+            pos = full.start() + 1;
         }
     }
     results

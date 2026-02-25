@@ -5,8 +5,7 @@ use crate::matcher::span::{MatchSpan, Property};
 use regex::Regex;
 use std::sync::LazyLock;
 
-static RES_SCAN_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(\d+)([ip]|hd)").unwrap());
+static RES_SCAN_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(\d+)([ip]|hd)").unwrap());
 static DIGITS_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)").unwrap());
 
 static STANDARD_RES: LazyLock<ValuePattern> = LazyLock::new(|| {

@@ -136,16 +136,16 @@ static COMBINED_PATTERNS: LazyLock<Vec<CombinedPattern>> = LazyLock::new(|| {
 static AUDIO_CHANNELS_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     vec![
         // Explicit channel counts.
-        ValuePattern::new(r"(?i)(?<![a-z0-9])(?:8ch|7[\W_]1(?:ch)?)(?=[^\d]|$)", "7.1"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])7ch(?=[^\d]|$)", "7.1"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])(?:6ch|5[\W_]1(?:ch)?)(?=[^\d]|$)", "5.1"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])5ch(?=[^\d]|$)", "5.1"),
+        ValuePattern::new(r"(?i)(?<![a-z0-9])(?:8ch|7[\W_]1(?:ch)?)(?![0-9])", "7.1"),
+        ValuePattern::new(r"(?i)(?<![a-z0-9])7ch(?![0-9])", "7.1"),
+        ValuePattern::new(r"(?i)(?<![a-z0-9])(?:6ch|5[\W_]1(?:ch)?)(?![0-9])", "5.1"),
+        ValuePattern::new(r"(?i)(?<![a-z0-9])5ch(?![0-9])", "5.1"),
         ValuePattern::new(
-            r"(?i)(?<![a-z0-9])(?:2ch|2[\W_]0(?:ch)?|stereo)(?=[^\d]|$)",
+            r"(?i)(?<![a-z0-9])(?:2ch|2[\W_]0(?:ch)?|stereo)(?![0-9])",
             "2.0",
         ),
         ValuePattern::new(
-            r"(?i)(?<![a-z0-9])(?:mono|1ch|1[\W_]0(?:ch)?)(?=[^\d]|$)",
+            r"(?i)(?<![a-z0-9])(?:mono|1ch|1[\W_]0(?:ch)?)(?![0-9])",
             "1.0",
         ),
     ]

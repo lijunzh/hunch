@@ -13,7 +13,7 @@ readme = "README.md"
 
 [dependencies]
 regex = "1"
-fancy-regex = "0.14"
+fancy-regex = "0.14"  # fallback for patterns with internal lookarounds
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 clap = { version = "4", features = ["derive"] }
