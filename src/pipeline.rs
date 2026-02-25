@@ -65,11 +65,28 @@ use crate::properties::{
 type LegacyMatcherFn = fn(&str) -> Vec<MatchSpan>;
 
 /// The parsing pipeline.
+/// Whether a TOML rule set should match tokens from directory segments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SegmentScope {
+    /// Match only filename tokens. Use for tech properties (source, codec, etc.)
+    /// where directory names like "TV Shows" or "HD" would cause false positives.
+    FilenameOnly,
+    /// Match tokens from all path segments. Directory matches receive a priority
+    /// penalty (`DIR_PRIORITY_PENALTY`) so filename matches always win in conflicts.
+    /// Use for contextual properties (season, year, language) where directories
+    /// carry genuine metadata ("Season 01/", "(2008)/", "VF/").
+    AllSegments,
+}
+
+/// Priority penalty applied to matches from directory segments.
+/// Ensures filename matches always win over directory matches in conflict resolution.
+const DIR_PRIORITY_PENALTY: i32 = -5;
+
 pub struct Pipeline {
     #[allow(dead_code)]
     options: Options,
-    /// TOML-driven rule sets: (rules, property, priority).
-    toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32)>,
+    /// TOML-driven rule sets: (rules, property, priority, segment_scope).
+    toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)>,
     /// Legacy matchers that run against raw input (to be migrated).
     legacy_matchers: Vec<LegacyMatcherFn>,
 }
@@ -82,26 +99,35 @@ impl Default for Pipeline {
 
 impl Pipeline {
     pub fn new(options: Options) -> Self {
-        let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32)> = vec![
-            (&VIDEO_CODEC_RULES, Property::VideoCodec, 0),
-            (&COLOR_DEPTH_RULES, Property::ColorDepth, 0),
-            (&STREAMING_SERVICE_RULES, Property::StreamingService, 1),
-            (&VIDEO_PROFILE_RULES, Property::VideoProfile, -2),
-            (&EPISODE_DETAILS_RULES, Property::EpisodeDetails, -1),
-            (&EDITION_RULES, Property::Edition, 0),
-            (&COUNTRY_RULES, Property::Country, -2),
-            (&AUDIO_CODEC_RULES, Property::AudioCodec, 0),
-            (&AUDIO_PROFILE_RULES, Property::AudioProfile, 1),
-            (&OTHER_RULES, Property::Other, 0),
-            (&OTHER_WEAK_RULES, Property::Other, -2),
-            (&VIDEO_API_RULES, Property::VideoApi, 0),
-            // Phase-2 TOML rules (complete migration layout)
-            (&SOURCE_RULES, Property::Source, 0),
-            (&SCREEN_SIZE_RULES, Property::ScreenSize, 0),
-            (&CONTAINER_RULES, Property::Container, 5),
-            (&FRAME_RATE_RULES, Property::FrameRate, 0),
-            (&LANGUAGE_RULES, Property::Language, -1),
-            (&SUBTITLE_LANGUAGE_RULES, Property::SubtitleLanguage, -1),
+        let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)> = vec![
+            // Tech properties: filename only (dirs would cause false positives)
+            (&VIDEO_CODEC_RULES, Property::VideoCodec, 0, SegmentScope::FilenameOnly),
+            (&COLOR_DEPTH_RULES, Property::ColorDepth, 0, SegmentScope::FilenameOnly),
+            (&STREAMING_SERVICE_RULES, Property::StreamingService, 1, SegmentScope::FilenameOnly),
+            (&VIDEO_PROFILE_RULES, Property::VideoProfile, -2, SegmentScope::FilenameOnly),
+            (&EPISODE_DETAILS_RULES, Property::EpisodeDetails, -1, SegmentScope::FilenameOnly),
+            (&EDITION_RULES, Property::Edition, 0, SegmentScope::FilenameOnly),
+            (&AUDIO_CODEC_RULES, Property::AudioCodec, 0, SegmentScope::FilenameOnly),
+            (&AUDIO_PROFILE_RULES, Property::AudioProfile, 1, SegmentScope::FilenameOnly),
+            (&OTHER_RULES, Property::Other, 0, SegmentScope::FilenameOnly),
+            (&OTHER_WEAK_RULES, Property::Other, -2, SegmentScope::FilenameOnly),
+            (&VIDEO_API_RULES, Property::VideoApi, 0, SegmentScope::FilenameOnly),
+            (&SOURCE_RULES, Property::Source, 0, SegmentScope::FilenameOnly),
+            (&SCREEN_SIZE_RULES, Property::ScreenSize, 0, SegmentScope::FilenameOnly),
+            (&CONTAINER_RULES, Property::Container, 5, SegmentScope::FilenameOnly),
+            (&FRAME_RATE_RULES, Property::FrameRate, 0, SegmentScope::FilenameOnly),
+            // Contextual properties: match all segments (dirs carry real metadata)
+            // NOTE: Language, SubtitleLanguage, and Country are kept FilenameOnly
+            // for now because directory names contain title words that false-match
+            // language patterns (e.g., "Por" → Portuguese, "Fr" → French).
+            // Directory-level language/season/year extraction is handled by the
+            // legacy algorithmic matchers (language.rs, episodes.rs, year.rs)
+            // which run on the raw input string.
+            // When those legacy matchers are retired, we'll need segment-aware
+            // zone rules to filter directory title words from language matches.
+            (&COUNTRY_RULES, Property::Country, -2, SegmentScope::FilenameOnly),
+            (&LANGUAGE_RULES, Property::Language, -1, SegmentScope::FilenameOnly),
+            (&SUBTITLE_LANGUAGE_RULES, Property::SubtitleLanguage, -1, SegmentScope::FilenameOnly),
         ];
 
         // Legacy matchers — everything not yet in TOML.
@@ -177,96 +203,35 @@ impl Pipeline {
     fn match_all(&self, input: &str, token_stream: &TokenStream) -> Vec<MatchSpan> {
         let mut matches = Vec::new();
 
-        // TOML rules: match against filename-segment tokens only.
-        // Directory tokens (e.g., "TV" from "/TV Shows/") should not be
-        // matched as source/codec/etc. — they are title context, not tech.
-        let tokens: Vec<&tokenizer::Token> = token_stream
-            .segments
-            .iter()
-            .filter(|s| s.kind == tokenizer::SegmentKind::Filename)
-            .flat_map(|s| &s.tokens)
-            .collect();
-        // Deref to slice of borrowed tokens for the matching loop.
-        let tokens = &tokens;
-        for (rule_set, property, priority) in &self.toml_rules {
-            let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
+        // TOML rules: segment-aware matching.
+        // Each rule set declares its SegmentScope:
+        //   FilenameOnly  → skip directory segments entirely
+        //   AllSegments   → match dirs too, but with a priority penalty
+        for (rule_set, property, priority, scope) in &self.toml_rules {
+            for segment in &token_stream.segments {
+                let is_dir = segment.kind == tokenizer::SegmentKind::Directory;
 
-            // Try windows of 1, 2, and 3 tokens (longest first).
-            for window_size in (1..=3).rev() {
-                for i in 0..tokens.len() {
-                    if i + window_size > tokens.len() {
-                        break;
-                    }
-
-                    // Skip if any part of this window is already matched.
-                    let win_start = tokens[i].start;
-                    let win_end = tokens[i + window_size - 1].end;
-                    if matched_ranges
-                        .iter()
-                        .any(|(s, e)| win_start < *e && win_end > *s)
-                    {
-                        continue;
-                    }
-
-                    // Build the compound text from the raw input (preserving separators).
-                    let compound = if window_size == 1 {
-                        tokens[i].text.clone()
-                    } else {
-                        input[win_start..win_end].to_string()
-                    };
-
-                    if let Some(token_match) = rule_set.match_token(&compound) {
-                        // ── Neighbor constraint checks ──────────────────
-                        // not_before: reject if NEXT token is in the blocklist.
-                        let last_token_idx = i + window_size - 1;
-                        if let Some(ref blocked) = token_match.not_before {
-                            if last_token_idx + 1 < tokens.len() {
-                                let next = tokens[last_token_idx + 1].text.to_lowercase();
-                                if blocked.iter().any(|b| b == &next) {
-                                    continue;
-                                }
-                            }
-                        }
-                        // not_after: reject if PREVIOUS token is in the blocklist.
-                        if let Some(ref blocked) = token_match.not_after {
-                            if i > 0 {
-                                let prev = tokens[i - 1].text.to_lowercase();
-                                if blocked.iter().any(|b| b == &prev) {
-                                    continue;
-                                }
-                            }
-                        }
-                        // requires_after: reject UNLESS next token is in the allowlist.
-                        if let Some(ref required) = token_match.requires_after {
-                            let next_ok = if last_token_idx + 1 < tokens.len() {
-                                let next = tokens[last_token_idx + 1].text.to_lowercase();
-                                required.iter().any(|r| r == &next)
-                            } else {
-                                false
-                            };
-                            if !next_ok {
-                                continue;
-                            }
-                        }
-
-                        // ── Primary match ───────────────────────────────
-                        matches.push(
-                            MatchSpan::new(win_start, win_end, *property, token_match.value)
-                                .with_priority(*priority),
-                        );
-                        matched_ranges.push((win_start, win_end));
-
-                        // ── Side effects: emit additional spans ─────────
-                        for se in &token_match.side_effects {
-                            if let Some(se_prop) = Property::from_name(&se.property) {
-                                matches.push(
-                                    MatchSpan::new(win_start, win_end, se_prop, &se.value)
-                                        .with_priority(*priority),
-                                );
-                            }
-                        }
-                    }
+                // Skip directory segments for filename-only rules.
+                if is_dir && *scope == SegmentScope::FilenameOnly {
+                    continue;
                 }
+
+                // Directory matches get a priority penalty so filename wins in conflicts.
+                let effective_priority = if is_dir {
+                    *priority + DIR_PRIORITY_PENALTY
+                } else {
+                    *priority
+                };
+
+                let tokens = &segment.tokens;
+                self.match_tokens_in_segment(
+                    input,
+                    tokens,
+                    rule_set,
+                    *property,
+                    effective_priority,
+                    &mut matches,
+                );
             }
         }
 
@@ -288,6 +253,93 @@ impl Pipeline {
         }
 
         matches
+    }
+
+    /// Match tokens within a single segment against a TOML rule set.
+    ///
+    /// Uses a sliding window of 1–3 tokens (longest first) to handle compound
+    /// patterns like "WEB-DL" or "HD-DVD". Emits primary matches and any
+    /// side-effect spans declared in the TOML pattern.
+    fn match_tokens_in_segment(
+        &self,
+        input: &str,
+        tokens: &[tokenizer::Token],
+        rule_set: &RuleSet,
+        property: Property,
+        priority: i32,
+        matches: &mut Vec<MatchSpan>,
+    ) {
+        let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
+
+        for window_size in (1..=3).rev() {
+            for i in 0..tokens.len() {
+                if i + window_size > tokens.len() {
+                    break;
+                }
+
+                let win_start = tokens[i].start;
+                let win_end = tokens[i + window_size - 1].end;
+                if matched_ranges
+                    .iter()
+                    .any(|(s, e)| win_start < *e && win_end > *s)
+                {
+                    continue;
+                }
+
+                let compound = if window_size == 1 {
+                    tokens[i].text.clone()
+                } else {
+                    input[win_start..win_end].to_string()
+                };
+
+                if let Some(token_match) = rule_set.match_token(&compound) {
+                    // ── Neighbor constraint checks ──────────────────
+                    let last_idx = i + window_size - 1;
+                    if let Some(ref blocked) = token_match.not_before {
+                        if last_idx + 1 < tokens.len() {
+                            let next = tokens[last_idx + 1].text.to_lowercase();
+                            if blocked.iter().any(|b| b == &next) {
+                                continue;
+                            }
+                        }
+                    }
+                    if let Some(ref blocked) = token_match.not_after {
+                        if i > 0 {
+                            let prev = tokens[i - 1].text.to_lowercase();
+                            if blocked.iter().any(|b| b == &prev) {
+                                continue;
+                            }
+                        }
+                    }
+                    if let Some(ref required) = token_match.requires_after {
+                        let ok = last_idx + 1 < tokens.len()
+                            && required.iter().any(|r| {
+                                r == &tokens[last_idx + 1].text.to_lowercase()
+                            });
+                        if !ok {
+                            continue;
+                        }
+                    }
+
+                    // ── Primary match ───────────────────────────────
+                    matches.push(
+                        MatchSpan::new(win_start, win_end, property, token_match.value)
+                            .with_priority(priority),
+                    );
+                    matched_ranges.push((win_start, win_end));
+
+                    // ── Side effects ────────────────────────────────
+                    for se in &token_match.side_effects {
+                        if let Some(se_prop) = Property::from_name(&se.property) {
+                            matches.push(
+                                MatchSpan::new(win_start, win_end, se_prop, &se.value)
+                                    .with_priority(priority),
+                            );
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Zone-based disambiguation.
