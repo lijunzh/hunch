@@ -1,0 +1,10 @@
+# Country code patterns.
+property = "country"
+
+[exact]
+us = "US"
+uk = "GB"
+gb = "GB"
+ca = "CA"
+au = "AU"
+nz = "NZ"

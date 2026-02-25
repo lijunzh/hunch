@@ -17,6 +17,19 @@ use std::sync::LazyLock;
 
 static VIDEO_CODEC_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_codec.toml")));
+static COLOR_DEPTH_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/color_depth.toml")));
+#[allow(dead_code)] // TOML ready, needs case-sensitive matching support
+static COUNTRY_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/country.toml")));
+static STREAMING_SERVICE_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/streaming_service.toml")));
+static VIDEO_PROFILE_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_profile.toml")));
+static EPISODE_DETAILS_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/episode_details.toml")));
+static EDITION_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/edition.toml")));
 
 // ── Legacy matchers (not yet migrated to TOML) ─────────────────────────────
 
@@ -35,8 +48,8 @@ type LegacyMatcherFn = fn(&str) -> Vec<MatchSpan>;
 pub struct Pipeline {
     #[allow(dead_code)]
     options: Options,
-    /// TOML-driven rule sets matched against individual tokens.
-    toml_rules: Vec<(&'static LazyLock<RuleSet>, Property)>,
+    /// TOML-driven rule sets: (rules, property, priority).
+    toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32)>,
     /// Legacy matchers that run against raw input (to be migrated).
     legacy_matchers: Vec<LegacyMatcherFn>,
 }
@@ -49,31 +62,37 @@ impl Default for Pipeline {
 
 impl Pipeline {
     pub fn new(options: Options) -> Self {
-        let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property)> =
-            vec![(&VIDEO_CODEC_RULES, Property::VideoCodec)];
+        let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32)> = vec![
+            (&VIDEO_CODEC_RULES, Property::VideoCodec, 0),
+            (&COLOR_DEPTH_RULES, Property::ColorDepth, 0),
+            (&STREAMING_SERVICE_RULES, Property::StreamingService, 1),
+            (&VIDEO_PROFILE_RULES, Property::VideoProfile, -2),
+            (&EPISODE_DETAILS_RULES, Property::EpisodeDetails, -1),
+            (&EDITION_RULES, Property::Edition, 0),
+        ];
 
         // Legacy matchers — everything not yet in TOML.
         let legacy_matchers: Vec<LegacyMatcherFn> = vec![
             container::find_matches,
-            video_codec::find_matches, // TEMPORARY: keep legacy alongside TOML for debugging
+            video_codec::find_matches, // legacy kept alongside TOML for compound-codec edge cases
             audio_codec::find_matches,
             audio_profile::find_matches,
-            video_profile::find_matches,
-            color_depth::find_matches,
+            video_profile::find_matches, // legacy kept for lookaround edge cases
+            color_depth::find_matches,   // legacy kept for multi-token compounds
             source::find_matches,
             screen_size::find_matches,
             aspect_ratio::find_matches,
             year::find_matches,
             date::find_matches,
             episodes::find_matches,
-            episode_details::find_matches,
+            episode_details::find_matches, // legacy kept for negative lookahead (Special Edition)
             episode_count::find_matches,
-            edition::find_matches,
+            edition::find_matches, // legacy kept for multi-token compounds
             other::find_matches,
             language::find_matches,
             subtitle_language::find_matches,
-            country::find_matches,
-            streaming_service::find_matches,
+            country::find_matches, // legacy kept for 2-char boundary detection
+            streaming_service::find_matches, // legacy kept for compound patterns
             crc32::find_matches,
             uuid::find_matches,
             website::find_matches,
@@ -132,7 +151,7 @@ impl Pipeline {
 
         // TOML rules: match tokens and multi-token windows.
         let tokens = &token_stream.tokens;
-        for (rule_set, property) in &self.toml_rules {
+        for (rule_set, property, priority) in &self.toml_rules {
             let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
 
             // Try windows of 1, 2, and 3 tokens (longest first).
@@ -160,7 +179,10 @@ impl Pipeline {
                     };
 
                     if let Some(value) = rule_set.match_token(&compound) {
-                        matches.push(MatchSpan::new(win_start, win_end, *property, value));
+                        matches.push(
+                            MatchSpan::new(win_start, win_end, *property, value)
+                                .with_priority(*priority),
+                        );
                         matched_ranges.push((win_start, win_end));
                     }
                 }
@@ -417,5 +439,44 @@ mod tests {
         let pipeline = Pipeline::default();
         let result = pipeline.run("Movie.HEVC.1080p.mkv");
         assert_eq!(result.video_codec(), Some("H.265"));
+    }
+
+    #[test]
+    fn test_toml_color_depth() {
+        let pipeline = Pipeline::default();
+        let result = pipeline.run("Movie.10bit.1080p.mkv");
+        assert_eq!(result.color_depth(), Some("10-bit"));
+    }
+
+    #[test]
+    fn test_toml_streaming_service() {
+        let pipeline = Pipeline::default();
+        let result = pipeline.run("Show.S01E01.AMZN.WEB-DL.1080p.mkv");
+        assert_eq!(result.streaming_service(), Some("Amazon Prime"));
+    }
+
+    #[test]
+    fn test_toml_edition_multi_token() {
+        let pipeline = Pipeline::default();
+        let result = pipeline.run("Movie.Directors.Cut.1080p.BluRay.mkv");
+        assert_eq!(result.edition(), Some("Director's Cut"));
+    }
+
+    #[test]
+    fn test_toml_edition_single_token() {
+        let pipeline = Pipeline::default();
+        let result = pipeline.run("Movie.Remastered.1080p.BluRay.mkv");
+        assert_eq!(result.edition(), Some("Remastered"));
+    }
+
+    #[test]
+    fn test_toml_rules_load() {
+        // Smoke test: all TOML rule sets parse and have entries.
+        assert!(VIDEO_CODEC_RULES.exact_count() >= 10);
+        assert!(COLOR_DEPTH_RULES.exact_count() >= 3);
+        assert!(STREAMING_SERVICE_RULES.exact_count() >= 10);
+        assert!(VIDEO_PROFILE_RULES.exact_count() >= 5);
+        assert!(EPISODE_DETAILS_RULES.exact_count() >= 4);
+        assert!(EDITION_RULES.exact_count() >= 10);
     }
 }

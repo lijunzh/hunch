@@ -1,0 +1,126 @@
+# Edition detection patterns.
+property = "edition"
+
+# Single-token exact matches.
+[exact]
+ddc          = "Director's Definitive Cut"
+dc           = "Director's Cut"
+extended     = "Extended"
+unrated      = "Unrated"
+theatrical   = "Theatrical"
+collector    = "Collector"
+collectors   = "Collector"
+se           = "Special"
+ultimate     = "Ultimate"
+deluxe       = "Deluxe"
+criterion    = "Criterion"
+cc           = "Criterion"
+imax         = "IMAX"
+alternate    = "Alternative Cut"
+alternative  = "Alternative Cut"
+limited      = "Limited"
+remastered   = "Remastered"
+remaster     = "Remastered"
+restored     = "Restored"
+restore      = "Restored"
+uncensored   = "Uncensored"
+uncut        = "Uncut"
+festival     = "Festival"
+anniversary  = "Anniversary Edition"
+
+# Multi-token patterns (matched against 2-3 token windows).
+
+[[patterns]]
+# Director's Cut / Directors Cut / Director.Cut
+match = '(?i)^director.?s?[- .]?(?:definitive[- .]?)?cut$'
+value = "Director's Cut"
+
+[[patterns]]
+# Extended Cut / Extended Edition
+match = '(?i)^extended[- .]?(?:cut|edition)$'
+value = "Extended"
+
+[[patterns]]
+# Unrated Cut / Unrated Edition
+match = '(?i)^unrated[- .]?(?:cut|edition)$'
+value = "Unrated"
+
+[[patterns]]
+# Theatrical Cut / Theatrical Edition
+match = '(?i)^theatrical[- .]?(?:cut|edition)$'
+value = "Theatrical"
+
+[[patterns]]
+# Collector's Edition
+match = '(?i)^collector.?s?[- .]?edition$'
+value = "Collector"
+
+[[patterns]]
+# Special Edition (2 tokens)
+match = '(?i)^special[- .]?edition$'
+value = "Special"
+
+[[patterns]]
+# Edition Special (reversed order)
+match = '(?i)^edition[- .]?special$'
+value = "Special"
+
+[[patterns]]
+# Ultimate Edition
+match = '(?i)^ultimate[- .]?edition$'
+value = "Ultimate"
+
+[[patterns]]
+# Deluxe Edition
+match = '(?i)^deluxe[- .]?edition$'
+value = "Deluxe"
+
+[[patterns]]
+# Anniversary Edition
+match = '(?i)^anniversary[- .]?edition$'
+value = "Anniversary Edition"
+
+[[patterns]]
+# Criterion Collection / Criterion Edition
+match = '(?i)^criterion[- .]?(?:collection|edition)$'
+value = "Criterion"
+
+[[patterns]]
+# IMAX Edition
+match = '(?i)^imax[- .]?edition$'
+value = "IMAX"
+
+[[patterns]]
+# Alternative Cut / Alternate Cut
+match = '(?i)^(?:alternate|alternative)[- .]?cut$'
+value = "Alternative Cut"
+
+[[patterns]]
+# Fan Edit / Fan Edition / Fan Collection
+match = '(?i)^fan[- .]?(?:edit|edition|collection)$'
+value = "Fan"
+
+[[patterns]]
+# Limited Edition
+match = '(?i)^limited[- .]?edition$'
+value = "Limited"
+
+[[patterns]]
+# 4K Remastered
+match = '(?i)^4k[- .]?remaster(?:ed)?$'
+value = "Remastered"
+
+[[patterns]]
+# 4K Restored
+match = '(?i)^4k[- .]?restor(?:ed?)?$'
+value = "Restored"
+
+[[patterns]]
+# Uncut Cut / Uncut Edition
+match = '(?i)^uncut[- .]?(?:cut|edition)$'
+value = "Uncut"
+
+[[patterns]]
+# Festival Cut / Festival Edition
+match = '(?i)^festival[- .]?(?:cut|edition)$'
+value = "Festival"

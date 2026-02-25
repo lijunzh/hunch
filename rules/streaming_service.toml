@@ -1,0 +1,44 @@
+# Streaming service patterns.
+property = "streaming_service"
+
+[exact]
+amzn      = "Amazon Prime"
+amazon    = "Amazon Prime"
+amazonhd  = "Amazon Prime"
+nflx      = "Netflix"
+netflix    = "Netflix"
+netflixuhd = "Netflix"
+nf        = "Netflix"
+atvp      = "Apple TV+"
+dsnp      = "Disney+"
+hmax      = "HBO Max"
+hulu      = "Hulu"
+pcok      = "Peacock"
+pmtp      = "Paramount+"
+itunes    = "iTunes"
+hditunes  = "iTunes"
+ituneshd  = "iTunes"
+vudu      = "Vudu"
+crav      = "Crave"
+dcu       = "DC Universe"
+dscp      = "DramaFever"
+dramafever = "DramaFever"
+df        = "DramaFever"
+viki      = "Viki"
+mbcvod    = "MBC"
+mbc       = "MBC"
+
+[[patterns]]
+# Netflix with suffixes: NetflixRip, NetflixUHDRip
+match = '(?i)^netflix(?:uhd)?rip$'
+value = "Netflix"
+
+[[patterns]]
+# Disney+ with plus sign
+match = '(?i)^disney\+$'
+value = "Disney+"
+
+[[patterns]]
+# A&E
+match = '(?i)^a&e$'
+value = "A&E"

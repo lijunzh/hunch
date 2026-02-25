@@ -1,0 +1,9 @@
+# Episode details patterns.
+property = "episode_details"
+
+[exact]
+special  = "Special"
+pilot    = "Pilot"
+unaired  = "Unaired"
+final    = "Final"
+premiere = "Premiere"

@@ -1,0 +1,36 @@
+# Color depth / bit depth patterns.
+property = "color_depth"
+
+[exact]
+8bit  = "8-bit"
+10bit = "10-bit"
+12bit = "12-bit"
+hi10  = "10-bit"
+hi10p = "10-bit"
+
+[[patterns]]
+match = '(?i)^12[- ]?bits?$'
+value = "12-bit"
+
+[[patterns]]
+match = '(?i)^10[- ]?bits?$'
+value = "10-bit"
+
+[[patterns]]
+match = '(?i)^8[- ]?bits?$'
+value = "8-bit"
+
+[[patterns]]
+# Hi10P / High10 variants
+match = '(?i)^(?:hi|high)[- ]?10p?$'
+value = "10-bit"
+
+[[patterns]]
+# HEVC10 / x265-10 implies 10-bit (matched as compound token)
+match = '(?i)(?:hevc|[xh]265|[xh]\.?265)[- ]?10$'
+value = "10-bit"
+
+[[patterns]]
+# yuv420p10 pixel format
+match = '(?i)^yuv\d+p10$'
+value = "10-bit"

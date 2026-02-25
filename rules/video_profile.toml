@@ -1,0 +1,26 @@
+# Video profile patterns.
+property = "video_profile"
+
+[exact]
+avchd = "Advanced Video Codec High Definition"
+avc   = "Advanced Video Codec High Definition"
+hevc  = "High Efficiency Video Coding"
+hp    = "High"
+sc    = "Scalable Video Coding"
+sch   = "Scalable Video Coding"
+sdh   = "Scalable Video Coding"
+
+[[patterns]]
+# Hi10/Hi10P → High 10
+match = '(?i)^(?:hi|high)[- ]?10p?$'
+value = "High 10"
+
+[[patterns]]
+# Hi422 → High 4:2:2
+match = '(?i)^(?:hi|high)[- ]?422$'
+value = "High 4:2:2"
+
+[[patterns]]
+# Hi444PP → High 4:4:4 Predictive
+match = '(?i)^(?:hi|high)[- ]?444(?:pp)?$'
+value = "High 4:4:4 Predictive"

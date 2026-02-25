@@ -118,6 +118,16 @@ impl HunchResult {
         self.first(Property::StreamingService)
     }
 
+    /// Color depth (e.g., "10-bit", "8-bit").
+    pub fn color_depth(&self) -> Option<&str> {
+        self.first(Property::ColorDepth)
+    }
+
+    /// Video profile (e.g., "High", "High 10").
+    pub fn video_profile(&self) -> Option<&str> {
+        self.first(Property::VideoProfile)
+    }
+
     /// Part number.
     pub fn part(&self) -> Option<i32> {
         self.first(Property::Part).and_then(|s| s.parse().ok())
