@@ -217,6 +217,28 @@ fn in_protected(pos: usize, protected: &[(usize, usize)]) -> bool {
 
 /// Split a filename (without extension) into tokens at separator boundaries.
 fn split_into_tokens(name: &str, base_offset: usize, protected: &[(usize, usize)]) -> Vec<Token> {
+    split_into_tokens_inner(name, base_offset, protected, 0)
+}
+
+fn split_into_tokens_inner(
+    name: &str,
+    base_offset: usize,
+    protected: &[(usize, usize)],
+    depth: u32,
+) -> Vec<Token> {
+    // Guard against pathological nesting.
+    if depth > 3 {
+        if !name.is_empty() {
+            return vec![Token {
+                text: name.to_string(),
+                start: base_offset,
+                end: base_offset + name.len(),
+                separator: Separator::None,
+                in_brackets: true,
+            }];
+        }
+        return Vec::new();
+    }
     let mut tokens = Vec::new();
     let bytes = name.as_bytes();
     let len = bytes.len();
@@ -229,23 +251,27 @@ fn split_into_tokens(name: &str, base_offset: usize, protected: &[(usize, usize)
         // Handle bracket opens.
         if bytes[i] == b'[' || bytes[i] == b'(' {
             bracket_depth += 1;
-            // Collect everything inside brackets as one token.
-            let open_char = bytes[i];
-            let close_char = if open_char == b'[' { b']' } else { b')' };
-            let token_start = i + 1; // skip the bracket
-            let mut j = token_start;
+            let close_char = if bytes[i] == b'[' { b']' } else { b')' };
+            let content_start = i + 1; // skip the bracket
+            let mut j = content_start;
             while j < len && bytes[j] != close_char {
                 j += 1;
             }
-            let text = &name[token_start..j];
-            if !text.is_empty() {
-                tokens.push(Token {
-                    text: text.to_string(),
-                    start: base_offset + token_start,
-                    end: base_offset + j,
-                    separator: current_sep,
-                    in_brackets: true,
-                });
+            // Recursively tokenize the bracket content, marking tokens as in_brackets.
+            let bracket_content = &name[content_start..j];
+            if !bracket_content.is_empty() {
+                // Don't pass protected ranges into bracket recursion — they
+                // reference byte positions in the outer string, not the bracket substring.
+                let inner_tokens = split_into_tokens_inner(
+                    bracket_content,
+                    base_offset + content_start,
+                    &[],
+                    depth + 1,
+                );
+                for mut t in inner_tokens {
+                    t.in_brackets = true;
+                    tokens.push(t);
+                }
             }
             // Skip past close bracket.
             i = if j < len { j + 1 } else { j };
@@ -303,7 +329,7 @@ fn split_into_tokens(name: &str, base_offset: usize, protected: &[(usize, usize)
 }
 
 fn is_separator(b: u8) -> bool {
-    matches!(b, b'.' | b'-' | b'_' | b' ')
+    matches!(b, b'.' | b'-' | b'_' | b' ' | b',')
 }
 
 fn byte_to_separator(b: u8) -> Separator {
@@ -311,7 +337,7 @@ fn byte_to_separator(b: u8) -> Separator {
         b'.' => Separator::Dot,
         b'-' => Separator::Dash,
         b'_' => Separator::Underscore,
-        b' ' => Separator::Space,
+        b' ' | b',' => Separator::Space,
         b'/' | b'\\' => Separator::PathSep,
         _ => Separator::None,
     }

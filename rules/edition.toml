@@ -1,6 +1,10 @@
 # Edition detection patterns.
 property = "edition"
 
+# Case-sensitive: SE is Special Edition abbreviation (uppercase only).
+[exact_sensitive]
+SE = "Special"
+
 # Single-token exact matches.
 [exact]
 ddc          = "Director's Definitive Cut"

@@ -38,10 +38,9 @@ static AUDIO_PROFILE_RULES: LazyLock<RuleSet> =
 
 use crate::properties::title;
 use crate::properties::{
-    aspect_ratio, audio_codec, audio_profile, bonus, color_depth, container, country, crc32, date,
-    edition, episode_count, episode_details, episodes, frame_rate, language, other, part,
-    release_group, screen_size, size, source, streaming_service, subtitle_language, uuid, version,
-    video_codec, video_profile, website, year,
+    aspect_ratio, audio_codec, audio_profile, bonus, container, crc32, date, episode_count,
+    episodes, frame_rate, language, other, part, release_group, screen_size, size, source,
+    subtitle_language, uuid, version, website, year,
 };
 
 /// A legacy matcher function: takes raw input, returns property matches.
@@ -80,25 +79,18 @@ impl Pipeline {
         // Legacy matchers — everything not yet in TOML.
         let legacy_matchers: Vec<LegacyMatcherFn> = vec![
             container::find_matches,
-            video_codec::find_matches, // legacy kept alongside TOML for compound-codec edge cases
             audio_codec::find_matches,
             audio_profile::find_matches,
-            video_profile::find_matches, // legacy kept for lookaround edge cases
-            color_depth::find_matches,   // legacy kept for multi-token compounds
             source::find_matches,
             screen_size::find_matches,
             aspect_ratio::find_matches,
             year::find_matches,
             date::find_matches,
             episodes::find_matches,
-            episode_details::find_matches, // legacy kept for negative lookahead (Special Edition)
             episode_count::find_matches,
-            edition::find_matches, // legacy kept for multi-token compounds
             other::find_matches,
             language::find_matches,
             subtitle_language::find_matches,
-            country::find_matches, // legacy kept for 2-char boundary detection
-            streaming_service::find_matches, // legacy kept for compound patterns
             crc32::find_matches,
             uuid::find_matches,
             website::find_matches,
