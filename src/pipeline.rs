@@ -322,11 +322,11 @@ impl Pipeline {
 
 // ── Proper count computation ───────────────────────────────────────────────
 
-static REAL_RE: LazyLock<fancy_regex::Regex> =
-    LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^REAL$").unwrap());
+static REAL_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?i)^REAL$").unwrap());
 
-static REPACK_RE: LazyLock<fancy_regex::Regex> =
-    LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap());
+static REPACK_RE: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap());
 
 fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
@@ -350,9 +350,13 @@ fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
         .min();
 
     if let Some(ts) = tech_start {
-        static REAL_STANDALONE: LazyLock<fancy_regex::Regex> =
-            LazyLock::new(|| fancy_regex::Regex::new(r"(?i)(?<![a-z])REAL(?![a-z])").unwrap());
-        if REAL_STANDALONE.is_match(&input[ts..]).unwrap_or(false) {
+        // Use tokenizer to check for standalone REAL in tech zone.
+        let tech_tokens = tokenizer::tokenize(&input[ts..]);
+        if tech_tokens
+            .tokens
+            .iter()
+            .any(|t| t.text.eq_ignore_ascii_case("REAL"))
+        {
             has_real = true;
         }
     }
@@ -362,11 +366,11 @@ fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
         .filter(|m| m.property == Property::Other && m.value == "Proper" && m.start >= fn_start)
     {
         let raw = &input[m.start..m.end];
-        if REAL_RE.is_match(raw).unwrap_or(false) {
+        if REAL_RE.is_match(raw) {
             has_real = true;
             continue;
         }
-        if let Ok(Some(caps)) = REPACK_RE.captures(raw) {
+        if let Some(caps) = REPACK_RE.captures(raw) {
             if let Some(num) = caps.get(1) {
                 repack_count += num.as_str().parse::<u32>().unwrap_or(1);
             } else {
