@@ -304,6 +304,31 @@ fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
     let mut proper_count_raw: u32 = 0;
     let mut repack_count: u32 = 0;
 
+    // Check for REAL in the technical zone only (after first codec/source/screen_size).
+    let tech_start = matches
+        .iter()
+        .filter(|m| {
+            m.start >= fn_start
+                && matches!(
+                    m.property,
+                    Property::VideoCodec
+                        | Property::AudioCodec
+                        | Property::Source
+                        | Property::ScreenSize
+                )
+        })
+        .map(|m| m.start)
+        .min();
+
+    if let Some(ts) = tech_start {
+        static REAL_STANDALONE: LazyLock<fancy_regex::Regex> = LazyLock::new(|| {
+            fancy_regex::Regex::new(r"(?i)(?<![a-z])REAL(?![a-z])").unwrap()
+        });
+        if REAL_STANDALONE.is_match(&input[ts..]).unwrap_or(false) {
+            has_real = true;
+        }
+    }
+
     for m in matches
         .iter()
         .filter(|m| m.property == Property::Other && m.value == "Proper" && m.start >= fn_start)
