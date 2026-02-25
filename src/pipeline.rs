@@ -1,17 +1,24 @@
-//! Pipeline: orchestrates matchers → conflict resolution → post-processing → HunchResult.
+//! Pipeline v0.2: tokenize → match → zones → title → result.
+//!
+//! The v0.2 pipeline tokenizes the input first, then matches tokens
+//! against TOML rules and raw-string patterns. Zone detection replaces
+//! the v0.1 prune_* heuristics.
 
 use crate::hunch_result::HunchResult;
 use crate::matcher::engine;
+use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::options::Options;
+use crate::tokenizer::{self, TokenStream};
 
 use std::sync::LazyLock;
 
-static REAL_RE: LazyLock<fancy_regex::Regex> =
-    LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^REAL$").unwrap());
+// ── TOML rule sets (embedded at compile time) ──────────────────────────────
 
-static REPACK_RE: LazyLock<fancy_regex::Regex> =
-    LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap());
+static VIDEO_CODEC_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_codec.toml")));
+
+// ── Legacy matchers (not yet migrated to TOML) ─────────────────────────────
 
 use crate::properties::title;
 use crate::properties::{
@@ -21,14 +28,17 @@ use crate::properties::{
     video_codec, video_profile, website, year,
 };
 
-/// A matcher function: takes input, returns property matches.
-type MatcherFn = fn(&str) -> Vec<MatchSpan>;
+/// A legacy matcher function: takes raw input, returns property matches.
+type LegacyMatcherFn = fn(&str) -> Vec<MatchSpan>;
 
 /// The parsing pipeline.
 pub struct Pipeline {
     #[allow(dead_code)]
     options: Options,
-    matchers: Vec<MatcherFn>,
+    /// TOML-driven rule sets matched against individual tokens.
+    toml_rules: Vec<(&'static LazyLock<RuleSet>, Property)>,
+    /// Legacy matchers that run against raw input (to be migrated).
+    legacy_matchers: Vec<LegacyMatcherFn>,
 }
 
 impl Default for Pipeline {
@@ -39,9 +49,13 @@ impl Default for Pipeline {
 
 impl Pipeline {
     pub fn new(options: Options) -> Self {
-        let matchers: Vec<MatcherFn> = vec![
+        let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property)> =
+            vec![(&VIDEO_CODEC_RULES, Property::VideoCodec)];
+
+        // Legacy matchers — everything not yet in TOML.
+        let legacy_matchers: Vec<LegacyMatcherFn> = vec![
             container::find_matches,
-            video_codec::find_matches,
+            video_codec::find_matches, // TEMPORARY: keep legacy alongside TOML for debugging
             audio_codec::find_matches,
             audio_profile::find_matches,
             video_profile::find_matches,
@@ -70,63 +84,40 @@ impl Pipeline {
             frame_rate::find_matches,
             release_group::find_matches,
         ];
-        Self { options, matchers }
+
+        Self {
+            options,
+            toml_rules,
+            legacy_matchers,
+        }
     }
 
     /// Run the full pipeline on an input string.
     pub fn run(&self, input: &str) -> HunchResult {
-        // Step 1: Collect all matches from all matchers.
-        let mut all_matches: Vec<MatchSpan> = self
-            .matchers
-            .iter()
-            .flat_map(|matcher| matcher(input))
-            .collect();
+        // Step 1: Tokenize.
+        let token_stream = tokenizer::tokenize(input);
 
-        // Step 2: Resolve overlapping conflicts.
+        // Step 2: Match — TOML rules against tokens + legacy matchers against raw input.
+        let mut all_matches = self.match_all(input, &token_stream);
+
+        // Step 3: Resolve overlapping conflicts.
         engine::resolve_conflicts(&mut all_matches);
 
-        // Step 2b: Remove language matches that appear in the title zone.
-        // The "title zone" is the region before the first technical property.
-        // Language words like "Italian" in "The.Italian.Job" should not be treated
-        // as language tags if they appear before any codec/year/source/resolution.
-        self.prune_language_in_title_zone(input, &mut all_matches);
+        // Step 4: Zone-based disambiguation (replaces prune_* functions).
+        self.apply_zone_rules(input, &token_stream, &mut all_matches);
 
-        // Step 2c: Prune duplicate source matches in the title zone.
-        // e.g., "The.Girl.in.the.Spiders.Web.2019.WEB-DL" — "Web" before year
-        // is a title word, not a source, because "WEB-DL" after year is the real source.
-        self.prune_early_source_duplicates(input, &mut all_matches);
-
-        // Step 2d: Prune redundant "Ultra HD" / "HD" Other tags when screen_size
-        // already conveys the same information (e.g., 2160p + 4K + UHD).
-        self.prune_redundant_hd_tags(&mut all_matches);
-
-        // Step 2e: Prune episode_details at the start of the filename.
-        // "Special" at position 0 is likely part of the title (e.g., "Special Correspondents")
-        // not an episode detail marker. Only keep it if there's a season/episode before it.
-        self.prune_early_episode_details(input, &mut all_matches);
-
-        // Step 2f: When Other and ReleaseGroup overlap on the same span,
-        // keep ReleaseGroup (positional) and drop the ambiguous Other.
-        self.prune_other_overlapping_release_group(&mut all_matches);
-
-        // Step 3: Post-processing.
-        // 3a: Extract title from remaining gaps.
+        // Step 5: Post-processing.
         if let Some(title_match) = title::extract_title(input, &all_matches) {
             all_matches.push(title_match);
         }
-
-        // 3b: Extract episode title (text between episode marker and next property).
         if let Some(ep_title) = title::extract_episode_title(input, &all_matches) {
             all_matches.push(ep_title);
         }
 
-        // 3c: Infer media type.
         let media_type = title::infer_media_type(&all_matches);
-
-        // 3d: Compute proper_count from Other:Proper matches in the filename.
         let proper_count = compute_proper_count(input, &all_matches);
 
-        // Step 4: Build the HunchResult from real matches, then set computed values.
+        // Step 6: Build result.
         let mut result = HunchResult::from_matches(&all_matches);
         result.set(Property::MediaType, media_type);
         if proper_count > 0 {
@@ -135,15 +126,71 @@ impl Pipeline {
         result
     }
 
-    /// Remove language matches that appear before any "technical" property.
-    /// This prevents language names (French, Italian, English, etc.) from
-    /// eating title words like "The Italian Job" or "Immersion French".
-    fn prune_language_in_title_zone(&self, input: &str, matches: &mut Vec<MatchSpan>) {
-        // Find the filename portion start.
+    /// Run all matchers: TOML token rules + legacy raw-string matchers.
+    fn match_all(&self, input: &str, token_stream: &TokenStream) -> Vec<MatchSpan> {
+        let mut matches = Vec::new();
+
+        // TOML rules: match tokens and multi-token windows.
+        let tokens = &token_stream.tokens;
+        for (rule_set, property) in &self.toml_rules {
+            let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
+
+            // Try windows of 1, 2, and 3 tokens (longest first).
+            for window_size in (1..=3).rev() {
+                for i in 0..tokens.len() {
+                    if i + window_size > tokens.len() {
+                        break;
+                    }
+
+                    // Skip if any part of this window is already matched.
+                    let win_start = tokens[i].start;
+                    let win_end = tokens[i + window_size - 1].end;
+                    if matched_ranges
+                        .iter()
+                        .any(|(s, e)| win_start < *e && win_end > *s)
+                    {
+                        continue;
+                    }
+
+                    // Build the compound text from the raw input (preserving separators).
+                    let compound = if window_size == 1 {
+                        tokens[i].text.clone()
+                    } else {
+                        input[win_start..win_end].to_string()
+                    };
+
+                    if let Some(value) = rule_set.match_token(&compound) {
+                        matches.push(MatchSpan::new(win_start, win_end, *property, value));
+                        matched_ranges.push((win_start, win_end));
+                    }
+                }
+            }
+        }
+
+        // Legacy matchers: run against raw input.
+        for matcher in &self.legacy_matchers {
+            matches.extend(matcher(input));
+        }
+
+        matches
+    }
+
+    /// Zone-based disambiguation.
+    ///
+    /// Replaces the v0.1 prune_* functions with structural zone detection.
+    /// The "title zone" is everything before the first anchor (tech token).
+    /// Language/source/episode_details in the title zone are likely title words.
+    fn apply_zone_rules(
+        &self,
+        input: &str,
+        _token_stream: &TokenStream,
+        matches: &mut Vec<MatchSpan>,
+    ) {
         let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
 
-        // Find the start position of the first technical match.
-        let technical_props = [
+        // ── Rule 1: Language in title zone → likely a title word ─────────
+        // Anchor set for language zone: ALL technical properties.
+        let lang_anchor_props = [
             Property::Year,
             Property::VideoCodec,
             Property::AudioCodec,
@@ -159,39 +206,25 @@ impl Pipeline {
 
         let first_tech_pos = matches
             .iter()
-            .filter(|m| m.start >= fn_start && technical_props.contains(&m.property))
+            .filter(|m| m.start >= fn_start && lang_anchor_props.contains(&m.property))
             .map(|m| m.start)
             .min();
 
         if let Some(tech_pos) = first_tech_pos {
-            // Remove language matches that appear before the first technical token,
-            // but only if they appear in the first half of the pre-tech zone
-            // (likely part of the title rather than metadata).
-            let title_zone_end = fn_start + (tech_pos - fn_start) / 2;
+            let title_zone_mid = fn_start + (tech_pos - fn_start) / 2;
             matches.retain(|m| {
-                if m.property == Property::Language
-                    && m.start < title_zone_end
+                !(m.property == Property::Language
                     && m.start >= fn_start
-                {
-                    false // prune it — likely a title word
-                } else {
-                    true
-                }
+                    && m.start < title_zone_mid)
             });
         } else {
             // No technical tokens at all — prune all language matches.
             matches.retain(|m| m.property != Property::Language);
         }
-    }
 
-    /// Remove source matches that appear before a year/season/episode when
-    /// there's a later source match. This prevents short source keywords
-    /// like "Web" from eating title words.
-    fn prune_early_source_duplicates(&self, input: &str, matches: &mut Vec<MatchSpan>) {
-        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-
-        // Find the first year/season/episode position.
-        let anchor_pos = matches
+        // ── Rule 2: Duplicate source in title zone → title word ─────────
+        // Uses year/season/episode as anchor (NOT full tech set).
+        let source_anchor_pos = matches
             .iter()
             .filter(|m| {
                 m.start >= fn_start
@@ -203,44 +236,30 @@ impl Pipeline {
             .map(|m| m.start)
             .min();
 
-        let Some(anchor) = anchor_pos else {
-            return;
-        };
+        if let Some(anchor) = source_anchor_pos {
+            let has_early_source = matches
+                .iter()
+                .any(|m| m.property == Property::Source && m.start >= fn_start && m.start < anchor);
+            let has_late_source = matches
+                .iter()
+                .any(|m| m.property == Property::Source && m.start >= anchor);
 
-        // Check if there are source matches both before and after the anchor.
-        let has_early_source = matches
-            .iter()
-            .any(|m| m.property == Property::Source && m.start < anchor && m.start >= fn_start);
-        let has_late_source = matches
-            .iter()
-            .any(|m| m.property == Property::Source && m.start >= anchor);
-
-        if has_early_source && has_late_source {
-            matches.retain(|m| {
-                !(m.property == Property::Source && m.start < anchor && m.start >= fn_start)
-            });
+            if has_early_source && has_late_source {
+                matches.retain(|m| {
+                    !(m.property == Property::Source && m.start >= fn_start && m.start < anchor)
+                });
+            }
         }
-    }
 
-    /// Prune "Ultra HD" Other tag when the source already conveys UHD
-    /// (e.g., source = "Ultra HD Blu-ray"). If no source captures UHD, keep it.
-    fn prune_redundant_hd_tags(&self, matches: &mut Vec<MatchSpan>) {
+        // ── Rule 3: Redundant HD tags when source has UHD ────────────────
         let source_has_uhd = matches
             .iter()
             .any(|m| m.property == Property::Source && m.value.contains("Ultra HD"));
-
         if source_has_uhd {
             matches.retain(|m| !(m.property == Property::Other && m.value == "Ultra HD"));
         }
-    }
 
-    /// Remove episode_details ("Special", "Pilot", etc.) that appear at the
-    /// very start of the filename before any season/episode marker.
-    /// These are likely part of the title (e.g., "Special Correspondents").
-    fn prune_early_episode_details(&self, input: &str, matches: &mut Vec<MatchSpan>) {
-        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-
-        // Find the first season/episode match position in the filename.
+        // ── Rule 4: EpisodeDetails before any episode marker → title ─────
         let first_ep_pos = matches
             .iter()
             .filter(|m| {
@@ -254,54 +273,45 @@ impl Pipeline {
             if m.property != Property::EpisodeDetails || m.start < fn_start {
                 return true;
             }
-            // If there's an episode/season marker, keep episode_details only
-            // if it appears after the first episode/season marker.
             match first_ep_pos {
                 Some(ep_pos) => m.start >= ep_pos,
-                // No episode markers at all — episode_details is likely a false positive.
                 None => false,
             }
         });
-    }
 
-    /// When ReleaseGroup and Other overlap on the same span, drop ambiguous
-    /// short Other patterns (HQ, HR) that are likely release group names.
-    fn prune_other_overlapping_release_group(&self, matches: &mut Vec<MatchSpan>) {
+        // ── Rule 5: Other overlapping ReleaseGroup → drop ambiguous Other ─
         let rg_spans: Vec<(usize, usize)> = matches
             .iter()
             .filter(|m| m.property == Property::ReleaseGroup)
             .map(|m| (m.start, m.end))
             .collect();
 
-        if rg_spans.is_empty() {
-            return;
+        if !rg_spans.is_empty() {
+            const AMBIGUOUS_OTHER: &[&str] = &["High Quality", "High Resolution"];
+            matches.retain(|m| {
+                if m.property != Property::Other || !AMBIGUOUS_OTHER.contains(&m.value.as_ref()) {
+                    return true;
+                }
+                !rg_spans.iter().any(|(rs, re)| m.start < *re && m.end > *rs)
+            });
         }
-
-        // Only prune ambiguous short Other values.
-        const AMBIGUOUS_OTHER: &[&str] = &["High Quality", "High Resolution"];
-
-        matches.retain(|m| {
-            if m.property != Property::Other || !AMBIGUOUS_OTHER.contains(&m.value.as_ref()) {
-                return true;
-            }
-            !rg_spans.iter().any(|(rs, re)| m.start < *re && m.end > *rs)
-        });
     }
 }
 
-/// Compute the proper count from PROPER/REPACK/REAL matches in the filename.
-///
-/// Rules:
-/// - REAL replaces PROPER (counts as 2)
-/// - REPACK/RERIP adds 1 (or the trailing digit, e.g., REPACK5 → 5)
-/// - Each PROPER keyword adds 1
+// ── Proper count computation ───────────────────────────────────────────────
+
+static REAL_RE: LazyLock<fancy_regex::Regex> =
+    LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^REAL$").unwrap());
+
+static REPACK_RE: LazyLock<fancy_regex::Regex> =
+    LazyLock::new(|| fancy_regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap());
+
 fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let mut has_real = false;
     let mut proper_count_raw: u32 = 0;
     let mut repack_count: u32 = 0;
 
-    // Check for REAL in the technical zone only (after first codec/source/screen_size).
     let tech_start = matches
         .iter()
         .filter(|m| {
@@ -400,5 +410,12 @@ mod tests {
         assert_eq!(result.video_codec(), Some("H.265"));
         assert!(result.other().contains(&"HDR10"));
         assert!(result.other().contains(&"Remux"));
+    }
+
+    #[test]
+    fn test_toml_video_codec_basic() {
+        let pipeline = Pipeline::default();
+        let result = pipeline.run("Movie.HEVC.1080p.mkv");
+        assert_eq!(result.video_codec(), Some("H.265"));
     }
 }

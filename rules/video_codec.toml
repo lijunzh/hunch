@@ -27,6 +27,11 @@ avc   = "H.264"
 avchd = "H.264"
 
 [[patterns]]
+# HEVC with suffix: hevc10, HEVC-YUV420P10, etc.
+match = '(?i)^hevc.+$'
+value = "H.265"
+
+[[patterns]]
 # H.264 with optional dot/dash separator: h.264, x-264, etc.
 match = '(?i)^[xh][.-]?264$'
 value = "H.264"
@@ -64,6 +69,11 @@ value = "H.264"
 # RealVideo (Rv10, Rv20, etc.)
 match = '(?i)^rv\d{2}$'
 value = "RealVideo"
+
+[[patterns]]
+# H.264 glued to source suffix: WEB-DLx264, HDx264, Ripx264
+match = '(?i)(?:DL|Rip|HD)x264$'
+value = "H.264"
 
 [[patterns]]
 # DVDDivX compound.
