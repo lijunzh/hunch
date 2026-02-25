@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   in the technical zone (prevents false positives on titles like
   "Real Time With Bill Maher").
 - All clippy warnings resolved (regex-in-loop, collapsible-if, char arrays).
-- Updated CLAUDE.md with architecture decisions and v0.2 roadmap.
+- Updated ARCHITECTURE.md with architecture decisions and v0.2 roadmap.
 - Updated README.md with current compatibility stats.
 
 ## [0.1.1] - 2026-02-22
