@@ -29,7 +29,7 @@ static AUDIO_CODEC_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         // Order matters: more specific patterns first.
         ValuePattern::new(r"(?i)(?<![a-z])DTS[-:]?X(?![a-z])", "DTS:X"),
         ValuePattern::new(
-            r"(?i)(?<![a-z])DTS[-]?HD(?:[-. ]?(?:MA|Master(?:[-. ]?Audio)?))?(?![a-z])",
+            r"(?i)(?<![a-z])DTS[-. ]?HD(?:[-. ]?(?:MA|Master(?:[-. ]?Audio)?))?(?![a-z])",
             "DTS-HD",
         ),
         ValuePattern::new(r"(?i)(?<![a-z])DTS[-]?ES(?![a-z])", "DTS"),
