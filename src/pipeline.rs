@@ -56,7 +56,7 @@ static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
 
 use crate::properties::title;
 use crate::properties::{
-    aspect_ratio, audio_codec, bonus, container, crc32, date, episode_count, episodes,
+    aspect_ratio, audio_codec, bonus, crc32, date, episode_count, episodes,
     language, other, part, release_group, screen_size, size, source,
     subtitle_language, uuid, version, website, year,
 };
@@ -135,7 +135,6 @@ impl Pipeline {
         // etc.) and standalone channel counts. Simple codec patterns are in audio_codec.toml.
         // audio_profile is handled entirely by audio_profile.toml — no legacy needed.
         let legacy_matchers: Vec<LegacyMatcherFn> = vec![
-            container::find_matches,
             audio_codec::find_matches,
             source::find_matches,
             screen_size::find_matches,
