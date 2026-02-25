@@ -57,7 +57,7 @@ static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
 use crate::properties::title;
 use crate::properties::{
     aspect_ratio, audio_codec, bonus, container, crc32, date, episode_count, episodes,
-    frame_rate, language, other, part, release_group, screen_size, size, source,
+    language, other, part, release_group, screen_size, size, source,
     subtitle_language, uuid, version, website, year,
 };
 
@@ -154,7 +154,6 @@ impl Pipeline {
             part::find_matches,
             bonus::find_matches,
             version::find_matches,
-            frame_rate::find_matches,
             release_group::find_matches,
         ];
 

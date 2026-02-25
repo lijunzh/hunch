@@ -43,7 +43,14 @@ property = "frame_rate"
 match = '(?i)^(\d{2,3})\s*fps$'
 value = "{1}fps"
 
-# NOTE: Decimal fps (29.97fps, 23.976fps) and resolution-attached rates
-# (1080p25, 720p50) are still handled by the legacy frame_rate.rs matcher.
-# Decimal fps would need a pattern like `(\d+\.\d+)fps` → "{1}fps",
-# which works with capture groups but the legacy code also handles rounding.
+[[patterns]]
+# Decimal fps with suffix: 29.97fps, 23.976fps, etc.
+# Tokenizer splits on `.`, so this matches via 2-token window: "29" + "97fps" → "29.97fps"
+match = '(?i)^(\d+\.\d+)\s*fps$'
+value = "{1}fps"
+
+[[patterns]]
+# Resolution-attached fps: 1080p25, 720p50, 2160p24, etc.
+# Valid rates only — prevents false positives from bare resolution tokens.
+match = '(?i)^(?:1080|720|1440|2160)[pi](23|24|25|29|30|48|50|59|60|120)$'
+value = "{1}fps"
