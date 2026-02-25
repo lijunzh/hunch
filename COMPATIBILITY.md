@@ -142,6 +142,97 @@ on all of these by definition.
 
 ---
 
+## Guessit Fixture Audit
+
+> Audit date: 2026-02-24. All 23 YAML fixture files reviewed
+> (1,309 test cases, 6,925 expected properties).
+
+### Duplicate Test Cases with Conflicting Expectations
+
+These are upstream fixture bugs where the **same filename** appears
+multiple times with **different** expected values.
+
+| Filename | Lines | Conflict |
+|----------|-------|----------|
+| `FooBar.7.PDTV-FlexGet` | episodes.yml L856 vs L889 | L856: episode=7, type=episode (from `__default__`). L889: title="FooBar 7", type=movie. Second is auto-detect behavior. |
+| `A Bout Portant (The Killers).PAL.Multi.DVD-R-KZ` | movies.yml L761 vs L773 | L761 omits `other: PAL`. L773 includes it. Second is corrected. |
+| `Breaking.Bad.S01E01...WMV-NOVO` | episodes.yml L1729 vs L1828 | `container: WMV` vs `container: wmv` (casing difference). |
+
+### Redundant Duplicates (Same Expectations)
+
+These filenames appear 2-3 times with identical expected values.
+They don't cause test failures but add unnecessary noise.
+
+- `FooBar.07.PDTV-FlexGet` (2x), `FooBar.0307.PDTV-FlexGet` (2x)
+- `Test.13.HDTV-Ignored` (3x)
+- `Elementary.S01E01.Pilot.DVDSCR.x264.PREAiR-NoGRP` (2x, different YAML formatting)
+- `Hyena.Road.2015...`, `Maze.Runner...OM...`, `How To Steal A Dog...` (2x each)
+- `Cosmos...PROPER-LOL`, `Show Name 3x18...`, `Show.Name.S05...Belex` (2x each)
+- `Greys.Anatomy.S07D1...`, `FlexGet.S01E02.TheName...` (2x each)
+- Several in `rules/episodes.yml` (2x each)
+
+### `__default__` Type Context
+
+Guessit's fixture files use `__default__` blocks:
+- `movies.yml` → `type: movie`
+- `episodes.yml` → `type: episode`
+
+Some cases in `episodes.yml` override `type: movie`, meaning they test
+auto-detection behavior. Since hunch doesn't support a `-t` flag, we
+follow auto-detection in all cases. Cases with explicit `options:` blocks
+(e.g., `-t episode`, `advanced_config`) are correctly **skipped** by
+our test harness.
+
+---
+
+## Intentional Design Differences
+
+These are places where hunch **deliberately** diverges from guessit.
+
+### Year-as-Season (`S2013E14`, `1940x01`)
+
+**Guessit**: Supports 4-digit seasons. `S2013E14` → season=2013, episode=14.
+`1940x01` → season=1940, episode=1, year=1940.
+
+**Hunch**: Limits SxxExx seasons to 3 digits (`\d{1,3}`) and NNxNN seasons
+to 2 digits (`\d{1,2}`). Year-like numbers (1920–2029) are parsed as years.
+
+**Rationale**: Year-based seasons are rare and create dangerous ambiguity.
+For general-purpose use, treating 2013 as a year is safer than as a season.
+
+**Affected test cases** (~10):
+`Looney Tunes 1940x01...`, `Eyes.Of.Dawn.1991.E01...`,
+`FlexGet.US.S2013E14...`, `Panorama.S2013E25...`,
+`Pawn.Stars.S2014E18...`, `Our.World.S2014E11...`,
+`Storyville.S2016E08...`, `MotoGP.2016x03...`,
+`FlexGet.Series.2013.14.of.21...`, `Show.Name.E02.S2010.mkv`
+
+### Screen Size Normalization
+
+**Guessit**: Preserves raw resolution strings like `1444x866`.
+
+**Hunch**: Normalizes non-standard resolutions to the vertical component
+(e.g., `1444x866` → `866p`). Standard resolutions (`1920x1080`,
+`3840x2160`) map to their common names (`1080p`, `2160p`).
+
+### `!!map {}` (Empty Expected)
+
+**Guessit**: Uses `!!map {}` in `date.yml` for inputs `1919` and `2030`
+to mean "no properties should be detected."
+
+**Hunch**: May still produce `year: 2030` for input `2030`. Our test
+harness passes these trivially (empty expected = nothing to verify).
+We accept this as a known, minor difference.
+
+### Release Group: Compound Groups
+
+**Guessit**: Can merge separate parts into compound release groups
+(e.g., `Tigole QxR` from `...Tigole) [QxR]`).
+
+**Hunch**: Takes the last hyphen-delimited or bracket-enclosed group.
+
+---
+
 ## Highest-ROI Improvements
 
 267 test cases currently fail on **exactly 1 property**. Fixing that single
@@ -203,9 +294,25 @@ but not curly-brace patterns yet.
 
 ### Niche properties at 0%
 
-`alternative_title`, `absolute_episode`, `film_title`, `audio_bit_rate`,
-`video_bit_rate`, `video_api`, `mimetype`, `episode_format`, and `week`
-are rare properties that haven't been implemented yet.
+| Property | Fixture Count | Description |
+|----------|--------------|-------------|
+| `alternative_title` | ~16 | Shows with alternate names |
+| `absolute_episode` | ~10 | Anime absolute numbering |
+| `film_title` | ~8 | Film numbering titles |
+| `audio_bit_rate` | ~4 | Audio bitrate |
+| `video_bit_rate` | ~4 | Video bitrate |
+| `video_api` | ~3 | DXVA, etc. |
+| `mimetype` | ~3 | File MIME type |
+| `episode_format` | ~2 | Minisode format |
+| `week` | ~1 | Week-based episode numbering |
+
+### Partial Coverage Properties
+
+| Property | Known Gaps |
+|----------|------------|
+| `language` | Codes like `de-CH`, `spa` (3-letter), `mul`/`Multiple languages` |
+| `other` | Niche values: `2in1`, `Line Audio`, `Mux`, `OAR`, `XXX` |
+| `edition` | `Festival`, `Uncensored` not yet recognized |
 
 ---
 
