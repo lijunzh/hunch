@@ -5,7 +5,7 @@ This document tracks how closely hunch reproduces guessit's behavior, measured
 by running hunch against guessit's own test suite (1,309 test cases across 22
 YAML files).
 
-> **Last updated:** 2026-02-23
+> **Last updated:** 2026-02-24
 
 ---
 
@@ -14,14 +14,14 @@ YAML files).
 | Metric | Value |
 |---|---|
 | Total test cases | 1,309 |
-| Passed (all props correct) | 806 |
-| Failed (any prop wrong) | 503 |
-| **Pass rate** | **61.6%** |
+| Passed (all props correct) | 920 |
+| Failed (any prop wrong) | 389 |
+| **Pass rate** | **70.3%** |
 | Properties implemented | 46 / 49 |
 | Properties skipped | 0 |
 
 guessit passes 100% of its own tests by definition. Hunch currently
-reproduces 61.6% of those results identically.
+reproduces 70.3% of those results identically.
 
 ---
 
@@ -37,23 +37,23 @@ simultaneously.
 | rules/screen_size.yml | 9 | 9 | **100%** |
 | rules/size.yml | 3 | 3 | **100%** |
 | rules/edition.yml | 44 | 44 | **100%** |
-| rules/other.yml | 44 | 46 | **96%** |
-| rules/common_words.yml | 146 | 156 | **94%** |
-| rules/video_codec.yml | 41 | 45 | **91%** |
+| rules/video_codec.yml | 45 | 45 | **100%** |
+| rules/other.yml | 46 | 46 | **100%** |
+| rules/common_words.yml | 149 | 156 | **96%** |
+| rules/source.yml | 21 | 23 | **91%** |
+| rules/episodes.yml | 70 | 79 | **89%** |
 | rules/audio_codec.yml | 15 | 17 | **88%** |
-| rules/release_group.yml | 14 | 19 | 74% |
+| rules/release_group.yml | 15 | 19 | 79% |
+| rules/title.yml | 14 | 18 | 78% |
 | rules/bonus.yml | 2 | 3 | 67% |
+| rules/country.yml | 2 | 3 | 67% |
+| movies.yml | 127 | 199 | 64% |
 | rules/date.yml | 5 | 8 | 63% |
-| rules/source.yml | 13 | 23 | 57% |
+| episodes.yml | 279 | 488 | 57% |
 | rules/part.yml | 5 | 9 | 56% |
-| rules/episodes.yml | 41 | 79 | 52% |
-| movies.yml | 110 | 199 | 55% |
-| episodes.yml | 246 | 488 | 50% |
+| various.yml | 64 | 124 | 52% |
 | rules/cd.yml | 1 | 2 | 50% |
 | rules/website.yml | 1 | 2 | 50% |
-| rules/title.yml | 8 | 18 | 44% |
-| various.yml | 54 | 124 | 44% |
-| rules/country.yml | 1 | 3 | 33% |
 | rules/language.yml | 3 | 9 | 33% |
 | rules/film.yml | 0 | 3 | 0% |
 
@@ -72,6 +72,7 @@ on all of these by definition.
 | aspect_ratio | 2 | 0 | **100.0%** |
 | bonus | 13 | 0 | **100.0%** |
 | color_depth | 28 | 0 | **100.0%** |
+| disc | 6 | 0 | **100.0%** |
 | edition | 83 | 0 | **100.0%** |
 | episode_count | 6 | 0 | **100.0%** |
 | episode_details | 16 | 0 | **100.0%** |
@@ -87,32 +88,33 @@ on all of these by definition.
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
 | video_codec | 501 | 3 | 99.4% |
+| container | 149 | 2 | 98.7% |
 | screen_size | 422 | 6 | 98.6% |
-| container | 146 | 5 | 96.7% |
+| source | 543 | 17 | 97.0% |
 | crc32 | 24 | 1 | 96.0% |
-| source | 536 | 24 | 95.7% |
+| audio_codec | 216 | 10 | 95.6% |
 | year | 219 | 11 | 95.2% |
-| audio_codec | 213 | 13 | 94.2% |
+| audio_channels | 111 | 7 | 94.1% |
+| season | 444 | 30 | 93.7% |
 | proper_count | 29 | 2 | 93.5% |
-| type | 762 | 60 | 92.7% |
-| season | 432 | 42 | 91.1% |
+| type | 766 | 56 | 93.2% |
+| video_profile | 13 | 1 | 92.9% |
 | website | 20 | 2 | 90.9% |
-| audio_channels | 107 | 11 | 90.7% |
+| episode | 502 | 53 | 90.5% |
 
 ### 🟡 Good (70–90%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
 | date | 23 | 3 | 88.5% |
+| release_group | 474 | 65 | 87.9% |
 | uuid | 7 | 1 | 87.5% |
-| release_group | 458 | 81 | 85.0% |
-| title | 867 | 189 | 82.1% |
-| subtitle_language | 65 | 16 | 80.2% |
-| episode | 444 | 111 | 80.0% |
-| other | 270 | 79 | 77.4% |
+| other | 293 | 56 | 84.0% |
+| title | 875 | 181 | 82.9% |
+| subtitle_language | 67 | 14 | 82.7% |
 | country | 10 | 3 | 76.9% |
 | audio_profile | 26 | 8 | 76.5% |
-| language | 100 | 42 | 70.4% |
+| language | 104 | 38 | 73.2% |
 
 ### ⚠️ Developing (50–70%)
 
@@ -120,10 +122,8 @@ on all of these by definition.
 |---|---|---|---|
 | part | 12 | 7 | 63.2% |
 | bonus_title | 8 | 5 | 61.5% |
-| episode_title | 123 | 78 | 61.2% |
 | cd | 3 | 2 | 60.0% |
-| video_profile | 8 | 6 | 57.1% |
-| disc | 3 | 3 | 50.0% |
+| episode_title | 120 | 81 | 59.7% |
 | cd_count | 2 | 2 | 50.0% |
 
 ### ❌ Not Yet Implemented (<50%)
@@ -241,16 +241,17 @@ targets:
 
 | Property | Single-prop fails | Impact |
 |---|---|---|
-| title | 59 | +4.5pp |
-| episode | 39 | +3.0pp |
-| release_group | 38 | +2.9pp |
-| other | 28 | +2.1pp |
-| episode_title | 22 | +1.7pp |
-| language | 18 | +1.4pp |
-| season | 13 | +1.0pp |
-| source | 6 | +0.5pp |
+| title | 52 | +4.0pp |
+| episode_title | 32 | +2.4pp |
+| release_group | 24 | +1.8pp |
+| language | 16 | +1.2pp |
+| other | 12 | +0.9pp |
+| absolute_episode | 6 | +0.5pp |
+| audio_profile | 5 | +0.4pp |
+| episode | 5 | +0.4pp |
 
-Fixing all 267 would bring the pass rate from 61.6% to ~82%.
+Fixing all 182 single-property failures would bring the pass rate
+from 70.3% to ~84%.
 
 ---
 
