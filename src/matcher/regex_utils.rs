@@ -135,15 +135,17 @@ impl ValuePattern {
 
 /// Check that the boundary conditions hold for a match at `[start..end]`.
 pub fn check_boundary(input: &[u8], start: usize, end: usize, spec: &BoundarySpec) -> bool {
-    if let Some(ref left) = spec.left {
-        if start > 0 && left.matches_byte(input[start - 1]) {
-            return false;
-        }
+    if let Some(ref left) = spec.left
+        && start > 0
+        && left.matches_byte(input[start - 1])
+    {
+        return false;
     }
-    if let Some(ref right) = spec.right {
-        if end < input.len() && right.matches_byte(input[end]) {
-            return false;
-        }
+    if let Some(ref right) = spec.right
+        && end < input.len()
+        && right.matches_byte(input[end])
+    {
+        return false;
     }
     true
 }
@@ -162,27 +164,30 @@ fn strip_boundaries(pattern: &str) -> (String, BoundarySpec) {
     let work = skip_flags(&s);
 
     // Try to strip leading negative lookbehind: (?<![...])
-    if let Some(rest) = work.strip_prefix("(?<!") {
-        if let Some(end) = rest.find(')') {
-            let class_str = &rest[..end];
-            if let Some(cc) = parse_char_class(class_str, case_insensitive) {
-                left = Some(cc);
-                // Remove the lookbehind from the string.
-                let lb_full = format!("(?<!{})", class_str);
-                s = s.replacen(&lb_full, "", 1);
-            }
+    if let Some(rest) = work.strip_prefix("(?<!")
+        && let Some(end) = rest.find(')')
+    {
+        let class_str = &rest[..end];
+        // Strip surrounding brackets if present: [a-z0-9] -> a-z0-9
+        let inner = class_str
+            .strip_prefix('[')
+            .and_then(|s| s.strip_suffix(']'))
+            .unwrap_or(class_str);
+        if let Some(cc) = parse_char_class(inner, case_insensitive) {
+            left = Some(cc);
+            let lb_full = format!("(?<!{})", class_str);
+            s = s.replacen(&lb_full, "", 1);
         }
     }
 
     // Try to strip trailing negative lookahead: (?![...])
-    // Find the LAST (?![...]) that ends the pattern.
     if let Some(pos) = find_trailing_lookahead(&s) {
         let la_str = &s[pos..];
-        if let Some(class_str) = extract_lookahead_class(la_str) {
-            if let Some(cc) = parse_char_class(&class_str, case_insensitive) {
-                right = Some(cc);
-                s = s[..pos].to_string();
-            }
+        if let Some(class_str) = extract_lookahead_class(la_str)
+            && let Some(cc) = parse_char_class(&class_str, case_insensitive)
+        {
+            right = Some(cc);
+            s = s[..pos].to_string();
         }
     }
 

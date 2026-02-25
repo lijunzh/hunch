@@ -169,3 +169,18 @@ mod tests {
         assert_eq!(m[0].value, "1080p");
     }
 }
+
+#[cfg(test)]
+mod regression_tests {
+    use super::*;
+
+    #[test]
+    fn test_480p_in_brackets() {
+        let input = "[Kaylith] Zankyou no Terror - 04 [480p][B4D4514E].mp4";
+        let m = find_matches(input);
+        assert!(
+            m.iter().any(|x| x.value == "480p"),
+            "Should detect 480p inside brackets"
+        );
+    }
+}
