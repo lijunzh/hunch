@@ -50,6 +50,33 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
     };
 
     if title_end_abs <= filename_start {
+        // If the first match is a Year at the very start of the filename,
+        // try extracting the title from the region AFTER the year.
+        if let Some(first_m) = first_match_in_filename {
+            if first_m.property == Property::Year && first_m.start == filename_start {
+                // Find the next match after the year.
+                let after_year = first_m.end;
+                let next_after_year = matches
+                    .iter()
+                    .filter(|m| m.start > after_year && !m.is_extension)
+                    .min_by_key(|m| m.start);
+                let title_end = next_after_year
+                    .map(|m| m.start)
+                    .unwrap_or(filename_start + filename.len());
+                if title_end > after_year {
+                    let raw = &input[after_year..title_end];
+                    let cleaned = clean_title(raw);
+                    if !cleaned.is_empty() {
+                        return Some(MatchSpan::new(
+                            after_year,
+                            title_end,
+                            Property::Title,
+                            cleaned,
+                        ));
+                    }
+                }
+            }
+        }
         // Title is empty in the filename — try parent directory.
         return extract_title_from_parent(input, matches);
     }

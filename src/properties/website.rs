@@ -23,7 +23,7 @@ static WEBSITE_FROM: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Unbracketed website in filename: MkvCage.com, www.divx-overnet.com
-/// Excludes common file extensions to prevent over-matching.
+/// Excludes common file extensions and requires a boundary before the domain.
 static WEBSITE_INLINE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
     r"(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.(?:com|org|net|info|tv|io|ru|cc|me|to))"
@@ -69,7 +69,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 let val = site.as_str();
                 // Avoid matching things that look like domains but aren't
                 // (e.g., AC3.5 or DD5.1)
-                if val.len() > 5 {
+                if val.len() > 7 {
                     matches.push(
                         MatchSpan::new(site.start(), site.end(), Property::Website, val)
                             .with_priority(0),
