@@ -238,8 +238,26 @@ impl Pipeline {
                     && m.start < title_zone_mid)
             });
         } else {
-            // No technical tokens at all — prune all language matches.
-            matches.retain(|m| m.property != Property::Language);
+            // No technical tokens. Only prune language if the input
+            // clearly has non-language content (avoids killing bare
+            // language tags like "+English" or ".ENG.").
+            let non_lang_span_bytes: usize = matches
+                .iter()
+                .filter(|m| {
+                    m.start >= fn_start
+                        && !matches!(
+                            m.property,
+                            Property::Language
+                                | Property::SubtitleLanguage
+                                | Property::Container
+                                | Property::Country
+                        )
+                })
+                .map(|m| m.end - m.start)
+                .sum();
+            if non_lang_span_bytes > 0 {
+                matches.retain(|m| m.property != Property::Language);
+            }
         }
 
         // ── Rule 2: Duplicate source in title zone → title word ─────────
