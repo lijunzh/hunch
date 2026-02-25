@@ -7,10 +7,15 @@ use fancy_regex::Regex;
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
-/// Part number: Part 1, Part.2, pt1, pt.2
+/// Part number: Part 1, Part.2, pt1, pt.2, Part Three, Part Trois
 static PART_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])(?:Part|Pt)[-. ]?(?P<num>[0-9]+|I{1,4}|IV|VI{0,3})(?![a-z0-9])")
+    Regex::new(r"(?i)(?<![a-z])(?:Part|Pt)[-. ]?(?P<num>[0-9]+|I{1,4}|IV|VI{0,3}|(?:one|two|three|four|five|six|seven|eight|nine|ten|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix))(?![a-z0-9])")
         .unwrap()
+});
+
+/// Apt (apartado) pattern: Apt.1, Apt 2
+static APT_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?<![a-z])Apt[-. ]?(?P<num>[0-9]+)(?![a-z0-9])").unwrap()
 });
 
 /// Disc number: Disc 1, Disk.2, D1, S01D01, S01D02.3-5, S01D02&4-6&8
@@ -51,6 +56,22 @@ fn roman_to_int(s: &str) -> Option<u32> {
     }
 }
 
+fn word_to_int(s: &str) -> Option<u32> {
+    match s.to_lowercase().as_str() {
+        "one" | "un" => Some(1),
+        "two" | "deux" => Some(2),
+        "three" | "trois" => Some(3),
+        "four" | "quatre" => Some(4),
+        "five" | "cinq" => Some(5),
+        "six" => Some(6),
+        "seven" | "sept" => Some(7),
+        "eight" | "huit" => Some(8),
+        "nine" | "neuf" => Some(9),
+        "ten" | "dix" => Some(10),
+        _ => None,
+    }
+}
+
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 
@@ -60,6 +81,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         let value = if let Ok(n) = num.as_str().parse::<u32>() {
             n.to_string()
         } else if let Some(n) = roman_to_int(num.as_str()) {
+            n.to_string()
+        } else if let Some(n) = word_to_int(num.as_str()) {
             n.to_string()
         } else {
             String::new()
@@ -116,6 +139,17 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                     .with_priority(1),
             );
         }
+    }
+
+    // Apt (apartado) pattern.
+    if let Ok(Some(cap)) = APT_PATTERN.captures(input)
+        && let Some(num) = cap.name("num")
+    {
+        let full = cap.get(0).unwrap();
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Part, num.as_str())
+                .with_priority(1),
+        );
     }
 
     matches

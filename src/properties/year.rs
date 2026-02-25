@@ -5,7 +5,7 @@ use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
 const MIN_YEAR: i32 = 1920;
-const MAX_YEAR: i32 = 2030;
+const MAX_YEAR: i32 = 2029;
 
 static YEAR_RE: LazyLock<ValuePattern> = LazyLock::new(|| {
     ValuePattern::new(

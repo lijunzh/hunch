@@ -26,7 +26,7 @@ static WEBSITE_FROM: LazyLock<Regex> = LazyLock::new(|| {
 /// Excludes common file extensions and requires a boundary before the domain.
 static WEBSITE_INLINE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.(?:com|org|net|info|tv|io|ru|cc|me|to))"
+    r"(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.(?:com|org|net|info|tv|io|ru|cc))"
     ).unwrap()
 });
 

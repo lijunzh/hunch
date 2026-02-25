@@ -118,6 +118,11 @@ impl HunchResult {
         self.first(Property::StreamingService)
     }
 
+    /// Part number.
+    pub fn part(&self) -> Option<i32> {
+        self.first(Property::Part).and_then(|s| s.parse().ok())
+    }
+
     /// Proper count (number of PROPER/REPACK occurrences).
     pub fn proper_count(&self) -> Option<u32> {
         self.first(Property::ProperCount)

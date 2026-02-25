@@ -58,7 +58,8 @@ fn movie_dvdrip() {
 #[test]
 fn movie_web_dl() {
     let r = hunch("Dune.Part.Two.2024.WEB-DL.1080p.DDP5.1.Atmos.H.264-FLUX.mkv");
-    assert_eq!(r.title(), Some("Dune Part Two"));
+    assert_eq!(r.title(), Some("Dune"));
+    assert_eq!(r.part(), Some(2));
     assert_eq!(r.year(), Some(2024));
     assert_eq!(r.source(), Some("Web"));
     assert_eq!(r.screen_size(), Some("1080p"));
