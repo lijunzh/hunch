@@ -29,22 +29,23 @@ Each sub-problem favors a different approach. Our architecture layers them.
 ┌─────────────────────────────────────────────────────────────┐
 │ Layer 0: Lookup Tables + Regex (v0.1) — this crate         │
 │                                                             │
-│   • Exact-match hash lookups for known tokens               │
-│   • Regex patterns for structured matches (S01E02, DTS-HD)  │
-│   • Data-driven: patterns defined in TOML, embedded at      │
-│     compile time via include_str!()                          │
-│   • Offline, deterministic, fast (microseconds)              │
-│   • Target: ~80% accuracy                                   │
+│   • fancy_regex for word-boundary assertions (lookaround)   │
+│   • Patterns hardcoded in Rust (ValuePattern + LazyLock)    │
+│   • Offline, deterministic, fast (microseconds)             │
+│   • Target: ~75% accuracy                                   │
 ├─────────────────────────────────────────────────────────────┤
-│ Layer 1: Tokenizer + Zones (v0.2) — this crate              │
+│ Layer 1: Tokenizer + TOML Rules + regex-only (v0.2) — this crate  │
 │                                                             │
 │   • Split input into tokens at boundaries (. - _ space)     │
 │   • Anchor tokens (S01E02, 720p) divide into zones:         │
 │     TITLE ZONE | TECH ZONE                                  │
 │   • Context-sensitive: "French" in title zone = title word,  │
 │     "French" in tech zone = language                         │
+│   • Patterns move to TOML files (embedded at compile time)   │
+│   • Drop fancy_regex entirely — tokenization eliminates      │
+│     the need for lookaround assertions                       │
+│   • regex crate only — linear-time, ReDoS-immune            │
 │   • Eliminates all prune_* heuristics                        │
-│   • Eliminates need for regex lookaround assertions          │
 │   • Target: ~90% accuracy                                   │
 ├─────────────────────────────────────────────────────────────┤
 │ Layer 2: Database Lookup (future) — downstream consumer     │
@@ -79,17 +80,23 @@ They belong in downstream consumers like `plex_organizer`, not in this crate.
 
 ### D001: Data-driven patterns (TOML) over hardcoded Rust
 
-**Status**: Decided, implementing in v0.1
+**Status**: Deferred to v0.2 (bundled with tokenizer)
 
-**Context**: We had ~486 regex patterns hardcoded across 20+ Rust files.
-Adding a new codec meant editing Rust, recompiling, and navigating through
+**Context**: We have ~486 regex patterns hardcoded across 20+ Rust files.
+Adding a new codec means editing Rust, recompiling, and navigating through
 pattern-matching code mixed with detection logic.
 
-**Decision**: Move simple property patterns into TOML rule files, embedded
-at compile time via `include_str!()`. Keep complex algorithmic logic
+**Decision**: In v0.2, move simple property patterns into TOML rule files,
+embedded at compile time via `include_str!()`. Keep complex algorithmic logic
 (title extraction, episode parsing, release group heuristics) in Rust.
 
-**Consequences**:
+**Why deferred**: TOML migration is most valuable when combined with the
+tokenizer (D003) and regex-only (D002) changes. Doing TOML alone in v0.1
+would require keeping `fancy_regex` for word boundary assertions, which
+defeats the security benefit (D002). All three changes are interdependent
+and should ship together.
+
+**Consequences (when implemented)**:
 - Pattern definitions are readable and auditable in isolation
 - The Rust engine becomes a generic rule loader + matcher
 - Contributors can add patterns without deep Rust knowledge
@@ -97,38 +104,41 @@ at compile time via `include_str!()`. Keep complex algorithmic logic
 - Regex validity checked by tests, not compiler (acceptable — same
   practical safety as current `LazyLock` + `unwrap()` approach)
 
-### D002: `regex` crate only — no `fancy_regex` for TOML patterns
+### D002: `regex` crate only — drop `fancy_regex` entirely
 
-**Status**: Decided, implementing in v0.1
+**Status**: Deferred to v0.2 (requires tokenizer first)
 
-**Context**: We originally used `fancy_regex` for lookahead/lookbehind
-assertions (`(?<![a-z])HDTV(?![a-z])`). This was necessary because Rust's
-`regex` crate doesn't support lookaround. However, `fancy_regex` uses
-backtracking, which makes it vulnerable to ReDoS (Regular Expression Denial
-of Service) attacks from malicious patterns.
+**Context**: We use `fancy_regex` for lookahead/lookbehind assertions
+(`(?<![a-z])HDTV(?![a-z])`). This is necessary because Rust's `regex` crate
+doesn't support lookaround. However, `fancy_regex` uses backtracking, which
+makes it theoretically vulnerable to ReDoS.
 
-**Decision**: TOML-loaded patterns use the `regex` crate only (linear-time,
-ReDoS-immune). Complex patterns that genuinely need lookaround stay as
-hand-written Rust code using `fancy_regex` (audited, not user-editable).
+**Decision**: In v0.2, drop `fancy_regex` entirely. The tokenizer (D003)
+eliminates the need for lookaround because patterns match against isolated
+tokens, not substrings of the full input.
 
-**Why this is safe**: For v0.1, we use `\b` (word boundary) instead of
-lookaround in TOML patterns. `\b` behaves slightly differently at
-digit/punctuation boundaries, but this is acceptable because:
+**Why deferred**: Dropping `fancy_regex` without the tokenizer would break
+~30 complex patterns (episode parsing, date detection, release groups) and
+drop compatibility from 75% to ~50%. The tokenizer must come first.
 
-1. Most patterns are exact token matches (HashMap lookup, no regex at all)
-2. The ~20% that need regex are simple keyword patterns where `\b` works
-3. Edge cases where `\b` differs from lookaround (e.g., `DD+5.1`) stay
-   in hand-written Rust
-4. In v0.2, the tokenizer eliminates the need for word boundary assertions
-   entirely — tokens are already isolated, so `"HDTV"` matches against the
-   whole token, not a substring of a larger string
+**Why tokenizer solves lookaround**:
+```
+Current (full-string matching, needs lookaround):
+  Input: "Movie.HDTV.x264"     Pattern: (?<![a-z])HDTV(?![a-z])
+  Must assert no letter before/after HDTV in the full string.
 
-**Security boundary**: Nothing loaded from TOML can cause unbounded
-computation. The `regex` crate guarantees linear-time matching structurally.
+With tokenizer (isolated token matching, no lookaround needed):
+  Tokens: ["Movie", "HDTV", "x264"]    Pattern: (?i)^HDTV$
+  Token is already bounded. No surrounding context to worry about.
+```
 
-### D003: Tokenizer deferred to v0.2
+**Security benefit**: The `regex` crate guarantees linear-time matching,
+making ReDoS structurally impossible. This is enforced by the engine,
+not by convention.
 
-**Status**: Decided
+### D003: Tokenizer in v0.2 (bundled with D001 + D002)
+
+**Status**: Planned for v0.2
 
 **Context**: The current architecture runs regex patterns across the entire
 input string, then uses `prune_*` functions to remove false positives
@@ -136,17 +146,19 @@ input string, then uses `prune_*` functions to remove false positives
 would split the input first, establish title/tech zones, and eliminate
 these heuristics.
 
-**Decision**: Ship v0.1 with the current regex-over-full-string approach.
-Add tokenizer in v0.2.
+**Decision**: Ship v0.1 with the current regex-over-full-string approach
+(including `fancy_regex`). In v0.2, implement the tokenizer together with
+TOML rules (D001) and regex-only (D002) as a single coordinated change.
 
 **Rationale**:
 - v0.1 at ~75% accuracy is useful and shippable
-- The tokenizer is a significant refactor of the matching layer
-- TOML data-driven patterns (D001) can be done independently and will
-  carry over to the tokenizer architecture
-- The tokenizer will also eliminate the `fancy_regex` dependency for
-  the remaining hand-written patterns (D002), since matching against
-  isolated tokens doesn't need lookaround
+- D001 (TOML), D002 (regex-only), and D003 (tokenizer) are interdependent:
+  - TOML without tokenizer still needs `fancy_regex` for boundaries
+  - regex-only without tokenizer breaks ~30 patterns
+  - Tokenizer enables both TOML and regex-only cleanly
+- Shipping all three together avoids intermediate regression
+- The current `fancy_regex` patterns carry over as reference for
+  what the tokenizer needs to handle
 
 **What the tokenizer solves**:
 - Eliminates all `prune_*` functions (currently 5 and growing)
@@ -199,34 +211,30 @@ with flat conflict resolution.
 ```
 Input string
   │
-  ├─ 1. Load rules from embedded TOML files
-  │     ├─ Exact lookups (HashMap<token, value>)
-  │     └─ Regex patterns (regex crate, linear-time)
+  ├─ 1. Property matchers scan input, produce Vec<MatchSpan>
+  │     ├─ ValuePattern matchers (fancy_regex + canonical values)
+  │     └─ Algorithmic matchers (episodes, title, release_group, date)
   │
-  ├─ 2. Property matchers scan input, produce Vec<MatchSpan>
-  │     ├─ TOML-driven matchers (generic engine)
-  │     └─ Rust-coded matchers (episodes, title, release_group, date)
-  │
-  ├─ 3. Conflict resolution
+  ├─ 2. Conflict resolution
   │     └─ Overlapping spans: higher priority wins, then longer wins
   │
-  ├─ 4. Pruning heuristics (to be eliminated in v0.2 by tokenizer)
+  ├─ 3. Pruning heuristics (to be eliminated in v0.2 by tokenizer)
   │     ├─ prune_language_in_title_zone
   │     ├─ prune_early_source_duplicates
   │     ├─ prune_redundant_hd_tags
   │     ├─ prune_early_episode_details
   │     └─ prune_other_overlapping_release_group
   │
-  ├─ 5. Post-processing
+  ├─ 4. Post-processing
   │     ├─ Title extraction (largest unclaimed region before tech tokens)
   │     ├─ Episode title extraction
   │     ├─ Media type inference
   │     └─ Proper count computation
   │
-  └─ 6. Build HunchResult → JSON
+  └─ 5. Build HunchResult → JSON
 ```
 
-## v0.2 Architecture (planned)
+## v0.2 Architecture (planned — tokenizer + TOML + regex-only)
 
 ```
 Input string
@@ -234,7 +242,10 @@ Input string
   ├─ 1. Tokenize: split at separators (. - _ space), identify brackets
   │     → [Token { text, position, separator_type }]
   │
-  ├─ 2. Anchor detection: classify tokens using TOML rules + regex
+  ├─ 2. Anchor detection: classify tokens using TOML rules
+  │     ├─ Exact lookups (HashMap from TOML [exact] sections)
+  │     ├─ Regex patterns (regex crate only, linear-time, from TOML)
+  │     └─ Algorithmic matchers (episodes, dates — still in Rust)
   │     → S01E02 = Episode, 720p = ScreenSize, mkv = Container
   │
   ├─ 3. Zone inference: anchors divide token stream
@@ -250,31 +261,67 @@ Input string
   └─ 6. Build HunchResult → JSON
 ```
 
+### Key v0.2 changes from v0.1
+
+| Aspect | v0.1 | v0.2 |
+|--------|------|------|
+| Pattern storage | Hardcoded Rust | TOML files (embedded) |
+| Regex engine | `fancy_regex` (backtracking) | `regex` only (linear-time) |
+| Word boundaries | Lookaround assertions | Token isolation (structural) |
+| Disambiguation | 5 prune_* heuristics | Zone-based (structural) |
+| Title extraction | Gap detection in byte offsets | Unmatched title-zone tokens |
+| Security | Patterns audited as Rust code | ReDoS structurally impossible |
+
 ---
 
 ## File Organization
 
-### v0.1 target structure
+### v0.1 structure (current)
 
 ```
 src/
 ├── lib.rs                   # Public API
 ├── main.rs                  # CLI
-├── pipeline.rs              # Orchestration
+├── pipeline.rs              # Orchestration + prune_* heuristics
 ├── hunch_result.rs          # Output type
 ├── options.rs               # Configuration
 ├── matcher/
 │   ├── span.rs              # MatchSpan + Property enum
 │   ├── engine.rs            # Conflict resolution
-│   └── rule_loader.rs       # Generic TOML → matcher engine
+│   └── regex_utils.rs       # ValuePattern (fancy_regex + value)
+└── properties/              # ~20 matcher modules (hardcoded patterns)
+    ├── title.rs             # Title extraction (algorithmic)
+    ├── episodes.rs          # Episode parsing (algorithmic)
+    ├── release_group.rs     # Release group (positional)
+    ├── date.rs              # Date parsing (algorithmic)
+    ├── video_codec.rs       # Hardcoded ValuePattern lists
+    ├── audio_codec.rs       # Hardcoded ValuePattern lists
+    ├── ...                  # ~15 more property modules
+    └── mod.rs
+```
+
+### v0.2 target structure
+
+```
+src/
+├── lib.rs                   # Public API
+├── main.rs                  # CLI
+├── pipeline.rs              # Orchestration (no more prune_*)
+├── hunch_result.rs          # Output type
+├── options.rs               # Configuration
+├── tokenizer.rs             # NEW: input → token stream + zones
+├── matcher/
+│   ├── span.rs              # MatchSpan + Property enum
+│   ├── engine.rs            # Conflict resolution
+│   └── rule_loader.rs       # NEW: generic TOML → matcher engine
 └── properties/
-    ├── title.rs             # Title extraction (Rust, algorithmic)
-    ├── episodes.rs          # Episode parsing (Rust, algorithmic)
-    ├── release_group.rs     # Release group (Rust, positional)
-    ├── date.rs              # Date parsing (Rust, algorithmic)
+    ├── title.rs             # Simplified: title = unmatched title-zone tokens
+    ├── episodes.rs          # Episode parsing (algorithmic, regex-only)
+    ├── release_group.rs     # Release group (positional)
+    ├── date.rs              # Date parsing (algorithmic, regex-only)
     └── mod.rs               # Wires TOML-driven + Rust matchers
 
-rules/                       # Data-driven pattern definitions
+rules/                       # NEW: data-driven pattern definitions
 ├── video_codec.toml
 ├── audio_codec.toml
 ├── source.toml
@@ -296,17 +343,20 @@ rules/                       # Data-driven pattern definitions
 
 ## Security Model
 
-### TOML rule files (data layer)
+### v0.1 (current)
 
-- Embedded at compile time — no runtime file access
-- `regex` crate only — linear-time matching guaranteed
+- All patterns are hardcoded in Rust source — no external data files
+- `fancy_regex` is used for lookaround (backtracking possible)
+- All patterns are reviewed as code changes
+- No `unsafe`, no FFI, no file I/O, no network
+- ReDoS risk is low: patterns are authored by maintainers, not user input
+
+### v0.2 (planned)
+
+- TOML rule files embedded at compile time — no runtime file access
+- `regex` crate only — linear-time matching guaranteed, ReDoS structurally
+  impossible even for malicious patterns
 - Schema-validated at load time (max pattern length, valid property names)
 - Validated by test suite before any release
-- Cannot cause unbounded computation, panics, or code execution
-
-### Rust code (logic layer)
-
-- Standard Rust safety guarantees (memory, type, thread safety)
-- `fancy_regex` allowed only in hand-written, audited code
-- Complex patterns are few (~30) and reviewed as code changes
+- `fancy_regex` dependency removed entirely
 - No `unsafe`, no FFI, no file I/O, no network

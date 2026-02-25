@@ -52,28 +52,29 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
     if title_end_abs <= filename_start {
         // If the first match is a Year at the very start of the filename,
         // try extracting the title from the region AFTER the year.
-        if let Some(first_m) = first_match_in_filename {
-            if first_m.property == Property::Year && first_m.start == filename_start {
-                // Find the next match after the year.
-                let after_year = first_m.end;
-                let next_after_year = matches
-                    .iter()
-                    .filter(|m| m.start > after_year && !m.is_extension)
-                    .min_by_key(|m| m.start);
-                let title_end = next_after_year
-                    .map(|m| m.start)
-                    .unwrap_or(filename_start + filename.len());
-                if title_end > after_year {
-                    let raw = &input[after_year..title_end];
-                    let cleaned = clean_title(raw);
-                    if !cleaned.is_empty() {
-                        return Some(MatchSpan::new(
-                            after_year,
-                            title_end,
-                            Property::Title,
-                            cleaned,
-                        ));
-                    }
+        if let Some(first_m) = first_match_in_filename
+            && first_m.property == Property::Year
+            && first_m.start == filename_start
+        {
+            // Find the next match after the year.
+            let after_year = first_m.end;
+            let next_after_year = matches
+                .iter()
+                .filter(|m| m.start > after_year && !m.is_extension)
+                .min_by_key(|m| m.start);
+            let title_end = next_after_year
+                .map(|m| m.start)
+                .unwrap_or(filename_start + filename.len());
+            if title_end > after_year {
+                let raw = &input[after_year..title_end];
+                let cleaned = clean_title(raw);
+                if !cleaned.is_empty() {
+                    return Some(MatchSpan::new(
+                        after_year,
+                        title_end,
+                        Property::Title,
+                        cleaned,
+                    ));
                 }
             }
         }
@@ -384,9 +385,8 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
 
     // Replace separators with spaces, but preserve hyphens between letters
     // and dot-acronyms like S.H.I.E.L.D. or T.I.T.L.E.
-    let dot_acronym_re = fancy_regex::Regex::new(
-        r"(?:^|(?<=[\s._]))([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)"
-    ).unwrap();
+    let dot_acronym_re =
+        fancy_regex::Regex::new(r"(?:^|(?<=[\s._]))([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)").unwrap();
 
     // Find dot-acronym byte ranges to protect from separator replacement.
     let mut protected_ranges: Vec<(usize, usize)> = Vec::new();
@@ -402,9 +402,8 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
         }
     }
 
-    let in_protected = |pos: usize| -> bool {
-        protected_ranges.iter().any(|(s, e)| pos >= *s && pos < *e)
-    };
+    let in_protected =
+        |pos: usize| -> bool { protected_ranges.iter().any(|(s, e)| pos >= *s && pos < *e) };
 
     let chars: Vec<char> = s.chars().collect();
     // Build byte-position map for checking protected ranges.
@@ -500,11 +499,43 @@ fn strip_extension(s: &str) -> &str {
 fn is_likely_extension(ext: &str) -> bool {
     matches!(
         ext,
-        "mkv" | "mp4" | "avi" | "wmv" | "flv" | "mov" | "webm" | "ogm" | "ogv"
-            | "ts" | "m2ts" | "m4v" | "mpg" | "mpeg" | "vob" | "divx" | "3gp"
-            | "srt" | "sub" | "ssa" | "ass" | "idx" | "sup" | "vtt"
-            | "nfo" | "txt" | "jpg" | "jpeg" | "png" | "nzb" | "par" | "par2"
-            | "iso" | "img" | "rar" | "zip" | "7z"
+        "mkv"
+            | "mp4"
+            | "avi"
+            | "wmv"
+            | "flv"
+            | "mov"
+            | "webm"
+            | "ogm"
+            | "ogv"
+            | "ts"
+            | "m2ts"
+            | "m4v"
+            | "mpg"
+            | "mpeg"
+            | "vob"
+            | "divx"
+            | "3gp"
+            | "srt"
+            | "sub"
+            | "ssa"
+            | "ass"
+            | "idx"
+            | "sup"
+            | "vtt"
+            | "nfo"
+            | "txt"
+            | "jpg"
+            | "jpeg"
+            | "png"
+            | "nzb"
+            | "par"
+            | "par2"
+            | "iso"
+            | "img"
+            | "rar"
+            | "zip"
+            | "7z"
     )
 }
 

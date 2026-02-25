@@ -45,8 +45,7 @@ impl SourcePattern {
 /// Detects whether the matched text ends with "Rip" or "Cap" (capture = rip).
 static REENCODED_RIP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^BR[-.]?Rip$").unwrap());
 
-static RIP_SUFFIX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:Rip|Cap)$").unwrap());
+static RIP_SUFFIX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(?:Rip|Cap)$").unwrap());
 
 /// BRRip/BDRip are re-encoded from Blu-ray (not direct rips like BluRay.Rip).
 static SOURCE_PATTERNS: LazyLock<Vec<SourcePattern>> = LazyLock::new(|| {
@@ -163,7 +162,10 @@ static SOURCE_PATTERNS: LazyLock<Vec<SourcePattern>> = LazyLock::new(|| {
         SourcePattern::with_rip(r"(?i)(?<![a-z])CAM[-.]?Rip(?![a-z])", "Camera"),
         // Screener (with DVD/BD prefix → maps to source with Screener flag).
         SourcePattern::with_screener(r"(?i)(?<![a-z])DVD[-.]?SCR(?:eener)?(?![a-z])", "DVD"),
-        SourcePattern::with_screener(r"(?i)(?<![a-z])(?:BD|BR)[-.]?SCR(?:eener)?(?![a-z])", "Blu-ray"),
+        SourcePattern::with_screener(
+            r"(?i)(?<![a-z])(?:BD|BR)[-.]?SCR(?:eener)?(?![a-z])",
+            "Blu-ray",
+        ),
         SourcePattern::with_screener(r"(?i)(?<![a-z])WEB[-.]?SCR(?:eener)?(?![a-z])", "Web"),
         // Generic screener (no prefix).
         SourcePattern::plain(r"(?i)(?<![a-z])SCR(?:eener)?(?![a-z])", "Screener"),

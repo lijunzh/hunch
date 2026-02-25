@@ -225,14 +225,12 @@ impl Pipeline {
     /// Prune "Ultra HD" Other tag when the source already conveys UHD
     /// (e.g., source = "Ultra HD Blu-ray"). If no source captures UHD, keep it.
     fn prune_redundant_hd_tags(&self, matches: &mut Vec<MatchSpan>) {
-        let source_has_uhd = matches.iter().any(|m| {
-            m.property == Property::Source && m.value.contains("Ultra HD")
-        });
+        let source_has_uhd = matches
+            .iter()
+            .any(|m| m.property == Property::Source && m.value.contains("Ultra HD"));
 
         if source_has_uhd {
-            matches.retain(|m| {
-                !(m.property == Property::Other && m.value == "Ultra HD")
-            });
+            matches.retain(|m| !(m.property == Property::Other && m.value == "Ultra HD"));
         }
     }
 
@@ -280,8 +278,7 @@ impl Pipeline {
         }
 
         // Only prune ambiguous short Other values.
-        const AMBIGUOUS_OTHER: &[&str] =
-            &["High Quality", "High Resolution"];
+        const AMBIGUOUS_OTHER: &[&str] = &["High Quality", "High Resolution"];
 
         matches.retain(|m| {
             if m.property != Property::Other || !AMBIGUOUS_OTHER.contains(&m.value.as_ref()) {
@@ -321,9 +318,8 @@ fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
         .min();
 
     if let Some(ts) = tech_start {
-        static REAL_STANDALONE: LazyLock<fancy_regex::Regex> = LazyLock::new(|| {
-            fancy_regex::Regex::new(r"(?i)(?<![a-z])REAL(?![a-z])").unwrap()
-        });
+        static REAL_STANDALONE: LazyLock<fancy_regex::Regex> =
+            LazyLock::new(|| fancy_regex::Regex::new(r"(?i)(?<![a-z])REAL(?![a-z])").unwrap());
         if REAL_STANDALONE.is_match(&input[ts..]).unwrap_or(false) {
             has_real = true;
         }

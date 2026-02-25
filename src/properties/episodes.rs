@@ -151,7 +151,8 @@ static S_MULTI_NUM: LazyLock<Regex> = LazyLock::new(|| {
 
 /// s01.to.s04, s01-to-s04 (S-prefixed range with "to").
 static S_TO_S: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z0-9])S(?P<s1>\d{1,3})\.?(?:to|\.to\.)\.?S(?P<s2>\d{1,3})(?![a-z0-9])").unwrap()
+    Regex::new(r"(?i)(?<![a-z0-9])S(?P<s1>\d{1,3})\.?(?:to|\.to\.)\.?S(?P<s2>\d{1,3})(?![a-z0-9])")
+        .unwrap()
 });
 
 /// Season word with "and" / "&" list: Season 1.3 and 5, Season 1.3&5.
@@ -167,7 +168,7 @@ static SEASON_LIST_AND: LazyLock<Regex> = LazyLock::new(|| {
 /// Also handles ranges: `[Cap.102_104]` → episodes 2-4.
 static CAP_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])Cap\.?\s*(?P<num1>\d{3,4})(?:[_](?P<num2>\d{3,4}))?(?:\.[A-Za-z]|[\]\[]|$)"
+        r"(?i)(?<![a-z])Cap\.?\s*(?P<num1>\d{3,4})(?:[_](?P<num2>\d{3,4}))?(?:\.[A-Za-z]|[\]\[]|$)",
     )
     .unwrap()
 });
@@ -372,13 +373,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             let episodes = parse_multi_episodes(ep_start, ep_rest);
             for ep in &episodes {
                 matches.push(
-                    MatchSpan::new(
-                        full.start(),
-                        full.end(),
-                        Property::Episode,
-                        ep.to_string(),
-                    )
-                    .with_priority(5),
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, ep.to_string())
+                        .with_priority(5),
                 );
             }
         }
@@ -489,12 +485,14 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     // S01S02S03 concatenated.
+    static S_NUM_RE: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"(?i)S(\d{1,3})").unwrap());
     if !has_property(&matches, Property::Season) {
         for cap in captures_iter(&S_CONCAT, input) {
             let full = cap.get(0).unwrap();
             let text = &input[full.start()..full.end()];
             // Extract all season numbers from SxxSxx pattern.
-            for num_cap in regex::Regex::new(r"(?i)S(\d{1,3})").unwrap().find_iter(text) {
+            for num_cap in S_NUM_RE.find_iter(text) {
                 let num_str = &num_cap.as_str()[1..];
                 if let Ok(s) = num_str.parse::<u32>() {
                     matches.push(
@@ -625,8 +623,13 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 if range_end > range_start {
                     for s in range_start..=range_end {
                         matches.push(
-                            MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                                .with_priority(1),
+                            MatchSpan::new(
+                                full.start(),
+                                full.end(),
+                                Property::Season,
+                                s.to_string(),
+                            )
+                            .with_priority(1),
                         );
                     }
                 }
@@ -699,13 +702,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 let episodes = parse_multi_episodes(ep_start, ep_rest);
                 for ep in &episodes {
                     matches.push(
-                        MatchSpan::new(
-                            full.start(),
-                            full.end(),
-                            Property::Episode,
-                            ep.to_string(),
-                        )
-                        .with_priority(2),
+                        MatchSpan::new(full.start(), full.end(), Property::Episode, ep.to_string())
+                            .with_priority(2),
                     );
                 }
             }
@@ -717,7 +715,9 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         for cap in captures_iter(&EPISODE_WORD, input) {
             let full = cap.get(0).unwrap();
             let ep_start: u32 = parse_num(&cap, "episode").parse().unwrap_or(0);
-            let ep_end = cap.name("ep_end").and_then(|m| m.as_str().parse::<u32>().ok());
+            let ep_end = cap
+                .name("ep_end")
+                .and_then(|m| m.as_str().parse::<u32>().ok());
             if let Some(end) = ep_end {
                 if end > ep_start {
                     matches.extend(episode_range(ep_start, end, full.start(), full.end(), 2));
@@ -807,13 +807,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 let num2: u32 = num2_match.as_str().parse().unwrap_or(0);
                 let ep2 = num2 % 100;
                 if ep2 > ep1 {
-                    matches.extend(episode_range(
-                        ep1,
-                        ep2,
-                        full.start(),
-                        full.end(),
-                        3,
-                    ));
+                    matches.extend(episode_range(ep1, ep2, full.start(), full.end(), 3));
                 } else {
                     matches.push(
                         MatchSpan::new(
@@ -827,13 +821,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 }
             } else {
                 matches.push(
-                    MatchSpan::new(
-                        full.start(),
-                        full.end(),
-                        Property::Episode,
-                        ep1.to_string(),
-                    )
-                    .with_priority(3),
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, ep1.to_string())
+                        .with_priority(3),
                 );
             }
         }
@@ -866,13 +855,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 }
                 // Emit as absolute episode (no season decomposition).
                 matches.push(
-                    MatchSpan::new(
-                        full.start(),
-                        full.end(),
-                        Property::Episode,
-                        num.to_string(),
-                    )
-                    .with_priority(0),
+                    MatchSpan::new(full.start(), full.end(), Property::Episode, num.to_string())
+                        .with_priority(0),
                 );
                 break;
             }
@@ -1134,30 +1118,57 @@ mod tests {
     #[test]
     fn test_cap_single() {
         let m = find_matches("Show.Name.-.Temporada.1.720p.HDTV.x264[Cap.102]SPANISH.AUDIO");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "1"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "1")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "2")
+        );
     }
 
     #[test]
     fn test_cap_range() {
         let m = find_matches("Show.Name.-.Temporada.1.720p.HDTV.x264[Cap.102_104]SPANISH.AUDIO");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "2"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "4"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "2")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "3")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "4")
+        );
     }
 
     #[test]
     fn test_cap_four_digit() {
         let m = find_matches("Show.Name.-.Temporada.15.720p.HDTV.x264[Cap.1503]SPANISH.AUDIO");
-        assert!(m.iter().any(|x| x.property == Property::Season && x.value == "15"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == "15")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "3")
+        );
     }
 
     #[test]
     fn test_cap_four_digit_range() {
         let m = find_matches("Show.Name.-.Temporada.15.720p.HDTV.x264[Cap.1503_1506]SPANISH.AUDIO");
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "3"));
-        assert!(m.iter().any(|x| x.property == Property::Episode && x.value == "6"));
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "3")
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == "6")
+        );
     }
 
     #[test]
@@ -1168,13 +1179,18 @@ mod tests {
             .filter(|x| x.property == Property::Season)
             .map(|x| x.value.as_str())
             .collect();
-        assert!(seasons.len() >= 2, "Expected multi-season, got: {:?}", seasons);
+        assert!(
+            seasons.len() >= 2,
+            "Expected multi-season, got: {:?}",
+            seasons
+        );
     }
 
     #[test]
     fn test_s_concat() {
         let m = find_matches("Some Series S01S02S03");
-        let seasons: Vec<&str> = m.iter()
+        let seasons: Vec<&str> = m
+            .iter()
             .filter(|x| x.property == Property::Season)
             .map(|x| x.value.as_str())
             .collect();
@@ -1184,7 +1200,8 @@ mod tests {
     #[test]
     fn test_s_multi_num() {
         let m = find_matches("Some Series S01-02-03");
-        let seasons: Vec<&str> = m.iter()
+        let seasons: Vec<&str> = m
+            .iter()
             .filter(|x| x.property == Property::Season)
             .map(|x| x.value.as_str())
             .collect();
@@ -1194,7 +1211,8 @@ mod tests {
     #[test]
     fn test_season_range_word() {
         let m = find_matches("Show.Name.-.Season.1.to.3.-.Mp4.1080p");
-        let seasons: Vec<&str> = m.iter()
+        let seasons: Vec<&str> = m
+            .iter()
             .filter(|x| x.property == Property::Season)
             .map(|x| x.value.as_str())
             .collect();

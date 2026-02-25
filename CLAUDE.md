@@ -75,9 +75,9 @@ Input string
 | Decision | Rationale |
 | -------- | --------- |
 | No rebulk port | rebulk is deeply Pythonic. A flat `Vec<MatchSpan>` + sort-and-sweep is simpler and faster. |
-| Data-driven TOML rules | Simple property patterns live in `rules/*.toml`, embedded via `include_str!()`. Keeps data separate from logic. See `ARCHITECTURE.md` D001. |
-| `regex` crate for TOML patterns | Linear-time guaranteed, ReDoS-immune. `fancy_regex` only in hand-written Rust. See `ARCHITECTURE.md` D002. |
-| Tokenizer deferred to v0.2 | Will eliminate `prune_*` heuristics and lookaround need. See `ARCHITECTURE.md` D003. |
+| Patterns in Rust code (v0.1) | `LazyLock` + `fancy_regex` gives compile-time validation. Moving to TOML in v0.2. |
+| `fancy_regex` for lookaround (v0.1) | Rust's `regex` crate doesn't support look-behind/ahead. Will be eliminated by tokenizer in v0.2. |
+| Tokenizer + TOML + regex-only in v0.2 | Bundled change: tokenizer eliminates lookaround need, enabling regex-only (ReDoS-immune) + TOML data files. See `ARCHITECTURE.md` D001-D003. |
 | No network/DB/ML | Hunch is pure, offline, deterministic. Layers 2-3 belong in downstream consumers. See `ARCHITECTURE.md` D004. |
 | `BTreeMap` output | Deterministic key ordering for JSON output and tests. |
 | `std::sync::LazyLock` | Compile regexes once at startup (std, no external dep). |
@@ -254,28 +254,22 @@ curly-brace patterns like `ST{Fr-Eng}` are not yet handled.
 
 ### Adding a new property matcher
 
-**For simple keyword properties** (codec, source, edition, etc.):
-1. Add entries to the appropriate `rules/<property>.toml` file.
-2. Add `Property::YourProp` variant to `src/matcher/span.rs` if new.
-3. Run the test suite to validate patterns compile.
-
-**For complex algorithmic properties** (episodes, title, dates, etc.):
 1. Create `src/properties/<name>.rs`.
-2. Add unit tests in the same file.
-3. Add `Property::YourProp` variant to `src/matcher/span.rs` (and its Display impl).
-4. Register in `src/pipeline.rs` (add to matcher list).
-5. Update this file.
+2. Define patterns using `ValuePattern::new(regex, value)` for simple cases
+   or custom `fancy_regex` for complex patterns.
+3. Add unit tests in the same file.
+4. Add `Property::YourProp` variant to `src/matcher/span.rs` (and its Display impl).
+5. Register in `src/pipeline.rs` (add to matcher list).
+6. Update this file.
 
 ### Regex conventions
 
-- **TOML patterns**: Use `regex` crate only (linear-time, no lookaround).
-  Use `\b` for word boundaries. Patterns live in `rules/*.toml`.
-- **Rust patterns**: May use `fancy_regex` for complex cases that genuinely
-  need lookahead/lookbehind (episodes, dates, release groups). These are
-  hand-written and audited as code changes.
+- **Word boundaries**: Use `(?<![a-zA-Z])` / `(?![a-zA-Z])` (requires `fancy_regex`).
+  Standard `\b` misbehaves with digits and hyphens. (In v0.2, the tokenizer
+  will eliminate the need for lookaround entirely.)
 - **Case insensitive**: Prefix patterns with `(?i)` where needed.
-- **Exact lookups**: For simple keyword → value mappings, prefer the `[exact]`
-  section in TOML (HashMap, no regex at all).
+- **ValuePattern**: For simple keyword → value mappings, use `ValuePattern::new(regex, value)`.
+  It pairs a compiled `fancy_regex` with a canonical output string.
 
 ### Conflict resolution strategy
 
@@ -290,14 +284,13 @@ curly-brace patterns like `ST{Fr-Eng}` are not yet handled.
 
 ## Dependencies
 
-| Crate         | Purpose                                              |
-| ------------- | ---------------------------------------------------- |
-| `regex`       | Pattern matching for TOML-loaded rules (linear-time) |
-| `fancy-regex` | Lookaround patterns in hand-written Rust matchers    |
-| `serde`       | Serialization for HunchResult output + TOML loading  |
-| `serde_json`  | JSON output for CLI                                  |
-| `toml`        | TOML rule file parsing (embedded at compile time)    |
-| `clap`        | CLI argument parsing                                 |
+| Crate         | Purpose                           |
+| ------------- | --------------------------------- |
+| `regex`       | Pattern matching (no look-around) |
+| `fancy-regex` | Pattern matching with look-around (to be removed in v0.2) |
+| `serde`       | Serialization for HunchResult output    |
+| `serde_json`  | JSON output for CLI               |
+| `clap`        | CLI argument parsing              |
 
 ---
 

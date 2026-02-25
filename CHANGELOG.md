@@ -7,37 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-02-24
+
 ### Added
 
-- **Directory-aware release group** — abbreviated scene filenames
-  (e.g., `wthd-cab.avi`) now correctly pull the group from the parent
-  directory (e.g., `DVDRip.XviD-TheWretched/`).
-- **Hyphenated release groups** — `D-Z0N3` and `MARINE-FORD` are now
-  captured as full group names by expanding backwards past hyphens.
-- **Multi-episode patterns** — `E02-03`, `S01E01+02`, `S01.E02.E03`
-  now produce proper episode arrays.
-- **Multi-season support** — `S01-S10` → `[1..10]`, `Season 1-3` →
-  `[1,2,3]`, `Season 1&3` → `[1,3]`.
-- **Bracket language parsing** — `[ENG+RU+PT]` now produces
-  `[en, pt, ru]` via `lang_code_to_name()` with 30+ ISO 639 codes.
-- **New language tags** — FLEMISH, Ukr, DUBLADO, Dual Audio.
-- **New other tags** — HC (Hardcoded Subtitles), COMPLET (French).
-- **Source improvements** — DVDSCR → source "DVD" (not "Screener"),
-  DLMux → Web, Ultra HD Blu-ray patterns expanded.
-- **Duplicate source pruning** — "Web" in title zone no longer eats
-  title words when WEB-DL appears later.
-- Single-property failure analysis expanded to cover all major properties.
+- **ARCHITECTURE.md** — layered architecture design document with decision
+  log (D001–D005) covering TOML rules, regex-only, tokenizer, and
+  offline-only constraints.
+- **VideoApi property** — DXVA (DirectX Video Acceleration) detection.
+- **Proof detection** — standalone `PROOF` tag in Other flags.
+- **DOKU support** — German `DOKU` now maps to "Documentary" (like `DOCU`).
+- **Español Castellano** — combined pattern maps to Catalan correctly.
+- **DTS.HD-MA** — dot-separated `DTS.HD-MA` now matches as DTS-HD.
 
 ### Changed
 
-- **Overall pass rate: 57.4% → 61.6%** (751 → 806 / 1,309 test cases).
-- **12 properties at 100%** (added edition to the perfect list).
-- Title extraction: added generic directory names (mnt, nas, films,
-  share, home), improved abbreviated filename detection.
-- `.ts` file extension no longer false-positives as Telesync.
-- Conflict resolver now allows same-span Season matches with different
-  values (enabling multi-season output).
-- Regression floors ratcheted up across all fixture files.
+- **Overall pass rate: 61.6% → 75.1%** (806 → 983 / 1,309 test cases).
+- **proper_count** — `REAL` keyword scanned case-insensitively but only
+  in the technical zone (prevents false positives on titles like
+  "Real Time With Bill Maher").
+- All clippy warnings resolved (regex-in-loop, collapsible-if, char arrays).
+- Updated CLAUDE.md with architecture decisions and v0.2 roadmap.
+- Updated README.md with current compatibility stats.
 
 ## [0.1.1] - 2026-02-22
 
@@ -75,5 +66,6 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[0.1.2]: https://github.com/lijunzh/hunch/releases/tag/v0.1.2
 [0.1.1]: https://github.com/lijunzh/hunch/releases/tag/v0.1.1
 [0.1.0]: https://github.com/lijunzh/hunch/releases/tag/v0.1.0

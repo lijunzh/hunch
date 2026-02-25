@@ -74,22 +74,23 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
     let mut current_list_key: Option<String> = None;
     let mut current_list_items: Vec<String> = Vec::new();
 
-    let flush_list = |key: &Option<String>, items: &mut Vec<String>, props: &mut HashMap<String, String>| {
-        if let Some(k) = key {
-            if items.is_empty() {
-                // Key declared with no list items → preserve empty string.
-                props.entry(k.clone()).or_default();
-            } else if items.len() == 1 {
-                props.insert(k.clone(), items[0].clone());
-            } else {
-                // Wrap in brackets so parse_value_list can distinguish
-                // real multi-value lists from single values with commas
-                // (e.g., episode_title: "Right Place, Wrong Time").
-                props.insert(k.clone(), format!("[{}]", items.join(", ")));
+    let flush_list =
+        |key: &Option<String>, items: &mut Vec<String>, props: &mut HashMap<String, String>| {
+            if let Some(k) = key {
+                if items.is_empty() {
+                    // Key declared with no list items → preserve empty string.
+                    props.entry(k.clone()).or_default();
+                } else if items.len() == 1 {
+                    props.insert(k.clone(), items[0].clone());
+                } else {
+                    // Wrap in brackets so parse_value_list can distinguish
+                    // real multi-value lists from single values with commas
+                    // (e.g., episode_title: "Right Place, Wrong Time").
+                    props.insert(k.clone(), format!("[{}]", items.join(", ")));
+                }
+                items.clear();
             }
-            items.clear();
-        }
-    };
+        };
 
     for line in content.lines() {
         let trimmed = line.trim();
@@ -102,7 +103,11 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
         if let Some(rest) = trimmed.strip_prefix("? ") {
             if in_value {
                 // Flush any pending list.
-                flush_list(&current_list_key, &mut current_list_items, &mut current_props);
+                flush_list(
+                    &current_list_key,
+                    &mut current_list_items,
+                    &mut current_props,
+                );
                 current_list_key = None;
                 // Flush the previous group.
                 groups.push((current_keys.clone(), current_props.clone()));
@@ -119,7 +124,11 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
         if let Some(rest) = trimmed.strip_prefix(": ") {
             in_value = true;
             // Flush any pending list.
-            flush_list(&current_list_key, &mut current_list_items, &mut current_props);
+            flush_list(
+                &current_list_key,
+                &mut current_list_items,
+                &mut current_props,
+            );
             current_list_key = None;
             parse_prop_line(rest, &mut current_props, &mut current_list_key);
             continue;
@@ -132,7 +141,11 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
                 current_list_items.push(strip_yaml_quotes(item.trim()));
             } else {
                 // Flush any pending list, then parse as normal prop.
-                flush_list(&current_list_key, &mut current_list_items, &mut current_props);
+                flush_list(
+                    &current_list_key,
+                    &mut current_list_items,
+                    &mut current_props,
+                );
                 current_list_key = None;
                 parse_prop_line(trimmed, &mut current_props, &mut current_list_key);
             }
@@ -141,7 +154,11 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
     }
 
     // Flush last pending list and group.
-    flush_list(&current_list_key, &mut current_list_items, &mut current_props);
+    flush_list(
+        &current_list_key,
+        &mut current_list_items,
+        &mut current_props,
+    );
     if !current_keys.is_empty() {
         groups.push((current_keys, current_props));
     }

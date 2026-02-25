@@ -129,11 +129,7 @@ static COMBINED_PATTERNS: LazyLock<Vec<CombinedPattern>> = LazyLock::new(|| {
             "7.1",
         ),
         // MP2 with channels: MP2.2.0.
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])MP2[-.]?2[\W_]?0(?![a-z0-9])",
-            "MP2",
-            "2.0",
-        ),
+        CombinedPattern::new(r"(?i)(?<![a-z])MP2[-.]?2[\W_]?0(?![a-z0-9])", "MP2", "2.0"),
     ]
 });
 

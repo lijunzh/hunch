@@ -26,8 +26,7 @@ static RELEASE_GROUP_BEFORE_BRACKET: LazyLock<Regex> =
 
 /// Matches `-[GROUP]` at end: `x264-[2Maverick].mp4`.
 static RELEASE_GROUP_DASH_BRACKET: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"-\[(?P<group>[A-Za-z0-9][A-Za-z0-9 _!&-]{0,30})\](?:\.[a-z0-9]{2,5})?$")
-        .unwrap()
+    Regex::new(r"-\[(?P<group>[A-Za-z0-9][A-Za-z0-9 _!&-]{0,30})\](?:\.[a-z0-9]{2,5})?$").unwrap()
 });
 
 /// Release group in brackets at the start: `[GROUP] Title`.

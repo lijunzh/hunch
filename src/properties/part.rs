@@ -14,16 +14,13 @@ static PART_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Apt (apartado) pattern: Apt.1, Apt 2
-static APT_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])Apt[-. ]?(?P<num>[0-9]+)(?![a-z0-9])").unwrap()
-});
+static APT_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])Apt[-. ]?(?P<num>[0-9]+)(?![a-z0-9])").unwrap());
 
 /// Disc number: Disc 1, Disk.2, D1, S01D01, S01D02.3-5, S01D02&4-6&8
 static DISC_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?i)(?<![a-z])(?:Disc?k?|S\d+D)[-. ]?(?P<nums>[0-9]+(?:[.&-][0-9]+)*)(?![a-z0-9])",
-    )
-    .unwrap()
+    Regex::new(r"(?i)(?<![a-z])(?:Disc?k?|S\d+D)[-. ]?(?P<nums>[0-9]+(?:[.&-][0-9]+)*)(?![a-z0-9])")
+        .unwrap()
 });
 
 /// CD count: 2 CD, 2CD, X cd
@@ -147,8 +144,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     {
         let full = cap.get(0).unwrap();
         matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Part, num.as_str())
-                .with_priority(1),
+            MatchSpan::new(full.start(), full.end(), Property::Part, num.as_str()).with_priority(1),
         );
     }
 
@@ -160,17 +156,17 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 fn parse_disc_nums(s: &str) -> Vec<u32> {
     let mut result = Vec::new();
     // Split by & or . to get segments, each segment can be a range "3-5" or single "2".
-    for segment in s.split(|c| c == '&' || c == '.') {
+    for segment in s.split(['&', '.']) {
         if let Some((start, end)) = segment.split_once('-') {
             let s: u32 = start.parse().unwrap_or(0);
             let e: u32 = end.parse().unwrap_or(0);
             if s > 0 && e >= s {
                 result.extend(s..=e);
             }
-        } else if let Ok(n) = segment.parse::<u32>() {
-            if n > 0 {
-                result.push(n);
-            }
+        } else if let Ok(n) = segment.parse::<u32>()
+            && n > 0
+        {
+            result.push(n);
         }
     }
     result.sort();

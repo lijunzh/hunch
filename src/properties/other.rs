@@ -16,7 +16,10 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])BT[-. ]?2020(?![0-9])", "BT.2020"),
         // Quality / resolution flags.
         ValuePattern::new(r"(?i)(?<![a-z])(?:Full[-. ]?HD|FHD)(?![a-z])", "Full HD"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:Ultra(?:[-. ]?HD)?|UHD)(?![a-z])", "Ultra HD"),
+        ValuePattern::new(
+            r"(?i)(?<![a-z])(?:Ultra(?:[-. ]?HD)?|UHD)(?![a-z])",
+            "Ultra HD",
+        ),
         ValuePattern::new(r"(?i)(?<![a-z])Netflix[-. ]?UHD(?![a-z])", "Ultra HD"),
         ValuePattern::new(r"(?i)(?<![a-z])iTunes[-. ]?HD(?![a-z])", "HD"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:mHD|HDLight)(?![a-z])", "Micro HD"),
@@ -46,7 +49,10 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])Sync[-. ]?Fix(?:ed)?(?![a-z])", "Sync Fixed"),
         // Dub / Sub flags (require explicit markers, not bare words).
         ValuePattern::new(r"(?i)(?<![a-z])DUBBED(?![a-z])", "Dubbed"),
-        ValuePattern::new(r"(?i)(?<![a-z])HC(?![a-z])(?=.*(?:SUB|sub|SUBS|subs))", "Hardcoded Subtitles"),
+        ValuePattern::new(
+            r"(?i)(?<![a-z])HC(?![a-z])(?=.*(?:SUB|sub|SUBS|subs))",
+            "Hardcoded Subtitles",
+        ),
         ValuePattern::new(
             r"(?i)(?<![a-z])(?:HARDCODED|HC)[-. ]?SUBS?(?![a-z])",
             "Hardcoded Subtitles",
@@ -180,14 +186,10 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     // Video API detection (DXVA).
-    static DXVA_PATTERN: LazyLock<ValuePattern> = LazyLock::new(|| {
-        ValuePattern::new(r"(?i)(?<![a-z])DXVA(?![a-z])", "DXVA")
-    });
+    static DXVA_PATTERN: LazyLock<ValuePattern> =
+        LazyLock::new(|| ValuePattern::new(r"(?i)(?<![a-z])DXVA(?![a-z])", "DXVA"));
     for (start, end) in DXVA_PATTERN.find_iter(input) {
-        matches.push(
-            MatchSpan::new(start, end, Property::VideoApi, "DXVA")
-                .with_priority(0),
-        );
+        matches.push(MatchSpan::new(start, end, Property::VideoApi, "DXVA").with_priority(0));
     }
 
     matches
