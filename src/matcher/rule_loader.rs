@@ -18,6 +18,8 @@ pub struct RuleSet {
     pub property: String,
     /// Case-insensitive exact token lookups.
     exact: HashMap<String, String>,
+    /// Case-sensitive exact token lookups (for short ambiguous tokens like country codes).
+    exact_sensitive: HashMap<String, String>,
     /// Compiled regex patterns with their output values.
     patterns: Vec<(Regex, String)>,
 }
@@ -28,6 +30,8 @@ struct RawRuleFile {
     property: String,
     #[serde(default)]
     exact: HashMap<String, String>,
+    #[serde(default)]
+    exact_sensitive: HashMap<String, String>,
     #[serde(default)]
     patterns: Vec<RawPattern>,
 }
@@ -70,6 +74,7 @@ impl RuleSet {
         Self {
             property: raw.property,
             exact,
+            exact_sensitive: raw.exact_sensitive,
             patterns,
         }
     }
@@ -77,9 +82,14 @@ impl RuleSet {
     /// Try to match a single token against this rule set.
     ///
     /// Returns the canonical value if the token matches, or `None`.
-    /// Exact lookup is tried first (O(1)), then regex patterns (linear scan).
+    /// Case-sensitive exact is checked first, then case-insensitive, then regex.
     pub fn match_token(&self, token: &str) -> Option<&str> {
-        // Exact lookup (case-insensitive).
+        // Case-sensitive exact lookup (for ambiguous short tokens).
+        if let Some(value) = self.exact_sensitive.get(token) {
+            return Some(value.as_str());
+        }
+
+        // Case-insensitive exact lookup.
         let lower = token.to_lowercase();
         if let Some(value) = self.exact.get(&lower) {
             return Some(value.as_str());

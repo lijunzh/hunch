@@ -1,10 +1,11 @@
 # Country code patterns.
+# Uses case-sensitive matching because 2-letter codes are highly ambiguous.
 property = "country"
 
-[exact]
-us = "US"
-uk = "GB"
-gb = "GB"
-ca = "CA"
-au = "AU"
-nz = "NZ"
+[exact_sensitive]
+US = "US"
+UK = "GB"
+GB = "GB"
+CA = "CA"
+AU = "AU"
+NZ = "NZ"

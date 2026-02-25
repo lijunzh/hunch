@@ -19,7 +19,6 @@ static VIDEO_CODEC_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_codec.toml")));
 static COLOR_DEPTH_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/color_depth.toml")));
-#[allow(dead_code)] // TOML ready, needs case-sensitive matching support
 static COUNTRY_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/country.toml")));
 static STREAMING_SERVICE_RULES: LazyLock<RuleSet> =
@@ -69,6 +68,7 @@ impl Pipeline {
             (&VIDEO_PROFILE_RULES, Property::VideoProfile, -2),
             (&EPISODE_DETAILS_RULES, Property::EpisodeDetails, -1),
             (&EDITION_RULES, Property::Edition, 0),
+            (&COUNTRY_RULES, Property::Country, -2),
         ];
 
         // Legacy matchers — everything not yet in TOML.
