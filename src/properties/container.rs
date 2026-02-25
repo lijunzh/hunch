@@ -1,6 +1,5 @@
 //! Container / file extension detection.
 
-use fancy_regex::Regex as FancyRegex;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
@@ -35,13 +34,10 @@ static EXT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 
 /// Match container as standalone uppercase token (e.g., MP4-GUSH, WMV-NOVO).
 /// Also matches bare extension as entire input (e.g., "mkv", "avi").
-static EXT_STANDALONE: LazyLock<FancyRegex> = LazyLock::new(|| {
+static EXT_STANDALONE: LazyLock<Regex> = LazyLock::new(|| {
     let all_exts: Vec<&str> = VIDEO_EXTS.iter().chain(SUBTITLE_EXTS).copied().collect();
-    let pattern = format!(
-        r"(?i)(?:(?<=[.\-_ \[])|^)({})(?=[.\-_ \]\)]|$)",
-        all_exts.join("|")
-    );
-    FancyRegex::new(&pattern).unwrap()
+    let pattern = format!(r"(?i)({})", all_exts.join("|"));
+    Regex::new(&pattern).unwrap()
 });
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
@@ -60,19 +56,31 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         );
     }
     // Fallback: standalone container token (e.g., "MP4-GUSH", "[.mp4]").
-    if matches.is_empty()
-        && let Ok(Some(cap)) = EXT_STANDALONE.find(input)
-    {
-        let ext = &input[cap.start()..cap.end()];
-        matches.push(
-            MatchSpan::new(
-                cap.start(),
-                cap.end(),
-                Property::Container,
-                ext.to_lowercase(),
-            )
-            .with_priority(5),
-        );
+    if matches.is_empty() {
+        // Replicate the lookbehind (?<=[-. \[]) or start-of-string manually.
+        for cap in EXT_STANDALONE.captures_iter(input) {
+            let m = cap.get(0).unwrap();
+            let at_start = m.start() == 0;
+            let preceded_by_separator = m.start() > 0
+                && matches!(
+                    input.as_bytes()[m.start() - 1],
+                    b'.' | b'-' | b'_' | b' ' | b'['
+                );
+            let at_end = m.end() == input.len();
+            let followed_by_separator = m.end() < input.len()
+                && matches!(
+                    input.as_bytes()[m.end()],
+                    b'.' | b'-' | b'_' | b' ' | b']' | b')'
+                );
+            if (at_start || preceded_by_separator) && (at_end || followed_by_separator) {
+                let ext = &input[m.start()..m.end()];
+                matches.push(
+                    MatchSpan::new(m.start(), m.end(), Property::Container, ext.to_lowercase())
+                        .with_priority(5),
+                );
+                break;
+            }
+        }
     }
     matches
 }

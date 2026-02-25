@@ -3,26 +3,40 @@
 //! Detects frame rates like `24fps`, `25fps`, `120fps`, `29.97fps`,
 //! or resolution-attached rates like `1080p25`.
 
+use crate::matcher::regex_utils::{BoundarySpec, CharClass, check_boundary};
 use crate::matcher::span::{MatchSpan, Property};
+use regex::Regex;
 use std::sync::LazyLock;
 
-/// Explicit fps patterns: `24fps`, `29.97fps`, `120fps`.
-static FPS_PATTERNS: LazyLock<Vec<(fancy_regex::Regex, bool)>> = LazyLock::new(|| {
+static ALPHADIGIT_BOUNDARY: BoundarySpec = BoundarySpec {
+    left: Some(CharClass::AlphaDigit),
+    right: Some(CharClass::AlphaDigit),
+};
+
+static RIGHT_ONLY_BOUNDARY: BoundarySpec = BoundarySpec {
+    left: None,
+    right: Some(CharClass::AlphaDigit),
+};
+
+/// (regex, boundary, is_explicit)
+static FPS_PATTERNS: LazyLock<Vec<(Regex, &'static BoundarySpec, bool)>> = LazyLock::new(|| {
     vec![
         // Explicit: `24fps`, `120fps`
         (
-            fancy_regex::Regex::new(r"(?i)(?<![a-z0-9])(\d+(?:\.\d+)?)\s*fps(?![a-z0-9])").unwrap(),
+            Regex::new(r"(?i)(\d+(?:\.\d+)?)\s*fps").unwrap(),
+            &ALPHADIGIT_BOUNDARY,
             true,
         ),
         // Resolution-attached: `1080p25`, `720p50`
         (
-            fancy_regex::Regex::new(r"(?i)(?:1080|720|1440|2160)[pi](\d{2,3})(?![a-z0-9])")
-                .unwrap(),
+            Regex::new(r"(?i)(?:1080|720|1440|2160)[pi](\d{2,3})").unwrap(),
+            &RIGHT_ONLY_BOUNDARY,
             false,
         ),
-        // Standalone broadcast: `24p` at end or with separator
+        // Standalone broadcast: `24p`
         (
-            fancy_regex::Regex::new(r"(?i)(?<![a-z0-9])(\d{2,3})p(?![a-z0-9])").unwrap(),
+            Regex::new(r"(?i)(\d{2,3})p").unwrap(),
+            &ALPHADIGIT_BOUNDARY,
             false,
         ),
     ]
@@ -32,26 +46,29 @@ static FPS_PATTERNS: LazyLock<Vec<(fancy_regex::Regex, bool)>> = LazyLock::new(|
 const VALID_FRAME_RATES: &[&str] = &["23", "24", "25", "29", "30", "48", "50", "59", "60", "120"];
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let bytes = input.as_bytes();
     let mut matches = Vec::new();
 
-    for (regex, is_explicit) in FPS_PATTERNS.iter() {
-        let mut search_start = 0;
-        while search_start < input.len() {
-            let Some(cap) = regex.captures_from_pos(input, search_start).ok().flatten() else {
+    for (regex, boundary, is_explicit) in FPS_PATTERNS.iter() {
+        let mut pos = 0;
+        while pos < input.len() {
+            let Some(cap) = regex.captures_at(input, pos) else {
                 break;
             };
             let full = cap.get(0).unwrap();
-            search_start = full.end();
+            if !check_boundary(bytes, full.start(), full.end(), boundary) {
+                pos = full.start() + 1;
+                continue;
+            }
+            pos = full.end();
 
             if let Some(m) = cap.get(1) {
                 let fps_val = &input[m.start()..m.end()];
 
-                // For ambiguous patterns, validate against known rates.
                 if !is_explicit && !VALID_FRAME_RATES.contains(&fps_val) {
                     continue;
                 }
 
-                // Skip values that look like screen sizes (720, 1080, etc.)
                 if !is_explicit
                     && matches!(fps_val, "720" | "1080" | "1440" | "2160" | "480" | "576")
                 {

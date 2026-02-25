@@ -367,15 +367,15 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
     }
 
     // Strip parenthesized year at the end: "Movie (2005)" → "Movie"
-    let re_paren_year = fancy_regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap();
-    if let Ok(Some(m)) = re_paren_year.find(&s) {
+    let re_paren_year = regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap();
+    if let Some(m) = re_paren_year.find(&s) {
         s = s[..m.start()].to_string();
     }
 
     // Strip all parenthesized groups (alternative titles, countries, etc.).
     // e.g., "Le Prestige (The Prestige)" → "Le Prestige"
     //        "The Office (US)" → "The Office"
-    let re_paren = fancy_regex::Regex::new(r"\s*\([^)]*\)\s*").unwrap();
+    let re_paren = regex::Regex::new(r"\s*\([^)]*\)\s*").unwrap();
     let before_paren_strip = s.clone();
     s = re_paren.replace_all(&s, " ").to_string();
     // If stripping removed everything, revert.
@@ -386,20 +386,19 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
     // Replace separators with spaces, but preserve hyphens between letters
     // and dot-acronyms like S.H.I.E.L.D. or T.I.T.L.E.
     let dot_acronym_re =
-        fancy_regex::Regex::new(r"(?:^|(?<=[\s._]))([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)").unwrap();
+        regex::Regex::new(r"(?:^|[\s._])([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)").unwrap();
 
     // Find dot-acronym byte ranges to protect from separator replacement.
     let mut protected_ranges: Vec<(usize, usize)> = Vec::new();
-    // Use captures_iter pattern from fancy_regex.
-    let mut search_pos = 0;
-    while search_pos < s.len() {
-        match dot_acronym_re.find(&s[search_pos..]) {
-            Ok(Some(m)) => {
-                protected_ranges.push((search_pos + m.start(), search_pos + m.end()));
-                search_pos += m.end();
-            }
-            _ => break,
-        }
+    for m in dot_acronym_re.find_iter(&s) {
+        // Skip the leading separator if not at start.
+        let actual_start =
+            if m.start() > 0 && matches!(s.as_bytes()[m.start()], b' ' | b'\t' | b'.' | b'_') {
+                m.start() + 1
+            } else {
+                m.start()
+            };
+        protected_ranges.push((actual_start, m.end()));
     }
 
     let in_protected =
@@ -439,9 +438,9 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
     if strip_season_part {
         // Strip trailing "Part" + optional roman/number: "The Godfather Part III" → "The Godfather".
         let re_part =
-            fancy_regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$")
+            regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$")
                 .unwrap();
-        if let Ok(Some(m)) = re_part.find(&result) {
+        if let Some(m) = re_part.find(&result) {
             let stripped = result[..m.start()].to_string();
             if !stripped.trim().is_empty() {
                 result = stripped;
@@ -449,10 +448,10 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
         }
 
         // Strip trailing season words: "Dexter Saison VII" → "Dexter".
-        let re_season_word = fancy_regex::Regex::new(
+        let re_season_word = regex::Regex::new(
             r"(?i)\s+(?:Saison|Temporada|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
         ).unwrap();
-        if let Ok(Some(m)) = re_season_word.find(&result) {
+        if let Some(m) = re_season_word.find(&result) {
             let stripped = result[..m.start()].to_string();
             if !stripped.trim().is_empty() {
                 result = stripped;

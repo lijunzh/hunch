@@ -7,10 +7,16 @@
 //! - Compound markers: HebSubs, SWESUB, NLsubs, etc.
 //! - Generic sub markers: Subbed, Legendado, Subtitles
 
-use fancy_regex::Regex;
+use regex::Regex;
 
+use crate::matcher::regex_utils::{BoundarySpec, CharClass, check_boundary};
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
+
+static ALPHA_BOUNDARY: BoundarySpec = BoundarySpec {
+    left: Some(CharClass::Alpha),
+    right: Some(CharClass::Alpha),
+};
 
 /// Subtitle file with language code: movie.eng.srt, movie.fr.sub
 static SUB_LANG_EXT: LazyLock<Regex> = LazyLock::new(|| {
@@ -18,75 +24,62 @@ static SUB_LANG_EXT: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// VOSTFR / VOST.FR / vostfr → French subtitles
-static VOSTFR: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])(?:VOSTFR|FASTSUB(?:\.VOSTFR)?)(?![a-z])").unwrap()
-});
+static VOSTFR: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:VOSTFR|FASTSUB(?:\.VOSTFR)?)").unwrap());
 
-/// SubForced / SUBFORCED (language from nearby context)
+/// SubForced / SUBFORCED
 static SUB_FORCED: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?i)(?<![a-z])(?:(?P<lang>FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN)\s+)?SUBFORCED(?![a-z])",
-    )
-    .unwrap()
+    Regex::new(r"(?i)(?:(?P<lang>FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN)\s+)?SUBFORCED").unwrap()
 });
 
 /// LANG SubForced pattern (reversed order)
 static LANG_SUBFORCED: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?i)(?<![a-z])SUBFORCED\s+(?P<lang>FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN)(?![a-z])",
-    )
-    .unwrap()
+    Regex::new(r"(?i)SUBFORCED\s+(?P<lang>FRENCH|ENGLISH|SPANISH|GERMAN|ITALIAN)").unwrap()
 });
 
-/// Explicit: Sub.French, sub FR, ST(Fr-Eng), Sub_ITA, sub.ita.eng
-/// Note: ST requires a mandatory separator to avoid matching words like "Star".
+/// Explicit: Sub.French, sub FR, ST(Fr-Eng), Sub_ITA
 static SUB_LANG: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z])(?:(?:sub(?:s|titled|titles)?|Soft[-. ]?sub)[-. _({\[]?|ST[-. _({\[])(?P<langs>[a-z]{2,}(?:[-. _+,)}&\]]+[a-z]{2,})*)(?![a-z])"
+    r"(?i)(?:(?:sub(?:s|titled|titles)?|Soft[-. ]?sub)[-. _({\[]?|ST[-. _({\[])(?P<langs>[a-z]{2,}(?:[-. _+,)}&\]]+[a-z]{2,})*)"
     ).unwrap()
 });
 
-/// Compound sub markers: HebSubs, SWESUB, NLsubs, Nlsubs, PLsub
+/// Compound sub markers: HebSubs, SWESUB, NLsubs
 static COMPOUND_SUB: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z])(?P<lang>Heb|Swe|Nl|Pl|Ro|De|Kor|Eng|Fre|Ita|Spa|Dan|Nor|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Ukr|Bul|Hun|Cze|Hrv|Slk|Slv|Est|Lav|Lit|Cat|Pt|Br)[-. ]?(?:sub(?:s|bed|titles?)?)(?![a-z])"
+    r"(?i)(?P<lang>Heb|Swe|Nl|Pl|Ro|De|Kor|Eng|Fre|Ita|Spa|Dan|Nor|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Ukr|Bul|Hun|Cze|Hrv|Slk|Slv|Est|Lav|Lit|Cat|Pt|Br)[-. ]?(?:sub(?:s|bed|titles?)?)"
     ).unwrap()
 });
 
-/// LANG SUBS pattern: ENG SUBS, SPANISH SUBBED, German.Subbed, German.Custom.Subbed
+/// LANG SUBS: ENG SUBS, SPANISH SUBBED, German.Subbed
 static LANG_SUBS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z])(?P<lang>English|French|Spanish|German|Italian|Portuguese|Dutch|Swedish|Norwegian|Danish|Finnish|Greek|Turkish|Arabic|Russian|Hindi|Chinese|Japanese|Korean|Hebrew|Romanian|Polish|Czech|Hungarian|Croatian|Serbian|Slovak|Slovenian|Estonian|Latvian|Lithuanian|Catalan|Eng|Fre|Spa|Ger|Ita|Por|Dut|Swe|Nor|Dan|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Kor|Heb|Ron|Pol|Cze|Hun|Hrv|Srp|Slk|Slv|Est|Lav|Lit|Cat)[-. ]+(?:(?:Soft|Custom|Hard|Forced)[-. ])*(?:sub(?:s|bed|titled|titles)?)(?![a-z])"
+    r"(?i)(?P<lang>English|French|Spanish|German|Italian|Portuguese|Dutch|Swedish|Norwegian|Danish|Finnish|Greek|Turkish|Arabic|Russian|Hindi|Chinese|Japanese|Korean|Hebrew|Romanian|Polish|Czech|Hungarian|Croatian|Serbian|Slovak|Slovenian|Estonian|Latvian|Lithuanian|Catalan|Eng|Fre|Spa|Ger|Ita|Por|Dut|Swe|Nor|Dan|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Kor|Heb|Ron|Pol|Cze|Hun|Hrv|Srp|Slk|Slv|Est|Lav|Lit|Cat)[-. ]+(?:(?:Soft|Custom|Hard|Forced)[-. ])*(?:sub(?:s|bed|titled|titles)?)"
     ).unwrap()
 });
 
 /// EN-SUB, EN.SUB pattern
-static LANG_DASH_SUB: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])(?P<lang>[a-z]{2,3})[-.]SUB(?:S)?(?![a-z])").unwrap()
-});
+static LANG_DASH_SUB: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?P<lang>[a-z]{2,3})[-.]SUB(?:S)?").unwrap());
 
-/// Legendado/Legendas → undetermined, unless followed by PT/PT-BR
+/// Legendado/Legendas
 static LEGENDADO: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])(?:Legenda(?:do|s|))(?:\.(?P<lang>PT(?:-BR)?|EN|ES|FR))?(?![a-z])")
-        .unwrap()
+    Regex::new(r"(?i)(?:Legenda(?:do|s|))(?:\.(?P<lang>PT(?:-BR)?|EN|ES|FR))?").unwrap()
 });
 
-/// Subtitulado → Spanish subtitle convention, may have language after it
+/// Subtitulado
 static SUBTITULADO: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])Subtitulado(?:\s+(?P<lang>Espa[ñn]ol|Spanish|PT|EN|FR))?(?![a-z])")
-        .unwrap()
+    Regex::new(r"(?i)Subtitulado(?:\s+(?P<lang>Espa[\u{f1}n]ol|Spanish|PT|EN|FR))?").unwrap()
 });
 
-/// Generic sub markers without language context: ESub, subs, subbed, Subtitles
+/// Generic sub markers: ESub, subs, subbed, Subtitles
 static GENERIC_SUB: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])(?:E[-. ]?Sub(?:s|bed|titles?)?|Sub(?:s|bed|titles)?|HC)(?![a-z])")
-        .unwrap()
+    Regex::new(r"(?i)(?:E[-. ]?Sub(?:s|bed|titles?)?|Sub(?:s|bed|titles)?|HC)").unwrap()
 });
 
 /// Multiple Subtitle marker
-static MULTIPLE_SUB: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:Multiple|Multi)\s+Sub(?:s|title|titles)?(?![a-z])").unwrap()
-});
+static MULTIPLE_SUB: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?:Multiple|Multi)\s+Sub(?:s|title|titles)?").unwrap());
 
 /// Maps ISO 639 codes & full names to guessit-style language output.
 fn normalize_language(code: &str) -> Option<&'static str> {
@@ -149,10 +142,12 @@ fn split_languages(s: &str) -> Vec<&str> {
 }
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let bytes = input.as_bytes();
+    let b = &ALPHA_BOUNDARY;
     let mut matches = Vec::new();
 
-    // 1. Subtitle file extension: movie.eng.srt
-    if let Ok(Some(cap)) = SUB_LANG_EXT.captures(input)
+    // 1. Subtitle file extension: movie.eng.srt (no boundary needed — anchored to end)
+    if let Some(cap) = SUB_LANG_EXT.captures(input)
         && let Some(lang) = cap.name("lang")
         && let Some(normalized) = normalize_language(lang.as_str())
     {
@@ -168,32 +163,36 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     // 2. VOSTFR/FASTSUB → French
-    if let Ok(Some(cap)) = VOSTFR.captures(input) {
+    if let Some(cap) = VOSTFR.captures(input) {
         let full = cap.get(0).unwrap();
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "fr")
-                .with_priority(2),
-        );
+        if check_boundary(bytes, full.start(), full.end(), b) {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "fr")
+                    .with_priority(2),
+            );
+        }
     }
 
     // 3. SUBFORCED with language
-    if let Ok(Some(cap)) = SUB_FORCED.captures(input) {
+    if let Some(cap) = SUB_FORCED.captures(input) {
         let full = cap.get(0).unwrap();
-        let lang = cap
-            .name("lang")
-            .and_then(|l| normalize_language(l.as_str()));
-        if let Some(lang) = lang {
+        if check_boundary(bytes, full.start(), full.end(), b)
+            && let Some(lang) = cap
+                .name("lang")
+                .and_then(|l| normalize_language(l.as_str()))
+        {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
                     .with_priority(2),
             );
         }
     }
-    if let Ok(Some(cap)) = LANG_SUBFORCED.captures(input) {
+    if let Some(cap) = LANG_SUBFORCED.captures(input) {
         let full = cap.get(0).unwrap();
-        if let Some(lang) = cap
-            .name("lang")
-            .and_then(|l| normalize_language(l.as_str()))
+        if check_boundary(bytes, full.start(), full.end(), b)
+            && let Some(lang) = cap
+                .name("lang")
+                .and_then(|l| normalize_language(l.as_str()))
             && !matches.iter().any(|m| {
                 m.overlaps(&MatchSpan::new(
                     full.start(),
@@ -211,33 +210,37 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     // 4. LANG SUBS: English Subs, German.Subbed, SPANISH SUBBED
-    if let Ok(Some(cap)) = LANG_SUBS.captures(input)
+    if let Some(cap) = LANG_SUBS.captures(input)
         && let Some(lang) = cap
             .name("lang")
             .and_then(|l| normalize_language(l.as_str()))
     {
         let full = cap.get(0).unwrap();
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                .with_priority(2),
-        );
+        if check_boundary(bytes, full.start(), full.end(), b) {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                    .with_priority(2),
+            );
+        }
     }
 
     // 5. Compound: HebSubs, SWESUB, NLsubs, PLsub
-    if let Ok(Some(cap)) = COMPOUND_SUB.captures(input)
+    if let Some(cap) = COMPOUND_SUB.captures(input)
         && let Some(lang) = cap
             .name("lang")
             .and_then(|l| normalize_language(l.as_str()))
     {
         let full = cap.get(0).unwrap();
-        if !matches.iter().any(|m| {
-            m.overlaps(&MatchSpan::new(
-                full.start(),
-                full.end(),
-                Property::SubtitleLanguage,
-                "",
-            ))
-        }) {
+        if check_boundary(bytes, full.start(), full.end(), b)
+            && !matches.iter().any(|m| {
+                m.overlaps(&MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::SubtitleLanguage,
+                    "",
+                ))
+            })
+        {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
                     .with_priority(1),
@@ -246,18 +249,20 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     // 6. Sub.French, Sub_ITA, ST(Fr-Eng)
-    if let Ok(Some(cap)) = SUB_LANG.captures(input)
+    if let Some(cap) = SUB_LANG.captures(input)
         && let Some(langs) = cap.name("langs")
     {
         let full = cap.get(0).unwrap();
-        if !matches.iter().any(|m| {
-            m.overlaps(&MatchSpan::new(
-                full.start(),
-                full.end(),
-                Property::SubtitleLanguage,
-                "",
-            ))
-        }) {
+        if check_boundary(bytes, full.start(), full.end(), b)
+            && !matches.iter().any(|m| {
+                m.overlaps(&MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::SubtitleLanguage,
+                    "",
+                ))
+            })
+        {
             let parts = split_languages(langs.as_str());
             for part in parts {
                 if let Some(normalized) = normalize_language(part) {
@@ -277,77 +282,87 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
     // 7. LANG-SUB / LANG.SUB: EN-SUB
     if matches.is_empty()
-        && let Ok(Some(cap)) = LANG_DASH_SUB.captures(input)
+        && let Some(cap) = LANG_DASH_SUB.captures(input)
         && let Some(lang) = cap
             .name("lang")
             .and_then(|l| normalize_language(l.as_str()))
     {
         let full = cap.get(0).unwrap();
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                .with_priority(1),
-        );
+        if check_boundary(bytes, full.start(), full.end(), b) {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                    .with_priority(1),
+            );
+        }
     }
 
     // 8. Legendado/Legendas with optional language
     if matches.is_empty()
-        && let Ok(Some(cap)) = LEGENDADO.captures(input)
+        && let Some(cap) = LEGENDADO.captures(input)
     {
         let full = cap.get(0).unwrap();
-        let lang = cap
-            .name("lang")
-            .and_then(|l| normalize_language(l.as_str()))
-            .unwrap_or("und");
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                .with_priority(0),
-        );
+        if check_boundary(bytes, full.start(), full.end(), b) {
+            let lang = cap
+                .name("lang")
+                .and_then(|l| normalize_language(l.as_str()))
+                .unwrap_or("und");
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                    .with_priority(0),
+            );
+        }
     }
 
     // 9. Subtitulado with optional language
     if matches.is_empty()
-        && let Ok(Some(cap)) = SUBTITULADO.captures(input)
+        && let Some(cap) = SUBTITULADO.captures(input)
     {
         let full = cap.get(0).unwrap();
-        let lang = cap
-            .name("lang")
-            .and_then(|l| normalize_language(l.as_str()))
-            .unwrap_or("und");
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                .with_priority(0),
-        );
+        if check_boundary(bytes, full.start(), full.end(), b) {
+            let lang = cap
+                .name("lang")
+                .and_then(|l| normalize_language(l.as_str()))
+                .unwrap_or("und");
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
+                    .with_priority(0),
+            );
+        }
     }
 
     // 10. Multiple Subtitle
-    if let Ok(Some(cap)) = MULTIPLE_SUB.captures(input) {
+    if let Some(cap) = MULTIPLE_SUB.captures(input) {
         let full = cap.get(0).unwrap();
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "mul")
-                .with_priority(1),
-        );
+        if check_boundary(bytes, full.start(), full.end(), b) {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, "mul")
+                    .with_priority(1),
+            );
+        }
     }
 
-    // 11. Generic sub markers (only if no specific language found): subs, subbed
-    // Restrict to filename portion — bare "sub" in directory paths is noise.
+    // 11. Generic sub markers (only if no specific language found).
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let filename = &input[fn_start..];
     if matches.is_empty()
-        && let Ok(Some(cap)) = GENERIC_SUB.captures(filename)
+        && let Some(cap) = GENERIC_SUB.captures(filename)
     {
         let full = cap.get(0).unwrap();
-        // Check it's not part of another word we already matched
-        let text = full.as_str().to_lowercase();
-        if ["subs", "sub", "subbed", "subtitles", "hc", "esub", "esubs"].contains(&text.as_str()) {
-            matches.push(
-                MatchSpan::new(
-                    fn_start + full.start(),
-                    fn_start + full.end(),
-                    Property::SubtitleLanguage,
-                    "und",
-                )
-                .with_priority(-1),
-            );
+        if check_boundary(filename.as_bytes(), full.start(), full.end(), b) {
+            let text = full.as_str().to_lowercase();
+            if ["subs", "sub", "subbed", "subtitles", "hc", "esub", "esubs"]
+                .contains(&text.as_str())
+            {
+                matches.push(
+                    MatchSpan::new(
+                        fn_start + full.start(),
+                        fn_start + full.end(),
+                        Property::SubtitleLanguage,
+                        "und",
+                    )
+                    .with_priority(-1),
+                );
+            }
         }
     }
 

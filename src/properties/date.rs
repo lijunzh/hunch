@@ -2,71 +2,84 @@
 //!
 //! Detects air dates in filenames: 2014.12.25, 25-12-2014, etc.
 
-use fancy_regex::Regex;
+use regex::Regex;
 
+use crate::matcher::regex_utils::{BoundarySpec, CharClass, check_boundary};
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
+
+static DIGIT_BOUNDARY: BoundarySpec = BoundarySpec {
+    left: Some(CharClass::Digit),
+    right: Some(CharClass::Digit),
+};
+
+static ALPHA_DIGIT_BOUNDARY: BoundarySpec = BoundarySpec {
+    left: Some(CharClass::AlphaDigit),
+    right: Some(CharClass::AlphaDigit),
+};
 
 /// YYYY.MM.DD or YYYY-MM-DD format.
 static DATE_YMD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?<![0-9])(?P<date>(?:19|20)\d{2})[.-](?P<month>0[1-9]|1[0-2])[.-](?P<day>0[1-9]|[12]\d|3[01])(?![0-9])"
-    ).unwrap()
+        r"(?P<date>(?:19|20)\d{2})[.-](?P<month>0[1-9]|1[0-2])[.-](?P<day>0[1-9]|[12]\d|3[01])",
+    )
+    .unwrap()
 });
 
 /// YYYY with non-standard separator: 2008x12.13
 static DATE_YMIXED: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?<![0-9])(?P<date>(?:19|20)\d{2})[x](?P<month>0[1-9]|1[0-2])[.-](?P<day>0[1-9]|[12]\d|3[01])(?![0-9])"
-    ).unwrap()
+        r"(?P<date>(?:19|20)\d{2})[x](?P<month>0[1-9]|1[0-2])[.-](?P<day>0[1-9]|[12]\d|3[01])",
+    )
+    .unwrap()
 });
 
 /// DD.MM.YYYY or DD-MM-YYYY format.
 static DATE_DMY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?<![0-9])(?P<day>0[1-9]|[12]\d|3[01])[.-](?P<month>0[1-9]|1[0-2])[.-](?P<year>(?:19|20)\d{2})(?![0-9])"
-    ).unwrap()
+        r"(?P<day>0[1-9]|[12]\d|3[01])[.-](?P<month>0[1-9]|1[0-2])[.-](?P<year>(?:19|20)\d{2})",
+    )
+    .unwrap()
 });
 
 /// MM-DD-YYYY format (US style).
 static DATE_MDY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?<![0-9])(?P<month>0[1-9]|1[0-2])[-](?P<day>0[1-9]|[12]\d|3[01])[-](?P<year>(?:19|20)\d{2})(?![0-9])"
-    ).unwrap()
+        r"(?P<month>0[1-9]|1[0-2])[-](?P<day>0[1-9]|[12]\d|3[01])[-](?P<year>(?:19|20)\d{2})",
+    )
+    .unwrap()
 });
 
 /// YYYYMMDD compact format (no separators).
 static DATE_COMPACT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-    r"(?<![0-9])(?P<year>(?:19|20)\d{2})(?P<month>0[1-9]|1[0-2])(?P<day>0[1-9]|[12]\d|3[01])(?![0-9])"
-    ).unwrap()
+    Regex::new(r"(?P<year>(?:19|20)\d{2})(?P<month>0[1-9]|1[0-2])(?P<day>0[1-9]|[12]\d|3[01])")
+        .unwrap()
 });
 
 /// DD.MM.YY or YY.MM.DD (2-digit year).
-/// Ambiguity: if first field > 31, it's a year; if last field > 31, it's a year.
-/// Day > 12 disambiguates day vs month. Otherwise assume DD.MM.YY (day-first).
-static DATE_2DIGIT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?<![0-9])(?P<a>\d{2})[.-](?P<b>\d{2})[.-](?P<c>\d{2})(?![0-9])").unwrap()
-});
+static DATE_2DIGIT: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?P<a>\d{2})[.-](?P<b>\d{2})[.-](?P<c>\d{2})").unwrap());
 
 /// Month name date: "2 mar 2013", "March 5 2020", "5th January 2019".
 static DATE_MONTH_NAME: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z0-9])(?:(?P<day1>\d{1,2})(?:st|nd|rd|th)?\s+(?P<mon1>jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(?P<year1>(?:19|20)\d{2})|(?P<mon2>jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(?P<day2>\d{1,2})(?:st|nd|rd|th)?[,]?\s+(?P<year2>(?:19|20)\d{2}))(?![a-z0-9])"
+    r"(?i)(?:(?P<day1>\d{1,2})(?:st|nd|rd|th)?\s+(?P<mon1>jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(?P<year1>(?:19|20)\d{2})|(?P<mon2>jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(?P<day2>\d{1,2})(?:st|nd|rd|th)?[,]?\s+(?P<year2>(?:19|20)\d{2}))"
     ).unwrap()
 });
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let bytes = input.as_bytes();
     let mut matches = Vec::new();
 
     // 1. YYYY.MM.DD
-    if let Ok(Some(cap)) = DATE_YMD.captures(input)
+    if let Some(cap) = DATE_YMD.captures(input)
         && let (Some(full), Some(year), Some(month), Some(day)) = (
             cap.get(0),
             cap.name("date"),
             cap.name("month"),
             cap.name("day"),
         )
+        && check_boundary(bytes, full.start(), full.end(), &DIGIT_BOUNDARY)
     {
         matches.push(
             MatchSpan::new(
@@ -81,13 +94,14 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
     // 2. YYYYxMM.DD (mixed separator)
     if matches.is_empty()
-        && let Ok(Some(cap)) = DATE_YMIXED.captures(input)
+        && let Some(cap) = DATE_YMIXED.captures(input)
         && let (Some(full), Some(year), Some(month), Some(day)) = (
             cap.get(0),
             cap.name("date"),
             cap.name("month"),
             cap.name("day"),
         )
+        && check_boundary(bytes, full.start(), full.end(), &DIGIT_BOUNDARY)
     {
         matches.push(
             MatchSpan::new(
@@ -102,13 +116,14 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
     // 3. DD.MM.YYYY
     if matches.is_empty()
-        && let Ok(Some(cap)) = DATE_DMY.captures(input)
+        && let Some(cap) = DATE_DMY.captures(input)
         && let (Some(full), Some(year), Some(month), Some(day)) = (
             cap.get(0),
             cap.name("year"),
             cap.name("month"),
             cap.name("day"),
         )
+        && check_boundary(bytes, full.start(), full.end(), &DIGIT_BOUNDARY)
     {
         matches.push(
             MatchSpan::new(
@@ -123,13 +138,14 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
     // 4. MM-DD-YYYY (US style)
     if matches.is_empty()
-        && let Ok(Some(cap)) = DATE_MDY.captures(input)
+        && let Some(cap) = DATE_MDY.captures(input)
         && let (Some(full), Some(year), Some(month), Some(day)) = (
             cap.get(0),
             cap.name("year"),
             cap.name("month"),
             cap.name("day"),
         )
+        && check_boundary(bytes, full.start(), full.end(), &DIGIT_BOUNDARY)
     {
         matches.push(
             MatchSpan::new(
@@ -144,13 +160,14 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
     // 5. YYYYMMDD compact
     if matches.is_empty()
-        && let Ok(Some(cap)) = DATE_COMPACT.captures(input)
+        && let Some(cap) = DATE_COMPACT.captures(input)
         && let (Some(full), Some(year), Some(month), Some(day)) = (
             cap.get(0),
             cap.name("year"),
             cap.name("month"),
             cap.name("day"),
         )
+        && check_boundary(bytes, full.start(), full.end(), &DIGIT_BOUNDARY)
     {
         matches.push(
             MatchSpan::new(
@@ -165,9 +182,10 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
     // 6. DD.MM.YY / YY.MM.DD (2-digit year)
     if matches.is_empty()
-        && let Ok(Some(cap)) = DATE_2DIGIT.captures(input)
+        && let Some(cap) = DATE_2DIGIT.captures(input)
         && let (Some(full), Some(a), Some(b), Some(c)) =
             (cap.get(0), cap.name("a"), cap.name("b"), cap.name("c"))
+        && check_boundary(bytes, full.start(), full.end(), &DIGIT_BOUNDARY)
     {
         let av: u32 = a.as_str().parse().unwrap_or(0);
         let bv: u32 = b.as_str().parse().unwrap_or(0);
@@ -193,8 +211,9 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
     // 7. Month name dates: "2 mar 2013", "March 5, 2020"
     if matches.is_empty()
-        && let Ok(Some(cap)) = DATE_MONTH_NAME.captures(input)
+        && let Some(cap) = DATE_MONTH_NAME.captures(input)
         && let Some(full) = cap.get(0)
+        && check_boundary(bytes, full.start(), full.end(), &ALPHA_DIGIT_BOUNDARY)
     {
         let (day_s, mon_s, year_s) = if cap.name("day1").is_some() {
             (

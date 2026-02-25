@@ -5,8 +5,9 @@
 //! - `Season.2of5` → season=2, season_count=5
 //! - `14.of.21` → episode=14, episode_count=21
 
-use fancy_regex::Regex;
+use regex::Regex;
 
+use crate::matcher::regex_utils::{BoundarySpec, CharClass, check_boundary};
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
@@ -16,7 +17,12 @@ static SEASON_COUNT_RE: LazyLock<Regex> =
 
 /// Matches `XofY` or `X of Y` or `X.of.Y` → episode + episode_count.
 static EPISODE_COUNT_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])(\d+)[. _]*of[. _]*(\d+)(?![a-z0-9])").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)(\d+)[. _]*of[. _]*(\d+)").unwrap());
+
+static EPISODE_COUNT_BOUNDARY: BoundarySpec = BoundarySpec {
+    left: Some(CharClass::Alpha),       // (?i)(?<![a-z])
+    right: Some(CharClass::AlphaDigit), // (?i)(?![a-z0-9])
+};
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
@@ -24,17 +30,13 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut season_count_spans: Vec<(usize, usize)> = Vec::new();
 
     // Season count: `Season.2of5`
-    let mut search_start = 0;
-    while search_start < input.len() {
-        let Some(cap) = SEASON_COUNT_RE
-            .captures_from_pos(input, search_start)
-            .ok()
-            .flatten()
-        else {
+    let mut pos = 0;
+    while pos < input.len() {
+        let Some(cap) = SEASON_COUNT_RE.captures_at(input, pos) else {
             break;
         };
         let full = cap.get(0).unwrap();
-        search_start = full.end();
+        pos = full.end();
         season_count_spans.push((full.start(), full.end()));
 
         if let Some(count_m) = cap.get(2) {
@@ -49,17 +51,18 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     }
 
     // Episode count: `14 of 21`, `1of4`
-    search_start = 0;
-    while search_start < input.len() {
-        let Some(cap) = EPISODE_COUNT_RE
-            .captures_from_pos(input, search_start)
-            .ok()
-            .flatten()
-        else {
+    let bytes = input.as_bytes();
+    let mut pos = 0;
+    while pos < input.len() {
+        let Some(cap) = EPISODE_COUNT_RE.captures_at(input, pos) else {
             break;
         };
         let full = cap.get(0).unwrap();
-        search_start = full.end();
+        if !check_boundary(bytes, full.start(), full.end(), &EPISODE_COUNT_BOUNDARY) {
+            pos = full.start() + 1;
+            continue;
+        }
+        pos = full.end();
 
         // Skip if this overlaps with a season count match.
         if season_count_spans

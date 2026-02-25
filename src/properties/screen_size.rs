@@ -2,7 +2,12 @@
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
+use regex::Regex;
 use std::sync::LazyLock;
+
+static RES_SCAN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(\d+)([ip]|hd)").unwrap());
+static DIGITS_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)").unwrap());
 
 static STANDARD_RES: LazyLock<ValuePattern> = LazyLock::new(|| {
     ValuePattern::new(
@@ -49,12 +54,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         };
 
         // Extract the resolution number and scan type.
-        let value = if let Some(caps) = fancy_regex::Regex::new(r"(?i)(\d+)([ip]|hd)")
-            .unwrap()
-            .captures(height_part)
-            .ok()
-            .flatten()
-        {
+        let value = if let Some(caps) = RES_SCAN_RE.captures(height_part) {
             let num = caps.get(1).unwrap().as_str();
             let scan = caps.get(2).unwrap().as_str().to_lowercase();
             let scan_char = if scan == "hd" { "p" } else { &scan };
@@ -105,8 +105,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     if matches.is_empty() {
         for (start, end) in BARE_RES_BEFORE_PROFILE.find_iter(input) {
             let raw = &input[start..end];
-            let re = fancy_regex::Regex::new(r"(\d+)").unwrap();
-            if let Ok(Some(caps)) = re.captures(raw)
+            if let Some(caps) = DIGITS_RE.captures(raw)
                 && let Some(num) = caps.get(1)
             {
                 let value = format!("{}p", num.as_str());

@@ -2,40 +2,50 @@
 //!
 //! Detects part/disc/cd/film numbers commonly used in media filenames.
 
-use fancy_regex::Regex;
+use regex::Regex;
 
+use crate::matcher::regex_utils::{BoundarySpec, CharClass, check_boundary};
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
+/// Boundary: not preceded by alpha, not followed by alphanumeric.
+static ALPHA_ALPHADIGIT: BoundarySpec = BoundarySpec {
+    left: Some(CharClass::Alpha),
+    right: Some(CharClass::AlphaDigit),
+};
+
+/// Boundary: not preceded/followed by alphanumeric.
+static ALPHADIGIT_BOTH: BoundarySpec = BoundarySpec {
+    left: Some(CharClass::AlphaDigit),
+    right: Some(CharClass::AlphaDigit),
+};
+
 /// Part number: Part 1, Part.2, pt1, pt.2, Part Three, Part Trois
 static PART_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])(?:Part|Pt)[-. ]?(?P<num>[0-9]+|I{1,4}|IV|VI{0,3}|(?:one|two|three|four|five|six|seven|eight|nine|ten|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix))(?![a-z0-9])")
+    Regex::new(r"(?i)(?:Part|Pt)[-. ]?(?P<num>[0-9]+|I{1,4}|IV|VI{0,3}|(?:one|two|three|four|five|six|seven|eight|nine|ten|un|deux|trois|quatre|cinq|six|sept|huit|neuf|dix))")
         .unwrap()
 });
 
 /// Apt (apartado) pattern: Apt.1, Apt 2
 static APT_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])Apt[-. ]?(?P<num>[0-9]+)(?![a-z0-9])").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)Apt[-. ]?(?P<num>[0-9]+)").unwrap());
 
-/// Disc number: Disc 1, Disk.2, D1, S01D01, S01D02.3-5, S01D02&4-6&8
+/// Disc number: Disc 1, Disk.2, D1, S01D01
 static DISC_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])(?:Disc?k?|S\d+D)[-. ]?(?P<nums>[0-9]+(?:[.&-][0-9]+)*)(?![a-z0-9])")
-        .unwrap()
+    Regex::new(r"(?i)(?:Disc?k?|S\d+D)[-. ]?(?P<nums>[0-9]+(?:[.&-][0-9]+)*)").unwrap()
 });
 
-/// CD count: 2 CD, 2CD, X cd
-static CD_COUNT_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z0-9])(?P<num>[0-9]+)\s*CD(?:s)?(?![a-z0-9])").unwrap()
-});
+/// CD count: 2 CD, 2CD
+static CD_COUNT_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?P<num>[0-9]+)\s*CD(?:s)?").unwrap());
 
 /// CD number: CD1, CD 2
 static CD_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])CD[-. ]?(?P<num>[0-9]+)(?![a-z0-9])").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)CD[-. ]?(?P<num>[0-9]+)").unwrap());
 
-/// Film number: f01, f21 (used in collections like James Bond)
-/// Only match when preceded by separator and followed by separator.
+/// Film number: f01, f21
 static FILM_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z0-9])f(?P<num>[0-9]{1,2})(?![a-z0-9])").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)f(?P<num>[0-9]{1,2})").unwrap());
 
 fn roman_to_int(s: &str) -> Option<u32> {
     match s.to_uppercase().as_str() {
@@ -70,82 +80,97 @@ fn word_to_int(s: &str) -> Option<u32> {
 }
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let bytes = input.as_bytes();
     let mut matches = Vec::new();
 
-    if let Ok(Some(cap)) = PART_PATTERN.captures(input)
+    if let Some(cap) = PART_PATTERN.captures(input)
         && let Some(num) = cap.name("num")
     {
-        let value = if let Ok(n) = num.as_str().parse::<u32>() {
-            n.to_string()
-        } else if let Some(n) = roman_to_int(num.as_str()) {
-            n.to_string()
-        } else if let Some(n) = word_to_int(num.as_str()) {
-            n.to_string()
-        } else {
-            String::new()
-        };
-        if !value.is_empty() {
-            let full = cap.get(0).unwrap();
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Part, &value).with_priority(1),
-            );
+        let full = cap.get(0).unwrap();
+        if check_boundary(bytes, full.start(), full.end(), &ALPHA_ALPHADIGIT) {
+            let value = if let Ok(n) = num.as_str().parse::<u32>() {
+                n.to_string()
+            } else if let Some(n) = roman_to_int(num.as_str()) {
+                n.to_string()
+            } else if let Some(n) = word_to_int(num.as_str()) {
+                n.to_string()
+            } else {
+                String::new()
+            };
+            if !value.is_empty() {
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Part, &value)
+                        .with_priority(1),
+                );
+            }
         }
     }
 
-    if let Ok(Some(cap)) = DISC_PATTERN.captures(input)
+    if let Some(cap) = DISC_PATTERN.captures(input)
         && let Some(nums) = cap.name("nums")
     {
         let full = cap.get(0).unwrap();
-        // Parse multi-disc: "2.3-5" → [2, 3, 4, 5], "2&4-6&8" → [2, 4, 5, 6, 8]
-        let disc_nums = parse_disc_nums(nums.as_str());
-        for n in disc_nums {
+        if check_boundary(bytes, full.start(), full.end(), &ALPHA_ALPHADIGIT) {
+            let disc_nums = parse_disc_nums(nums.as_str());
+            for n in disc_nums {
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Disc, n.to_string())
+                        .with_priority(1),
+                );
+            }
+        }
+    }
+
+    if let Some(cap) = CD_COUNT_PATTERN.captures(input)
+        && let Some(num) = cap.name("num")
+    {
+        let full = cap.get(0).unwrap();
+        if check_boundary(bytes, full.start(), full.end(), &ALPHADIGIT_BOTH) {
             matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Disc, n.to_string())
+                MatchSpan::new(full.start(), full.end(), Property::CdCount, num.as_str())
                     .with_priority(1),
             );
         }
     }
 
-    if let Ok(Some(cap)) = CD_COUNT_PATTERN.captures(input)
+    if let Some(cap) = CD_PATTERN.captures(input)
         && let Some(num) = cap.name("num")
     {
         let full = cap.get(0).unwrap();
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::CdCount, num.as_str())
-                .with_priority(1),
-        );
-    }
-
-    if let Ok(Some(cap)) = CD_PATTERN.captures(input)
-        && let Some(num) = cap.name("num")
-    {
-        let full = cap.get(0).unwrap();
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Cd, num.as_str()).with_priority(1),
-        );
-    }
-
-    if let Ok(Some(cap)) = FILM_PATTERN.captures(input)
-        && let Some(num) = cap.name("num")
-    {
-        let n: u32 = num.as_str().parse().unwrap_or(0);
-        if n > 0 {
-            let full = cap.get(0).unwrap();
+        if check_boundary(bytes, full.start(), full.end(), &ALPHA_ALPHADIGIT) {
             matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Film, n.to_string())
+                MatchSpan::new(full.start(), full.end(), Property::Cd, num.as_str())
                     .with_priority(1),
             );
+        }
+    }
+
+    if let Some(cap) = FILM_PATTERN.captures(input)
+        && let Some(num) = cap.name("num")
+    {
+        let full = cap.get(0).unwrap();
+        if check_boundary(bytes, full.start(), full.end(), &ALPHADIGIT_BOTH) {
+            let n: u32 = num.as_str().parse().unwrap_or(0);
+            if n > 0 {
+                matches.push(
+                    MatchSpan::new(full.start(), full.end(), Property::Film, n.to_string())
+                        .with_priority(1),
+                );
+            }
         }
     }
 
     // Apt (apartado) pattern.
-    if let Ok(Some(cap)) = APT_PATTERN.captures(input)
+    if let Some(cap) = APT_PATTERN.captures(input)
         && let Some(num) = cap.name("num")
     {
         let full = cap.get(0).unwrap();
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Part, num.as_str()).with_priority(1),
-        );
+        if check_boundary(bytes, full.start(), full.end(), &ALPHA_ALPHADIGIT) {
+            matches.push(
+                MatchSpan::new(full.start(), full.end(), Property::Part, num.as_str())
+                    .with_priority(1),
+            );
+        }
     }
 
     matches

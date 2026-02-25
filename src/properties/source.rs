@@ -3,7 +3,7 @@
 //! When a source includes "Rip" (e.g., DVDRip), we emit BOTH
 //! `Source` and `Other: "Rip"` to match guessit's behavior.
 
-use fancy_regex::Regex;
+use regex::Regex;
 
 use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
@@ -200,10 +200,10 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             // also emit Other: "Rip".
             if sp.has_rip_variant {
                 let matched_text = &input[start..end];
-                if RIP_SUFFIX.is_match(matched_text).unwrap_or(false) {
+                if RIP_SUFFIX.is_match(matched_text) {
                     matches.push(MatchSpan::new(start, end, Property::Other, "Rip"));
                     // BRRip is re-encoded from Blu-ray (BDRip is not).
-                    if REENCODED_RIP.is_match(matched_text).unwrap_or(false) {
+                    if REENCODED_RIP.is_match(matched_text) {
                         matches.push(MatchSpan::new(start, end, Property::Other, "Reencoded"));
                     }
                 }

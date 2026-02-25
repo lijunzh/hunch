@@ -3,38 +3,41 @@
 //! Detects release versions like `v2`, `V3`, or `07v4` commonly
 //! found in anime fansub releases (e.g., `Episode.366v2`, `[Group] Show 07v4`).
 
-use fancy_regex::Regex;
+use regex::Regex;
 
+use crate::matcher::regex_utils::{BoundarySpec, CharClass, check_boundary};
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
-/// Matches `v2`, `v3`, etc. (case-insensitive), not preceded by a letter
-/// (to avoid matching inside `XviD`, `DivX`, etc.).
-static VERSION_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])v(\d+)(?![a-z0-9])").unwrap());
+/// Matches `v2`, `v3`, etc. (case-insensitive).
+static VERSION_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)v(\d+)").unwrap());
+
+static VERSION_BOUNDARY: BoundarySpec = BoundarySpec {
+    left: Some(CharClass::Alpha),       // (?i)(?<![a-z]) → Alpha
+    right: Some(CharClass::AlphaDigit), // (?i)(?![a-z0-9]) → AlphaDigit
+};
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let bytes = input.as_bytes();
     let mut matches = Vec::new();
-    let mut search_start = 0;
-    while search_start < input.len() {
-        let Some(cap) = VERSION_REGEX
-            .captures_from_pos(input, search_start)
-            .ok()
-            .flatten()
-        else {
+    let mut pos = 0;
+    while pos < input.len() {
+        let Some(cap) = VERSION_REGEX.captures_at(input, pos) else {
             break;
         };
         let full = cap.get(0).unwrap();
-        search_start = full.end();
-
-        if let Some(m) = cap.get(1) {
-            let version_num = &input[m.start()..m.end()];
-            matches.push(MatchSpan::new(
-                full.start(),
-                full.end(),
-                Property::Version,
-                version_num,
-            ));
+        if check_boundary(bytes, full.start(), full.end(), &VERSION_BOUNDARY) {
+            if let Some(m) = cap.get(1) {
+                matches.push(MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Version,
+                    &input[m.start()..m.end()],
+                ));
+            }
+            pos = full.end().max(pos + 1);
+        } else {
+            pos = full.start() + 1;
         }
     }
     matches
