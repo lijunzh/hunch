@@ -48,7 +48,7 @@ static LANGUAGE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         // Localized language names.
         ValuePattern::new(r"(?i)(?<![a-z])Fran[cç]ais(?:e)?(?![a-z])", "French"),
         ValuePattern::new(r"(?i)(?<![a-z])Espa[nñ]ol(?![a-z])", "Spanish"),
-        ValuePattern::new(r"(?i)(?<![a-z])Castellano(?![a-z])", "Spanish"),
+        ValuePattern::new(r"(?i)(?<![a-z])Castellano(?![a-z])", "Catalan"),
         ValuePattern::new(r"(?i)(?<![a-z])Deutsch(?![a-z])", "German"),
         ValuePattern::new(r"(?i)(?<![a-z])Italiano(?![a-z])", "Italian"),
         ValuePattern::new(r"(?i)(?<![a-z])Portugu[eê]s(?![a-z])", "Portuguese"),
@@ -78,8 +78,8 @@ static LANGUAGE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])Ukr(?![a-z])", "Ukrainian"),
         ValuePattern::new(r"(?i)(?<![a-z])DUBLADO(?![a-z])", "und"),
         ValuePattern::new(r"(?i)(?<![a-z])Dual[. ]?Audio(?![a-z])", "und"),
-        // DL = Dual Language / multilingual.
-        ValuePattern::new(r"(?i)(?<![a-z])DL(?![a-z])", "mul"),
+        // DL = Dual Language / multilingual (but NOT inside WEB-DL).
+        ValuePattern::new(r"(?i)(?<!WEB[-. ])(?<![a-z])DL(?![a-z])", "mul"),
     ]
 });
 

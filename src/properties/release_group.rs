@@ -24,14 +24,20 @@ static RELEASE_GROUP_END: LazyLock<Regex> = LazyLock::new(|| {
 static RELEASE_GROUP_BEFORE_BRACKET: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"-(?P<group>[A-Za-z0-9@µ!]+)\s*\.?\s*\[").unwrap());
 
+/// Matches `-[GROUP]` at end: `x264-[2Maverick].mp4`.
+static RELEASE_GROUP_DASH_BRACKET: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"-\[(?P<group>[A-Za-z0-9][A-Za-z0-9 _!&-]{0,30})\](?:\.[a-z0-9]{2,5})?$")
+        .unwrap()
+});
+
 /// Release group in brackets at the start: `[GROUP] Title`.
 static RELEASE_GROUP_START_BRACKET: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^\[(?P<group>[A-Za-z][A-Za-z0-9 _.!-]{0,20})\]\s*").unwrap());
+    LazyLock::new(|| Regex::new(r"^\[(?P<group>[A-Za-z][A-Za-z0-9 _.!&-]{0,30})\]\s*").unwrap());
 
 /// Release group in brackets at the end: `Title [GROUP].ext`.
 /// Excludes website-like content (containing dots) and hex CRC values.
 static RELEASE_GROUP_END_BRACKET: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[(?P<group>[A-Za-z][A-Za-z0-9 _!-]{0,20})\](?:\.[a-z0-9]{2,5})?$").unwrap()
+    Regex::new(r"\[(?P<group>[A-Za-z][A-Za-z0-9 _!&-]{0,30})\](?:\.[a-z0-9]{2,5})?$").unwrap()
 });
 
 /// Space-separated group at end: `x264.dxva EuReKA.mkv` or `AC3 TiTAN.mkv`.
@@ -117,7 +123,26 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         }
     }
 
-    // 3. Bracket group at end: `Title [GROUP].ext` — checked before start bracket
+    // 3. Dash-bracket group at end: `x264-[2Maverick].mp4`.
+    if matches.is_empty()
+        && let Some(cap) = RELEASE_GROUP_DASH_BRACKET.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let value = group.as_str().trim();
+        if !is_known_token(value) && !is_hex_crc(value) {
+            matches.push(
+                MatchSpan::new(
+                    filename_start + group.start(),
+                    filename_start + group.end(),
+                    Property::ReleaseGroup,
+                    value,
+                )
+                .with_priority(-2),
+            );
+        }
+    }
+
+    // 4. Bracket group at end: `Title [GROUP].ext` — checked before start bracket
     //    so that `[StartGroup]...[EndGroup]` picks the end one.
     if matches.is_empty()
         && let Some(cap) = RELEASE_GROUP_END_BRACKET.captures(filename)
@@ -373,6 +398,14 @@ fn is_known_token(s: &str) -> bool {
             | "nlsubs"
             | "swesub"
             | "noreleasegroup"
+            // Subtitle markers.
+            | "multiple subtitle"
+            | "multi subs"
+            | "multisubs"
+            | "multi sub"
+            | "subtitle"
+            | "subtitles"
+            | "subforced"
     )
 }
 

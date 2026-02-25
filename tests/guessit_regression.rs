@@ -55,7 +55,7 @@ fn normalize_language(s: &str) -> String {
         "lv" | "lav" | "latvian" => "lv".into(),
         "lt" | "lit" | "lithuanian" => "lt".into(),
         "ca" | "cat" | "catalan" => "ca".into(),
-        "mul" | "multiple languages" => "mul".into(),
+        "mul" | "multi" | "multiple languages" => "mul".into(),
         "und" | "undetermined" => "und".into(),
         other => other.to_string(),
     }
@@ -167,12 +167,6 @@ fn parse_value_list(s: &str) -> Vec<String> {
     if trimmed.starts_with('[') && trimmed.ends_with(']') {
         let inner = &trimmed[1..trimmed.len() - 1];
         inner
-            .split(',')
-            .map(|v| strip_quotes(v))
-            .filter(|v| !v.is_empty())
-            .collect()
-    } else if trimmed.contains(", ") {
-        trimmed
             .split(',')
             .map(|v| strip_quotes(v))
             .filter(|v| !v.is_empty())

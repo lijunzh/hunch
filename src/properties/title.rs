@@ -347,17 +347,50 @@ fn clean_title(raw: &str) -> String {
         s = before_paren_strip;
     }
 
-    // Replace separators with spaces, but preserve hyphens between letters.
+    // Replace separators with spaces, but preserve hyphens between letters
+    // and dot-acronyms like S.H.I.E.L.D. or T.I.T.L.E.
+    let dot_acronym_re = fancy_regex::Regex::new(
+        r"(?:^|(?<=[\s._]))([A-Za-z](?:\.[A-Za-z]){2,}\.?)"
+    ).unwrap();
+
+    // Find dot-acronym byte ranges to protect from separator replacement.
+    let mut protected_ranges: Vec<(usize, usize)> = Vec::new();
+    // Use captures_iter pattern from fancy_regex.
+    let mut search_pos = 0;
+    while search_pos < s.len() {
+        match dot_acronym_re.find(&s[search_pos..]) {
+            Ok(Some(m)) => {
+                protected_ranges.push((search_pos + m.start(), search_pos + m.end()));
+                search_pos += m.end();
+            }
+            _ => break,
+        }
+    }
+
+    let in_protected = |pos: usize| -> bool {
+        protected_ranges.iter().any(|(s, e)| pos >= *s && pos < *e)
+    };
+
     let chars: Vec<char> = s.chars().collect();
+    // Build byte-position map for checking protected ranges.
+    let mut byte_positions: Vec<usize> = Vec::with_capacity(chars.len());
+    let mut byte_pos = 0;
+    for &c in &chars {
+        byte_positions.push(byte_pos);
+        byte_pos += c.len_utf8();
+    }
+
     let cleaned: String = chars
         .iter()
         .enumerate()
         .map(|(i, &c)| {
             if c == '-' {
-                // Preserve hyphens between alphanumeric chars (e.g., X-Men, Re-Animator).
                 let prev_alnum = i > 0 && chars[i - 1].is_alphanumeric();
                 let next_alnum = i + 1 < chars.len() && chars[i + 1].is_alphanumeric();
                 if prev_alnum && next_alnum { '-' } else { ' ' }
+            } else if c == '.' && in_protected(byte_positions[i]) {
+                // Preserve dots in acronyms.
+                '.'
             } else if SEPS.contains(&c) || BRACKETS.contains(&c) {
                 ' '
             } else {
@@ -510,6 +543,17 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
         }
     };
 
+    // Further trim: stop at opening brackets/parens that likely indicate
+    // metadata, not title content (e.g., "[tvu.org.ru]", "(14-01-2008)").
+    let ep_title_end = {
+        let region = &input[ep_title_start..ep_title_end];
+        let bracket_pos = region.find('[').or_else(|| region.find('('));
+        match bracket_pos {
+            Some(pos) if pos > 0 => ep_title_start + pos,
+            _ => ep_title_end,
+        }
+    };
+
     if ep_title_end <= ep_title_start {
         return None;
     }
@@ -521,11 +565,8 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
         return None;
     }
 
-    // Reject if the cleaned title is just a number, year-like, or too short/noisy.
+    // Reject if too short/noisy.
     let trimmed = cleaned.trim();
-    if trimmed.chars().all(|c| c.is_ascii_digit()) {
-        return None; // Pure number — likely a misidentified episode/season.
-    }
     if trimmed.len() <= 1 {
         return None; // Too short to be meaningful.
     }

@@ -160,11 +160,19 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
     ]
 });
 
+/// Short ambiguous patterns that should have low priority.
+/// These lose to release groups and other properties in conflicts.
+const LOW_PRIORITY_VALUES: &[&str] = &["High Quality", "High Resolution", "Sample"];
+
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
     for pattern in OTHER_PATTERNS.iter() {
         for (start, end) in pattern.find_iter(input) {
-            matches.push(MatchSpan::new(start, end, Property::Other, pattern.value));
+            let mut span = MatchSpan::new(start, end, Property::Other, pattern.value);
+            if LOW_PRIORITY_VALUES.contains(&pattern.value) {
+                span = span.with_priority(-2);
+            }
+            matches.push(span);
         }
     }
     matches

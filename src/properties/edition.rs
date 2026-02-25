@@ -12,7 +12,7 @@ static EDITION_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
             r"(?i)(?<![a-z])Director'?s?[-. ]?(?:Definitive[-. ]?)?Cut(?![a-z])",
             "Director's Cut",
         ),
-        ValuePattern::new(r"(?i)(?<![a-z])DC(?![a-z])", "Director's Cut"),
+        ValuePattern::new(r"(?i)(?<![a-z])DC(?![a-z'])", "Director's Cut"),
         // Extended / Unrated / Theatrical.
         ValuePattern::new(
             r"(?i)(?<![a-z])Extended(?:[-. ]?(?:Cut|Edition))?(?![a-z])",

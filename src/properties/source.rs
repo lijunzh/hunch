@@ -9,11 +9,13 @@ use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
-/// A source pattern that may also flag "Rip".
+/// A source pattern that may also flag "Rip" or "Screener".
 struct SourcePattern {
     vp: ValuePattern,
-    /// Does the base (non-Rip) form exist as a separate match?
+    /// Does this pattern contain a "Rip" suffix?
     has_rip_variant: bool,
+    /// Does this pattern contain a "Screener" component?
+    has_screener: bool,
 }
 
 impl SourcePattern {
@@ -21,12 +23,21 @@ impl SourcePattern {
         Self {
             vp: ValuePattern::new(pattern, value),
             has_rip_variant: false,
+            has_screener: false,
         }
     }
     fn with_rip(pattern: &str, value: &'static str) -> Self {
         Self {
             vp: ValuePattern::new(pattern, value),
             has_rip_variant: true,
+            has_screener: false,
+        }
+    }
+    fn with_screener(pattern: &str, value: &'static str) -> Self {
+        Self {
+            vp: ValuePattern::new(pattern, value),
+            has_rip_variant: false,
+            has_screener: true,
         }
     }
 }
@@ -150,8 +161,10 @@ static SOURCE_PATTERNS: LazyLock<Vec<SourcePattern>> = LazyLock::new(|| {
         SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?CAM[-.]?Rip(?![a-z])", "HD Camera"),
         SourcePattern::plain(r"(?i)(?<![a-z])CAM(?![a-z])", "Camera"),
         SourcePattern::with_rip(r"(?i)(?<![a-z])CAM[-.]?Rip(?![a-z])", "Camera"),
-        // Screener (with DVD prefix → maps to DVD source).
-        SourcePattern::plain(r"(?i)(?<![a-z])DVD[-.]?SCR(?:eener)?(?![a-z])", "DVD"),
+        // Screener (with DVD/BD prefix → maps to source with Screener flag).
+        SourcePattern::with_screener(r"(?i)(?<![a-z])DVD[-.]?SCR(?:eener)?(?![a-z])", "DVD"),
+        SourcePattern::with_screener(r"(?i)(?<![a-z])(?:BD|BR)[-.]?SCR(?:eener)?(?![a-z])", "Blu-ray"),
+        SourcePattern::with_screener(r"(?i)(?<![a-z])WEB[-.]?SCR(?:eener)?(?![a-z])", "Web"),
         // Generic screener (no prefix).
         SourcePattern::plain(r"(?i)(?<![a-z])SCR(?:eener)?(?![a-z])", "Screener"),
         // PPV / VOD.
@@ -192,6 +205,10 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                         matches.push(MatchSpan::new(start, end, Property::Other, "Reencoded"));
                     }
                 }
+            }
+            // Screener patterns (DVDSCR, BDSCR, etc.) also emit Other: "Screener".
+            if sp.has_screener {
+                matches.push(MatchSpan::new(start, end, Property::Other, "Screener"));
             }
         }
     }

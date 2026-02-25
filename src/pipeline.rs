@@ -100,6 +100,15 @@ impl Pipeline {
         // already conveys the same information (e.g., 2160p + 4K + UHD).
         self.prune_redundant_hd_tags(&mut all_matches);
 
+        // Step 2e: Prune episode_details at the start of the filename.
+        // "Special" at position 0 is likely part of the title (e.g., "Special Correspondents")
+        // not an episode detail marker. Only keep it if there's a season/episode before it.
+        self.prune_early_episode_details(input, &mut all_matches);
+
+        // Step 2f: When Other and ReleaseGroup overlap on the same span,
+        // keep ReleaseGroup (positional) and drop the ambiguous Other.
+        self.prune_other_overlapping_release_group(&mut all_matches);
+
         // Step 3: Post-processing.
         // 3a: Extract title from remaining gaps.
         if let Some(title_match) = title::extract_title(input, &all_matches) {
@@ -225,6 +234,61 @@ impl Pipeline {
                 !(m.property == Property::Other && m.value == "Ultra HD")
             });
         }
+    }
+
+    /// Remove episode_details ("Special", "Pilot", etc.) that appear at the
+    /// very start of the filename before any season/episode marker.
+    /// These are likely part of the title (e.g., "Special Correspondents").
+    fn prune_early_episode_details(&self, input: &str, matches: &mut Vec<MatchSpan>) {
+        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+
+        // Find the first season/episode match position in the filename.
+        let first_ep_pos = matches
+            .iter()
+            .filter(|m| {
+                m.start >= fn_start
+                    && (m.property == Property::Season || m.property == Property::Episode)
+            })
+            .map(|m| m.start)
+            .min();
+
+        matches.retain(|m| {
+            if m.property != Property::EpisodeDetails || m.start < fn_start {
+                return true;
+            }
+            // If there's an episode/season marker, keep episode_details only
+            // if it appears after the first episode/season marker.
+            match first_ep_pos {
+                Some(ep_pos) => m.start >= ep_pos,
+                // No episode markers at all — episode_details is likely a false positive.
+                None => false,
+            }
+        });
+    }
+
+    /// When ReleaseGroup and Other overlap on the same span, drop ambiguous
+    /// short Other patterns (HQ, HR) that are likely release group names.
+    fn prune_other_overlapping_release_group(&self, matches: &mut Vec<MatchSpan>) {
+        let rg_spans: Vec<(usize, usize)> = matches
+            .iter()
+            .filter(|m| m.property == Property::ReleaseGroup)
+            .map(|m| (m.start, m.end))
+            .collect();
+
+        if rg_spans.is_empty() {
+            return;
+        }
+
+        // Only prune ambiguous short Other values.
+        const AMBIGUOUS_OTHER: &[&str] =
+            &["High Quality", "High Resolution"];
+
+        matches.retain(|m| {
+            if m.property != Property::Other || !AMBIGUOUS_OTHER.contains(&m.value.as_ref()) {
+                return true;
+            }
+            !rg_spans.iter().any(|(rs, re)| m.start < *re && m.end > *rs)
+        });
     }
 }
 

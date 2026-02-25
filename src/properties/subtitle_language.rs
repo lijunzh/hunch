@@ -39,9 +39,10 @@ static LANG_SUBFORCED: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Explicit: Sub.French, sub FR, ST(Fr-Eng), Sub_ITA, sub.ita.eng
+/// Note: ST requires a mandatory separator to avoid matching words like "Star".
 static SUB_LANG: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?<![a-z])(?:sub(?:s|titled|titles)?|ST|Soft[-. ]?sub)[-. _({\[]?(?P<langs>[a-z]{2,}(?:[-. _+,)}&\]]+[a-z]{2,})*)(?![a-z])"
+    r"(?i)(?<![a-z])(?:(?:sub(?:s|titled|titles)?|Soft[-. ]?sub)[-. _({\[]?|ST[-. _({\[])(?P<langs>[a-z]{2,}(?:[-. _+,)}&\]]+[a-z]{2,})*)(?![a-z])"
     ).unwrap()
 });
 

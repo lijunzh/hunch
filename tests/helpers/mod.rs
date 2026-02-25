@@ -79,8 +79,13 @@ fn parse_groups(content: &str) -> Vec<(Vec<String>, HashMap<String, String>)> {
             if items.is_empty() {
                 // Key declared with no list items → preserve empty string.
                 props.entry(k.clone()).or_default();
+            } else if items.len() == 1 {
+                props.insert(k.clone(), items[0].clone());
             } else {
-                props.insert(k.clone(), items.join(", "));
+                // Wrap in brackets so parse_value_list can distinguish
+                // real multi-value lists from single values with commas
+                // (e.g., episode_title: "Right Place, Wrong Time").
+                props.insert(k.clone(), format!("[{}]", items.join(", ")));
             }
             items.clear();
         }
