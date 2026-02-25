@@ -131,6 +131,8 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
             "Fix",
         ),
         ValuePattern::new(r"(?i)(?<![a-z])FIX(?![a-z])", "Fix"),
+        // Proof.
+        ValuePattern::new(r"(?i)(?<![a-z])PROOF(?![a-z])", "Proof"),
         // XXX.
         ValuePattern::new(r"(?i)(?<![a-z])XXX(?![a-z])", "XXX"),
         // Open Matte.
@@ -138,7 +140,7 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         // Extras / Bonus.
         ValuePattern::new(r"(?i)(?<![a-z])EXTRAS?(?![a-z])", "Extras"),
         // Documentary.
-        ValuePattern::new(r"(?i)(?<![a-z])DOCU(?:MENTARY)?(?![a-z])", "Documentary"),
+        ValuePattern::new(r"(?i)(?<![a-z])DOK[CU](?:MENTARY)?(?![a-z])", "Documentary"),
         // Original Video.
         ValuePattern::new(r"(?i)(?<![a-z])OVA(?![a-z])", "Original Video"),
         ValuePattern::new(r"(?i)(?<![a-z])OAD(?![a-z])", "Original Animation DVD"),
