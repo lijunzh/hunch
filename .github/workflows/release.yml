@@ -93,8 +93,24 @@ jobs:
           path: artifacts
           merge-multiple: true
 
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          # Extract the section for the current tag version from CHANGELOG.md
+          TAG="${GITHUB_REF#refs/tags/v}"
+          # Get everything between this version header and the next version header
+          awk "/^## \[${TAG}\]/{found=1; next} /^## \[/{if(found) exit} found" CHANGELOG.md > release_notes.md
+          # Fallback to auto-generated if CHANGELOG section is empty
+          if [ ! -s release_notes.md ]; then
+            echo "No CHANGELOG entry found for v${TAG}, using auto-generated notes."
+            echo "generate=true" >> $GITHUB_OUTPUT
+          else
+            echo "generate=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          generate_release_notes: ${{ steps.notes.outputs.generate == 'true' }}
+          body_path: ${{ steps.notes.outputs.generate != 'true' && 'release_notes.md' || '' }}
           files: artifacts/*.tar.gz
