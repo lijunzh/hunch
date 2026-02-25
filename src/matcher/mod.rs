@@ -2,6 +2,7 @@
 
 pub mod engine;
 pub mod regex_utils;
+pub mod rule_loader;
 pub mod span;
 
 pub use engine::resolve_conflicts;

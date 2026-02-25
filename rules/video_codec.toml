@@ -1,0 +1,71 @@
+# Video codec patterns.
+#
+# Exact entries: case-insensitive token lookup (HashMap, no regex).
+# Pattern entries: regex crate patterns matched against individual tokens.
+#
+# All matching happens against isolated tokens (post-tokenizer), so word
+# boundary assertions are NOT needed.
+
+property = "video_codec"
+
+[exact]
+# Simple token → value mappings (case-insensitive).
+x264  = "H.264"
+h264  = "H.264"
+x265  = "H.265"
+h265  = "H.265"
+hevc  = "H.265"
+xvid  = "Xvid"
+divx  = "DivX"
+dvdivx = "DivX"
+vp7   = "VP7"
+vp8   = "VP8"
+vp80  = "VP8"
+vp9   = "VP9"
+av1   = "AV1"
+avc   = "H.264"
+avchd = "H.264"
+
+[[patterns]]
+# H.264 with optional dot/dash separator: h.264, x-264, etc.
+match = '(?i)^[xh][.-]?264$'
+value = "H.264"
+
+[[patterns]]
+# H.265 with optional dot/dash separator.
+match = '(?i)^[xh][.-]?265$'
+value = "H.265"
+
+[[patterns]]
+# H.263
+match = '(?i)^[xh][.-]?263$'
+value = "H.263"
+
+[[patterns]]
+# MPEG-2 / Mpeg2 / H.262
+match = '(?i)^mpe?g[.-]?2$'
+value = "MPEG-2"
+
+[[patterns]]
+match = '(?i)^[xh][.-]?262$'
+value = "MPEG-2"
+
+[[patterns]]
+# VC-1
+match = '(?i)^vc[.-]?1$'
+value = "VC-1"
+
+[[patterns]]
+# MPEG-4 AVC variants.
+match = '(?i)^mpeg-?4avc(?:hd)?$'
+value = "H.264"
+
+[[patterns]]
+# RealVideo (Rv10, Rv20, etc.)
+match = '(?i)^rv\d{2}$'
+value = "RealVideo"
+
+[[patterns]]
+# DVDDivX compound.
+match = '(?i)^dvddivx$'
+value = "DivX"
