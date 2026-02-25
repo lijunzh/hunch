@@ -140,7 +140,7 @@ matchers, the pipeline, tokenizer, and test infrastructure.
 5. **Flat `Vec<MatchSpan>` + conflict resolution** — simpler than rebulk's
    chain/tree, priority + length tiebreaking is sufficient.
 
-### Gap 1: Side-effect rules (BLOCKER for legacy removal)
+### Gap 1: Side-effect rules ~~(BLOCKER for legacy removal)~~ ✅ IMPLEMENTED
 
 The single most important gap. Pattern:
 ```
@@ -149,11 +149,7 @@ The single most important gap. Pattern:
 "DVDSCR" → Source:DVD + Other:Screener   (2 properties)
 ```
 
-TOML can only express `token → (property, value)`. The legacy `source.rs`
-(300 lines) exists solely to emit these side-effects. Without a TOML
-mechanism for this, `source.rs` and `fancy_regex` **can never be removed**.
-
-**Solution**: Add `side_effects` to TOML pattern entries:
+**Implemented**: `side_effects` in TOML pattern entries:
 ```toml
 [[patterns]]
 match = '(?i)^dvd[-. ]?rip$'
@@ -166,14 +162,14 @@ side_effects = [
 This is NOT rebulk chains. It's a flat, declarative side-effect list. One
 match → N outputs. No callbacks, no execution order, no rule dependencies.
 
-### Gap 2: Context-dependent matching
+### Gap 2: Context-dependent matching ✅ IMPLEMENTED
 
 Some tokens are ambiguous and need neighbor-awareness:
 - `"HD"` → Other:HD, but NOT before `tv`, `dvd`, `cam`, `rip`
 - `"DV"` → Dolby Vision in tech zone vs ignored elsewhere
 - `"TS"` → Telesync source vs `.ts` file extension
 
-**Solution**: Token neighbor checks (NOT regex lookahead):
+**Implemented**: Token neighbor checks (NOT regex lookahead):
 ```toml
 [[patterns]]
 match = '(?i)^hd$'
@@ -181,8 +177,22 @@ value = "HD"
 not_before = ["tv", "dvd", "cam", "rip", "tc", "ts"]
 ```
 
-This uses the tokenizer — check the next token text, not regex lookahead.
+Supports `not_before`, `not_after`, and `requires_after`. Uses the
+tokenizer — checks adjacent token text, not regex lookahead.
 Linear time, no backtracking, structurally sound.
+
+### Gap 3: Path-segment awareness ✅ IMPLEMENTED
+
+The tokenizer now tokenizes ALL path segments with `SegmentKind`
+(Directory vs Filename). Each TOML rule set declares a `SegmentScope`:
+
+- **`FilenameOnly`**: Tech properties (source, codec, screen_size, etc.)
+  skip directory tokens to avoid false positives like "TV Shows" → Source:TV.
+- **`AllSegments`**: Contextual properties that benefit from directory metadata
+  get a priority penalty (-5) so filename matches always win in conflicts.
+
+Currently all rules use FilenameOnly. AllSegments requires per-segment
+zone detection (future work) to avoid title-word false positives in dirs.
 
 ### The fancy_regex removal path
 
@@ -210,11 +220,14 @@ matchers incrementally.
 
 ## Execution Plan
 
-### Phase A: Close engine gaps (unblock legacy removal)
-1. Add `side_effects` to TOML rule engine + rule_loader
-2. Add `not_before` / `not_after` neighbor checks to rule engine
-3. Update source.toml, other.toml with side-effects and neighbor rules
-4. Validate: no regression in test floors
+### Phase A: Close engine gaps ~~(unblock legacy removal)~~ ✅ DONE
+1. ✅ Add `side_effects` to TOML rule engine + rule_loader
+2. ✅ Add `not_before` / `not_after` / `requires_after` neighbor checks
+3. ✅ Path-segment tokenizer with `SegmentKind` (Directory vs Filename)
+4. ✅ Property-scoped `SegmentScope` (FilenameOnly vs AllSegments)
+5. ✅ `Property::from_name()` for side-effect property mapping
+6. ✅ Extract `match_tokens_in_segment()` for clarity
+7. ⬜ Split tokenizer.rs (684 lines, over 600-line limit)
 
 ### Phase B: Remove legacy matchers (incremental)
 Retire one legacy matcher at a time, in order of coverage:
@@ -364,16 +377,16 @@ value = "H.265"            # Static value
 match = '(?i)^(\d{3,4})x(\d{3,4})$'
 value = "{2}p"             # Dynamic: capture group 2 → "1080p"
 
-# PLANNED (Phase A):
-# [[patterns]]
-# match = '(?i)^dvd[-. ]?rip$'
-# value = "DVD"
-# side_effects = [{ property = "other", value = "Rip" }]
-#
-# [[patterns]]
-# match = '(?i)^hd$'
-# value = "HD"
-# not_before = ["tv", "dvd", "cam"]
+[[patterns]]               # Side effects: one match → multiple properties
+match = '(?i)^dvd[-. ]?rip$'
+value = "DVD"
+side_effects = [{ property = "other", value = "Rip" }]
+
+[[patterns]]               # Neighbor constraints: context-aware matching
+match = '(?i)^hd$'
+value = "HD"
+not_before = ["tv", "dvd", "cam"]
+# Also available: not_after, requires_after
 ```
 
 Matching order: case-sensitive exact → case-insensitive exact → regex (first match wins).
