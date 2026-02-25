@@ -1,0 +1,49 @@
+# Frame rate patterns.
+#
+# ARCHITECTURE NOTE (v0.2):
+#   Most fps patterns are handled here using exact lookups and
+#   capture-group templates ({N} syntax).
+#   The legacy frame_rate.rs matcher is kept only for:
+#     - Decimal fps values (29.97fps, 23.976fps) with rounding
+#     - Resolution-attached rates (1080p25) requiring screen_size context
+
+property = "frame_rate"
+
+# ── Exact fps token matches (case-insensitive) ─────────────────────────
+[exact]
+# Explicit fps suffix
+"24fps"  = "24fps"
+"25fps"  = "25fps"
+"30fps"  = "30fps"
+"48fps"  = "48fps"
+"50fps"  = "50fps"
+"60fps"  = "60fps"
+"120fps" = "120fps"
+"23fps"  = "23fps"
+"29fps"  = "29fps"
+"59fps"  = "59fps"
+"90fps"  = "90fps"
+"240fps" = "240fps"
+
+# Broadcast p-suffix (standalone: 24p, 25p, 50p, 60p)
+# Only valid when unambiguous (e.g., not 720p which is a screen size).
+# The tokenizer will claim 720p / 1080p as ScreenSize first, so
+# these p-suffix tokens only appear here when they’re standalone fps markers.
+"24p"  = "24fps"
+"25p"  = "25fps"
+"30p"  = "30fps"
+"48p"  = "48fps"
+"50p"  = "50fps"
+"60p"  = "60fps"
+
+# ── Dynamic patterns using capture-group templates ─────────────────────
+
+[[patterns]]
+# Integer fps with suffix: 15fps, 120fps, etc. (any value not in exact table)
+match = '(?i)^(\d{2,3})\s*fps$'
+value = "{1}fps"
+
+# NOTE: Decimal fps (29.97fps, 23.976fps) and resolution-attached rates
+# (1080p25, 720p50) are still handled by the legacy frame_rate.rs matcher.
+# Decimal fps would need a pattern like `(\d+\.\d+)fps` → "{1}fps",
+# which works with capture groups but the legacy code also handles rounding.

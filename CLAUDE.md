@@ -19,8 +19,10 @@
 
 ## Current Status
 
-**Pass rate: 75.1%** (983 / 1,309 guessit test cases) with 43 properties
-implemented.
+**Pass rate: ~73%** (957 / 1,309 guessit test cases) with 43 properties
+implemented. Currently in v0.2 TOML migration — running TOML + legacy
+matchers in parallel. ~1-2% temporary regression during migration; floors
+adjusted to accommodate. Will recover once legacy matchers are trimmed.
 
 ### Accuracy Tiers
 
@@ -50,25 +52,68 @@ implemented.
 
 We do **not** port rebulk. Instead we use a simpler, faster pipeline:
 
+### v0.2 Pipeline Architecture
+
 ```
 Input string
   │
-  ├─ 1. Pre-process: split by path separators, strip extension
+  ├─ 1. Tokenize: split on separators, extract extension
+  │     └─ TokenStream { tokens: [{text, start, end}...], extension }
   │
-  ├─ 2. Property matchers (30 modules, each impl `PropertyMatcher`)
-  │     Each returns Vec<MatchSpan> with priority levels
+  ├─ 2a. TOML rules: iterate tokens + multi-token windows (1–3)
+  │      └─ 18 TOML rule files (exact lookups + regex with {N} capture templates)
   │
-  ├─ 3. Conflict resolution (MatchEngine::resolve_conflicts)
-  │     Overlapping spans: higher priority wins, then longer wins
+  ├─ 2b. Legacy matchers: regex against raw input (to be removed)
   │
-  ├─ 4. Post-processing rules
-  │     ├─ Title extraction (largest unclaimed region before tech tokens)
-  │     ├─ Episode title extraction (unclaimed region after episode number)
-  │     ├─ Release group extraction (after last separator)
-  │     └─ Media type inference (has season/episode → Episode, else Movie)
+  ├─ 2c. Extension → Container span (priority 10)
   │
-  └─ 5. Build HunchResult (BTreeMap<String, Vec<String>>) → JSON
+  ├─ 3. Conflict resolution (sort by priority desc, length desc; sweep)
+  │
+  ├─ 4. Zone-based disambiguation (6 rules)
+  │     ├─ Rule 1: Language in title zone → drop
+  │     ├─ Rule 2: Duplicate source in title zone → drop early
+  │     ├─ Rule 3: Redundant HD tags with UHD source → drop
+  │     ├─ Rule 4: EpisodeDetails before episode marker → drop
+  │     ├─ Rule 5: Other overlapping ReleaseGroup → drop ambiguous
+  │     └─ Rule 6: Language contained within tech span → drop (replaces fancy_regex lookbehind)
+  │
+  ├─ 5. Post-processing: title, episode_title, media_type, proper_count
+  │
+  └─ 6. Build HunchResult
 ```
+
+### v0.2 TOML Migration Status
+
+| TOML Rule File | Property | Capture Groups | Legacy Matcher Still Needed? |
+|---------------|----------|:-:|---|
+| video_codec.toml | VideoCodec | ✗ | Yes (compound patterns like DLx264) |
+| audio_codec.toml | AudioCodec | ✗ | Yes (DD5.1 combined codec+channel) |
+| color_depth.toml | ColorDepth | ✗ | No — TOML-only |
+| streaming_service.toml | StreamingService | ✗ | Yes (Amazon lookahead) |
+| video_profile.toml | VideoProfile | ✗ | Yes (case-sensitive HP/SC) |
+| episode_details.toml | EpisodeDetails | ✗ | Yes (compound patterns) |
+| edition.toml | Edition | ✗ | Yes (DDC/DC/SE lookaround) |
+| country.toml | Country | ✗ | Yes (NZ boundary) |
+| audio_profile.toml | AudioProfile | ✗ | No — TOML-only |
+| other.toml | Other | ✗ | Yes (many compound patterns) |
+| other_weak.toml | Other (weak) | ✗ | No — TOML-only |
+| video_api.toml | VideoApi | ✗ | No — TOML-only |
+| source.toml | Source | ✗ | Yes (Rip/Screener side-effects) |
+| screen_size.toml | ScreenSize | ✓ | Yes (bare res before Hi10p) |
+| container.toml | Container | ✗ | Yes (extension regex, standalone) |
+| frame_rate.toml | FrameRate | ✓ | Yes (decimal fps, res-attached) |
+| language.toml | Language | ✗ | Yes (bracket multi-lang) |
+| subtitle_language.toml | SubtitleLanguage | ✗ | Yes (compound LANG SUBS) |
+
+**Engine features:**
+- ✅ Exact lookups (case-insensitive + case-sensitive)
+- ✅ Regex patterns (linear-time `regex` crate only)
+- ✅ Capture-group value templates (`{N}` syntax)
+- ✅ Multi-token window matching (1-3 tokens, longest first)
+- ✅ Extension → Container path (priority 10)
+- ✅ Zone Rule 6: Language containment (replaces fancy_regex lookbehind)
+- 🚧 Side-effect rules (one match → multiple properties)
+- 🚧 Context-dependent matching (next-token lookahead)
 
 ### Key design decisions
 
@@ -96,44 +141,34 @@ src/
 ├── main.rs                 # CLI binary (clap)
 ├── hunch_result.rs         # HunchResult type + typed accessors + JSON serialization
 ├── options.rs              # Options / configuration
-├── pipeline.rs             # Orchestrates matchers → conflicts → rules → HunchResult
+├── pipeline.rs             # v0.2 pipeline: tokenize → TOML+legacy match → zones → title
+├── tokenizer.rs            # Input tokenizer: separators, brackets, extension stripping
 ├── matcher/
 │   ├── mod.rs              # Re-exports
 │   ├── span.rs             # MatchSpan, Property enum (42 variants)
 │   ├── engine.rs           # Conflict resolution (priority + length)
-│   └── regex_utils.rs      # ValuePattern: compiled regex + canonical value
-└── properties/             # 30 property matcher modules
-    ├── mod.rs              # PropertyMatcher trait definition
-    ├── title.rs            # Title extraction (positional / leftover) ~560 lines
-    ├── episodes.rs         # S01E02, 1x03, season/episode, multi-ep
-    ├── episode_count.rs    # "X of Y" episode/season count detection
-    ├── year.rs             # 4-digit year detection
-    ├── container.rs        # File extension (.mkv, .mp4, .srt, …)
-    ├── video_codec.rs      # H.264, H.265, AV1, Xvid, …
-    ├── audio_codec.rs      # AAC, DTS, Dolby, FLAC, Opus, …
-    ├── source.rs           # Blu-ray, WEB-DL, HDTV, DVDRip, …
-    ├── screen_size.rs      # 720p, 1080p, 2160p/4K, 480i, …
-    ├── edition.rs          # Director's Cut, Extended, Unrated, …
-    ├── release_group.rs    # Group name (after last "-", brackets, etc.)
-    ├── other.rs            # HDR, Remux, Proper, Repack, 3D, …
-    ├── language.rs         # Audio language: English, French, Multi, …
-    ├── subtitle_language.rs # VOSTFR, NLsubs, SubForced, sub.FR, … ~400 lines
-    ├── streaming_service.rs # AMZN, NF, HMAX, DSNP, ATVP, …
-    ├── audio_profile.rs    # Master Audio, Atmos, DTS:X, DDP, …
-    ├── video_profile.rs    # HEVC, AVCHD, Hi10P, HP, SVC, …
-    ├── color_depth.rs      # 10-bit, 8-bit, 12-bit, Hi10, HEVC10
-    ├── aspect_ratio.rs     # Computed from WxH resolution
-    ├── date.rs             # YYYY-MM-DD, YYYYMMDD, MM-DD-YYYY, …
-    ├── country.rs          # US, UK, GB, CA, AU, NZ
-    ├── crc32.rs            # [DEADBEEF] hex checksums
-    ├── website.rs          # [site.com], www.domain.com, inline
-    ├── uuid.rs             # Standard UUIDs + 32-char no-dash compact
-    ├── bonus.rs            # x01/x02 extras, bonus titles
-    ├── part.rs             # Part/Disc/CD/Film numbering
-    ├── size.rs             # 700MB, 1.4GB file sizes
-    ├── episode_details.rs  # Special, Pilot, Unaired, Final
-    ├── version.rs          # Release version: v2, V3, 366v2
-    └── frame_rate.rs       # 24fps, 120fps, 1080p25
+│   ├── regex_utils.rs      # ValuePattern: compiled regex + canonical value (legacy)
+│   └── rule_loader.rs      # TOML rule engine: exact + regex + {N} capture templates
+└── properties/             # 30 property matcher modules (legacy, being migrated)
+rules/                      # 18 TOML data files defining property patterns
+├── video_codec.toml        # H.264, H.265, AV1, Xvid, …
+├── audio_codec.toml        # AAC, DTS, Dolby, FLAC, Opus, …
+├── source.toml             # Blu-ray, WEB-DL, HDTV, DVDRip, …
+├── screen_size.toml        # 720p, 1080p, 4K, WxH ({N} templates)
+├── container.toml          # mkv, mp4, avi, srt, …
+├── frame_rate.toml         # 24fps, 120fps ({N} templates)
+├── language.toml           # English, French, Multi, VFF, …
+├── subtitle_language.toml  # VOSTFR, NLsubs, SubForced, …
+├── edition.toml            # Director's Cut, Extended, Unrated, …
+├── other.toml              # HDR, Remux, Proper, Repack, 3D, …
+├── other_weak.toml         # Low-priority Other matches
+├── streaming_service.toml  # AMZN, NF, HMAX, DSNP, …
+├── video_profile.toml      # Hi10P, HP, SVC, …
+├── audio_profile.toml      # Atmos, DTS:X, TrueHD, …
+├── color_depth.toml        # 10-bit, 8-bit, 12-bit, …
+├── country.toml            # US, UK, GB, CA, AU, NZ
+├── episode_details.toml    # Special, Pilot, Unaired, Final
+└── video_api.toml          # DXVA, D3D11, CUDA, …
 ```
 
 ---
@@ -252,24 +287,37 @@ curly-brace patterns like `ST{Fr-Eng}` are not yet handled.
    language,other,part,release_group,screen_size,size,source,title,video_codec,
    website}.yml`.
 
-### Adding a new property matcher
+### Adding a new property matcher (v0.2)
 
-1. Create `src/properties/<name>.rs`.
-2. Define patterns using `ValuePattern::new(regex, value)` for simple cases
-   or custom `fancy_regex` for complex patterns.
-3. Add unit tests in the same file.
-4. Add `Property::YourProp` variant to `src/matcher/span.rs` (and its Display impl).
-5. Register in `src/pipeline.rs` (add to matcher list).
-6. Update this file.
+1. Create `rules/<name>.toml` with `property`, `[exact]`, and `[[patterns]]`.
+2. Add a `LazyLock<RuleSet>` static in `pipeline.rs`.
+3. Register it in the `toml_rules` vector with appropriate property + priority.
+4. Add `Property::YourProp` variant to `src/matcher/span.rs` (if new).
+5. Add unit tests in rule_loader and integration tests.
+6. Only create a legacy `src/properties/<name>.rs` if the property needs
+   structural parsing (episodes, year, etc.) that tokens can't express.
+7. Update this file.
 
-### Regex conventions
+### TOML rule file format
 
-- **Word boundaries**: Use `(?<![a-zA-Z])` / `(?![a-zA-Z])` (requires `fancy_regex`).
-  Standard `\b` misbehaves with digits and hyphens. (In v0.2, the tokenizer
-  will eliminate the need for lookaround entirely.)
-- **Case insensitive**: Prefix patterns with `(?i)` where needed.
-- **ValuePattern**: For simple keyword → value mappings, use `ValuePattern::new(regex, value)`.
-  It pairs a compiled `fancy_regex` with a canonical output string.
+```toml
+property = "video_codec"
+
+[exact]         # Case-insensitive exact token lookups
+x264 = "H.264"
+hevc = "H.265"
+
+[exact_sensitive]  # Case-sensitive (for ambiguous short tokens)
+NZ = "NZ"          # Country codes, etc.
+
+[[patterns]]           # Regex with optional {N} capture templates
+match = '(?i)^[xh][-.]?265$'
+value = "H.265"        # Static value
+
+[[patterns]]
+match = '(?i)^(\d{3,4})x(\d{3,4})$'
+value = "{2}p"         # Dynamic: capture group 2 → "1080p"
+```
 
 ### Conflict resolution strategy
 

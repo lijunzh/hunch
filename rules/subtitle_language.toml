@@ -1,0 +1,123 @@
+# Subtitle language patterns.
+#
+# ARCHITECTURE NOTE (v0.2):
+#   Simple vocabulary-based subtitle markers live here.
+#   The legacy subtitle_language.rs is kept for:
+#     - "LANG SUBS" / "LANG SUBBED" multi-token patterns
+#     - SubForced / SUBFORCED with optional language prefix
+#     - Language-code file extension (.eng.srt, .fr.sub)
+#     - Legendado/Subtitulado (Brazilian Portuguese patterns)
+#     - Complex compound markers needing capture groups
+#   The TOML layer handles the common standalone markers.
+
+property = "subtitle_language"
+
+# ── VOST family (French anime/TV conventions) ──────────────────────────
+[exact]
+vostfr   = "French"
+fastsub  = "French"
+vost     = "und"       # original version, language unspecified
+
+# ── Compound lang+sub markers ──────────────────────────────────────────
+swesub    = "Swedish"
+nlsub     = "Dutch"
+nlsubs    = "Dutch"
+hebsub    = "Hebrew"
+hebsubs   = "Hebrew"
+plsub     = "Polish"
+plsubs    = "Polish"
+rosub     = "Romanian"
+rosubs    = "Romanian"
+desub     = "German"
+desubs    = "German"
+korsub    = "Korean"
+korsubs   = "Korean"
+engsub    = "English"
+engsubs   = "English"
+fresub    = "French"
+fresubs   = "French"
+itasub    = "Italian"
+itasubs   = "Italian"
+spasub    = "Spanish"
+spasubs   = "Spanish"
+dansub    = "Danish"
+dansubs   = "Danish"
+norsub    = "Norwegian"
+norsubs   = "Norwegian"
+finsub    = "Finnish"
+finsubs   = "Finnish"
+gresub    = "Greek"
+gresubs   = "Greek"
+tursub    = "Turkish"
+tursubs   = "Turkish"
+arasub    = "Arabic"
+arasubs   = "Arabic"
+russub    = "Russian"
+russubs   = "Russian"
+hinsub    = "Hindi"
+hinsubs   = "Hindi"
+chisub    = "Chinese"
+chisubs   = "Chinese"
+jpnsub    = "Japanese"
+jpnsubs   = "Japanese"
+ukrsub    = "Ukrainian"
+ukrsubs   = "Ukrainian"
+bulsub    = "Bulgarian"
+bulsubs   = "Bulgarian"
+hunsub    = "Hungarian"
+hunsubs   = "Hungarian"
+czesub    = "Czech"
+czesubs   = "Czech"
+hrvsub    = "Croatian"
+hrvsubs   = "Croatian"
+slksub    = "Slovak"
+slksubs   = "Slovak"
+ptsub     = "Portuguese"
+ptsubs    = "Portuguese"
+brsub     = "Portuguese"
+brsubs    = "Portuguese"
+
+# ── Generic subtitle markers (language = undetermined) ───────────────────
+esub        = "und"
+esubs       = "und"
+subbed      = "und"
+subtitled   = "und"
+subtitles   = "und"
+subtitle    = "und"
+hardsub     = "und"
+hardsubs    = "und"
+softsub     = "und"
+softsubs    = "und"
+custom      = "und"   # custom subtitles
+
+# ── Regex patterns for separator variants ──────────────────────────────
+
+[[patterns]]
+# VOSTFR / FASTSUB.VOSTFR (2-token)
+match = '(?i)^fastsub[-. ]?vostfr$'
+value = "French"
+
+[[patterns]]
+# Hard-sub / Soft-sub / Hard.Sub (2-token)
+match = '(?i)^(?:hard|soft|custom)[-. ]?subs?$'
+value = "und"
+
+[[patterns]]
+# Multi-Sub / Multi.Subs (2-token)
+match = '(?i)^multi[-. ]?subs?$'
+value = "und"
+
+[[patterns]]
+# HC (hard-coded subtitles)
+match = '(?i)^hc$'
+value = "und"
+
+[[patterns]]
+# E-Sub / E.Sub
+match = '(?i)^e[-. ]?subs?$'
+value = "und"
+
+[[patterns]]
+# SUB.FR / Sub-FR (2-token: language code after sub marker)
+match = '(?i)^sub[-. ]?(fr|en|es|de|it|nl|sv|no|da|fi|pl|cs|hu|ro|hr|sr|bg|uk|he|ar|ru|hi|zh|ja|ko|pt|br|ca)$'
+value = "und"   # language-specific value emitted by subtitle_language.rs parse_sub_lang

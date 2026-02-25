@@ -1,0 +1,138 @@
+# Audio language patterns.
+#
+# ARCHITECTURE NOTE (v0.2):
+#   All vocabulary-based language detection lives here.
+#   The legacy language.rs is kept for:
+#     - Bracketed multi-language codes: [ENG+RU+PT] — requires custom parsing
+#   The "DL" (Dual Language/mul) token was previously guarded by a
+#   fancy_regex lookbehind (?<!WEB[-. ]) to avoid matching inside WEB-DL.
+#   With token-based matching, the pipeline zone rule "drop language spans
+#   contained within a source span" replaces that lookbehind (see pipeline.rs
+#   apply_zone_rules Rule 6).
+
+property = "language"
+
+# ── Full language names (case-insensitive exact match) ─────────────────────
+[exact]
+english    = "English"
+french     = "French"
+spanish    = "Spanish"
+german     = "German"
+italian    = "Italian"
+portuguese = "Portuguese"
+russian    = "Russian"
+japanese   = "Japanese"
+chinese    = "Chinese"
+korean     = "Korean"
+arabic     = "Arabic"
+hindi      = "Hindi"
+dutch      = "Dutch"
+swedish    = "Swedish"
+norwegian  = "Norwegian"
+danish     = "Danish"
+finnish    = "Finnish"
+polish     = "Polish"
+czech      = "Czech"
+turkish    = "Turkish"
+greek      = "Greek"
+hungarian  = "Hungarian"
+romanian   = "Romanian"
+thai       = "Thai"
+vietnamese = "Vietnamese"
+catalan    = "Catalan"
+croatian   = "Croatian"
+serbian    = "Serbian"
+bulgarian  = "Bulgarian"
+ukrainian  = "Ukrainian"
+hebrew     = "Hebrew"
+
+# Localized language names
+deutsch     = "German"
+italiano    = "Italian"
+castellano  = "Catalan"
+dublado     = "und"       # Portuguese: "dubbed"
+legendado   = "und"       # Portuguese: "subtitled"
+
+# Broadcast / release convention tags (language-specific shortcuts)
+truefrench  = "French"
+vff         = "French"
+vfq         = "French"
+vfi         = "French"
+vf2         = "French"
+vf          = "French"
+vostfr      = "French"    # V.O. sous-titres français — also a subtitle marker
+latino      = "Spanish"
+flemish     = "nl"
+
+# ISO 639-3 / common 3-letter codes
+eng = "English"
+ita = "Italian"
+spa = "Spanish"
+ger = "German"
+fre = "French"
+jpn = "Japanese"
+rus = "Russian"
+kor = "Korean"
+dut = "Dutch"
+por = "Portuguese"
+ara = "Arabic"
+hin = "Hindi"
+swe = "Swedish"
+nor = "Norwegian"
+dan = "Danish"
+fin = "Finnish"
+pol = "Polish"
+cze = "Czech"
+tur = "Turkish"
+gre = "Greek"
+hun = "Hungarian"
+rom = "Romanian"
+tha = "Thai"
+vie = "Vietnamese"
+ukr = "Ukrainian"
+heb = "Hebrew"
+hrv = "Croatian"
+srp = "Serbian"
+bul = "Bulgarian"
+cat = "Catalan"
+mul = "mul"     # ISO 639-2 "multiple languages"
+und = "und"     # undetermined
+
+# Dual Language / Multilingual
+# NOTE: "DL" on its own means Dual Language (mul), but ONLY as a standalone
+# token. When part of "WEB-DL" the source rule claims the compound span first,
+# and zone Rule 6 drops this language match if contained within that span.
+dl    = "mul"
+multi = "mul"
+
+# ── Regex patterns for localized/variant names ────────────────────────────
+
+[[patterns]]
+# Français / Francais / Française
+match = '(?i)^fran[cç]aise?$'
+value = "French"
+
+[[patterns]]
+# Español / Espanol
+match = '(?i)^espa[nñ]ol$'
+value = "Spanish"
+
+[[patterns]]
+# Português / Portugues
+match = '(?i)^portugu[eê]s$'
+value = "Portuguese"
+
+[[patterns]]
+# MULTI / MULTiLANG / MULTiLANGUAGE
+match = '(?i)^multi(?:lang(?:uage)?)?$'
+value = "mul"
+
+[[patterns]]
+# Dual.Audio / Dual-Audio
+match = '(?i)^dual[-. ]?audio$'
+value = "und"
+
+[[patterns]]
+# 2-token: Dual Audio
+match = '(?i)^dual[-. ]audio$'
+value = "und"

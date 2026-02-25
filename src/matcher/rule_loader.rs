@@ -6,10 +6,34 @@
 //! All regex patterns use the `regex` crate only (linear-time, ReDoS-immune).
 //! Word boundary assertions are unnecessary because matching happens
 //! against tokens isolated by the tokenizer.
+//!
+//! ## Capture-group value templates
+//!
+//! Pattern values can contain `{N}` placeholders that are replaced with
+//! regex capture group contents at match time:
+//!
+//! ```toml
+//! [[patterns]]
+//! match = '(?i)^(\d{3,4})x(\d{3,4})$'
+//! value = "{2}p"  # Uses group 2 (height) → "1080p"
+//! ```
+//!
+//! A value without `{N}` is returned as-is (static value).
 
 use regex::Regex;
 use serde::Deserialize;
+use std::borrow::Cow;
 use std::collections::HashMap;
+
+/// A compiled pattern rule with optional capture-group templates.
+#[derive(Debug)]
+struct PatternRule {
+    regex: Regex,
+    /// The raw value template (may contain `{1}`, `{2}`, etc.).
+    template: String,
+    /// True if template contains at least one `{N}` placeholder.
+    is_dynamic: bool,
+}
 
 /// A parsed rule file loaded from TOML.
 #[derive(Debug)]
@@ -21,7 +45,7 @@ pub struct RuleSet {
     /// Case-sensitive exact token lookups (for short ambiguous tokens like country codes).
     exact_sensitive: HashMap<String, String>,
     /// Compiled regex patterns with their output values.
-    patterns: Vec<(Regex, String)>,
+    patterns: Vec<PatternRule>,
 }
 
 /// Raw TOML structure for deserialization.
@@ -60,14 +84,19 @@ impl RuleSet {
             .collect();
 
         // Compile regex patterns.
-        let patterns: Vec<(Regex, String)> = raw
+        let patterns: Vec<PatternRule> = raw
             .patterns
             .into_iter()
             .map(|p| {
-                let re = Regex::new(&p.pattern).unwrap_or_else(|e| {
+                let regex = Regex::new(&p.pattern).unwrap_or_else(|e| {
                     panic!("Bad regex in {} rules: `{}`: {e}", raw.property, p.pattern)
                 });
-                (re, p.value)
+                let is_dynamic = p.value.contains('{');
+                PatternRule {
+                    regex,
+                    template: p.value,
+                    is_dynamic,
+                }
             })
             .collect();
 
@@ -83,22 +112,34 @@ impl RuleSet {
     ///
     /// Returns the canonical value if the token matches, or `None`.
     /// Case-sensitive exact is checked first, then case-insensitive, then regex.
-    pub fn match_token(&self, token: &str) -> Option<&str> {
+    ///
+    /// For regex patterns with `{N}` templates, capture groups are substituted
+    /// into the template to produce the final value.
+    pub fn match_token(&self, token: &str) -> Option<Cow<'_, str>> {
         // Case-sensitive exact lookup (for ambiguous short tokens).
         if let Some(value) = self.exact_sensitive.get(token) {
-            return Some(value.as_str());
+            return Some(Cow::Borrowed(value.as_str()));
         }
 
         // Case-insensitive exact lookup.
         let lower = token.to_lowercase();
         if let Some(value) = self.exact.get(&lower) {
-            return Some(value.as_str());
+            return Some(Cow::Borrowed(value.as_str()));
         }
 
         // Regex patterns.
-        for (re, value) in &self.patterns {
-            if re.is_match(token) {
-                return Some(value.as_str());
+        for rule in &self.patterns {
+            if !rule.is_dynamic {
+                // Static value — no capture groups needed.
+                if rule.regex.is_match(token) {
+                    return Some(Cow::Borrowed(rule.template.as_str()));
+                }
+            } else {
+                // Dynamic value — substitute capture groups into template.
+                if let Some(caps) = rule.regex.captures(token) {
+                    let value = substitute_captures(&rule.template, &caps);
+                    return Some(Cow::Owned(value));
+                }
             }
         }
 
@@ -114,6 +155,43 @@ impl RuleSet {
     pub fn pattern_count(&self) -> usize {
         self.patterns.len()
     }
+}
+
+/// Substitute `{N}` placeholders in a template with capture group values.
+///
+/// `{0}` = entire match, `{1}` = first group, `{2}` = second, etc.
+/// Missing groups are replaced with empty string.
+fn substitute_captures(template: &str, caps: &regex::Captures<'_>) -> String {
+    let mut result = String::with_capacity(template.len());
+    let mut chars = template.chars().peekable();
+
+    while let Some(ch) = chars.next() {
+        if ch == '{' {
+            // Parse the group index.
+            let mut digits = String::new();
+            while let Some(&d) = chars.peek() {
+                if d.is_ascii_digit() {
+                    digits.push(d);
+                    chars.next();
+                } else {
+                    break;
+                }
+            }
+            // Consume the closing '}'.
+            if chars.peek() == Some(&'}') {
+                chars.next();
+            }
+            if let Ok(idx) = digits.parse::<usize>() {
+                if let Some(m) = caps.get(idx) {
+                    result.push_str(m.as_str());
+                }
+                // Missing group → empty string (nothing pushed).
+            }
+        } else {
+            result.push(ch);
+        }
+    }
+    result
 }
 
 #[cfg(test)]
@@ -149,49 +227,70 @@ value = "RealVideo"
     #[test]
     fn test_exact_match() {
         let rules = RuleSet::from_toml(TEST_TOML);
-        assert_eq!(rules.match_token("x264"), Some("H.264"));
-        assert_eq!(rules.match_token("X264"), Some("H.264"));
-        assert_eq!(rules.match_token("HEVC"), Some("H.265"));
-        assert_eq!(rules.match_token("XviD"), Some("Xvid"));
+        assert_eq!(rules.match_token("x264").as_deref(), Some("H.264"));
+        assert_eq!(rules.match_token("X264").as_deref(), Some("H.264"));
+        assert_eq!(rules.match_token("HEVC").as_deref(), Some("H.265"));
+        assert_eq!(rules.match_token("XviD").as_deref(), Some("Xvid"));
     }
 
     #[test]
     fn test_regex_match() {
         let rules = RuleSet::from_toml(TEST_TOML);
-        assert_eq!(rules.match_token("x.265"), Some("H.265"));
-        assert_eq!(rules.match_token("H-265"), Some("H.265"));
-        assert_eq!(rules.match_token("Rv20"), Some("RealVideo"));
+        assert_eq!(rules.match_token("x.265").as_deref(), Some("H.265"));
+        assert_eq!(rules.match_token("H-265").as_deref(), Some("H.265"));
+        assert_eq!(rules.match_token("Rv20").as_deref(), Some("RealVideo"));
     }
 
     #[test]
     fn test_no_match() {
         let rules = RuleSet::from_toml(TEST_TOML);
-        assert_eq!(rules.match_token("Movie"), None);
-        assert_eq!(rules.match_token("720p"), None);
+        assert_eq!(rules.match_token("Movie").as_deref(), None);
+        assert_eq!(rules.match_token("720p").as_deref(), None);
     }
 
     #[test]
     fn test_exact_preferred_over_regex() {
         let rules = RuleSet::from_toml(TEST_TOML);
-        // "hevc" matches exact lookup (no regex needed).
-        assert_eq!(rules.match_token("hevc"), Some("H.265"));
+        assert_eq!(rules.match_token("hevc").as_deref(), Some("H.265"));
     }
 
     #[test]
     fn test_load_video_codec_toml() {
-        // Validate the actual rules/video_codec.toml file compiles.
         let toml_str = include_str!("../../rules/video_codec.toml");
         let rules = RuleSet::from_toml(toml_str);
         assert_eq!(rules.property, "video_codec");
         assert!(rules.exact_count() >= 10);
         assert!(rules.pattern_count() >= 5);
 
-        // Spot-check matches.
-        assert_eq!(rules.match_token("x264"), Some("H.264"));
-        assert_eq!(rules.match_token("HEVC"), Some("H.265"));
-        assert_eq!(rules.match_token("h.265"), Some("H.265"));
-        assert_eq!(rules.match_token("XviD"), Some("Xvid"));
-        assert_eq!(rules.match_token("AV1"), Some("AV1"));
-        assert_eq!(rules.match_token("Rv10"), Some("RealVideo"));
+        assert_eq!(rules.match_token("x264").as_deref(), Some("H.264"));
+        assert_eq!(rules.match_token("HEVC").as_deref(), Some("H.265"));
+        assert_eq!(rules.match_token("h.265").as_deref(), Some("H.265"));
+        assert_eq!(rules.match_token("XviD").as_deref(), Some("Xvid"));
+        assert_eq!(rules.match_token("AV1").as_deref(), Some("AV1"));
+        assert_eq!(rules.match_token("Rv10").as_deref(), Some("RealVideo"));
+    }
+
+    #[test]
+    fn test_capture_group_template() {
+        let toml = r#"
+property = "screen_size"
+
+[exact]
+
+[[patterns]]
+match = '(?i)^(\d{3,4})x(\d{3,4})$'
+value = "{2}p"
+
+[[patterns]]
+match = '(?i)^(\d{3,4})p(\d{2,3})$'
+value = "{1}p"
+"#;
+        let rules = RuleSet::from_toml(toml);
+        // WxH: extract height.
+        assert_eq!(rules.match_token("1920x1080").as_deref(), Some("1080p"));
+        assert_eq!(rules.match_token("1280x720").as_deref(), Some("720p"));
+        // Resolution + frame rate: extract resolution.
+        assert_eq!(rules.match_token("720p60").as_deref(), Some("720p"));
+        assert_eq!(rules.match_token("1080p25").as_deref(), Some("1080p"));
     }
 }

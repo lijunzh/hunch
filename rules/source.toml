@@ -1,0 +1,263 @@
+# Source / release origin patterns.
+#
+# ARCHITECTURE NOTE (v0.2):
+#   Single-token and compound-token (2–3 window) source lookups live here.
+#   Multi-property side-effects (Other:Rip, Other:Screener) cannot be expressed
+#   in TOML and are still emitted by the legacy source.rs matcher.
+#   Eventually source.rs will be reduced to side-effect-only logic.
+
+property = "source"
+
+# ── Single-token exact matches (case-insensitive) ─────────────────────────
+[exact]
+# Blu-ray
+bluray    = "Blu-ray"
+bdremux   = "Blu-ray"
+brremux   = "Blu-ray"
+bdrip     = "Blu-ray"
+brrip     = "Blu-ray"   # also emits Other:Rip + Other:Reencoded via source.rs
+bdscr     = "Blu-ray"   # also emits Other:Screener via source.rs
+brscr     = "Blu-ray"   # also emits Other:Screener via source.rs
+
+# Blu-ray variants with disc size
+bd5       = "Blu-ray"
+bd9       = "Blu-ray"
+bd25      = "Blu-ray"
+bd50      = "Blu-ray"
+
+# Web
+web       = "Web"
+webdl     = "Web"
+webrip    = "Web"       # also emits Other:Rip via source.rs
+webcap    = "Web"       # also emits Other:Rip via source.rs
+webuhd    = "Web"
+dlweb     = "Web"
+dlmux     = "Web"
+
+# HDTV
+hdtv      = "HDTV"
+ahdtv     = "Analog HDTV"
+uhdtv     = "Ultra HDTV"
+
+# DVD
+dvd       = "DVD"
+dvdr      = "DVD"
+dvd5      = "DVD"
+dvd9      = "DVD"
+ts        = "Telesync"  # note: only safe inside tech zone; see zone rules
+vts       = "DVD"       # VIDEO_TS
+dvdrip    = "DVD"       # also emits Other:Rip via source.rs
+dvdscr    = "DVD"       # also emits Other:Screener via source.rs
+
+# Digital TV
+pdtv      = "Digital TV"
+dvb       = "Digital TV"
+
+# Camera
+cam       = "Camera"
+hdcam     = "HD Camera"
+
+# Satellite
+dsr       = "Satellite"
+dth       = "Satellite"
+
+# Telecine / Telesync
+tc        = "Telecine"
+telecine  = "Telecine"
+telesync  = "Telesync"
+hdtc      = "HD Telecine"
+
+# Camera / Screener / Misc
+vhs       = "VHS"
+vhsrip    = "VHS"       # also emits Other:Rip via source.rs
+screener  = "Screener"
+workprint = "Workprint"
+ppv       = "Pay-per-view"
+vod       = "Video on Demand"
+tv        = "TV"
+sd        = "TV"
+
+# HD generic
+hdrip     = "HD"
+
+# ── Compound patterns (2- and 3-token windows) ────────────────────────────
+
+[[patterns]]
+# Blu-ray / Blu.ray / Blu_ray / BLU RAY (2-token window)
+match = '(?i)^blu[-. _]?ray$'
+value = "Blu-ray"
+
+[[patterns]]
+# BD-Remux / BD.Remux (2-token window)
+match = '(?i)^b[dr][-. ]?remux$'
+value = "Blu-ray"
+
+[[patterns]]
+# BD-Rip / BR-Rip (2-token: emitted by source.rs for side-effects too)
+match = '(?i)^b[dr][-. ]?rip$'
+value = "Blu-ray"
+
+[[patterns]]
+# BD-Scr / BR-Scr / BD-Screener (2-token)
+match = '(?i)^b[dr][-. ]?scr(?:eener)?$'
+value = "Blu-ray"
+
+[[patterns]]
+# WEB-DL / WEB.DL (2-token window)
+match = '(?i)^web[-. _]?dl$'
+value = "Web"
+
+[[patterns]]
+# WEB-Rip / WEB.Rip (2-token)
+match = '(?i)^web[-. _]?rip$'
+value = "Web"
+
+[[patterns]]
+# WEB-Cap / WEB.Cap (2-token)
+match = '(?i)^web[-. _]?cap$'
+value = "Web"
+
+[[patterns]]
+# WEB-UHD / WEB.UHD (2-token)
+match = '(?i)^web[-. _]?uhd$'
+value = "Web"
+
+[[patterns]]
+# WEB-HD / WEB.HD (2-token)
+match = '(?i)^web[-. _]?hd$'
+value = "Web"
+
+[[patterns]]
+# HD-TV / HD.TV / HDTV (2-token window)
+match = '(?i)^hd[-. ]?tv$'
+value = "HDTV"
+
+[[patterns]]
+# UHD-TV / UHD.TV (2-token window)
+match = '(?i)^uhd[-. ]?tv$'
+value = "Ultra HDTV"
+
+[[patterns]]
+# HD-CAM / HD.Cam (2-token window)
+match = '(?i)^hd[-. ]?cam$'
+value = "HD Camera"
+
+[[patterns]]
+# HD-DVD / HD.DVD (2-token window)
+match = '(?i)^hd[-. ]?dvd$'
+value = "HD-DVD"
+
+[[patterns]]
+# HD-DVD-Rip / HD.DVD.Rip (2-3 token window, side-effects in source.rs)
+match = '(?i)^hd[-. ]?dvd[-. ]?rip$'
+value = "HD-DVD"
+
+[[patterns]]
+# HD-Rip / HD.Rip (2-token)
+match = '(?i)^hd[-. ]?rip$'
+value = "HD"
+
+[[patterns]]
+# HD-Telecine / HD.Telecine / HD.TC (2-token window)
+match = '(?i)^hd[-. ]?(?:telecine|tc)$'
+value = "HD Telecine"
+
+[[patterns]]
+# HD-Telesync / HD.TS / HD.Telesync (2-token window)
+match = '(?i)^hd[-. ]?(?:telesync|ts)$'
+value = "HD Telesync"
+
+[[patterns]]
+# SD-TV / SD.TV (2-token window)
+match = '(?i)^sd[-. ]?tv$'
+value = "TV"
+
+[[patterns]]
+# TV-Rip / TV.Rip (2-token, side-effects in source.rs)
+match = '(?i)^(?:sd[-. ]?)?tv[-. ]?rip$'
+value = "TV"
+
+[[patterns]]
+# PD-TV / PD.TV (2-token)
+match = '(?i)^pd[-. ]?tv$'
+value = "Digital TV"
+
+[[patterns]]
+# DVD-Rip / DVD.Rip (2-token, side-effects in source.rs)
+match = '(?i)^dvd[-. ]?rip$'
+value = "DVD"
+
+[[patterns]]
+# DVD-Scr / DVD.Screener (2-token, side-effects in source.rs)
+match = '(?i)^dvd[-. ]?scr(?:eener)?$'
+value = "DVD"
+
+[[patterns]]
+# VIDEO-TS / VIDEO.TS (2-token window)
+match = '(?i)^video[-. _]?ts$'
+value = "DVD"
+
+[[patterns]]
+# VHS-Rip / VHS.Rip (2-token, side-effects in source.rs)
+match = '(?i)^vhs[-. ]?rip$'
+value = "VHS"
+
+[[patterns]]
+# PPV-Rip / PPV.Rip (2-token)
+match = '(?i)^ppv[-. ]?rip$'
+value = "Pay-per-view"
+
+[[patterns]]
+# VOD-Rip / VOD.Rip (2-token)
+match = '(?i)^vod[-. ]?rip$'
+value = "Video on Demand"
+
+[[patterns]]
+# SAT-Rip / DSR-Rip / DTH-Rip (2-token)
+match = '(?i)^(?:dsr?|dth|sat)[-. ]?rip$'
+value = "Satellite"
+
+[[patterns]]
+# CAM-Rip / CAM.Rip (2-token)
+match = '(?i)^cam[-. ]?rip$'
+value = "Camera"
+
+[[patterns]]
+# HD-CAM-Rip (2-3 token)
+match = '(?i)^hd[-. ]?cam[-. ]?rip$'
+value = "HD Camera"
+
+[[patterns]]
+# UHD Blu-ray (3-token window: "UHD", "Blu", "ray")
+match = '(?i)^uhd[-. ]blu[-. ]?ray$'
+value = "Ultra HD Blu-ray"
+
+[[patterns]]
+# UHD Bluray (2-token window: "UHD", "Bluray")
+match = '(?i)^uhd[-. ]bluray$'
+value = "Ultra HD Blu-ray"
+
+[[patterns]]
+# Blu-ray UHD / Bluray.UHD (2-token window)
+match = '(?i)^blu(?:[-. ]?ray)?[-. ]uhd$'
+value = "Ultra HD Blu-ray"
+
+[[patterns]]
+# 4K Blu-ray / 4K.Bluray (2-token)
+match = '(?i)^4k[-. ]blu(?:[-. ]?ray)?$'
+value = "Ultra HD Blu-ray"
+
+[[patterns]]
+# Blu-ray 4K (2-3 token)
+match = '(?i)^blu(?:[-. ]?ray)?[-. ]4k$'
+value = "Ultra HD Blu-ray"
+
+[[patterns]]
+# BD SCR / BD Screener (2-token, emits Screener side-effect via source.rs)
+match = '(?i)^(?:bd|br|web)[-. ]?scr(?:eener)?$'
+value = "Screener"
+
+[[patterns]]
+# WEB-Screener
+match = '(?i)^web[-. ]?scr(?:eener)?$'
+value = "Web"

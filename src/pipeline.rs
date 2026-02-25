@@ -39,6 +39,18 @@ static OTHER_WEAK_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/other_weak.toml")));
 static VIDEO_API_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_api.toml")));
+static SOURCE_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/source.toml")));
+static SCREEN_SIZE_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/screen_size.toml")));
+static CONTAINER_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/container.toml")));
+static FRAME_RATE_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/frame_rate.toml")));
+static LANGUAGE_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/language.toml")));
+static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/subtitle_language.toml")));
 
 // ── Legacy matchers (not yet migrated to TOML) ─────────────────────────────
 
@@ -83,6 +95,13 @@ impl Pipeline {
             (&OTHER_RULES, Property::Other, 0),
             (&OTHER_WEAK_RULES, Property::Other, -2),
             (&VIDEO_API_RULES, Property::VideoApi, 0),
+            // Phase-2 TOML rules (complete migration layout)
+            (&SOURCE_RULES, Property::Source, 0),
+            (&SCREEN_SIZE_RULES, Property::ScreenSize, 0),
+            (&CONTAINER_RULES, Property::Container, 5),
+            (&FRAME_RATE_RULES, Property::FrameRate, 0),
+            (&LANGUAGE_RULES, Property::Language, -1),
+            (&SUBTITLE_LANGUAGE_RULES, Property::SubtitleLanguage, -1),
         ];
 
         // Legacy matchers — everything not yet in TOML.
@@ -201,6 +220,18 @@ impl Pipeline {
         // Legacy matchers: run against raw input.
         for matcher in &self.legacy_matchers {
             matches.extend(matcher(input));
+        }
+
+        // Extension → Container: emit directly from the tokenizer's extension
+        // field. This is PATH A for container detection (see container.toml).
+        // Priority 10 beats all other container matches.
+        if let Some(ext) = &token_stream.extension {
+            let ext_start = input.len() - ext.len();
+            matches.push(
+                MatchSpan::new(ext_start, input.len(), Property::Container, ext.as_str())
+                    .as_extension()
+                    .with_priority(10),
+            );
         }
 
         matches
@@ -328,7 +359,7 @@ impl Pipeline {
             }
         });
 
-        // ── Rule 5: Other overlapping ReleaseGroup → drop ambiguous Other ─
+        // ── Rule 5: Other overlapping ReleaseGroup → drop ambiguous Other ───
         let rg_spans: Vec<(usize, usize)> = matches
             .iter()
             .filter(|m| m.property == Property::ReleaseGroup)
@@ -342,6 +373,42 @@ impl Pipeline {
                     return true;
                 }
                 !rg_spans.iter().any(|(rs, re)| m.start < *re && m.end > *rs)
+            });
+        }
+
+        // ── Rule 6: Language/SubtitleLanguage contained within a tech span ───
+        //
+        // Replaces the fancy_regex lookbehind (?<!WEB[-. ]) that used to
+        // prevent "DL" from matching inside "WEB-DL". With token-based
+        // matching, "WEB-DL" becomes a Source span and "DL" within it
+        // is a nested language span — drop the inner language span.
+        //
+        // "Contained" = language span start AND end both fall within the
+        // tech span (not just overlapping).
+        let tech_spans: Vec<(usize, usize)> = matches
+            .iter()
+            .filter(|m| {
+                matches!(
+                    m.property,
+                    Property::Source
+                        | Property::VideoCodec
+                        | Property::AudioCodec
+                        | Property::ScreenSize
+                        | Property::StreamingService
+                )
+            })
+            .map(|m| (m.start, m.end))
+            .collect();
+
+        if !tech_spans.is_empty() {
+            matches.retain(|m| {
+                if !matches!(m.property, Property::Language | Property::SubtitleLanguage) {
+                    return true;
+                }
+                // Drop if the language span is fully contained within any tech span.
+                !tech_spans
+                    .iter()
+                    .any(|(ts, te)| m.start >= *ts && m.end <= *te)
             });
         }
     }

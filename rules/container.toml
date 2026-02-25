@@ -1,0 +1,58 @@
+# Container / file format patterns.
+#
+# ARCHITECTURE NOTE (v0.2):
+#   Container detection has two paths:
+#
+#   PATH A — Extension (primary, highest priority):
+#     The tokenizer strips the file extension into `TokenStream.extension`.
+#     The pipeline emits a Container span directly from that field.
+#     This replaces the EXT_REGEX approach in the legacy container.rs.
+#
+#   PATH B — Standalone token (fallback, lower priority):
+#     When a container token appears mid-filename (e.g., "MP4-GROUP", "[mkv]"),
+#     the TOML token rules below catch it.
+#     This replaces EXT_STANDALONE in the legacy container.rs.
+#
+#   Once the pipeline emits PATH A spans natively, container.rs can be removed.
+
+property = "container"
+
+# ── Video containers ──────────────────────────────────────────────────────────
+[exact]
+mkv   = "mkv"
+mp4   = "mp4"
+m4v   = "m4v"
+avi   = "avi"
+wmv   = "wmv"
+flv   = "flv"
+mov   = "mov"
+webm  = "webm"
+ogm   = "ogm"
+ogv   = "ogv"
+ts    = "ts"
+m2ts  = "m2ts"
+mts   = "mts"
+mpg   = "mpg"
+mpeg  = "mpeg"
+vob   = "vob"
+divx  = "divx"
+"3gp" = "3gp"
+"3g2" = "3g2"
+asf   = "asf"
+rm    = "rm"
+rmvb  = "rmvb"
+mk3d  = "mk3d"
+
+# ── Subtitle containers ─────────────────────────────────────────────────────
+srt   = "srt"
+ass   = "ass"
+ssa   = "ssa"
+sub   = "sub"
+sup   = "sup"
+idx   = "idx"
+vtt   = "vtt"
+smi   = "smi"
+
+# ── Other recognized formats ─────────────────────────────────────────────────
+nfo   = "nfo"
+nzb   = "nzb"

@@ -1,0 +1,71 @@
+# Screen size / resolution patterns.
+#
+# ARCHITECTURE NOTE (v0.2):
+#   Most resolution patterns are handled here using exact lookups and
+#   capture-group templates ({N} syntax) for WxH and fps-suffixed tokens.
+#   The legacy screen_size.rs matcher is kept only for:
+#     - Bare resolution before Hi10p profile ([720.Hi10p] → "720p")
+#       This requires context from the *next* token, which TOML rules
+#       cannot express yet.
+
+property = "screen_size"
+
+# ── Single-token exact matches (case-insensitive) ─────────────────────────
+[exact]
+# Progressive scan
+240p   = "240p"
+360p   = "360p"
+368p   = "368p"
+480p   = "480p"
+540p   = "540p"
+576p   = "576p"
+720p   = "720p"
+900p   = "900p"
+1080p  = "1080p"
+1440p  = "1440p"
+2160p  = "2160p"
+4320p  = "4320p"
+
+# Interlaced scan
+480i   = "480i"
+576i   = "576i"
+720i   = "720i"
+1080i  = "1080i"
+
+# Shorthand aliases
+4k     = "2160p"
+8k     = "4320p"
+uhd    = "2160p"
+fhd    = "1080p"
+qhd    = "1440p"
+"2k"   = "1080p"
+
+# HD suffix (e.g., 720hd)
+720hd  = "720p"
+1080hd = "1080p"
+
+# ── Regex patterns (still fixed-value — no capture groups) ──────────────────
+
+[[patterns]]
+# 4K UHD / 4K.UHD (2-token window: "4K" + "UHD")
+match = '(?i)^4k[-. ]?uhd$'
+value = "2160p"
+
+[[patterns]]
+# UHD 4K (2-token)
+match = '(?i)^uhd[-. ]?4k$'
+value = "2160p"
+
+# NOTE: Frame-rate-suffixed variants (720p60, 1080p25) and WxH dimensions
+# (1920x1080) now use capture-group value templates ({N} syntax).
+
+[[patterns]]
+# Frame-rate suffixed: 720p60, 1080p25, 2160p50 → strip the fps part.
+match = '(?i)^(\d{3,4})[pi](\d{2,3})$'
+value = "{1}p"
+
+[[patterns]]
+# WxH dimensions: 1920x1080 → use the height + "p".
+match = '(?i)^\d{3,4}x(\d{3,4})$'
+value = "{1}p"
+
