@@ -317,6 +317,14 @@ fn pick_better_casing<'a>(a: &'a str, b: &'a str) -> &'a str {
 
 /// Clean up a raw title: replace separators with spaces, strip brackets, trim.
 fn clean_title(raw: &str) -> String {
+    clean_title_inner(raw, true)
+}
+
+fn clean_episode_title(raw: &str) -> String {
+    clean_title_inner(raw, false)
+}
+
+fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
     let mut s = raw.to_string();
 
     // Strip leading bracket groups: [XCT], [阿维达], etc.
@@ -350,7 +358,7 @@ fn clean_title(raw: &str) -> String {
     // Replace separators with spaces, but preserve hyphens between letters
     // and dot-acronyms like S.H.I.E.L.D. or T.I.T.L.E.
     let dot_acronym_re = fancy_regex::Regex::new(
-        r"(?:^|(?<=[\s._]))([A-Za-z](?:\.[A-Za-z]){2,}\.?)"
+        r"(?:^|(?<=[\s._]))([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)"
     ).unwrap();
 
     // Find dot-acronym byte ranges to protect from separator replacement.
@@ -402,25 +410,27 @@ fn clean_title(raw: &str) -> String {
     // Collapse multiple spaces and trim.
     let mut result = collapse_spaces(&cleaned);
 
-    // Strip trailing "Part" + optional roman/number: "The Godfather Part III" → "The Godfather".
-    let re_part =
-        fancy_regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$")
-            .unwrap();
-    if let Ok(Some(m)) = re_part.find(&result) {
-        let stripped = result[..m.start()].to_string();
-        if !stripped.trim().is_empty() {
-            result = stripped;
+    if strip_season_part {
+        // Strip trailing "Part" + optional roman/number: "The Godfather Part III" → "The Godfather".
+        let re_part =
+            fancy_regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$")
+                .unwrap();
+        if let Ok(Some(m)) = re_part.find(&result) {
+            let stripped = result[..m.start()].to_string();
+            if !stripped.trim().is_empty() {
+                result = stripped;
+            }
         }
-    }
 
-    // Strip trailing season words: "Dexter Saison VII" → "Dexter".
-    let re_season_word = fancy_regex::Regex::new(
-        r"(?i)\s+(?:Saison|Temporada|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
-    ).unwrap();
-    if let Ok(Some(m)) = re_season_word.find(&result) {
-        let stripped = result[..m.start()].to_string();
-        if !stripped.trim().is_empty() {
-            result = stripped;
+        // Strip trailing season words: "Dexter Saison VII" → "Dexter".
+        let re_season_word = fancy_regex::Regex::new(
+            r"(?i)\s+(?:Saison|Temporada|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
+        ).unwrap();
+        if let Ok(Some(m)) = re_season_word.find(&result) {
+            let stripped = result[..m.start()].to_string();
+            if !stripped.trim().is_empty() {
+                result = stripped;
+            }
         }
     }
 
@@ -500,6 +510,8 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     // Find the next "technical" property match after the episode marker.
     // Exclude ReleaseGroup — it's positional (last word) and would eat the
     // episode title's last word otherwise.
+    // Exclude Other — words like "Proper", "REAL" are common in episode titles
+    // and shouldn't be treated as technical boundaries.
     let technical_props = [
         Property::VideoCodec,
         Property::AudioCodec,
@@ -559,7 +571,7 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     }
 
     let raw = &input[ep_title_start..ep_title_end];
-    let cleaned = clean_title(raw);
+    let cleaned = clean_episode_title(raw);
 
     if cleaned.is_empty() {
         return None;

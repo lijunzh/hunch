@@ -29,7 +29,8 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ValuePattern::new(r"(?i)(?<![a-z])Remux(?![a-z])", "Remux"),
         ValuePattern::new(r"(?i)(?<![a-z])PROPER(?![a-z])", "Proper"),
         ValuePattern::new(r"(?i)(?<![a-z])(?:REPACK|RERIP)\d*(?![a-z])", "Proper"),
-        ValuePattern::new(r"(?i)(?<![a-z])REAL(?![a-z])", "Proper"),
+        // REAL (must be all caps to avoid matching title words like "Real").
+        ValuePattern::new(r"(?-i)(?<![a-zA-Z])REAL(?![a-zA-Z])", "Proper"),
         // Reencoded (explicit + BRRip implies re-encoding from Blu-ray).
         ValuePattern::new(
             r"(?i)(?<![a-z])(?:re[-. ]?enc(?:oded)?|reencoded|BRRip)(?![a-z])",
