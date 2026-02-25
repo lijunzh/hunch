@@ -1,0 +1,80 @@
+# Audio profile patterns.
+property = "audio_profile"
+
+[exact]
+atmos  = "Atmos"
+truehd = "TrueHD"
+
+[[patterns]]
+# DTS-HD Master Audio / DTS-HD.MA / DTS HD MA
+match = '(?i)^(?:dts[- .]?)?hd[- .]?(?:master[- .]?audio|ma)$'
+value = "Master Audio"
+
+[[patterns]]
+# DTS-HD HRA / DTS-HD HR (High Resolution Audio)
+match = '(?i)^(?:dts[- .]?)?hd[- .]?hra?$'
+value = "High Resolution Audio"
+
+[[patterns]]
+# DTS-ES / Extended Surround
+match = '(?i)^(?:dts[- .]?)?es(?:[- .]?(?:matrix|discrete))?$'
+value = "Extended Surround"
+
+[[patterns]]
+# DTS:X / DTS-X / DTSX
+match = '(?i)^dts[- .]?x$'
+value = "DTS:X"
+
+[[patterns]]
+# DTS-EX / DTSEX (DTS Extended)
+match = '(?i)^dts[- .]?ex$'
+value = "EX"
+
+[[patterns]]
+# DD-EX / DDEX (Dolby Digital EX)
+match = '(?i)^dd[- .]?ex$'
+value = "EX"
+
+[[patterns]]
+# Dolby Atmos / DD Atmos
+match = '(?i)^(?:dd|dolby[- .]?digital)?[- .]?atmos$'
+value = "Atmos"
+
+[[patterns]]
+# Dolby Digital Plus / DD+ / DDP / EAC3
+match = '(?i)^(?:dd|dolby[- .]?digital)?\+$'
+value = "Dolby Digital Plus"
+
+[[patterns]]
+match = '(?i)^(?:ddp|ddplus|eac3)$'
+value = "Dolby Digital Plus"
+
+[[patterns]]
+# TrueHD
+match = '(?i)^true[- .]?hd$'
+value = "TrueHD"
+
+[[patterns]]
+# AAC-HE / High Efficiency
+match = '(?i)^(?:aac[- .]?)?(?:he|high[- .]?efficiency)$'
+value = "High Efficiency"
+
+[[patterns]]
+# AAC-LC / Low Complexity
+match = '(?i)^(?:aac[- .]?)?lc$'
+value = "Low Complexity"
+
+[[patterns]]
+# AAC-HQ / High Quality
+match = '(?i)^(?:aac[- .]?)?hq$'
+value = "High Quality"
+
+[[patterns]]
+# AC3-HQ (Dolby Digital High Quality)
+match = '(?i)^ac3[- .]?hq$'
+value = "High Quality"
+
+[[patterns]]
+# DTSMA shorthand → Master Audio profile
+match = '(?i)^dts[- .]?ma$'
+value = "Master Audio"

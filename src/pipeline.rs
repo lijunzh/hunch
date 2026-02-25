@@ -29,6 +29,10 @@ static EPISODE_DETAILS_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/episode_details.toml")));
 static EDITION_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/edition.toml")));
+static AUDIO_CODEC_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_codec.toml")));
+static AUDIO_PROFILE_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_profile.toml")));
 
 // ── Legacy matchers (not yet migrated to TOML) ─────────────────────────────
 
@@ -69,6 +73,8 @@ impl Pipeline {
             (&EPISODE_DETAILS_RULES, Property::EpisodeDetails, -1),
             (&EDITION_RULES, Property::Edition, 0),
             (&COUNTRY_RULES, Property::Country, -2),
+            (&AUDIO_CODEC_RULES, Property::AudioCodec, 0),
+            (&AUDIO_PROFILE_RULES, Property::AudioProfile, 1),
         ];
 
         // Legacy matchers — everything not yet in TOML.

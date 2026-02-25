@@ -1,0 +1,91 @@
+# Audio codec patterns.
+# Combined codec+channel patterns (DD5.1, AAC2.0) stay in legacy Rust
+# because they emit two properties from one match.
+property = "audio_codec"
+
+[exact]
+aac    = "AAC"
+flac   = "FLAC"
+mp3    = "MP3"
+mp2    = "MP2"
+opus   = "Opus"
+vorbis = "Vorbis"
+pcm    = "PCM"
+lpcm   = "LPCM"
+dts    = "DTS"
+atmos  = "Dolby Atmos"
+dd     = "Dolby Digital"
+ac3    = "Dolby Digital"
+ddp    = "Dolby Digital Plus"
+eac3   = "Dolby Digital Plus"
+truehd = "Dolby TrueHD"
+
+# Case-sensitive: avoid matching short codes in titles.
+[exact_sensitive]
+DTS = "DTS"
+DD  = "Dolby Digital"
+
+[[patterns]]
+# DTS:X / DTS-X / DTSX
+match = '(?i)^dts[-:]?x$'
+value = "DTS:X"
+
+[[patterns]]
+# DTS-HD / DTSHD / DTS HD / DTS-HD MA / DTS-HD.MA
+match = '(?i)^dts[- .]?hd(?:[- .]?(?:ma|master[- .]?audio)?)?$'
+value = "DTS-HD"
+
+[[patterns]]
+# DTSMA = DTS Master Audio (shorthand for DTS-HD MA)
+match = '(?i)^dts[- .]?ma$'
+value = "DTS-HD"
+
+[[patterns]]
+# DTS-ES / DTSES
+match = '(?i)^dts[- .]?es$'
+value = "DTS"
+
+[[patterns]]
+# Dolby Digital / Dolby.Digital
+match = '(?i)^dolby[- .]?digital$'
+value = "Dolby Digital"
+
+[[patterns]]
+# Dolby Atmos / Dolby.Atmos
+match = '(?i)^dolby[- .]?atmos$'
+value = "Dolby Atmos"
+
+[[patterns]]
+# DD-EX / DDEX (Dolby Digital with EX profile — codec side)
+match = '(?i)^dd[- .]?ex$'
+value = "Dolby Digital"
+
+[[patterns]]
+# E-AC-3 / E-AC3 / EAC-3 / EAC3
+match = '(?i)^e[- .]?ac[- .]?3$'
+value = "Dolby Digital Plus"
+
+[[patterns]]
+# AC-3 / AC3 / AC3D
+match = '(?i)^ac[- .]?3d?$'
+value = "Dolby Digital"
+
+[[patterns]]
+# DD+ (Dolby Digital Plus)
+match = '(?i)^dd\+$'
+value = "Dolby Digital Plus"
+
+[[patterns]]
+# DDPlus / DDplus
+match = '(?i)^ddplus$'
+value = "Dolby Digital Plus"
+
+[[patterns]]
+# True-HD / TrueHD
+match = '(?i)^true[- .]?hd$'
+value = "Dolby TrueHD"
+
+[[patterns]]
+# LAME encoder variants: lame, lame3.12
+match = '(?i)^lame(?:\d+[.-]?\d+)?$'
+value = "MP3"
