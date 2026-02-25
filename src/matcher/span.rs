@@ -173,3 +173,61 @@ impl MatchSpan {
         self.start == self.end
     }
 }
+
+impl Property {
+    /// Parse a property name string (as used in TOML side_effects) into a Property.
+    ///
+    /// Returns `None` for unrecognized names.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "title" => Some(Self::Title),
+            "alternative_title" => Some(Self::AlternativeTitle),
+            "year" => Some(Self::Year),
+            "season" => Some(Self::Season),
+            "episode" => Some(Self::Episode),
+            "episode_title" => Some(Self::EpisodeTitle),
+            "video_codec" => Some(Self::VideoCodec),
+            "video_profile" => Some(Self::VideoProfile),
+            "audio_codec" => Some(Self::AudioCodec),
+            "audio_profile" => Some(Self::AudioProfile),
+            "audio_channels" => Some(Self::AudioChannels),
+            "source" => Some(Self::Source),
+            "screen_size" => Some(Self::ScreenSize),
+            "frame_rate" => Some(Self::FrameRate),
+            "color_depth" => Some(Self::ColorDepth),
+            "container" => Some(Self::Container),
+            "release_group" => Some(Self::ReleaseGroup),
+            "streaming_service" => Some(Self::StreamingService),
+            "language" => Some(Self::Language),
+            "subtitle_language" => Some(Self::SubtitleLanguage),
+            "country" => Some(Self::Country),
+            "edition" => Some(Self::Edition),
+            "date" => Some(Self::Date),
+            "other" => Some(Self::Other),
+            "size" => Some(Self::Size),
+            "bit_rate" => Some(Self::BitRate),
+            "cd" => Some(Self::Cd),
+            "bonus" => Some(Self::Bonus),
+            "bonus_title" => Some(Self::BonusTitle),
+            "film" => Some(Self::Film),
+            "film_title" => Some(Self::FilmTitle),
+            "part" => Some(Self::Part),
+            "crc32" => Some(Self::Crc),
+            "uuid" => Some(Self::Uuid),
+            "cd_count" => Some(Self::CdCount),
+            "disc" => Some(Self::Disc),
+            "website" => Some(Self::Website),
+            "episode_details" => Some(Self::EpisodeDetails),
+            "episode_format" => Some(Self::EpisodeFormat),
+            "week" => Some(Self::Week),
+            "aspect_ratio" => Some(Self::AspectRatio),
+            "proper_count" => Some(Self::ProperCount),
+            "type" => Some(Self::MediaType),
+            "version" => Some(Self::Version),
+            "episode_count" => Some(Self::EpisodeCount),
+            "season_count" => Some(Self::SeasonCount),
+            "video_api" => Some(Self::VideoApi),
+            _ => None,
+        }
+    }
+}

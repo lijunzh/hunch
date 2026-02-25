@@ -177,8 +177,17 @@ impl Pipeline {
     fn match_all(&self, input: &str, token_stream: &TokenStream) -> Vec<MatchSpan> {
         let mut matches = Vec::new();
 
-        // TOML rules: match tokens and multi-token windows.
-        let tokens = &token_stream.tokens;
+        // TOML rules: match against filename-segment tokens only.
+        // Directory tokens (e.g., "TV" from "/TV Shows/") should not be
+        // matched as source/codec/etc. — they are title context, not tech.
+        let tokens: Vec<&tokenizer::Token> = token_stream
+            .segments
+            .iter()
+            .filter(|s| s.kind == tokenizer::SegmentKind::Filename)
+            .flat_map(|s| &s.tokens)
+            .collect();
+        // Deref to slice of borrowed tokens for the matching loop.
+        let tokens = &tokens;
         for (rule_set, property, priority) in &self.toml_rules {
             let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
 
@@ -206,12 +215,56 @@ impl Pipeline {
                         input[win_start..win_end].to_string()
                     };
 
-                    if let Some(value) = rule_set.match_token(&compound) {
+                    if let Some(token_match) = rule_set.match_token(&compound) {
+                        // ── Neighbor constraint checks ──────────────────
+                        // not_before: reject if NEXT token is in the blocklist.
+                        let last_token_idx = i + window_size - 1;
+                        if let Some(ref blocked) = token_match.not_before {
+                            if last_token_idx + 1 < tokens.len() {
+                                let next = tokens[last_token_idx + 1].text.to_lowercase();
+                                if blocked.iter().any(|b| b == &next) {
+                                    continue;
+                                }
+                            }
+                        }
+                        // not_after: reject if PREVIOUS token is in the blocklist.
+                        if let Some(ref blocked) = token_match.not_after {
+                            if i > 0 {
+                                let prev = tokens[i - 1].text.to_lowercase();
+                                if blocked.iter().any(|b| b == &prev) {
+                                    continue;
+                                }
+                            }
+                        }
+                        // requires_after: reject UNLESS next token is in the allowlist.
+                        if let Some(ref required) = token_match.requires_after {
+                            let next_ok = if last_token_idx + 1 < tokens.len() {
+                                let next = tokens[last_token_idx + 1].text.to_lowercase();
+                                required.iter().any(|r| r == &next)
+                            } else {
+                                false
+                            };
+                            if !next_ok {
+                                continue;
+                            }
+                        }
+
+                        // ── Primary match ───────────────────────────────
                         matches.push(
-                            MatchSpan::new(win_start, win_end, *property, value)
+                            MatchSpan::new(win_start, win_end, *property, token_match.value)
                                 .with_priority(*priority),
                         );
                         matched_ranges.push((win_start, win_end));
+
+                        // ── Side effects: emit additional spans ─────────
+                        for se in &token_match.side_effects {
+                            if let Some(se_prop) = Property::from_name(&se.property) {
+                                matches.push(
+                                    MatchSpan::new(win_start, win_end, se_prop, &se.value)
+                                        .with_priority(*priority),
+                                );
+                            }
+                        }
                     }
                 }
             }

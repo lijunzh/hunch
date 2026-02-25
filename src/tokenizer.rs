@@ -62,13 +62,39 @@ pub enum Separator {
     PathSep,
 }
 
+/// Which part of the path a segment represents.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SegmentKind {
+    /// A directory component (e.g., "Movies", "Season 01").
+    Directory,
+    /// The final filename component (e.g., "movie.720p.mkv").
+    Filename,
+}
+
+/// A tokenized path segment (one directory or the filename).
+#[derive(Debug, Clone)]
+pub struct PathSegment {
+    /// What kind of segment this is.
+    pub kind: SegmentKind,
+    /// Tokens within this segment.
+    pub tokens: Vec<Token>,
+    /// Byte offset where this segment starts in the original input.
+    pub start: usize,
+    /// Byte offset where this segment ends (exclusive) in the original input.
+    pub end: usize,
+    /// Depth from root (0 = first segment, increases toward filename).
+    pub depth: usize,
+}
+
 /// Result of tokenizing an input string.
 #[derive(Debug, Clone)]
 pub struct TokenStream {
     /// The original input string.
     pub input: String,
-    /// Tokens from the filename portion (after last path separator).
+    /// Flattened view of ALL tokens across all segments, ordered by byte position.
     pub tokens: Vec<Token>,
+    /// Structured view by path segment.
+    pub segments: Vec<PathSegment>,
     /// Byte offset where the filename starts (after last `/` or `\`).
     pub filename_start: usize,
     /// File extension if detected (lowercase, without the dot).
@@ -77,30 +103,99 @@ pub struct TokenStream {
 
 /// Tokenize a media filename/path into a stream of tokens.
 ///
-/// The tokenizer operates on the filename portion (after the last path separator)
-/// and splits at standard media filename separators: `.`, `-`, `_`, ` `.
+/// Splits the input at path separators (`/`, `\`) into segments, tokenizes each
+/// segment independently, and produces both a structured segment view and a
+/// flattened token view for backward compatibility.
 ///
 /// Dot-acronyms like `S.H.I.E.L.D.` are preserved as single tokens.
 /// Bracket groups like `[rarbg]` are marked with `in_brackets: true`.
 pub fn tokenize(input: &str) -> TokenStream {
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-    let filename = &input[filename_start..];
 
-    // Strip file extension.
-    let (name_part, extension) = split_extension(filename);
+    // Split input into raw path segments.
+    let raw_parts = split_path_segments(input);
 
-    // Find dot-acronym byte ranges to protect from splitting.
-    let protected = find_dot_acronyms(name_part);
+    let mut segments = Vec::new();
+    let mut extension = None;
+    let last_idx = raw_parts.len().saturating_sub(1);
 
-    // Tokenize the name part.
-    let tokens = split_into_tokens(name_part, filename_start, &protected);
+    for (depth, &(seg_text, seg_start)) in raw_parts.iter().enumerate() {
+        // Skip empty segments (e.g., leading `/`).
+        if seg_text.is_empty() {
+            continue;
+        }
+
+        // Skip Windows drive letter segments like "D:".
+        if is_drive_letter(seg_text) {
+            continue;
+        }
+
+        let is_filename = depth == last_idx;
+        let kind = if is_filename {
+            SegmentKind::Filename
+        } else {
+            SegmentKind::Directory
+        };
+
+        // Only strip extension from the filename segment.
+        let (name_part, seg_ext) = if is_filename {
+            split_extension(seg_text)
+        } else {
+            (seg_text, None)
+        };
+
+        if is_filename {
+            extension = seg_ext;
+        }
+
+        let protected = find_dot_acronyms(name_part);
+        let tokens = split_into_tokens(name_part, seg_start, &protected);
+
+        let actual_depth = segments.len();
+        segments.push(PathSegment {
+            kind,
+            tokens,
+            start: seg_start,
+            end: seg_start + seg_text.len(),
+            depth: actual_depth,
+        });
+    }
+
+    // Flatten all segment tokens into one vec, ordered by byte position.
+    let tokens: Vec<Token> = segments
+        .iter()
+        .flat_map(|seg| seg.tokens.iter().cloned())
+        .collect();
 
     TokenStream {
         input: input.to_string(),
         tokens,
+        segments,
         filename_start,
         extension,
     }
+}
+
+/// Split input at path separators, returning `(segment_text, byte_offset)` pairs.
+fn split_path_segments(input: &str) -> Vec<(&str, usize)> {
+    let mut parts = Vec::new();
+    let mut start = 0;
+
+    for (i, ch) in input.char_indices() {
+        if ch == '/' || ch == '\\' {
+            parts.push((&input[start..i], start));
+            start = i + 1;
+        }
+    }
+    // Final segment (the filename).
+    parts.push((&input[start..], start));
+    parts
+}
+
+/// Check if a path segment is a Windows drive letter (e.g., "D:").
+fn is_drive_letter(seg: &str) -> bool {
+    let bytes = seg.as_bytes();
+    bytes.len() == 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':'
 }
 
 /// Split off a file extension if it looks like a media/subtitle/archive extension.
@@ -414,7 +509,8 @@ mod tests {
     fn test_path_with_directory() {
         let ts = tokenize("/media/movies/Movie.720p.mkv");
         let texts: Vec<&str> = ts.tokens.iter().map(|t| t.text.as_str()).collect();
-        assert_eq!(texts, vec!["Movie", "720p"]);
+        // Flattened tokens now include directory segments too.
+        assert_eq!(texts, vec!["media", "movies", "Movie", "720p"]);
         assert_eq!(ts.filename_start, 14); // after "/media/movies/"
     }
 
@@ -514,5 +610,75 @@ mod tests {
         let ts = tokenize("Movie.WEB-DL.1080p.mkv");
         let texts: Vec<&str> = ts.tokens.iter().map(|t| t.text.as_str()).collect();
         assert_eq!(texts, vec!["Movie", "WEB", "DL", "1080p"]);
+    }
+
+    // --- Path segment tests ---
+
+    #[test]
+    fn test_path_segments_basic() {
+        let ts = tokenize("Movies/Movie.720p.mkv");
+        assert_eq!(ts.segments.len(), 2);
+        assert_eq!(ts.segments[0].kind, SegmentKind::Directory);
+        assert_eq!(ts.segments[0].tokens[0].text, "Movies");
+        assert_eq!(ts.segments[0].depth, 0);
+        assert_eq!(ts.segments[1].kind, SegmentKind::Filename);
+        assert_eq!(ts.segments[1].depth, 1);
+        // Flattened tokens include directory tokens.
+        assert!(ts.tokens.iter().any(|t| t.text == "Movies"));
+    }
+
+    #[test]
+    fn test_path_segments_deep() {
+        let ts = tokenize("TV/Show Name/Season 01/Show.S01E01.720p.mkv");
+        assert_eq!(ts.segments.len(), 4);
+        assert_eq!(ts.segments[0].kind, SegmentKind::Directory);
+        assert_eq!(ts.segments[3].kind, SegmentKind::Filename);
+        assert_eq!(ts.segments[0].depth, 0);
+        assert_eq!(ts.segments[3].depth, 3);
+    }
+
+    #[test]
+    fn test_path_segments_no_path() {
+        let ts = tokenize("Movie.720p.mkv");
+        assert_eq!(ts.segments.len(), 1);
+        assert_eq!(ts.segments[0].kind, SegmentKind::Filename);
+        assert_eq!(ts.segments[0].depth, 0);
+    }
+
+    #[test]
+    fn test_path_segments_dir_metadata() {
+        let ts = tokenize("movies/Movie Name (2009) BRrip 720p/abbreviated.avi");
+        assert_eq!(ts.segments.len(), 3);
+        let dir_tokens: Vec<&str> = ts.segments[1].tokens.iter().map(|t| t.text.as_str()).collect();
+        assert!(dir_tokens.contains(&"BRrip"));
+        assert!(dir_tokens.contains(&"720p"));
+        assert!(dir_tokens.contains(&"2009"));
+    }
+
+    #[test]
+    fn test_windows_path() {
+        let ts = tokenize("D:\\TV\\Show.S01E01.mkv");
+        // Drive letter "D:" should be skipped.
+        assert_eq!(ts.segments.last().unwrap().kind, SegmentKind::Filename);
+        let filename_tokens: Vec<&str> = ts.segments.last().unwrap()
+            .tokens.iter().map(|t| t.text.as_str()).collect();
+        assert!(filename_tokens.contains(&"Show"));
+        assert!(filename_tokens.contains(&"S01E01"));
+    }
+
+    #[test]
+    fn test_leading_slash_skips_empty() {
+        let ts = tokenize("/movies/Movie.mkv");
+        // Leading empty segment from "/" should be skipped.
+        assert!(ts.segments.iter().all(|s| !s.tokens.is_empty()));
+        assert_eq!(ts.segments.last().unwrap().kind, SegmentKind::Filename);
+    }
+
+    #[test]
+    fn test_dir_no_extension_stripping() {
+        // Directory "movie.2009" should NOT have "2009" stripped as extension.
+        let ts = tokenize("movie.2009/file.mkv");
+        let dir_tokens: Vec<&str> = ts.segments[0].tokens.iter().map(|t| t.text.as_str()).collect();
+        assert!(dir_tokens.contains(&"2009"));
     }
 }
