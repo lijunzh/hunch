@@ -189,13 +189,20 @@ macro_rules! guessit_test_file {
                 assert!(!cases.is_empty(), "No test cases loaded from {}", $path);
 
                 let mut passed = 0;
-                let mut failed_cases = Vec::new();
+                let mut failed_cases: Vec<(&str, Vec<String>)> = Vec::new();
+                let mut prop_fail_counts: HashMap<String, usize> = HashMap::new();
 
                 for tc in &cases {
-                    let (_, failures) = check(tc);
+                    let (prop_results, failures) = check(tc);
                     if failures.is_empty() {
                         passed += 1;
                     } else {
+                        // Count per-property failures.
+                        for pr in &prop_results {
+                            if !pr.passed {
+                                *prop_fail_counts.entry(pr.property.clone()).or_insert(0) += 1;
+                            }
+                        }
                         failed_cases.push((&tc.filename, failures));
                     }
                 }
@@ -208,6 +215,37 @@ macro_rules! guessit_test_file {
                     "[{}] {passed}/{total} passed ({rate:.1}%), {fail_count} failed",
                     $path
                 );
+
+                // Always show property-level breakdown (compact, top 10).
+                if !prop_fail_counts.is_empty() {
+                    let mut sorted: Vec<_> = prop_fail_counts.iter().collect();
+                    sorted.sort_by(|a, b| b.1.cmp(a.1));
+                    let top: Vec<String> = sorted
+                        .iter()
+                        .take(10)
+                        .map(|(k, v)| format!("{}:{}", k, v))
+                        .collect();
+                    let suffix = if sorted.len() > 10 {
+                        format!(" (+{} more)", sorted.len() - 10)
+                    } else {
+                        String::new()
+                    };
+                    eprintln!("  failing props: {}{}", top.join(", "), suffix);
+                }
+
+                // Show individual failures when HUNCH_DUMP_FAILURES=1.
+                let dump_limit = std::env::var("HUNCH_DUMP_FAILURES")
+                    .ok()
+                    .and_then(|v| v.parse::<usize>().ok())
+                    .unwrap_or(0);
+                if dump_limit > 0 {
+                    for (name, fails) in failed_cases.iter().take(dump_limit) {
+                        eprintln!("  FAIL: {}", name);
+                        for f in fails {
+                            eprintln!("    {}", f);
+                        }
+                    }
+                }
 
                 let min = min_pass_rate($path);
                 assert!(
