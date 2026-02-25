@@ -168,7 +168,7 @@ fn parse_value_list(s: &str) -> Vec<String> {
         let inner = &trimmed[1..trimmed.len() - 1];
         inner
             .split(',')
-            .map(|v| strip_quotes(v))
+            .map(strip_quotes)
             .filter(|v| !v.is_empty())
             .collect()
     } else {
