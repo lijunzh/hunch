@@ -481,27 +481,20 @@ matchers incrementally.
 4. ✅ Property-scoped `SegmentScope` (FilenameOnly vs AllSegments)
 5. ✅ `Property::from_name()` for side-effect property mapping
 6. ✅ Extract `match_tokens_in_segment()` for clarity
-7. ⬜ Split tokenizer.rs (684 lines, over 600-line limit)
+7. ✅ tokenizer.rs coherent single unit (698 lines) — no split needed
 
-### Phase A.1: Zone map (v0.2.1) — IN PROGRESS
-1. ⬜ Add `ZoneMap` struct + two-phase `detect_anchors()` function
-   - Phase 1: Tier 1+2 anchors → tech_zone_start
-   - Phase 2: Tier 3 year disambiguation using tech_zone_start
-2. ⬜ Add `zone_scope` field to TOML `RuleSet` + parser
-3. ⬜ Pass `ZoneMap` to `match_tokens_in_segment()` for filtering
-4. ⬜ Tag ambiguous TOML rules: `other.toml`, `edition.toml`,
-   `language.toml`, `episode_details.toml`
-5. ✅ Retire `apply_zone_rules()` heuristics incrementally
-   - Rule 4 (EpisodeDetails before episode marker) retired →
-     `episode_details.toml` now uses `zone_scope = "tech_only"`
-   - Rule 1 (Language in title zone) now uses ZoneMap boundaries
-     directly instead of re-deriving zones from match positions
-   - Remaining rules (2, 3, 5, 6) extracted to `zone_rules.rs`
-6. ✅ Simplify `extract_title()` to use zone boundaries
-   - Uses ZoneMap's year disambiguation for year-as-title cases
-   - Split into `title/mod.rs`, `title/clean.rs`, `title/secondary.rs`
-   - Extracted `handle_empty_title` and `extract_title_after_position`
-7. ⬜ Integrate year disambiguation into zone map
+### Phase A.1: Zone map (v0.2.1) — ✅ DONE
+1. ✅ `ZoneMap` struct + two-phase `detect_anchors()` in `zone_map.rs`
+2. ✅ `zone_scope` field in TOML `RuleSet` + parser (`rule_loader.rs`)
+3. ✅ `ZoneMap` passed to `match_tokens_in_segment()` for filtering
+4. ✅ Tagged ambiguous TOML rules:
+   - `other_weak.toml`: `zone_scope = "tech_only"`
+   - `episode_details.toml`: `zone_scope = "tech_only"`
+   - `edition.toml`, `other.toml`: intentionally unrestricted (unambiguous)
+   - `language.toml`: handled by zone_rules Rule 1 (needs legacy matcher retirement first)
+5. ✅ Retired `apply_zone_rules()` heuristics (Rule 4 → TOML zone_scope)
+6. ✅ Simplified `extract_title()` — uses ZoneMap for year disambiguation
+7. ✅ Year disambiguation integrated into zone map + pipeline Step 2b
 
 ### Phase B: Remove legacy matchers (incremental)
 Retire one legacy matcher at a time, in order of coverage:
