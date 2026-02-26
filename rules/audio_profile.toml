@@ -65,8 +65,8 @@ match = '(?i)^(?:aac[- .]?)?lc$'
 value = "Low Complexity"
 
 [[patterns]]
-# AAC-HQ / High Quality
-match = '(?i)^(?:aac[- .]?)?hq$'
+# AAC-HQ / High Quality (requires AAC prefix; standalone HQ → Other)
+match = '(?i)^aac[- .]?hq$'
 value = "High Quality"
 
 [[patterns]]

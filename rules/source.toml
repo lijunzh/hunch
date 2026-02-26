@@ -10,6 +10,7 @@ property = "source"
 [exact]
 # Blu-ray (plain — no Rip/Screener)
 bluray    = "Blu-ray"
+bd        = "Blu-ray"
 bdremux   = "Blu-ray"
 brremux   = "Blu-ray"
 bd5       = "Blu-ray"

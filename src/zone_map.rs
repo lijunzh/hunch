@@ -87,12 +87,18 @@ const TIER2_TOKENS: &[&str] = &[
     // Video codecs
     "x264", "x265", "h264", "h265", "hevc", "xvid", "divx", "av1", "avc",
     // Audio codecs
-    "aac", "ac3", "dts", "flac", "opus", "truehd", "atmos", "eac3", "pcm", // Sources
+    "aac", "ac3", "dts", "flac", "opus", "truehd", "atmos", "eac3", "pcm",
+    // Sources (compound/rip forms)
     "bluray", "bdrip", "brrip", "dvdrip", "webrip", "hdrip", "hdtv", "pdtv", "sdtv", "dsr",
     "dvdscr", "hddvd",
+    // Sources (standalone — unambiguous, never title words)
+    "dvd", "dvdr", "bd",
     // Compound sources (matched as multi-token windows by TOML, but
     // single tokens when hyphenated: WEB-DL, WEB-Rip)
-    "web-dl", "web-rip", // Other unambiguous tech
+    "web-dl", "web-rip",
+    // Broadcast standards (never title words)
+    "pal", "ntsc", "secam",
+    // Other unambiguous tech
     "remux", "repack", "proper",
 ];
 

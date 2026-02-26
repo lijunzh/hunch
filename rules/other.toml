@@ -24,13 +24,16 @@ ntsc        = "NTSC"
 secam       = "SECAM"
 r5          = "Region 5"
 screener    = "Screener"
+scr         = "Screener"
 hybrid      = "Hybrid"
 preair      = "Preair"
 2in1        = "2in1"
 internal    = "Internal"
 xxx         = "XXX"
 colorized   = "Colorized"
-dubbed      = "Dubbed"
+# NOTE: "Dubbed" as standalone exact match removed — it's handled by a
+# pattern with not_after constraint to avoid matching after language names.
+# GERMAN.DUBBED → language qualifier, not separate Other:Dubbed.
 repost      = "Repost"
 obfuscated  = "Obfuscated"
 obfuscation = "Obfuscated"
@@ -56,6 +59,8 @@ docu        = "Documentary"
 doku        = "Documentary"
 dokumentary = "Documentary"
 ldtv        = "Low Definition"
+hq          = "High Quality"
+ld          = "Line Dubbed"
 
 # Case-sensitive exact matches — only tokens that are exclusively these values.
 [exact_sensitive]
@@ -222,3 +227,10 @@ value = "West Coast Feed"
 # Documentary variants: DOKU, DOCU, DOCUMENTARY
 match = '(?i)^dok[cu](?:mentary)?$'
 value = "Documentary"
+
+[[patterns]]
+# Dubbed — only when NOT immediately after a language name.
+# GERMAN.DUBBED → language qualifier (not Other), but DUBBED alone → Other.
+match = '(?i)^dubbed$'
+value = "Dubbed"
+not_after = ["english", "french", "spanish", "german", "italian", "portuguese", "russian", "japanese", "chinese", "korean", "arabic", "hindi", "dutch", "swedish", "norwegian", "danish", "finnish", "polish", "czech", "turkish", "greek", "hungarian", "romanian", "thai", "vietnamese", "catalan", "croatian", "serbian", "bulgarian", "ukrainian", "hebrew", "deutsch", "italiano", "castellano", "eng", "fre", "ger", "spa", "ita", "jpn", "rus", "kor", "dut", "por", "ara", "hin"]

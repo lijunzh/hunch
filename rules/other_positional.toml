@@ -29,19 +29,9 @@ not_before = ["tv", "dvd", "cam", "rip", "tc", "ts"]
 not_after = ["dts"]
 
 [[patterns]]
-# HQ (High Quality)
-match = '(?i)^hq$'
-value = "High Quality"
-
-[[patterns]]
 # HR (High Resolution)
 match = '(?i)^hr$'
 value = "High Resolution"
-
-[[patterns]]
-# LD (Line Dubbed)
-match = '(?i)^ld$'
-value = "Line Dubbed"
 
 [[patterns]]
 # MD (Mic Dubbed)
