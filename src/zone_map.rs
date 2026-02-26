@@ -195,7 +195,16 @@ pub fn build_zone_map(input: &str, token_stream: &TokenStream) -> ZoneMap {
         tech_zone_start = yi.start;
     }
 
-    let has_anchors = has_tier12;
+    // Enable zone filtering when:
+    // 1. Tier 1/2 tech tokens were found, OR
+    // 2. A year was found with substantial title content before it
+    //    (at least 2 tokens / 6+ bytes). This handles "A.Common.Title.Special.2014"
+    //    while preserving "3D.2019" (only 1 token before year).
+    let has_anchors = has_tier12
+        || year_info.as_ref().is_some_and(|yi| {
+            let title_len = yi.start.saturating_sub(fn_start);
+            title_len >= 6
+        });
 
     ZoneMap {
         title_zone: fn_start..tech_zone_start,

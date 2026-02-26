@@ -19,6 +19,7 @@ reencoded   = "Reencoded"
 hdr10       = "HDR10"
 sdr         = "Standard Dynamic Range"
 fhd         = "Full HD"
+ultra       = "Ultra HD"
 pal         = "PAL"
 ntsc        = "NTSC"
 secam       = "SECAM"
@@ -38,8 +39,8 @@ repost      = "Repost"
 obfuscated  = "Obfuscated"
 obfuscation = "Obfuscated"
 scrambled   = "Obfuscated"
-complete    = "Complete"
-complet     = "Complete"
+# NOTE: "complete"/"complet" removed from exact — handled by pattern
+# with requires_before to avoid false positives on standalone "Complete".
 stv         = "Straight to Video"
 dirfix      = "Fix"
 nfofix      = "Fix"
@@ -227,6 +228,13 @@ value = "West Coast Feed"
 # Documentary variants: DOKU, DOCU, DOCUMENTARY
 match = '(?i)^dok[cu](?:mentary)?$'
 value = "Documentary"
+
+[[patterns]]
+# Complete / Complet — only when preceded by season/series/number context.
+# Standalone "Complete" is a title word, not metadata.
+match = '(?i)^complet(?:e|s)?$'
+value = "Complete"
+requires_before = ["season", "saison", "temporada", "staffel", "serie", "series", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20"]
 
 [[patterns]]
 # Dubbed — only when NOT immediately after a language name.

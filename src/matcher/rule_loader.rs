@@ -38,6 +38,8 @@ pub struct TokenMatch<'a> {
     pub not_after: Option<Vec<String>>,
     /// If set, the match should be rejected UNLESS the NEXT token (lowercased) is in this list.
     pub requires_after: Option<Vec<String>>,
+    /// If set, the match should be rejected UNLESS the PREVIOUS token (lowercased) is in this list.
+    pub requires_before: Option<Vec<String>>,
 }
 
 /// An additional property:value pair emitted as a side effect of a pattern match.
@@ -63,6 +65,8 @@ struct PatternRule {
     not_after: Option<Vec<String>>,
     /// Reject unless next token (lowercased) is in this list.
     requires_after: Option<Vec<String>>,
+    /// Reject unless previous token (lowercased) is in this list.
+    requires_before: Option<Vec<String>>,
 }
 
 /// How a TOML rule set interacts with the ZoneMap.
@@ -125,6 +129,8 @@ struct RawPattern {
     not_after: Option<Vec<String>>,
     #[serde(default)]
     requires_after: Option<Vec<String>>,
+    #[serde(default)]
+    requires_before: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -185,6 +191,7 @@ impl RuleSet {
                     not_before: p.not_before,
                     not_after: p.not_after,
                     requires_after: p.requires_after,
+                    requires_before: p.requires_before,
                 }
             })
             .collect();
@@ -259,6 +266,7 @@ impl<'a> TokenMatch<'a> {
             not_before: None,
             not_after: None,
             requires_after: None,
+            requires_before: None,
         }
     }
 
@@ -270,6 +278,7 @@ impl<'a> TokenMatch<'a> {
             not_before: rule.not_before.clone(),
             not_after: rule.not_after.clone(),
             requires_after: rule.requires_after.clone(),
+            requires_before: rule.requires_before.clone(),
         }
     }
 }

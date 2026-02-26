@@ -474,6 +474,15 @@ impl Pipeline {
                             continue;
                         }
                     }
+                    if let Some(ref required) = token_match.requires_before {
+                        let ok = i > 0
+                            && required
+                                .iter()
+                                .any(|r| r == &tokens[i - 1].text.to_lowercase());
+                        if !ok {
+                            continue;
+                        }
+                    }
 
                     // ── Primary match ───────────────────────────────
                     matches.push(

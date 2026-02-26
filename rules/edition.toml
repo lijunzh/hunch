@@ -54,6 +54,11 @@ match = '(?i)^theatrical[- .]?(?:cut|edition)$'
 value = "Theatrical"
 
 [[patterns]]
+# Edition Collector / Edition Collectorx (French reversed form)
+match = '(?i)^edition[- ._]?collect(?:or|eur)s?$'
+value = "Collector"
+
+[[patterns]]
 # Collector's Edition
 match = '(?i)^collector.?s?[- .]?edition$'
 value = "Collector"
