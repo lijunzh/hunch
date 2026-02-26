@@ -1,0 +1,43 @@
+# Standalone audio channel count patterns.
+#
+# These match channel counts that appear WITHOUT a codec prefix.
+# Combined codec+channel patterns (DD5.1, AAC2.0) are in audio_codec.toml
+# as side_effects.
+
+property = "audio_channels"
+
+# ── Exact matches ────────────────────────────────────────────────────
+[exact]
+# Channel count words
+mono    = "1.0"
+stereo  = "2.0"
+
+# Explicit Nch labels
+1ch     = "1.0"
+2ch     = "2.0"
+5ch     = "5.1"
+6ch     = "5.1"
+7ch     = "7.1"
+8ch     = "7.1"
+
+# ── Patterns ──────────────────────────────────────────────────────
+
+[[patterns]]
+# 7.1 / 7_1 / 7 1 (via 2-token window)
+match = '(?i)^7[. _]1(?:ch)?$'
+value = "7.1"
+
+[[patterns]]
+# 5.1 / 5_1 / 5 1 (via 2-token window)
+match = '(?i)^5[. _]1(?:ch)?$'
+value = "5.1"
+
+[[patterns]]
+# 2.0 / 2_0 / 2 0 (via 2-token window)
+match = '(?i)^2[. _]0(?:ch)?$'
+value = "2.0"
+
+[[patterns]]
+# 1.0 / 1_0 (via 2-token window)
+match = '(?i)^1[. _]0(?:ch)?$'
+value = "1.0"

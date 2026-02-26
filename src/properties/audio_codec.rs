@@ -1,281 +1,52 @@
-//! Audio codec and channel detection (AAC, DTS, Dolby, FLAC, etc.).
+//! Audio codec and channel detection — now handled by TOML rules.
 //!
-//! This module handles three things the TOML rules (rules/audio_codec.toml) cannot:
-//!
-//! 1. **Combined codec+channel patterns** (`DD5.1`, `AAC2.0`, `TrueHD51`) that emit
-//!    two properties (AudioCodec + AudioChannels) from a single match.
-//! 2. **Standalone channel counts** (`5.1`, `7.1`, `2ch`) that emit AudioChannels only.
-//! 3. **Full-input scanning** for codecs in path/directory segments (e.g.
-//!    `Show/[AC3 5.1]/episode.mkv`). The TOML tokenizer only processes the
-//!    filename portion, so directory-embedded codecs need the legacy full-string scan.
-//!
-//! Simple standalone codecs are in BOTH this module and audio_codec.toml.
-//! Duplicates are resolved by the conflict engine (same span + value → one kept).
-
-use crate::matcher::regex_utils::ValuePattern;
-use crate::matcher::span::{MatchSpan, Property};
-use std::sync::LazyLock;
-
-/// A combined codec+channel pattern that emits two MatchSpans.
-struct CombinedPattern {
-    vp: ValuePattern,
-    codec: &'static str,
-    channels: &'static str,
-}
-
-impl CombinedPattern {
-    fn new(pattern: &str, codec: &'static str, channels: &'static str) -> Self {
-        Self {
-            vp: ValuePattern::new(pattern, codec),
-            codec,
-            channels,
-        }
-    }
-}
-
-/// Standalone codec patterns — needed for directory-path detection.
-/// Also mirrors audio_codec.toml so full-path inputs work correctly.
-static AUDIO_CODEC_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
-    vec![
-        // Order matters: more specific patterns first.
-        ValuePattern::new(r"(?i)(?<![a-z])DTS[-:]?X(?![a-z])", "DTS:X"),
-        ValuePattern::new(
-            r"(?i)(?<![a-z])DTS[-. ]?HD(?:[-. ]?(?:MA|Master(?:[-. ]?Audio)?))?(?![a-z])",
-            "DTS-HD",
-        ),
-        ValuePattern::new(r"(?i)(?<![a-z])DTS[-]?ES(?![a-z])", "DTS"),
-        ValuePattern::new(r"(?i)(?<![a-z])DTS(?![a-z:])", "DTS"),
-        ValuePattern::new(r"(?i)(?<![a-z])True[-]?HD(?![a-z0-9])", "Dolby TrueHD"),
-        ValuePattern::new(r"(?i)(?<![a-z])Dolby[-. ]?Atmos(?![a-z])", "Dolby Atmos"),
-        ValuePattern::new(r"(?i)(?<![a-z])Atmos(?![a-z])", "Dolby Atmos"),
-        ValuePattern::new(
-            r"(?i)(?<![a-z])(?:E[-]?AC[-]?3|DDP|DD\+)(?![a-z0-9])",
-            "Dolby Digital Plus",
-        ),
-        ValuePattern::new(
-            r"(?i)(?<![a-z])(?:Dolby(?:[-. ]?Digital)?|DD|AC[-]?3D?)(?![a-z0-9+])",
-            "Dolby Digital",
-        ),
-        ValuePattern::new(r"(?i)(?<![a-z])AAC(?![a-z0-9])", "AAC"),
-        ValuePattern::new(r"(?i)(?<![a-z])FLAC(?![a-z])", "FLAC"),
-        ValuePattern::new(r"(?i)(?<![a-z])(?:MP3|LAME(?:\d+[-.*]?\d+)?)(?![a-z])", "MP3"),
-        ValuePattern::new(r"(?i)(?<![a-z])MP2(?![a-z])", "MP2"),
-        ValuePattern::new(r"(?i)(?<![a-z])Opus(?![a-z])", "Opus"),
-        ValuePattern::new(r"(?i)(?<![a-z])Vorbis(?![a-z])", "Vorbis"),
-        ValuePattern::new(r"(?i)(?<![a-z])PCM(?![a-z])", "PCM"),
-        ValuePattern::new(r"(?i)(?<![a-z])LPCM(?![a-z])", "LPCM"),
-    ]
-});
-
-/// Combined codec+channel patterns (checked BEFORE standalone channels).
-static COMBINED_PATTERNS: LazyLock<Vec<CombinedPattern>> = LazyLock::new(|| {
-    vec![
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])DD[-.]?5[\W_]?1(?![a-z0-9])",
-            "Dolby Digital",
-            "5.1",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])DD[-.]?51(?![a-z0-9])",
-            "Dolby Digital",
-            "5.1",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])DD[-.]?7[\W_]?1(?![a-z0-9])",
-            "Dolby Digital",
-            "7.1",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])True[-]?HD[-.]?51(?![a-z0-9])",
-            "Dolby TrueHD",
-            "5.1",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])True[-]?HD[-.]?5[\W_]1(?![a-z0-9])",
-            "Dolby TrueHD",
-            "5.1",
-        ),
-        CombinedPattern::new(r"(?i)(?<![a-z])AAC[-.]?2[\W_]?0(?![a-z0-9])", "AAC", "2.0"),
-        CombinedPattern::new(r"(?i)(?<![a-z])AAC[-.]?20(?![a-z0-9])", "AAC", "2.0"),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])DDP[-.]?5[\W_]?1(?![a-z0-9])",
-            "Dolby Digital Plus",
-            "5.1",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])DDP[-.]?51(?![a-z0-9])",
-            "Dolby Digital Plus",
-            "5.1",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])DD\+[-.]?5[\W_]?1(?![a-z0-9])",
-            "Dolby Digital Plus",
-            "5.1",
-        ),
-        // FLAC with channel count: FLAC1.0, FLAC2.0.
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])FLAC[-.]?2[\W_]?0(?![a-z0-9])",
-            "FLAC",
-            "2.0",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])FLAC[-.]?1[\W_]?0(?![a-z0-9])",
-            "FLAC",
-            "1.0",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])FLAC[-.]?5[\W_]?1(?![a-z0-9])",
-            "FLAC",
-            "5.1",
-        ),
-        // DTS-HD MA with channels: DTS-HD.MA5.1, DTS-HD MA7.1.
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])DTS[-. ]?HD[-. ]?(?:MA|HR)[-.]?5[\W_]?1(?![a-z0-9])",
-            "DTS-HD",
-            "5.1",
-        ),
-        CombinedPattern::new(
-            r"(?i)(?<![a-z])DTS[-. ]?HD[-. ]?(?:MA|HR)[-.]?7[\W_]?1(?![a-z0-9])",
-            "DTS-HD",
-            "7.1",
-        ),
-        // MP2 with channels: MP2.2.0.
-        CombinedPattern::new(r"(?i)(?<![a-z])MP2[-.]?2[\W_]?0(?![a-z0-9])", "MP2", "2.0"),
-    ]
-});
-
-static AUDIO_CHANNELS_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
-    vec![
-        // Explicit channel counts.
-        ValuePattern::new(r"(?i)(?<![a-z0-9])(?:8ch|7[\W_]1(?:ch)?)(?![0-9])", "7.1"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])7ch(?![0-9])", "7.1"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])(?:6ch|5[\W_]1(?:ch)?)(?![0-9])", "5.1"),
-        ValuePattern::new(r"(?i)(?<![a-z0-9])5ch(?![0-9])", "5.1"),
-        ValuePattern::new(
-            r"(?i)(?<![a-z0-9])(?:2ch|2[\W_]0(?:ch)?|stereo)(?![0-9])",
-            "2.0",
-        ),
-        ValuePattern::new(
-            r"(?i)(?<![a-z0-9])(?:mono|1ch|1[\W_]0(?:ch)?)(?![0-9])",
-            "1.0",
-        ),
-    ]
-});
-
-/// Full-input codec scanner.
-///
-/// Handles three things the TOML rules cannot:
-/// 1. Combined codec+channel patterns (`DD5.1`, `TrueHD51`) — emit two properties.
-/// 2. Standalone channel counts (`5.1`, `6ch`) — emit AudioChannels only.
-/// 3. Directory-path codec detection — TOML tokenizer only sees the filename;
-///    Rust scans the full input including parent directory segments.
-///
-/// Standalone codecs run in both TOML (filename tokens) and Rust (full input).
-/// The conflict engine deduplicates same-span, same-value matches.
-pub fn find_matches(input: &str) -> Vec<MatchSpan> {
-    let mut matches = Vec::new();
-
-    // Combined codec+channels patterns (emit both AudioCodec + AudioChannels).
-    for cp in COMBINED_PATTERNS.iter() {
-        for (start, end) in cp.vp.find_iter(input) {
-            matches
-                .push(MatchSpan::new(start, end, Property::AudioCodec, cp.codec).with_priority(2));
-            matches.push(
-                MatchSpan::new(start, end, Property::AudioChannels, cp.channels).with_priority(2),
-            );
-        }
-    }
-
-    // Standalone codec patterns — run on full input for directory-path detection.
-    for pattern in AUDIO_CODEC_PATTERNS.iter() {
-        for (start, end) in pattern.find_iter(input) {
-            matches.push(MatchSpan::new(
-                start,
-                end,
-                Property::AudioCodec,
-                pattern.value,
-            ));
-        }
-    }
-
-    // Standalone channel patterns (AudioChannels only).
-    for pattern in AUDIO_CHANNELS_PATTERNS.iter() {
-        for (start, end) in pattern.find_iter(input) {
-            matches.push(MatchSpan::new(
-                start,
-                end,
-                Property::AudioChannels,
-                pattern.value,
-            ));
-        }
-    }
-
-    matches
-}
+//! - `rules/audio_codec.toml`: codec patterns + combined codec+channel side_effects
+//! - `rules/audio_channels.toml`: standalone channel count patterns
+//! - `rules/audio_profile.toml`: codec profile patterns (MA, Atmos, etc.)
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::hunch;
 
-    // Note: standalone codec tests (AAC, DTS-HD, Atmos, EAC3, etc.) are intentionally
-    // absent here — those patterns moved to rules/audio_codec.toml and are covered
-    // by the guessit regression suite and pipeline integration tests.
+    fn codec(input: &str) -> Option<String> {
+        let map = hunch(input).to_flat_map();
+        map.get("audio_codec")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+    }
+
+    fn channels(input: &str) -> Option<String> {
+        let map = hunch(input).to_flat_map();
+        map.get("audio_channels")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+    }
 
     #[test]
     fn test_channels_51() {
-        let m = find_matches("Movie.5.1.mkv");
-        assert!(
-            m.iter()
-                .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
-        );
+        assert_eq!(channels("Movie.5.1.mkv"), Some("5.1".into()));
     }
 
     #[test]
     fn test_6ch_is_51() {
-        let m = find_matches("Movie.6ch.mkv");
-        assert!(
-            m.iter()
-                .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
-        );
+        assert_eq!(channels("Movie.6ch.mkv"), Some("5.1".into()));
     }
-
 
     #[test]
     fn test_dd51_combined() {
-        let m = find_matches("Movie.DD5.1.mkv");
-        assert!(
-            m.iter()
-                .any(|x| x.value == "Dolby Digital" && x.property == Property::AudioCodec)
-        );
-        assert!(
-            m.iter()
-                .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
-        );
+        assert_eq!(codec("Movie.DD5.1.mkv"), Some("Dolby Digital".into()));
+        assert_eq!(channels("Movie.DD5.1.mkv"), Some("5.1".into()));
     }
 
     #[test]
     fn test_aac20_combined() {
-        let m = find_matches("Movie.AAC2.0.mkv");
-        assert!(
-            m.iter()
-                .any(|x| x.value == "AAC" && x.property == Property::AudioCodec)
-        );
-        assert!(
-            m.iter()
-                .any(|x| x.value == "2.0" && x.property == Property::AudioChannels)
-        );
+        assert_eq!(codec("Movie.AAC2.0.mkv"), Some("AAC".into()));
+        assert_eq!(channels("Movie.AAC2.0.mkv"), Some("2.0".into()));
     }
 
     #[test]
     fn test_truehd51_combined() {
-        let m = find_matches("Movie.TrueHD51.mkv");
-        assert!(
-            m.iter()
-                .any(|x| x.value == "Dolby TrueHD" && x.property == Property::AudioCodec)
-        );
-        assert!(
-            m.iter()
-                .any(|x| x.value == "5.1" && x.property == Property::AudioChannels)
-        );
+        assert_eq!(codec("Movie.TrueHD51.mkv"), Some("Dolby TrueHD".into()));
+        assert_eq!(channels("Movie.TrueHD51.mkv"), Some("5.1".into()));
     }
 }

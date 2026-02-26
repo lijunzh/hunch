@@ -86,6 +86,110 @@ match = '(?i)^true[- .]?hd$'
 value = "Dolby TrueHD"
 
 [[patterns]]
-# LAME encoder variants: lame, lame3.12
-match = '(?i)^lame(?:\d+[.-]?\d+)?$'
+# LAME encoder variants: lame, lame3.12, lame3*92
+match = '(?i)^lame(?:\d+[.*-]?\d+)?$'
 value = "MP3"
+
+# ── Combined codec+channel patterns (side_effects emit AudioChannels) ────
+
+[[patterns]]
+# DD5.1 / DD.5.1 / DD51
+match = '(?i)^dd[-.]?5[. _]?1$'
+value = "Dolby Digital"
+side_effects = [{ property = "audio_channels", value = "5.1" }]
+
+[[patterns]]
+# DD7.1 / DD.7.1
+match = '(?i)^dd[-.]?7[. _]?1$'
+value = "Dolby Digital"
+side_effects = [{ property = "audio_channels", value = "7.1" }]
+
+[[patterns]]
+# DDP5.1 / DDP.5.1 / DDP51 / DD+5.1 / DD+.5.1
+match = '(?i)^dd[p+][-.]?5[. _]?1$'
+value = "Dolby Digital Plus"
+side_effects = [{ property = "audio_channels", value = "5.1" }]
+
+[[patterns]]
+# DDP2.0 / DD+2.0
+match = '(?i)^dd[p+][-.]?2[. _]?0$'
+value = "Dolby Digital Plus"
+side_effects = [{ property = "audio_channels", value = "2.0" }]
+
+[[patterns]]
+# TrueHD5.1 / TrueHD.5.1 / TrueHD51
+match = '(?i)^true[-]?hd[-.]?5[. _]?1$'
+value = "Dolby TrueHD"
+side_effects = [{ property = "audio_channels", value = "5.1" }]
+
+[[patterns]]
+# TrueHD7.1
+match = '(?i)^true[-]?hd[-.]?7[. _]?1$'
+value = "Dolby TrueHD"
+side_effects = [{ property = "audio_channels", value = "7.1" }]
+
+[[patterns]]
+# AAC2.0 / AAC.2.0 / AAC20
+match = '(?i)^aac[-.]?2[. _]?0$'
+value = "AAC"
+side_effects = [{ property = "audio_channels", value = "2.0" }]
+
+[[patterns]]
+# AAC5.1
+match = '(?i)^aac[-.]?5[. _]?1$'
+value = "AAC"
+side_effects = [{ property = "audio_channels", value = "5.1" }]
+
+[[patterns]]
+# FLAC2.0
+match = '(?i)^flac[-.]?2[. _]?0$'
+value = "FLAC"
+side_effects = [{ property = "audio_channels", value = "2.0" }]
+
+[[patterns]]
+# FLAC1.0
+match = '(?i)^flac[-.]?1[. _]?0$'
+value = "FLAC"
+side_effects = [{ property = "audio_channels", value = "1.0" }]
+
+[[patterns]]
+# FLAC5.1
+match = '(?i)^flac[-.]?5[. _]?1$'
+value = "FLAC"
+side_effects = [{ property = "audio_channels", value = "5.1" }]
+
+[[patterns]]
+# DTS-HD MA 5.1 / DTS-HD.MA.5.1 / DTS HD MA5.1
+match = '(?i)^dts[- .]?hd[- .]?(?:ma|hr)[-.]?5[. _]?1$'
+value = "DTS-HD"
+side_effects = [{ property = "audio_channels", value = "5.1" }]
+
+[[patterns]]
+# DTS-HD MA 7.1
+match = '(?i)^dts[- .]?hd[- .]?(?:ma|hr)[-.]?7[. _]?1$'
+value = "DTS-HD"
+side_effects = [{ property = "audio_channels", value = "7.1" }]
+
+[[patterns]]
+# MP2.2.0 / MP2 2.0
+match = '(?i)^mp2[-.]?2[. _]?0$'
+value = "MP2"
+side_effects = [{ property = "audio_channels", value = "2.0" }]
+
+[[patterns]]
+# Dolby.2.0 / Dolby 2.0 (Dolby Digital implied by channel suffix)
+match = '(?i)^dolby[-. ]?2[. _]?0$'
+value = "Dolby Digital"
+side_effects = [{ property = "audio_channels", value = "2.0" }]
+
+[[patterns]]
+# Dolby.5.1 / Dolby 5.1
+match = '(?i)^dolby[-. ]?5[. _]?1$'
+value = "Dolby Digital"
+side_effects = [{ property = "audio_channels", value = "5.1" }]
+
+[[patterns]]
+# Dolby.7.1 / Dolby 7.1
+match = '(?i)^dolby[-. ]?7[. _]?1$'
+value = "Dolby Digital"
+side_effects = [{ property = "audio_channels", value = "7.1" }]
