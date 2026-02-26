@@ -309,21 +309,21 @@ impl Pipeline {
                 if let Some(token_match) = rule_set.match_token(&compound) {
                     // ── Neighbor constraint checks ──────────────────
                     let last_idx = i + window_size - 1;
-                    if let Some(ref blocked) = token_match.not_before {
-                        if last_idx + 1 < tokens.len() {
-                            let next = tokens[last_idx + 1].text.to_lowercase();
-                            if blocked.iter().any(|b| b == &next) {
-                                continue;
-                            }
-                        }
+                    if let Some(ref blocked) = token_match.not_before
+                        && last_idx + 1 < tokens.len()
+                        && blocked
+                            .iter()
+                            .any(|b| b == &tokens[last_idx + 1].text.to_lowercase())
+                    {
+                        continue;
                     }
-                    if let Some(ref blocked) = token_match.not_after {
-                        if i > 0 {
-                            let prev = tokens[i - 1].text.to_lowercase();
-                            if blocked.iter().any(|b| b == &prev) {
-                                continue;
-                            }
-                        }
+                    if let Some(ref blocked) = token_match.not_after
+                        && i > 0
+                        && blocked
+                            .iter()
+                            .any(|b| b == &tokens[i - 1].text.to_lowercase())
+                    {
+                        continue;
                     }
                     if let Some(ref required) = token_match.requires_after {
                         let ok = last_idx + 1 < tokens.len()

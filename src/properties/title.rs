@@ -320,27 +320,27 @@ fn find_title_boundary(raw: &str) -> Option<usize> {
     // Check for " (" / "_(" / ".(" — parenthesized group after title content.
     // Check BEFORE dashes, since parens inside dirs may contain dashes.
     for sep in [" (", "_(", ".("] {
-        if let Some(pos) = raw.find(sep) {
-            if pos >= min_title_len {
-                return Some(pos);
-            }
+        if let Some(pos) = raw.find(sep)
+            && pos >= min_title_len
+        {
+            return Some(pos);
         }
     }
 
     // Check for " - " / "_-_" / ".-" (most common title/subtitle separator).
     for sep in [" - ", "_-_", ".-."] {
-        if let Some(pos) = raw.find(sep) {
-            if pos >= min_title_len {
-                return Some(pos);
-            }
+        if let Some(pos) = raw.find(sep)
+            && pos >= min_title_len
+        {
+            return Some(pos);
         }
     }
 
     // Check for "--" (double-dash separator).
-    if let Some(pos) = raw.find("--") {
-        if pos >= min_title_len {
-            return Some(pos);
-        }
+    if let Some(pos) = raw.find("--")
+        && pos >= min_title_len
+    {
+        return Some(pos);
     }
 
     None
@@ -763,7 +763,8 @@ pub fn extract_film_title(
 ) -> Option<(MatchSpan, MatchSpan)> {
     // Only trigger when we have a Film property.
     let film_match = matches.iter().find(|m| m.property == Property::Film)?;
-    let title_match = matches.iter().find(|m| m.property == Property::Title)?;
+    // Ensure there's already a title to split.
+    let _title_match = matches.iter().find(|m| m.property == Property::Title)?;
 
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
 
@@ -875,23 +876,15 @@ pub fn extract_alternative_title(
     let boundary_offset = find_title_boundary(raw_title)?;
 
     // The alternative title is everything AFTER the boundary separator.
-    let sep_end = if raw_title[boundary_offset..].starts_with(" - ") {
-        boundary_offset + 3
-    } else if raw_title[boundary_offset..].starts_with("--") {
-        boundary_offset + 2
-    } else if raw_title[boundary_offset..].starts_with(" (") {
-        boundary_offset + 2
-    } else if raw_title[boundary_offset..].starts_with("_(") {
-        boundary_offset + 2
-    } else if raw_title[boundary_offset..].starts_with(".(") {
-        boundary_offset + 2
-    } else if raw_title[boundary_offset..].starts_with("_-_") {
-        boundary_offset + 3
-    } else if raw_title[boundary_offset..].starts_with(".-.") {
-        boundary_offset + 3
+    let after = &raw_title[boundary_offset..];
+    let sep_len = if after.starts_with(" - ") || after.starts_with("_-_") || after.starts_with(".-.") {
+        3
+    } else if after.starts_with("--") || after.starts_with(" (") || after.starts_with("_(") || after.starts_with(".(") {
+        2
     } else {
-        boundary_offset + 1
+        1
     };
+    let sep_end = boundary_offset + sep_len;
 
     if sep_end >= raw_title.len() {
         return None;

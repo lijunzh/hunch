@@ -29,21 +29,23 @@ The problem decomposes into three sub-problems, each favoring a different approa
 
 ## Current Status
 
-**Overall: 75.8%** (992 / 1,309 guessit test cases). Phase C accuracy
-improvements in progress. `fancy_regex` removed, `regex`-only.
+**Overall: 77.3%** (1012 / 1,309 guessit test cases). `regex`-only (no
+`fancy_regex`). TOML-driven rule engine with side effects, neighbor
+constraints, and path-segment awareness.
 
 | Tier | Properties |
 |------|------------|
 | ✅ 100% | video_api, season_count, disc, aspect_ratio, proper_count, version, bonus, film, size, frame_rate, date, episode_count |
-| ✅ 95–99% | edition, source, color_depth, crc32, year |
-| 🟡 90–94% | container, video_codec, screen_size, season, type, audio_codec, website, streaming_service, episode |
-| 🟡 85–89% | release_group, title, uuid, video_profile, other, audio_profile |
-| 🟡 80–84% | language, part, audio_channels |
-| ⚠️ 60–78% | subtitle_language (78%), episode_title, country, episode_details, bonus_title, cd |
-| ❌ <50% | cd_count, absolute_episode, film_title, alternative_title (0%) |
+| ✅ 95–99% | video_codec (98.6%), screen_size (98.4%), audio_codec (97.8%), edition, source, color_depth, crc32, year |
+| 🟡 90–94% | container, season, type, absolute_episode (90%), website, streaming_service, episode |
+| 🟡 85–89% | release_group, film_title (87.5%), title (87.9%), uuid, other, audio_profile |
+| 🟡 77–84% | subtitle_language (77.8%), language, part, audio_channels |
+| ⚠️ 60–70% | episode_title (70.6%), country, episode_details, bonus_title |
+| ⚠️ 43–60% | alternative_title (43.8%), cd, cd_count |
+| ❌ <10% | absolute_episode edge cases, episode_format, audio/video bit_rate (0%) |
 
-Highest-ROI targets: title (19 failures), subtitle_language (18),
-release_group (18), episode_title (16).
+Highest-ROI targets: title (19 failures), release_group (18),
+subtitle_language (18), episode_title (14).
 
 ---
 

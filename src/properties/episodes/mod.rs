@@ -870,18 +870,18 @@ fn detect_absolute_episodes(input: &str, matches: &mut Vec<MatchSpan>) {
         ));
 
         // Emit range if present.
-        if let Some(end_m) = cap.name("end") {
-            if let Ok(num_end) = end_m.as_str().parse::<u32>() {
-                if num_end > num_start && num_end - num_start < 50 {
-                    for n in (num_start + 1)..=num_end {
-                        matches.push(MatchSpan::new(
-                            full_start,
-                            range_end_pos,
-                            Property::AbsoluteEpisode,
-                            n.to_string(),
-                        ));
-                    }
-                }
+        if let Some(end_m) = cap.name("end")
+            && let Ok(num_end) = end_m.as_str().parse::<u32>()
+            && num_end > num_start
+            && num_end - num_start < 50
+        {
+            for n in (num_start + 1)..=num_end {
+                matches.push(MatchSpan::new(
+                    full_start,
+                    range_end_pos,
+                    Property::AbsoluteEpisode,
+                    n.to_string(),
+                ));
             }
         }
     }

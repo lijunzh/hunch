@@ -267,11 +267,10 @@ fn substitute_captures(template: &str, caps: &regex::Captures<'_>) -> String {
             if chars.peek() == Some(&'}') {
                 chars.next();
             }
-            if let Ok(idx) = digits.parse::<usize>() {
-                if let Some(m) = caps.get(idx) {
-                    result.push_str(m.as_str());
-                }
-                // Missing group → empty string (nothing pushed).
+            if let Ok(idx) = digits.parse::<usize>()
+                && let Some(m) = caps.get(idx)
+            {
+                result.push_str(m.as_str());
             }
         } else {
             result.push(ch);
