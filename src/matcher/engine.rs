@@ -36,6 +36,7 @@ pub fn resolve_conflicts(matches: &mut Vec<MatchSpan>) {
             // Also allow same-span Episode/Season/Language with different values.
             if (matches[i].property == Property::Other
                 || matches[i].property == Property::Episode
+                || matches[i].property == Property::AbsoluteEpisode
                 || matches[i].property == Property::Season
                 || matches[i].property == Property::Language
                 || matches[i].property == Property::SubtitleLanguage

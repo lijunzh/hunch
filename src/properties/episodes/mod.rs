@@ -768,5 +768,121 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         }
     }
 
+    // 11. Absolute episode detection.
+    // When we have BOTH season+episode from S/E markers AND standalone
+    // number ranges nearby, the standalone numbers are absolute episodes.
+    // e.g., "Show.Name.313-315.s16e03-05" → episode=[3,4,5], absolute_episode=[313,314,315]
+    detect_absolute_episodes(input, &mut matches);
+
     matches
+}
+
+/// Detect absolute episode numbers when both S/E markers and standalone
+/// number ranges coexist.
+///
+/// Pattern: `Show.Name.313-315.s16e03-05`
+///   → episode=[3,4,5] (from S/E), absolute_episode=[313,314,315] (standalone)
+///
+/// Also handles parenthesized: `Title - 16-20 (191-195)`
+///   → episode=[16..20], absolute_episode=[191..195]
+fn detect_absolute_episodes(input: &str, matches: &mut Vec<MatchSpan>) {
+    let has_season = has_property(matches, Property::Season);
+    let has_episode = has_property(matches, Property::Episode);
+    if !has_season || !has_episode {
+        return;
+    }
+
+    let max_episode: u32 = matches
+        .iter()
+        .filter(|m| m.property == Property::Episode)
+        .filter_map(|m| m.value.parse::<u32>().ok())
+        .max()
+        .unwrap_or(0);
+
+    // Positions already claimed by season/episode matches.
+    let se_spans: Vec<(usize, usize)> = matches
+        .iter()
+        .filter(|m| m.property == Property::Season || m.property == Property::Episode)
+        .map(|m| (m.start, m.end))
+        .collect();
+    let in_se_span = |pos: usize| -> bool {
+        se_spans.iter().any(|(s, e)| pos >= *s && pos < *e)
+    };
+
+    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let bytes = input.as_bytes();
+
+    // Find number ranges: "313-314", "313-315", or bare "313".
+    static NUM_RANGE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r"(?P<start>\d{2,4})(?:-(?P<end>\d{2,4}))?")
+            .unwrap()
+    });
+
+    for cap in NUM_RANGE.captures_iter(input) {
+        let start_m = cap.name("start").unwrap();
+        let num_start: u32 = match start_m.as_str().parse() {
+            Ok(n) if n > 0 => n,
+            _ => continue,
+        };
+
+        // Boundary checks: must be preceded and followed by separator or boundary.
+        if start_m.start() > 0
+            && !matches!(bytes[start_m.start() - 1], b'.' | b'-' | b'_' | b' ' | b'(' | b'[')
+        {
+            continue;
+        }
+
+        let range_end_pos = cap.name("end").map(|m| m.end()).unwrap_or(start_m.end());
+        if range_end_pos < bytes.len()
+            && !matches!(bytes[range_end_pos], b'.' | b'-' | b'_' | b' ' | b')' | b']')
+        {
+            continue;
+        }
+
+        // Skip if inside a season/episode match span.
+        if in_se_span(start_m.start()) {
+            continue;
+        }
+
+        // Skip if before the filename or too close to start.
+        if start_m.start() < fn_start + 3 {
+            continue;
+        }
+
+        // Skip year-like and codec-related numbers.
+        if (1920..=2039).contains(&num_start) || num_start == 264 || num_start == 265 {
+            continue;
+        }
+
+        // Must be larger than relative episodes to be "absolute".
+        if num_start <= max_episode || num_start < 100 {
+            continue;
+        }
+
+        let full_start = start_m.start();
+
+        // Emit start number.
+        matches.push(MatchSpan::new(
+            full_start,
+            range_end_pos,
+            Property::AbsoluteEpisode,
+            num_start.to_string(),
+        ));
+
+        // Emit range if present.
+        if let Some(end_m) = cap.name("end") {
+            if let Ok(num_end) = end_m.as_str().parse::<u32>() {
+                if num_end > num_start && num_end - num_start < 50 {
+                    for n in (num_start + 1)..=num_end {
+                        matches.push(MatchSpan::new(
+                            full_start,
+                            range_end_pos,
+                            Property::AbsoluteEpisode,
+                            n.to_string(),
+                        ));
+                    }
+                }
+            }
+        }
+    }
 }
