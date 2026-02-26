@@ -78,11 +78,40 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
                 }
             }
         }
-        // Title is empty in the filename — try parent directory.
+        // Title is empty in the filename.
+        // If the input is a single short word with no path and no extension,
+        // treat the entire input as title (e.g., "tv", "cat", "scr").
+        // These are bare words that happen to match property patterns but
+        // have no tech context to confirm they're properties.
+        if !input.contains(['/', '\\'])
+            && !input.contains('.')
+            && input.len() <= 10
+        {
+            let cleaned = clean_title(input);
+            if !cleaned.is_empty() {
+                return Some(MatchSpan::new(
+                    0,
+                    input.len(),
+                    Property::Title,
+                    cleaned,
+                ));
+            }
+        }
+        // Try parent directory.
         return extract_title_from_parent(input, matches);
     }
 
     let raw_title = &input[filename_start..title_end_abs];
+
+    // Truncate at structural separators that indicate subtitle/director:
+    // " - " (space-dash-space), "--", or "(" (parenthesized content).
+    // Only apply AFTER some title content exists (avoid truncating at
+    // leading separators like "- Episode Name").
+    let title_end_abs = find_title_boundary(raw_title)
+        .map(|offset| filename_start + offset)
+        .unwrap_or(title_end_abs);
+    let raw_title = &input[filename_start..title_end_abs];
+
     let cleaned = clean_title(raw_title);
 
     if cleaned.is_empty() {
@@ -144,14 +173,21 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
         return None;
     }
 
-    // Walk from the deepest non-filename dir upward looking for a good title.
+    // Walk from the deepest non-filename dir upward (prefer dirs closest
+    // to the filename, which are more likely to contain the show/movie name).
     let mut offset = 0;
+    let mut dir_spans: Vec<(usize, usize, &str)> = Vec::new();
     #[allow(clippy::needless_range_loop)]
     for i in 0..parts.len() - 1 {
         let dir_name = parts[i];
         let dir_start = offset;
         let dir_end = dir_start + dir_name.len();
-        offset = dir_end + 1; // +1 for separator
+        offset = dir_end + 1;
+        dir_spans.push((dir_start, dir_end, dir_name));
+    }
+
+    // Iterate deepest-first (reverse order).
+    for &(dir_start, dir_end, dir_name) in dir_spans.iter().rev() {
 
         if dir_name.is_empty() || is_generic_dir(dir_name) {
             continue;
@@ -266,6 +302,46 @@ fn has_parent_dir(input: &str) -> bool {
     input.contains('/') || input.contains('\\')
 }
 
+/// Find the first structural separator in a raw title span that indicates
+/// the title has ended and subtitle/director/alternate content follows.
+///
+/// Structural separators:
+/// - ` - ` (space-dash-space): "Title - Subtitle", "Title - Director"
+/// - `--`: "Title--Subtitle"
+/// - ` (` (space-paren): "Title (Director, Year)"
+///
+/// Returns the byte offset within `raw` where the title should be truncated,
+/// or `None` if no structural separator is found.
+fn find_title_boundary(raw: &str) -> Option<usize> {
+    // Minimum title content before we accept a separator (avoid truncating
+    // at leading separators like "- Episode Name").
+    let min_title_len = 3;
+
+    // Check for " - " (most common title/subtitle separator).
+    if let Some(pos) = raw.find(" - ") {
+        if pos >= min_title_len {
+            return Some(pos);
+        }
+    }
+
+    // Check for "--" (double-dash separator).
+    if let Some(pos) = raw.find("--") {
+        if pos >= min_title_len {
+            return Some(pos);
+        }
+    }
+
+    // Check for " (" — parenthesized group after title content.
+    // But NOT "(" at position 0 (leading parens are bracket groups).
+    if let Some(pos) = raw.find(" (") {
+        if pos >= min_title_len {
+            return Some(pos);
+        }
+    }
+
+    None
+}
+
 /// Check if a directory name is generic (should be skipped for title).
 fn is_generic_dir(name: &str) -> bool {
     let lower = name.to_lowercase();
@@ -284,6 +360,7 @@ fn is_generic_dir(name: &str) -> bool {
             | "videos"
             | "downloads"
             | "download"
+            | "completed"
             | "mnt"
             | "nas"
             | "share"
@@ -291,6 +368,8 @@ fn is_generic_dir(name: &str) -> bool {
             | "data"
             | "public"
             | "home"
+            | "tmp"
+            | "temp"
     ) || lower.starts_with("season")
         || lower.starts_with("saison")
         || lower.starts_with("temporada")
