@@ -5,7 +5,7 @@ This document tracks how closely hunch reproduces guessit's behavior, measured
 by running hunch against guessit's own test suite (1,309 test cases across 22
 YAML files).
 
-> **Last updated:** 2026-02-24
+> **Last updated:** 2026-02-25
 
 ---
 
@@ -14,14 +14,14 @@ YAML files).
 | Metric | Value |
 |---|---|
 | Total test cases | 1,309 |
-| Passed (all props correct) | 920 |
-| Failed (any prop wrong) | 389 |
-| **Pass rate** | **70.3%** |
-| Properties implemented | 46 / 49 |
-| Properties skipped | 0 |
+| Passed (all props correct) | 1,023 |
+| Failed (any prop wrong) | 286 |
+| **Pass rate** | **78.2%** |
+| Properties implemented | 49 / 49 |
+| Properties intentionally diverged | 3 |
 
 guessit passes 100% of its own tests by definition. Hunch currently
-reproduces 70.3% of those results identically.
+reproduces 78.2% of those results identically.
 
 ---
 
@@ -39,23 +39,23 @@ simultaneously.
 | rules/edition.yml | 44 | 44 | **100%** |
 | rules/video_codec.yml | 45 | 45 | **100%** |
 | rules/other.yml | 46 | 46 | **100%** |
-| rules/common_words.yml | 149 | 156 | **96%** |
+| rules/audio_codec.yml | 17 | 17 | **100%** |
+| rules/part.yml | 9 | 9 | **100%** |
+| rules/common_words.yml | 154 | 156 | **99%** |
+| rules/episodes.yml | 74 | 79 | **94%** |
 | rules/source.yml | 21 | 23 | **91%** |
-| rules/episodes.yml | 70 | 79 | **89%** |
-| rules/audio_codec.yml | 15 | 17 | **88%** |
 | rules/release_group.yml | 15 | 19 | 79% |
+| rules/language.yml | 7 | 9 | 78% |
 | rules/title.yml | 14 | 18 | 78% |
+| rules/date.yml | 6 | 8 | 75% |
+| movies.yml | 143 | 199 | 72% |
+| various.yml | 87 | 124 | 70% |
 | rules/bonus.yml | 2 | 3 | 67% |
 | rules/country.yml | 2 | 3 | 67% |
-| movies.yml | 127 | 199 | 64% |
-| rules/date.yml | 5 | 8 | 63% |
-| episodes.yml | 279 | 488 | 57% |
-| rules/part.yml | 5 | 9 | 56% |
-| various.yml | 64 | 124 | 52% |
+| rules/film.yml | 2 | 3 | 67% |
+| episodes.yml | 321 | 488 | 66% |
 | rules/cd.yml | 1 | 2 | 50% |
 | rules/website.yml | 1 | 2 | 50% |
-| rules/language.yml | 3 | 9 | 33% |
-| rules/film.yml | 0 | 3 | 0% |
 
 ---
 
@@ -72,73 +72,73 @@ on all of these by definition.
 | aspect_ratio | 2 | 0 | **100.0%** |
 | bonus | 13 | 0 | **100.0%** |
 | color_depth | 28 | 0 | **100.0%** |
+| date | 26 | 0 | **100.0%** |
 | disc | 6 | 0 | **100.0%** |
-| edition | 83 | 0 | **100.0%** |
 | episode_count | 6 | 0 | **100.0%** |
-| episode_details | 16 | 0 | **100.0%** |
+| episode_format | 2 | 0 | **100.0%** |
 | film | 8 | 0 | **100.0%** |
 | frame_rate | 7 | 0 | **100.0%** |
+| proper_count | 31 | 0 | **100.0%** |
 | season_count | 2 | 0 | **100.0%** |
 | size | 9 | 0 | **100.0%** |
-| streaming_service | 31 | 0 | **100.0%** |
 | version | 13 | 0 | **100.0%** |
+| video_api | 3 | 0 | **100.0%** |
+| week | 1 | 0 | **100.0%** |
 
 ### ✅ Excellent (90%+)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| video_codec | 501 | 3 | 99.4% |
-| container | 149 | 2 | 98.7% |
-| screen_size | 422 | 6 | 98.6% |
-| source | 543 | 17 | 97.0% |
+| video_codec | 497 | 7 | 98.6% |
+| screen_size | 421 | 7 | 98.4% |
+| audio_codec | 221 | 5 | 97.8% |
+| edition | 81 | 2 | 97.6% |
+| source | 544 | 16 | 97.1% |
 | crc32 | 24 | 1 | 96.0% |
-| audio_codec | 216 | 10 | 95.6% |
 | year | 219 | 11 | 95.2% |
-| audio_channels | 111 | 7 | 94.1% |
+| audio_channels | 112 | 6 | 94.9% |
+| container | 143 | 8 | 94.7% |
 | season | 444 | 30 | 93.7% |
-| proper_count | 29 | 2 | 93.5% |
-| type | 766 | 56 | 93.2% |
-| video_profile | 13 | 1 | 92.9% |
+| type | 767 | 55 | 93.3% |
 | website | 20 | 2 | 90.9% |
-| episode | 502 | 53 | 90.5% |
+| streaming_service | 28 | 3 | 90.3% |
+| episode | 501 | 54 | 90.3% |
 
 ### 🟡 Good (70–90%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| date | 23 | 3 | 88.5% |
-| release_group | 474 | 65 | 87.9% |
+| release_group | 480 | 59 | 89.1% |
+| title | 940 | 116 | 89.0% |
 | uuid | 7 | 1 | 87.5% |
-| other | 293 | 56 | 84.0% |
-| title | 875 | 181 | 82.9% |
-| subtitle_language | 67 | 14 | 82.7% |
-| country | 10 | 3 | 76.9% |
-| audio_profile | 26 | 8 | 76.5% |
-| language | 104 | 38 | 73.2% |
+| film_title | 7 | 1 | 87.5% |
+| video_profile | 12 | 2 | 85.7% |
+| other | 299 | 50 | 85.7% |
+| audio_profile | 29 | 5 | 85.3% |
+| language | 120 | 22 | 84.5% |
+| part | 16 | 3 | 84.2% |
+| subtitle_language | 63 | 18 | 77.8% |
+| episode_title | 142 | 59 | 70.6% |
 
 ### ⚠️ Developing (50–70%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| part | 12 | 7 | 63.2% |
+| country | 9 | 4 | 69.2% |
+| episode_details | 11 | 5 | 68.8% |
 | bonus_title | 8 | 5 | 61.5% |
 | cd | 3 | 2 | 60.0% |
-| episode_title | 120 | 81 | 59.7% |
+| absolute_episode | 6 | 4 | 60.0% |
 | cd_count | 2 | 2 | 50.0% |
 
-### ❌ Not Yet Implemented (<50%)
+### ❌ Intentionally diverged
 
-| Property | Passed | Failed | Rate |
-|---|---|---|---|
-| alternative_title | 0 | 16 | 0.0% |
-| absolute_episode | 0 | 10 | 0.0% |
-| film_title | 0 | 8 | 0.0% |
-| audio_bit_rate | 0 | 4 | 0.0% |
-| video_bit_rate | 0 | 4 | 0.0% |
-| video_api | 0 | 3 | 0.0% |
-| mimetype | 0 | 3 | 0.0% |
-| episode_format | 0 | 2 | 0.0% |
-| week | 0 | 1 | 0.0% |
+| Property | Reason |
+|---|---|
+| audio_bit_rate | Hunch uses single `bit_rate` (see below) |
+| video_bit_rate | Hunch uses single `bit_rate` (see below) |
+| mimetype | Derived from `container`; redundant |
+| alternative_title | 43.8% — partially implemented, improving |
 
 ---
 
@@ -262,23 +262,22 @@ fixture suite.
 
 ## Highest-ROI Improvements
 
-267 test cases currently fail on **exactly 1 property**. Fixing that single
+109 test cases currently fail on **exactly 1 property**. Fixing that single
 property would flip them from fail to pass. These are the highest-leverage
 targets:
 
 | Property | Single-prop fails | Impact |
 |---|---|---|
-| title | 52 | +4.0pp |
-| episode_title | 32 | +2.4pp |
-| release_group | 24 | +1.8pp |
-| language | 16 | +1.2pp |
-| other | 12 | +0.9pp |
-| absolute_episode | 6 | +0.5pp |
-| audio_profile | 5 | +0.4pp |
+| release_group | 19 | +1.5pp |
+| title | 18 | +1.4pp |
+| episode_title | 14 | +1.1pp |
+| other | 8 | +0.6pp |
+| subtitle_language | 7 | +0.5pp |
+| language | 6 | +0.5pp |
 | episode | 5 | +0.4pp |
 
-Fixing all 182 single-property failures would bring the pass rate
-from 70.3% to ~84%.
+Fixing all 109 actionable single-property failures would bring the pass
+rate from 78.2% to ~86%.
 
 ---
 
@@ -287,32 +286,38 @@ from 70.3% to ~84%.
 These are the areas where hunch diverges most from guessit, with
 explanations of why.
 
-### Title extraction (82.1%)
+### Title extraction (89.0%)
 
 The hardest problem. Title is "everything that's left" after all
-technical tokens are claimed. guessit uses multi-pass rules and
-title-specific heuristics that hunch hasn't fully replicated:
+technical tokens are claimed. Remaining gaps are mostly disambiguation
+problems where a token can be both a title word and a property value:
 
-- Titles containing dots as acronyms (S.H.I.E.L.D., S.W.A.T.)
-- Titles with "Final", "Game", "Web" eaten by other matchers
-- Anime titles with brackets and group tags
-- Film numbering conventions (f17, f21)
+- "Proof", "LiNE" consumed by Other matcher instead of staying as title
+- "3D" consumed by ScreenSize in titles like "Harold & Kumar 3D Christmas"
+- "French" consumed by Language in titles like "Immersion French"
+- Path segment selection choosing wrong directory for title
+- Titles starting with technical-looking words ("h265 - HEVC Riddick")
 
-### Episode parsing (80.0%)
+The planned ZoneMap architecture (v0.2.1) addresses this class of
+problems by suppressing ambiguous matches in the title zone.
+
+### Episode parsing (90.3%)
 
 Most standard patterns work (S01E02, 1x03, E01-E03, S01-S10).
 Remaining gaps:
 
-- 3-digit anime episodes (One\_Piece\_679 → decomposed as S6E79)
+- `E01 02 03` multi-episode without separator
 - Compact SSEE format (0106 → S01E06)
-- Spanish "Cap.102" chapter notation
+- Spanish "Cap.102" chapter notation (partially supported)
 
-### Episode title (61.2%)
+### Episode title (70.6%)
 
 Positional inference: the episode title is the unclaimed region between
-the episode number and the first technical token. guessit applies
-post-processing rules to clean up edge cases that hunch doesn't yet
-handle.
+the episode number and the first technical token. Remaining gaps:
+
+- Episode titles after date-based episodes ("Show - 2010-11-23 - Ep Name")
+- Part numbers sometimes leak into episode title
+- Path-based episode titles from directory structure
 
 ### Multi-value subtitle languages
 

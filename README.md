@@ -7,8 +7,9 @@
 **A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
 for extracting media metadata from filenames.**
 
-> ⚠️ **Work in progress.** Hunch currently passes **77.3%** of guessit's own
-> 1,309-case test suite (1,012 / 1,309). Core properties like video codec,
+> ⚠️ **Work in progress.** Hunch currently passes **78.2%** of guessit's own
+> 1,309-case test suite (1,023 / 1,309). All 49 guessit properties are
+> implemented (3 intentionally diverged). Core properties like video codec,
 > screen size, source, audio codec, and year are 95–99% accurate. Title,
 > episode, language, and 40+ other properties are steadily improving.
 > `fancy_regex` has been fully removed — all regex is linear-time (ReDoS-immune).
@@ -67,23 +68,26 @@ $ hunch "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
 ## guessit Compatibility
 
 Hunch is a port of guessit. All 49 of guessit's properties are
-implemented. We validate against guessit's own YAML test suite:
+implemented (3 intentionally diverged — see COMPATIBILITY.md). We validate
+against guessit's own YAML test suite:
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% (by definition) | **75.1%** (983 / 1,309) |
-| Properties implemented | 49 | 43 |
-| Properties at 90%+ | 49 | 24 |
-| Properties at 100% | 49 | 12 |
+| Overall pass rate | 100% (by definition) | **78.2%** (1,023 / 1,309) |
+| Properties implemented | 49 | 49 (3 diverged) |
+| Properties at 90%+ | 49 | 29 |
+| Properties at 100% | 49 | 15 |
 
-**Where hunch matches guessit** (96–100% accuracy):
-year, video_codec, container, source, screen_size, crc32, color_depth,
-streaming_service, bonus, film, aspect_ratio, size, edition,
-episode_details, version, frame_rate, episode_count, season_count.
+**Where hunch matches guessit** (95–100% accuracy):
+year, video_codec, container, source, screen_size, audio_codec, crc32,
+color_depth, streaming_service, bonus, film, aspect_ratio, size, edition,
+episode_details, version, frame_rate, episode_count, season_count,
+proper_count, date, disc, episode_format, week, video_api.
 
-**Where hunch diverges** (<70% accuracy):
-episode_title (62%), language (67%), video_profile (57%),
-bonus_title (62%), alternative_title (0%).
+**Where hunch is developing** (70–90%):
+title (89%), release_group (89%), episode (90%), season (94%),
+audio_channels (95%), language (85%), subtitle_language (78%),
+episode_title (71%), other (86%), audio_profile (85%).
 
 For per-property breakdowns, per-file results, and known gaps,
 see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
@@ -91,25 +95,33 @@ see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
 ## Design
 
 Hunch does **not** port guessit's `rebulk` engine. Instead it uses a
-simpler **span-based architecture**:
+**tokenizer-first, TOML-driven architecture**:
 
-1. **Match** — 29 property matcher functions scan the input independently
-   and produce `MatchSpan`s (start, end, property, value) with priorities.
-2. **Resolve** — Overlapping spans are resolved by priority, then by
-   length (longer matches win ties).
-3. **Extract** — Title is inferred from the largest unclaimed region
-   before the first technical property. Media type and proper count are
-   computed as derived values and set directly on the result.
+1. **Tokenize** — Split input on separators (. - _ space), extract
+   extension, detect brackets, handle path segments.
+2. **Match** — TOML rule files (20 files, embedded at compile time) match
+   tokens via exact lookup, regex, and capture-group templates.
+   Algorithmic matchers handle complex patterns (episodes, title, dates).
+3. **Resolve** — Overlapping spans resolved by priority, then length.
+4. **Disambiguate** — Zone-based rules suppress false positives
+   (e.g., language words in title zone).
+5. **Extract** — Title inferred from largest unclaimed region before
+   first technical property. Episode title, media type, proper count
+   computed as derived values.
 
 ```
 Input: "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
   │
-  ├─ 1. Run 29 matcher functions → Vec<MatchSpan>
-  ├─ 2. Resolve conflicts (priority, then length)
-  ├─ 3. Extract title from unclaimed leading region
-  ├─ 4. Set computed properties (media type, proper count)
-  └─ 5. Build HunchResult (BTreeMap<Property, Vec<String>>)
+  ├─ 1. Tokenize → TokenStream (segments, tokens, extension)
+  ├─ 2. Match: TOML rules + algorithmic matchers → Vec<MatchSpan>
+  ├─ 3. Resolve conflicts (priority, then length)
+  ├─ 4. Zone-based disambiguation
+  ├─ 5. Extract title, episode_title, media_type
+  └─ 6. Build HunchResult (BTreeMap<Property, Vec<String>>)
 ```
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design, decision log,
+and module map.
 
 ## Project Structure
 
@@ -118,26 +130,30 @@ src/
 ├── lib.rs              # Public API: hunch(), hunch_with()
 ├── main.rs             # CLI binary (clap)
 ├── hunch_result.rs     # HunchResult type + JSON serialization
-├── options.rs          # Configuration (media type hint, name-only mode)
-├── pipeline.rs         # Orchestration: matchers → resolve → extract
+├── options.rs          # Configuration
+├── pipeline.rs         # Orchestration: tokenize → match → resolve → extract
+├── tokenizer.rs        # Input → TokenStream (segments, brackets, extension)
 ├── matcher/
-│   ├── span.rs         # MatchSpan + Property enum (42 variants)
-│   ├── engine.rs       # Conflict resolution (free function)
-│   └── regex_utils.rs  # ValuePattern helper for fancy_regex
-└── properties/         # 29 matcher functions (one module each)
-    ├── title.rs        # Title extraction + media type inference
-    ├── episodes.rs     # Season/episode detection (S01E02, 1x03, etc.)
-    ├── year.rs, source.rs, video_codec.rs, ...
-    └── mod.rs          # Module re-exports
+│   ├── span.rs         # MatchSpan + Property enum (55 variants)
+│   ├── engine.rs       # Conflict resolution
+│   ├── regex_utils.rs  # BoundedRegex + ValuePattern (legacy)
+│   └── rule_loader.rs  # TOML rule engine: exact + regex + templates
+└── properties/         # 31 property matcher modules
+    ├── title.rs        # Title/episode_title extraction (algorithmic)
+    ├── episodes/       # Season/episode detection (SxxExx, NxN, anime, week)
+    ├── release_group.rs # Positional release group heuristics
+    ├── bit_rate.rs     # Bit rate detection
+    └── ...             # year, date, source, language, etc.
+
+rules/                  # 20 TOML data files (compile-time embedded)
+├── video_codec.toml, audio_codec.toml, source.toml, ...
+├── language.toml, subtitle_language.toml, edition.toml, ...
+└── episode_format.toml, video_api.toml, ...
 
 tests/
-├── integration.rs      # 27 hand-written end-to-end tests
+├── integration.rs      # 32 hand-written end-to-end tests
 ├── guessit_regression.rs # 22 regression suites + compatibility report
-├── helpers/mod.rs      # Custom YAML fixture parser
 └── fixtures/           # Copied from guessit (self-contained)
-
-benches/
-└── parse.rs            # Criterion benchmarks
 ```
 
 ## License

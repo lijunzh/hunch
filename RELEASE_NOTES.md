@@ -125,21 +125,20 @@ were below 95% in v0.1.
 
 ### Near-term (v0.2.1)
 
-- **`bit_rate` property** — detect `NNNKbps` and `NN.NMbps` patterns.
-  Emitted as a single `bit_rate` (not split into audio/video — see
-  COMPATIBILITY.md for rationale).
-- **`episode_format` property** — detect "Minisode" / "Minisodes" in
-  path segments.
-- **`week` property** — detect "Week NN" patterns in episode context.
-- **Clean up dead `BitRate` variant** — wire it into the pipeline.
+- ✅ **`bit_rate` property** — detect `NNNKbps` and `NN.NMbps` patterns.
+- ✅ **`episode_format` property** — detect "Minisode" / "Minisodes".
+- ✅ **`week` property** — detect "Week NN" patterns in episode context.
+- ✅ **Title hardening** — "The 100" pattern, trailing Ep/Episode/bonus
+  markers, trailing punctuation.
+- ✅ **Release group** — language prefix stripping (HUN-nIk, TrueFrench-).
+- ⬜ **ZoneMap architecture** — anchor detection + zone-aware matching
+  to replace match-then-prune disambiguation. See ARCHITECTURE.md D006.
 
 ### Near-term (v0.2.x)
 
-- **Per-segment zone rules** — enable `AllSegments` for more properties
-  by detecting title zones within each directory name
 - **Subtitle language** (77.8% → 90%+) — migrate remaining complex
   patterns from the 406-line legacy matcher
-- **Release group** edge cases (88.7% → 93%+)
+- **Release group** edge cases (89.1% → 93%+)
 - **Episode title** improvements (70.6% → 80%+)
 
 ### Intentionally omitted guessit properties
