@@ -29,17 +29,18 @@ The problem decomposes into three sub-problems, each favoring a different approa
 
 ## Current Status
 
-**Overall: 76.6%** (1,003 / 1,309 guessit test cases). `regex`-only (no
+**Overall: 78.7%** (1,030 / 1,309 guessit test cases). `regex`-only (no
 `fancy_regex`). TOML-driven rule engine with side effects, neighbor
-constraints, zone-scope filtering, and path-segment awareness.
+constraints (`not_before`/`not_after`/`requires_after`/`requires_before`),
+zone-scope filtering, and path-segment awareness.
 
 | Tier | Properties |
 |------|------------|
-| ✅ 100% | video_api, season_count, disc, aspect_ratio, proper_count, version, bonus, film, size, frame_rate, date, episode_count, episode_format, week |
-| ✅ 95–99% | video_codec (98.6%), screen_size (98.4%), audio_codec (97.8%), edition (97.6%), year (96.1%), crc32 (96.0%), source (95.4%) |
-| ✅ 90–94% | audio_channels (94.9%), container (94.7%), season (93.7%), type (93.3%), website (90.9%), streaming_service (90.3%), episode (90.3%) |
-| 🟡 80–89% | title (89.1%), release_group (89.1%), film_title (87.5%), uuid (87.5%), video_profile (85.7%), audio_profile (85.3%), part (84.2%), other (81.7%), episode_details (81.2%) |
-| ⚠️ 60–80% | language (77.5%), subtitle_language (76.5%), episode_title (70.1%), country (69.2%), bonus_title (61.5%), absolute_episode (60.0%), cd (60.0%) |
+| ✅ 100% | video_api, season_count, disc, aspect_ratio, proper_count, version, bonus, film, size, frame_rate, date, episode_count, episode_format, week, edition, color_depth |
+| ✅ 95–99% | video_codec (98.6%), screen_size (98.4%), audio_codec (97.8%), source (97.5%), year (96.1%), crc32 (96.0%) |
+| ✅ 90–94% | audio_channels (94.9%), container (94.7%), season (93.7%), type (93.3%), website (90.9%), streaming_service (90.3%), episode (90.3%), title (90.1%) |
+| 🟡 80–89% | release_group (89.1%), film_title (87.5%), uuid (87.5%), video_profile (85.7%), audio_profile (85.3%), language (84.5%), part (84.2%), other (83.7%), episode_details (81.2%) |
+| ⚠️ 60–80% | subtitle_language (76.5%), episode_title (70.1%), country (69.2%), bonus_title (61.5%), absolute_episode (60.0%), cd (60.0%) |
 | ⚠️ <60% | cd_count (50.0%), alternative_title (43.8%) |
 
 Properties: 49/49 implemented (3 intentionally diverged — see COMPATIBILITY.md).
@@ -509,12 +510,27 @@ Retire one legacy matcher at a time, in order of coverage:
    year, crc32, uuid, website, size, part, bonus, version, aspect_ratio,
    bit_rate, episode_count
 
-### Phase C: Accuracy improvements
-1. Subtitle language (49% → 80%+) — highest ROI
-2. Title extraction (84% → 90%+) — most single-prop failures
-3. Episode title (70% → 80%+)
-4. Add missing properties: film_title, absolute_episode, bit_rates
-5. Release group edge cases
+### Phase C: Accuracy improvements (in progress)
+1. ✅ Tier 2 anchor expansion (dvd, dvdr, bd, pal, ntsc, secam)
+2. ✅ TOML fixes: bd→source, scr→other, ultra→other, ld/hq→unrestricted
+3. ✅ Audio profile HQ fix (require AAC prefix for standalone HQ)
+4. ✅ Dubbed not_after constraint (GERMAN.DUBBED → no Other)
+5. ✅ Zone Rule 5: adjacency-based HQ/FanSub pruning near release groups
+6. ✅ Zone Rule 8: source subsumption dedup (TV+HDTV → HDTV)
+7. ✅ AmazonHD side_effect (streaming_service + other:HD)
+8. ✅ requires_before engine support (symmetric with requires_after)
+9. ✅ Fix: requires_before + requires_after (surrounded by tech tokens)
+10. ✅ Complete: requires_before with expanded context list
+11. ✅ Year-as-anchor (title_len >= 6) for zone filtering
+12. ✅ Edition Collector 2-token pattern (French reversed form)
+13. ✅ Edition AllSegments scope
+14. ✅ FLEMISH → nl-be
+15. ✅ Episode title: exclude Part from stop list
+16. ✅ Bracket group title boundary detection
+17. Subtitle language (76.5% → 80%+)
+18. Title extraction edge cases (90.1%)
+19. Episode title improvements (70.1% → 80%+)
+20. Release group edge cases (89.1%)
 
 ### Phase D: Polish
 - Bump version to 0.2.1

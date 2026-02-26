@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`requires_before` constraint** in TOML rule engine — symmetric with
+  `requires_after`. A match is rejected unless the previous token
+  (lowercased) is in the list.
+- **Zone Rule 8: Source subsumption dedup** — when both a generic
+  source (TV) and a specific source (HDTV) exist, the generic is dropped.
+- **AmazonHD side_effect** — `AmazonHD` now emits both
+  `streaming_service:Amazon Prime` and `other:HD`.
+- **Tier 2 anchor expansion** — `dvd`, `dvdr`, `bd`, `pal`, `ntsc`,
+  `secam` added as unambiguous tech vocabulary for zone boundary detection.
+- **Year-as-anchor for zone filtering** — when title content before a
+  year is ≥6 bytes, the year enables zone filtering even without Tier 1/2
+  anchors. Fixes titles like `A.Common.Title.Special.2014`.
+
+### Changed
+
+- **Overall pass rate: 76.6% → 78.7%** (1,003 → 1,030 / 1,309).
+- **edition: 97.6% → 100%** on per-property accuracy.
+- **source: 95.4% → 97.5%** — BD standalone, Zone Rule 8 dedup.
+- **title: 89.1% → 90.1%** — bracket group boundary detection,
+  year-as-anchor zone filtering, Edition Collector pattern.
+- **other: 81.7% → 83.7%** — HQ/LD unrestricted, Complete context,
+  SCR screener, FanSub pruning, Dubbed not_after.
+- **language: 77.5% → 84.5%** — FLEMISH nl-be, Tier 2 anchor improvements.
+
+### Fixed
+
+- **HQ standalone** → Other:High Quality (was audio_profile:High Quality).
+  AudioProfile HQ now requires AAC prefix.
+- **LD/HQ** moved from tech_only to unrestricted zone scope
+  (fixes detection when appearing before the first Tier 2 tech token).
+- **Dubbed** no longer emits Other:Dubbed after language names
+  (GERMAN.DUBBED → just language, not Other).
+- **Complete** now requires contextual preceding token (season, language,
+  number, source) to avoid false-positive matching on title words.
+- **Fix** requires tech tokens on both sides (`requires_before` +
+  `requires_after`) per guessit semantics.
+- **Edition Collector** 2-token pattern added (French reversed form).
+- **Bracket group titles** now apply find_title_boundary
+  (`[Ayako] Infinite Stratos - IS` → `Infinite Stratos`).
+- **Episode titles** no longer stop at Part matches
+  (`Elements.Part.1.Skyhooks` → full episode title).
+- **Zone Rule 5** extended with adjacency gap and Fan Subtitled value.
+
 ## [0.2.1] - 2026-02-26
 
 ### Added
