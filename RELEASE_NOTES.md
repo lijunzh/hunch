@@ -123,6 +123,16 @@ were below 95% in v0.1.
 
 ## Road Ahead
 
+### Near-term (v0.2.1)
+
+- **`bit_rate` property** — detect `NNNKbps` and `NN.NMbps` patterns.
+  Emitted as a single `bit_rate` (not split into audio/video — see
+  COMPATIBILITY.md for rationale).
+- **`episode_format` property** — detect "Minisode" / "Minisodes" in
+  path segments.
+- **`week` property** — detect "Week NN" patterns in episode context.
+- **Clean up dead `BitRate` variant** — wire it into the pipeline.
+
 ### Near-term (v0.2.x)
 
 - **Per-segment zone rules** — enable `AllSegments` for more properties
@@ -131,6 +141,13 @@ were below 95% in v0.1.
   patterns from the 406-line legacy matcher
 - **Release group** edge cases (88.7% → 93%+)
 - **Episode title** improvements (70.6% → 80%+)
+
+### Intentionally omitted guessit properties
+
+- **`audio_bit_rate` / `video_bit_rate`** — hunch uses a single
+  `bit_rate` property. Users already have codec properties to determine
+  which stream the bitrate refers to.
+- **`mimetype`** — trivially derived from `container`. Redundant.
 
 ### Medium-term (v0.3)
 

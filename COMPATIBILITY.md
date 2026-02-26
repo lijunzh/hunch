@@ -224,6 +224,33 @@ to mean "no properties should be detected."
 harness passes these trivially (empty expected = nothing to verify).
 We accept this as a known, minor difference.
 
+### Bit Rate: Single Property (not split)
+
+**Guessit**: Splits bit rate into `audio_bit_rate` and `video_bit_rate`
+based on context (proximity to audio/video codec tokens).
+
+**Hunch**: Uses a single `bit_rate` property. In practice, a filename
+containing `320Kbps` is unambiguously audio; one containing `20Mbps` is
+unambiguously video. Users already have `audio_codec` / `video_codec`
+to determine which stream the bitrate refers to. Splitting adds
+classification complexity with no real-world benefit.
+
+**Affected test cases** (8): all `audio_bit_rate` and `video_bit_rate`
+assertions in the guessit fixture suite.
+
+### Mimetype: Intentionally Omitted
+
+**Guessit**: Derives `mimetype` from the file extension/container
+(e.g., `mp4` → `video/mp4`).
+
+**Hunch**: Does not emit `mimetype`. It is a trivial lookup from
+`container`, which hunch already provides. Duplicating derived data
+adds no information — callers who need a MIME type can map from
+`container` themselves.
+
+**Affected test cases** (3): all `mimetype` assertions in the guessit
+fixture suite.
+
 ### Release Group: Compound Groups
 
 **Guessit**: Can merge separate parts into compound release groups
@@ -295,17 +322,21 @@ but not curly-brace patterns yet.
 
 ### Niche properties at 0%
 
-| Property | Fixture Count | Description |
-|----------|--------------|-------------|
-| `alternative_title` | ~16 | Shows with alternate names |
-| `absolute_episode` | ~10 | Anime absolute numbering |
-| `film_title` | ~8 | Film numbering titles |
-| `audio_bit_rate` | ~4 | Audio bitrate |
-| `video_bit_rate` | ~4 | Video bitrate |
-| `video_api` | ~3 | DXVA, etc. |
-| `mimetype` | ~3 | File MIME type |
-| `episode_format` | ~2 | Minisode format |
-| `week` | ~1 | Week-based episode numbering |
+| Property | Fixture Count | Description | Status |
+|----------|:---:|-------------|--------|
+| `episode_format` | 2 | Minisode format | Not yet implemented |
+| `week` | 1 | Week-based episode numbering | Not yet implemented |
+
+### Intentionally divergent properties
+
+These guessit properties are **deliberately not reproduced** in hunch.
+See "Intentional Design Differences" above for rationale.
+
+| Property | Fixture Count | Reason |
+|----------|:---:|--------|
+| `audio_bit_rate` | 4 | Hunch uses single `bit_rate` |
+| `video_bit_rate` | 4 | Hunch uses single `bit_rate` |
+| `mimetype` | 3 | Derived from `container`; redundant |
 
 ### Partial Coverage Properties
 
