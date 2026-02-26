@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-02-25
+## [0.2.1] - Unreleased
 
 ### Added
 
@@ -22,12 +22,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - **`episode_format.toml`** — new TOML rule file for episode formats.
 - 5 new integration tests, 7 new unit tests.
 
+### Fixed
+
+- **Title: "The 100" pattern** — absolute episode candidates before the
+  first S/E span are now skipped, preventing numbers like `100` in
+  "The.100.S01E13" from being claimed as absolute episodes.
+- **Title: trailing keywords** — strip trailing `Episode`/`Ep` words
+  and `-xNN` bonus markers from extracted titles.
+- **Title: trailing punctuation** — strip trailing colons, hyphens,
+  commas, and semicolons that leak from separator boundaries.
+- **Release group: language prefixes** — `HUN-nIk` → `nIk`,
+  `TrueFrench-Scarface45` → `Scarface45`. Added missing language codes
+  (`hun`, `ger`, `truefrench`, etc.) to `is_known_token` to prevent
+  `expand_group_backwards` from including language prefixes.
+- **Episode title: Part boundary** — `Property::Part` now stops
+  episode title extraction (e.g., "Into The Fog of War Part 1" →
+  episode_title="Into The Fog of War", part=1).
+
 ### Changed
 
-- **Overall pass rate: 77.3% → 77.5%** (1,012 → 1,015 / 1,309 test cases).
+- **Overall pass rate: 77.3% → 78.2%** (1,012 → 1,023 / 1,309).
 - `episode_format` and `week` now 100% compatible (were 0% dead code).
 - Properties implemented: 46/49 → 49/49 (all guessit properties covered
   or intentionally diverged — see below).
+- Title accuracy: 88.4% → 89.0%.
+- Release group accuracy: 88.7% → 89.1%.
 
 ### Intentional divergences (documented)
 
