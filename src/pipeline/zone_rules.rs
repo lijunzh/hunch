@@ -145,6 +145,38 @@ pub fn apply_zone_rules(
     }
 
     // ── Rule 6: Language/SubtitleLanguage contained within a tech span ───
+
+    // ── Rule 8: Deduplicate subsumed Source values ──────────────────────────
+    // When both a generic source (TV, HD) and a specific source (HDTV, HD-DVD)
+    // exist, drop the generic one since the specific subsumes it.
+    {
+        let source_values: Vec<(usize, String)> = matches
+            .iter()
+            .filter(|m| m.property == Property::Source)
+            .map(|m| (m.start, m.value.to_string()))
+            .collect();
+        if source_values.len() > 1 {
+            // Subsumption pairs: if specific exists, drop generic.
+            const SUBSUMPTIONS: &[(&str, &str)] = &[
+                ("TV", "HDTV"),
+                ("TV", "Ultra HDTV"),
+                ("TV", "Digital TV"),
+                ("HD", "HD-DVD"),
+                ("HD", "HD Camera"),
+            ];
+            let values: Vec<&str> = source_values.iter().map(|(_, v)| v.as_str()).collect();
+            let to_drop: Vec<&str> = SUBSUMPTIONS
+                .iter()
+                .filter(|(_, specific)| values.contains(specific))
+                .map(|(generic, _)| *generic)
+                .collect();
+            if !to_drop.is_empty() {
+                matches.retain(|m| {
+                    !(m.property == Property::Source && to_drop.contains(&m.value.as_ref()))
+                });
+            }
+        }
+    }
     let tech_spans: Vec<(usize, usize)> = matches
         .iter()
         .filter(|m| {

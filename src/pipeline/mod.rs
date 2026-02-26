@@ -182,7 +182,7 @@ impl Pipeline {
                 &EDITION_RULES,
                 Property::Edition,
                 0,
-                SegmentScope::FilenameOnly,
+                SegmentScope::AllSegments,
             ),
             (&OTHER_RULES, Property::Other, 0, SegmentScope::FilenameOnly),
             (
