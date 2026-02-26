@@ -320,23 +320,11 @@ Patterns like `ST{Fr-Eng}` (both French and English subtitles) require
 compound parsing that splits within brackets. Hunch handles `[ENG+RU+PT]`
 but not curly-brace patterns yet.
 
-### Niche properties at 0%
+### Niche properties
 
-| Property | Fixture Count | Description | Status |
-|----------|:---:|-------------|--------|
-| `episode_format` | 2 | Minisode format | Not yet implemented |
-| `week` | 1 | Week-based episode numbering | Not yet implemented |
-
-### Intentionally divergent properties
-
-These guessit properties are **deliberately not reproduced** in hunch.
-See "Intentional Design Differences" above for rationale.
-
-| Property | Fixture Count | Reason |
-|----------|:---:|--------|
-| `audio_bit_rate` | 4 | Hunch uses single `bit_rate` |
-| `video_bit_rate` | 4 | Hunch uses single `bit_rate` |
-| `mimetype` | 3 | Derived from `container`; redundant |
+All guessit properties are now either implemented or intentionally
+divergent. See "Intentional Design Differences" for `audio_bit_rate`,
+`video_bit_rate`, and `mimetype`.
 
 ### Partial Coverage Properties
 

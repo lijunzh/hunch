@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-02-25
+
+### Added
+
+- **`bit_rate` property** — detects audio/video bit rates from filename
+  patterns (`320Kbps`, `19.1Mbps`, `1.5Mbps`). Emitted as a single
+  `bit_rate` (not split into audio/video — see COMPATIBILITY.md).
+  Manual position scanning handles greedy regex across dot separators.
+- **`episode_format` property** — detects episode format tags like
+  "Minisode" / "Minisodes" via TOML exact match.
+- **`week` property** — detects week-based episode markers
+  ("Week 45") in season/episode context.
+- **`episode_format.toml`** — new TOML rule file for episode formats.
+- 5 new integration tests, 7 new unit tests.
+
+### Changed
+
+- **Overall pass rate: 77.3% → 77.5%** (1,012 → 1,015 / 1,309 test cases).
+- `episode_format` and `week` now 100% compatible (were 0% dead code).
+- Properties implemented: 46/49 → 49/49 (all guessit properties covered
+  or intentionally diverged — see below).
+
+### Intentional divergences (documented)
+
+- **`audio_bit_rate` / `video_bit_rate`**: hunch uses a single `bit_rate`
+  property. Users already have codec properties for stream context.
+- **`mimetype`**: trivially derived from `container`; redundant.
+
 ## [0.2.0] - 2026-02-25
 
 ### Added
@@ -135,6 +163,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[0.2.1]: https://github.com/lijunzh/hunch/releases/tag/v0.2.1
 [0.2.0]: https://github.com/lijunzh/hunch/releases/tag/v0.2.0
 [0.1.2]: https://github.com/lijunzh/hunch/releases/tag/v0.1.2
 [0.1.1]: https://github.com/lijunzh/hunch/releases/tag/v0.1.1
