@@ -510,6 +510,11 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
     // Collapse multiple spaces and trim.
     let mut result = collapse_spaces(&cleaned);
 
+    // Strip trailing punctuation that leaks from separator boundaries.
+    result = result.trim_end_matches(|c: char| c == ':' || c == '-' || c == ',' || c == ';')
+        .trim()
+        .to_string();
+
     if strip_season_part {
         // Strip trailing "Part" + optional roman/number: "The Godfather Part III" → "The Godfather".
         let re_part =
