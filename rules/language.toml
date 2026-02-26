@@ -113,6 +113,11 @@ match = '(?i)^fran[cç]aise?$'
 value = "French"
 
 [[patterns]]
+# Español Castellano / Espanol.Castellano (compound → Catalan, not Spanish)
+match = '(?i)^espa[nñ]ol[-. ]castellano$'
+value = "Catalan"
+
+[[patterns]]
 # Español / Espanol
 match = '(?i)^espa[nñ]ol$'
 value = "Spanish"

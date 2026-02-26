@@ -1,110 +1,24 @@
-//! Language detection.
+//! Language detection — bracket/brace multi-language codes only.
 //!
-//! Detects language tags commonly found in media filenames.
-//! While we don't fully implement guessit's language system (which uses
-//! babelfish), we detect the most common language tokens to help
-//! title extraction stop at the right place.
+//! Simple language tokens are handled by `rules/language.toml`.
+//! This module handles ONLY the custom parsing cases that TOML cannot express:
+//! - Bracketed multi-language: `[ENG+RU+PT]`, `[ENG+DE+IT]`
+//! - Brace-delimited codes: `{Fr-Eng}`, `{Fr-Eng}`
 
-use regex::Regex;
-
-use crate::matcher::regex_utils::ValuePattern;
 use crate::matcher::span::{MatchSpan, Property};
+use regex::Regex;
 use std::sync::LazyLock;
-
-static LANGUAGE_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
-    vec![
-        // Full names (case-insensitive, word-bounded).
-        ValuePattern::new(r"(?i)(?<![a-z])English(?![a-z])", "English"),
-        ValuePattern::new(r"(?i)(?<![a-z])French(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])Spanish(?![a-z])", "Spanish"),
-        ValuePattern::new(r"(?i)(?<![a-z])German(?![a-z])", "German"),
-        ValuePattern::new(r"(?i)(?<![a-z])Italian(?![a-z])", "Italian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Portuguese(?![a-z])", "Portuguese"),
-        ValuePattern::new(r"(?i)(?<![a-z])Russian(?![a-z])", "Russian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Japanese(?![a-z])", "Japanese"),
-        ValuePattern::new(r"(?i)(?<![a-z])Chinese(?![a-z])", "Chinese"),
-        ValuePattern::new(r"(?i)(?<![a-z])Korean(?![a-z])", "Korean"),
-        ValuePattern::new(r"(?i)(?<![a-z])Arabic(?![a-z])", "Arabic"),
-        ValuePattern::new(r"(?i)(?<![a-z])Hindi(?![a-z])", "Hindi"),
-        ValuePattern::new(r"(?i)(?<![a-z])Dutch(?![a-z])", "Dutch"),
-        ValuePattern::new(r"(?i)(?<![a-z])Swedish(?![a-z])", "Swedish"),
-        ValuePattern::new(r"(?i)(?<![a-z])Norwegian(?![a-z])", "Norwegian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Danish(?![a-z])", "Danish"),
-        ValuePattern::new(r"(?i)(?<![a-z])Finnish(?![a-z])", "Finnish"),
-        ValuePattern::new(r"(?i)(?<![a-z])Polish(?![a-z])", "Polish"),
-        ValuePattern::new(r"(?i)(?<![a-z])Czech(?![a-z])", "Czech"),
-        ValuePattern::new(r"(?i)(?<![a-z])Turkish(?![a-z])", "Turkish"),
-        ValuePattern::new(r"(?i)(?<![a-z])Greek(?![a-z])", "Greek"),
-        ValuePattern::new(r"(?i)(?<![a-z])Hungarian(?![a-z])", "Hungarian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Romanian(?![a-z])", "Romanian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Thai(?![a-z])", "Thai"),
-        ValuePattern::new(r"(?i)(?<![a-z])Vietnamese(?![a-z])", "Vietnamese"),
-        ValuePattern::new(r"(?i)(?<![a-z])Catalan(?![a-z])", "Catalan"),
-        ValuePattern::new(r"(?i)(?<![a-z])Croatian(?![a-z])", "Croatian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Serbian(?![a-z])", "Serbian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Bulgarian(?![a-z])", "Bulgarian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Ukrainian(?![a-z])", "Ukrainian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Hebrew(?![a-z])", "Hebrew"),
-        // Localized language names.
-        ValuePattern::new(r"(?i)(?<![a-z])Fran[cç]ais(?:e)?(?![a-z])", "French"),
-        ValuePattern::new(
-            r"(?i)(?<![a-z])Espa[nñ]ol[. ]Castellano(?![a-z])",
-            "Catalan",
-        ),
-        ValuePattern::new(r"(?i)(?<![a-z])Espa[nñ]ol(?![a-z])", "Spanish"),
-        ValuePattern::new(r"(?i)(?<![a-z])Castellano(?![a-z])", "Catalan"),
-        ValuePattern::new(r"(?i)(?<![a-z])Deutsch(?![a-z])", "German"),
-        ValuePattern::new(r"(?i)(?<![a-z])Italiano(?![a-z])", "Italian"),
-        ValuePattern::new(r"(?i)(?<![a-z])Portugu[eê]s(?![a-z])", "Portuguese"),
-        ValuePattern::new(r"(?i)(?<![a-z])Vostfr(?![a-z])", "French"),
-        // Common abbreviation tags.
-        ValuePattern::new(r"(?i)(?<![a-z])FRENCH(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])TRUEFRENCH(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])VFF(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])VFQ(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])VFI(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])VF2(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])VF(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])SPANISH(?![a-z])", "Spanish"),
-        ValuePattern::new(r"(?i)(?<![a-z])GERMAN(?![a-z])", "German"),
-        ValuePattern::new(r"(?i)(?<![a-z])ITALIAN(?![a-z])", "Italian"),
-        ValuePattern::new(r"(?i)(?<![a-z])LATINO(?![a-z])", "Spanish"),
-        ValuePattern::new(r"(?i)(?<![a-z])MULTI(?:LANG(?:UAGE)?)?(?![a-z])", "mul"),
-        ValuePattern::new(r"(?i)(?<![a-z])ENG(?![a-z])", "English"),
-        ValuePattern::new(r"(?i)(?<![a-z])ITA(?![a-z])", "Italian"),
-        ValuePattern::new(r"(?i)(?<![a-z])SPA(?![a-z])", "Spanish"),
-        ValuePattern::new(r"(?i)(?<![a-z])GER(?![a-z])", "German"),
-        ValuePattern::new(r"(?i)(?<![a-z])FRE(?![a-z])", "French"),
-        ValuePattern::new(r"(?i)(?<![a-z])JPN(?![a-z])", "Japanese"),
-        ValuePattern::new(r"(?i)(?<![a-z])RUS(?![a-z])", "Russian"),
-        ValuePattern::new(r"(?i)(?<![a-z])KOR(?![a-z])", "Korean"),
-        ValuePattern::new(r"(?i)(?<![a-z])FLEMISH(?![a-z])", "nl"),
-        ValuePattern::new(r"(?i)(?<![a-z])Ukr(?![a-z])", "Ukrainian"),
-        ValuePattern::new(r"(?i)(?<![a-z])DUBLADO(?![a-z])", "und"),
-        ValuePattern::new(r"(?i)(?<![a-z])Dual[. ]?Audio(?![a-z])", "und"),
-        // DL = Dual Language / multilingual (but NOT inside WEB-DL).
-        ValuePattern::new(r"(?i)(?<!WEB[-. ])(?<![a-z])DL(?![a-z])", "mul"),
-    ]
-});
 
 /// Matches bracketed multi-language codes: [ENG+RU+PT], [ENG+DE+IT].
 static BRACKET_LANGS: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\[([A-Za-z]{2,4}(?:[+][A-Za-z]{2,4})+)\]").unwrap());
+    LazyLock::new(|| Regex::new(r"[\[{]([A-Za-z]{2,4}(?:[+-][A-Za-z]{2,4})+)[\]}]").unwrap());
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
-    for pattern in LANGUAGE_PATTERNS.iter() {
-        for (start, end) in pattern.find_iter(input) {
-            matches.push(
-                MatchSpan::new(start, end, Property::Language, pattern.value).with_priority(-1),
-            );
-        }
-    }
 
-    // Parse bracketed multi-language codes: [ENG+RU+PT].
     for cap in BRACKET_LANGS.find_iter(input) {
         let inner = &input[cap.start() + 1..cap.end() - 1];
-        for code in inner.split('+') {
+        for code in inner.split(['+', '-']) {
             if let Some(lang) = lang_code_to_name(code) {
                 matches.push(
                     MatchSpan::new(cap.start(), cap.end(), Property::Language, lang)
@@ -151,35 +65,46 @@ fn lang_code_to_name(code: &str) -> Option<&'static str> {
         "SR" | "SRP" => Some("Serbian"),
         "BG" | "BUL" => Some("Bulgarian"),
         "CA" | "CAT" => Some("Catalan"),
+        "IND" => Some("id"),
+        "ST" => None, // "St" is subtitle marker, not a language
         _ => None,
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::hunch;
+
+    fn lang(input: &str) -> Option<String> {
+        let map = hunch(input).to_flat_map();
+        map.get("language")
+            .map(|v| match v {
+                serde_json::Value::String(s) => s.clone(),
+                serde_json::Value::Array(arr) => {
+                    let strs: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
+                    strs.join(", ")
+                }
+                _ => format!("{v}"),
+            })
+    }
 
     #[test]
     fn test_french() {
-        let m = find_matches("Movie.FRENCH.DVDRip.mkv");
-        assert!(m.iter().any(|x| x.value == "French"));
+        assert_eq!(lang("Movie.FRENCH.DVDRip.mkv"), Some("French".into()));
     }
 
     #[test]
     fn test_english() {
-        let m = find_matches("Movie.English.mkv");
-        assert!(m.iter().any(|x| x.value == "English"));
+        assert_eq!(lang("Movie.English.mkv"), Some("English".into()));
     }
 
     #[test]
     fn test_spanish() {
-        let m = find_matches("Movie.Spanish.mkv");
-        assert!(m.iter().any(|x| x.value == "Spanish"));
+        assert_eq!(lang("Movie.Spanish.mkv"), Some("Spanish".into()));
     }
 
     #[test]
     fn test_multi() {
-        let m = find_matches("Movie.MULTi.1080p.mkv");
-        assert!(m.iter().any(|x| x.value == "mul"));
+        assert_eq!(lang("Movie.MULTi.1080p.mkv"), Some("mul".into()));
     }
 }
