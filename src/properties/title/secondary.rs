@@ -27,11 +27,15 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
 
     let ep_title_start = last_ep_match.end;
 
+    // Properties that should stop episode title extraction.
+    // Part is intentionally excluded — episode titles often contain "Part N".
     let technical_props = [
         Property::VideoCodec, Property::AudioCodec, Property::Source,
         Property::ScreenSize, Property::Edition, Property::Other,
-        Property::AudioChannels, Property::Language, Property::Container,
-        Property::StreamingService, Property::Year, Property::Part,
+        Property::Language, Property::AudioChannels, Property::Container,
+        Property::StreamingService, Property::Year,
+        Property::FrameRate, Property::ColorDepth,
+        Property::VideoProfile,
     ];
 
     let next_tech = matches

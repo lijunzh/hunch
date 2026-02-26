@@ -61,7 +61,7 @@ vfi         = "French"
 vf2         = "French"
 vf          = "French"
 latino      = "Spanish"
-flemish     = "nl"
+flemish     = "nl-be"
 
 # ISO 639-3 / common 3-letter codes
 eng = "English"
