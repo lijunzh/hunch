@@ -259,6 +259,13 @@ fn extract_after_bracket_group(
     }
 
     let raw = &input[title_start_abs..title_end_abs];
+
+    // Apply structural boundary detection (" - ", "--", "(").
+    let title_end_abs = find_title_boundary(raw)
+        .map(|offset| title_start_abs + offset)
+        .unwrap_or(title_end_abs);
+    let raw = &input[title_start_abs..title_end_abs];
+
     let cleaned = clean_title(raw);
     if cleaned.is_empty() {
         return None;
