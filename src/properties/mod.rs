@@ -1,4 +1,12 @@
-//! Property matchers — each module exports a `find_matches(input) -> Vec<MatchSpan>` function.
+//! Property matchers and TOML integration tests.
+//!
+//! Modules fall into three categories:
+//! - **Algorithmic matchers**: export `find_matches(input) -> Vec<MatchSpan>`
+//!   (episodes, title, release_group, date, year, etc.)
+//! - **Cooperative legacy**: export `find_matches` for patterns TOML can't
+//!   express (language bracket codes, subtitle_language extensions)
+//! - **TOML-only test shells**: no `find_matches`, just `#[cfg(test)]`
+//!   integration tests for their TOML rule files (video_codec, source, etc.)
 
 pub mod aspect_ratio;
 pub mod audio_codec;

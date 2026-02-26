@@ -259,34 +259,31 @@ macro_rules! guessit_test_file {
 }
 
 /// Minimum pass rates per fixture file — ratchet up, never down.
-/// Set to (actual - 2%). Last calibrated: 2026-02-25.
-/// NOTE: Floors temporarily lowered during v0.2 TOML migration.
-/// Edge-case regressions from parallel TOML+legacy matching will be
-/// fixed once legacy matchers are trimmed. See ARCHITECTURE.md D001-D003.
+/// Set to (actual - 2%). Last calibrated: 2026-02-26 (v0.2.1).
 fn min_pass_rate(path: &str) -> f64 {
     match path {
         "tests/fixtures/rules/screen_size.yml" => 98.0,
         "tests/fixtures/rules/size.yml" => 98.0,
         "tests/fixtures/rules/edition.yml" => 98.0,
-        "tests/fixtures/rules/other.yml" => 93.0,
+        "tests/fixtures/rules/source.yml" => 98.0,
+        "tests/fixtures/rules/audio_codec.yml" => 98.0,
         "tests/fixtures/rules/video_codec.yml" => 98.0,
-        "tests/fixtures/rules/common_words.yml" => 92.0,
-        "tests/fixtures/rules/source.yml" => 89.0,
-        "tests/fixtures/rules/audio_codec.yml" => 86.0,
-        "tests/fixtures/rules/episodes.yml" => 86.0,
+        "tests/fixtures/rules/part.yml" => 98.0,
+        "tests/fixtures/rules/common_words.yml" => 97.0,
+        "tests/fixtures/rules/other.yml" => 94.0,
+        "tests/fixtures/rules/episodes.yml" => 92.0,
         "tests/fixtures/rules/release_group.yml" => 76.0,
         "tests/fixtures/rules/title.yml" => 75.0,
+        "tests/fixtures/rules/language.yml" => 75.0,
+        "tests/fixtures/rules/date.yml" => 73.0,
         "tests/fixtures/rules/bonus.yml" => 64.0,
         "tests/fixtures/rules/country.yml" => 64.0,
-        "tests/fixtures/rules/date.yml" => 60.0,
-        "tests/fixtures/rules/part.yml" => 53.0,
+        "tests/fixtures/rules/film.yml" => 64.0,
         "tests/fixtures/rules/cd.yml" => 48.0,
         "tests/fixtures/rules/website.yml" => 48.0,
-        "tests/fixtures/rules/language.yml" => 31.0,
-        "tests/fixtures/rules/film.yml" => 0.0,
-        "tests/fixtures/movies.yml" => 63.0,
-        "tests/fixtures/episodes.yml" => 60.0,
-        "tests/fixtures/various.yml" => 56.0,
+        "tests/fixtures/movies.yml" => 66.0,
+        "tests/fixtures/episodes.yml" => 62.0,
+        "tests/fixtures/various.yml" => 63.0,
         _ => 0.0,
     }
 }
