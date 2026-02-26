@@ -35,6 +35,7 @@
 pub mod matcher;
 pub mod properties;
 pub mod tokenizer;
+pub mod zone_map;
 
 mod hunch_result;
 mod options;
