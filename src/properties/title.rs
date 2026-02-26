@@ -377,6 +377,7 @@ fn is_generic_dir(name: &str) -> bool {
     ) || lower.starts_with("season")
         || lower.starts_with("saison")
         || lower.starts_with("temporada")
+        || lower.starts_with("stagione")
 }
 
 /// Detect if a title looks like a scene abbreviation (e.g., "dmd", "wthd-cab", "i-smwhr").
@@ -532,7 +533,7 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
 
         // Strip trailing season words: "Dexter Saison VII" → "Dexter".
         let re_season_word = regex::Regex::new(
-            r"(?i)\s+(?:Saison|Temporada|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
+            r"(?i)\s+(?:Saison|Temporada|Stagione|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
         ).unwrap();
         if let Some(m) = re_season_word.find(&result) {
             let stripped = result[..m.start()].to_string();

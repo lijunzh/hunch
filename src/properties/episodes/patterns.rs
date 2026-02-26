@@ -81,18 +81,18 @@ pub(super) static BARE_EPISODE: LazyLock<Regex> =
 
 pub(super) static SEASON_ONLY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Tem\.?)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])",
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Stagione|Tem\.?)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])",
     )
 });
 
 pub(super) static SEASON_ROMAN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<season>(?:X{0,3})(?:IX|IV|V?I{0,3}))(?![a-z])",
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Stagione)\s*\.?\s*(?P<season>(?:X{0,3})(?:IX|IV|V?I{0,3}))(?![a-z])",
     )
 });
 
 pub(super) static SEASON_DIR: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?:Season|Saison|Temporada)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])")
+    Regex::new(r"(?i)(?:Season|Saison|Temporada|Stagione)\s*\.?\s*(?P<season>\d{1,2})(?:[/\\])")
 });
 
 /// S01-only without episode.
@@ -105,19 +105,19 @@ pub(super) static S_RANGE: LazyLock<Regex> = LazyLock::new(|| {
 
 pub(super) static SEASON_MULTI: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<seasons>\d{1,2}(?:\s*[-&.,]\s*\d{1,2})+)(?![a-z0-9])",
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Stagione)\s*\.?\s*(?P<seasons>\d{1,2}(?:\s*[-&.,]\s*\d{1,2})+)(?![a-z0-9])",
     )
 });
 
 pub(super) static SEASON_MULTI_RANGE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<prefix>\d{1,2}(?:[. ]\d{1,2})*)\s*[. ]?\s*(?:~|to)\s*\.?\s*(?P<end>\d{1,2})(?![a-z0-9])",
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Stagione)\s*\.?\s*(?P<prefix>\d{1,2}(?:[. ]\d{1,2})*)\s*[. ]?\s*(?:~|to)\s*\.?\s*(?P<end>\d{1,2})(?![a-z0-9])",
     )
 });
 
 pub(super) static SEASON_RANGE_WORD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<s1>\d{1,2})\s*\.?\s*(?:to|~|a|\.\.)\s*\.?\s*(?P<s2>\d{1,2})(?![a-z0-9])",
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Stagione)\s*\.?\s*(?P<s1>\d{1,2})\s*\.?\s*(?:to|~|a|\.\.)\s*\.?\s*(?P<s2>\d{1,2})(?![a-z0-9])",
     )
 });
 
@@ -135,7 +135,7 @@ pub(super) static S_TO_S: LazyLock<Regex> = LazyLock::new(|| {
 
 pub(super) static SEASON_LIST_AND: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada)\s*\.?\s*(?P<nums>\d{1,2}(?:[. ]\d{1,2})*)[. ](?:and|&)\s*(?P<last>\d{1,2})(?![a-z0-9])",
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Stagione)\s*\.?\s*(?P<nums>\d{1,2}(?:[. ]\d{1,2})*)[. ](?:and|&)\s*(?P<last>\d{1,2})(?![a-z0-9])",
     )
 });
 
