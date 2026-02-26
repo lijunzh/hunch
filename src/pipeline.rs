@@ -102,23 +102,27 @@ impl Default for Pipeline {
 impl Pipeline {
     pub fn new(options: Options) -> Self {
         let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)> = vec![
-            // Tech properties: filename only (dirs would cause false positives)
-            (&VIDEO_CODEC_RULES, Property::VideoCodec, 0, SegmentScope::FilenameOnly),
-            (&COLOR_DEPTH_RULES, Property::ColorDepth, 0, SegmentScope::FilenameOnly),
+            // Tech properties: unambiguous tokens safe for all segments.
+            // These were previously scanned across full paths by legacy matchers.
+            // Tokens like XviD, x264, 720p, AAC are unambiguous in directory names.
+            (&VIDEO_CODEC_RULES, Property::VideoCodec, 0, SegmentScope::AllSegments),
+            (&COLOR_DEPTH_RULES, Property::ColorDepth, 0, SegmentScope::AllSegments),
+            (&AUDIO_CODEC_RULES, Property::AudioCodec, 0, SegmentScope::AllSegments),
+            (&AUDIO_PROFILE_RULES, Property::AudioProfile, 1, SegmentScope::AllSegments),
+            (&AUDIO_CHANNELS_RULES, Property::AudioChannels, -1, SegmentScope::AllSegments),
+            (&FRAME_RATE_RULES, Property::FrameRate, 0, SegmentScope::AllSegments),
+            (&SCREEN_SIZE_RULES, Property::ScreenSize, 0, SegmentScope::AllSegments),
+            // Tech properties: ambiguous tokens, filename only.
+            // Short tokens (HD, DV, TV, TS) would false-positive in dir names.
             (&STREAMING_SERVICE_RULES, Property::StreamingService, 1, SegmentScope::FilenameOnly),
             (&VIDEO_PROFILE_RULES, Property::VideoProfile, -2, SegmentScope::FilenameOnly),
             (&EPISODE_DETAILS_RULES, Property::EpisodeDetails, -1, SegmentScope::FilenameOnly),
             (&EDITION_RULES, Property::Edition, 0, SegmentScope::FilenameOnly),
-            (&AUDIO_CODEC_RULES, Property::AudioCodec, 0, SegmentScope::FilenameOnly),
-            (&AUDIO_PROFILE_RULES, Property::AudioProfile, 1, SegmentScope::FilenameOnly),
-            (&AUDIO_CHANNELS_RULES, Property::AudioChannels, -1, SegmentScope::FilenameOnly),
             (&OTHER_RULES, Property::Other, 0, SegmentScope::FilenameOnly),
             (&OTHER_WEAK_RULES, Property::Other, -2, SegmentScope::FilenameOnly),
             (&VIDEO_API_RULES, Property::VideoApi, 0, SegmentScope::FilenameOnly),
             (&SOURCE_RULES, Property::Source, 0, SegmentScope::FilenameOnly),
-            (&SCREEN_SIZE_RULES, Property::ScreenSize, 0, SegmentScope::FilenameOnly),
             (&CONTAINER_RULES, Property::Container, 5, SegmentScope::FilenameOnly),
-            (&FRAME_RATE_RULES, Property::FrameRate, 0, SegmentScope::FilenameOnly),
             // Contextual properties: match all segments (dirs carry real metadata)
             // NOTE: Language, SubtitleLanguage, and Country are kept FilenameOnly
             // for now because directory names contain title words that false-match
