@@ -384,25 +384,37 @@ impl Pipeline {
                     && m.start < title_zone_mid)
             });
         } else {
-            // No technical tokens. Only prune language if the input
-            // clearly has non-language content (avoids killing bare
-            // language tags like "+English" or ".ENG.").
-            let non_lang_span_bytes: usize = matches
+            // No technical tokens. Prune language when there's substantial
+            // unmatched content that looks like a title (e.g., "Italian"
+            // in "The_Italian_Job.mkv" is a title word, not a language).
+            // Keep language when it's the only content or nearly so.
+            let lang_matches: Vec<&MatchSpan> = matches
                 .iter()
-                .filter(|m| {
-                    m.start >= fn_start
-                        && !matches!(
-                            m.property,
-                            Property::Language
-                                | Property::SubtitleLanguage
-                                | Property::Container
-                                | Property::Country
-                        )
-                })
-                .map(|m| m.end - m.start)
-                .sum();
-            if non_lang_span_bytes > 0 {
-                matches.retain(|m| m.property != Property::Language);
+                .filter(|m| m.start >= fn_start && m.property == Property::Language)
+                .collect();
+
+            if !lang_matches.is_empty() {
+                // Count unmatched bytes in the filename (content not covered
+                // by any match). Many unmatched bytes = title words present.
+                let fn_end = input.len();
+                let matched_bytes: usize = matches
+                    .iter()
+                    .filter(|m| m.start >= fn_start)
+                    .map(|m| m.end.saturating_sub(m.start))
+                    .sum();
+                let unmatched = (fn_end - fn_start).saturating_sub(matched_bytes);
+
+                // If unmatched content is longer than the language match,
+                // the language is likely a title word.
+                let lang_bytes: usize = lang_matches
+                    .iter()
+                    .map(|m| m.end.saturating_sub(m.start))
+                    .sum();
+                if unmatched > lang_bytes {
+                    matches.retain(|m| {
+                        !(m.property == Property::Language && m.start >= fn_start)
+                    });
+                }
             }
         }
 
