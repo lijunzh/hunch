@@ -44,58 +44,6 @@ impl CharClass {
     }
 }
 
-/// A compiled pattern with a canonical output value.
-///
-/// Uses standard `regex::Regex` with post-match boundary checks.
-/// Leading/trailing lookaround assertions are stripped and converted
-/// to `BoundarySpec` checks at match time.
-pub struct ValuePattern {
-    regex: Regex,
-    pub value: &'static str,
-    pub boundary: BoundarySpec,
-}
-
-impl ValuePattern {
-    /// Create a new ValuePattern.
-    ///
-    /// Leading/trailing lookaround assertions are stripped and converted
-    /// to boundary specs. The remaining pattern is compiled with standard `regex`.
-    ///
-    /// # Panics
-    /// Panics if the pattern (after stripping boundaries) is not valid standard regex.
-    /// Internal lookarounds are NOT supported — rewrite them as boundary specs or
-    /// compound patterns.
-    pub fn new(pattern: &str, value: &'static str) -> Self {
-        let (core, boundary) = strip_boundaries(pattern);
-        let regex = Regex::new(&core)
-            .unwrap_or_else(|e| panic!("Bad regex `{pattern}` (core: `{core}`): {e}"));
-        Self {
-            regex,
-            value,
-            boundary,
-        }
-    }
-
-    /// Find all non-overlapping matches, returning `(start, end)` byte offsets.
-    pub fn find_iter<'a>(&'a self, input: &'a str) -> Vec<(usize, usize)> {
-        let bytes = input.as_bytes();
-        let mut results = Vec::new();
-        let mut pos = 0;
-        while pos < input.len() {
-            if let Some(m) = self.regex.find_at(input, pos) {
-                if check_boundary(bytes, m.start(), m.end(), &self.boundary) {
-                    results.push((m.start(), m.end()));
-                    pos = m.end().max(pos + 1);
-                } else {
-                    pos = m.start() + 1;
-                }
-            } else {
-                break;
-            }
-        }
-        results
-    }
-}
 
 /// Check that the boundary conditions hold for a match at `[start..end]`.
 pub fn check_boundary(input: &[u8], start: usize, end: usize, spec: &BoundarySpec) -> bool {
@@ -367,30 +315,6 @@ mod tests {
         assert!(spec.right.is_some());
     }
 
-    #[test]
-    fn test_value_pattern_basic() {
-        let vp = ValuePattern::new(r"(?i)(?<![a-z])HELLO(?![a-z])", "hello");
-        // Should match standalone HELLO
-        let m = vp.find_iter("abc.HELLO.xyz");
-        assert_eq!(m, vec![(4, 9)]);
-        // Should NOT match HELLO inside a word
-        let m = vp.find_iter("abcHELLOxyz");
-        assert!(m.is_empty());
-    }
-
-    #[test]
-    fn test_value_pattern_at_boundaries() {
-        let vp = ValuePattern::new(r"(?i)(?<![a-z])HDR(?![a-z0-9])", "HDR10");
-        // At start of string
-        let m = vp.find_iter("HDR.Movie");
-        assert_eq!(m, vec![(0, 3)]);
-        // At end of string
-        let m = vp.find_iter("Movie.HDR");
-        assert_eq!(m, vec![(6, 9)]);
-        // Should NOT match when followed by digit
-        let m = vp.find_iter("Movie.HDR10");
-        assert!(m.is_empty());
-    }
 
     #[test]
     fn test_custom_char_class() {

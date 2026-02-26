@@ -1,42 +1,53 @@
 //! Year detection (4-digit years in a reasonable range).
 
-use crate::matcher::regex_utils::ValuePattern;
+use regex::Regex;
+
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
 const MIN_YEAR: i32 = 1920;
 const MAX_YEAR: i32 = 2029;
 
-static YEAR_RE: LazyLock<ValuePattern> = LazyLock::new(|| {
-    ValuePattern::new(
-        r"(?<![0-9])(?:19|20)\d{2}(?![0-9])",
-        "", // value computed dynamically
-    )
-});
+static YEAR_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:19|20)\d{2}").unwrap());
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
+    let bytes = input.as_bytes();
     let mut matches = Vec::new();
-    for (start, end) in YEAR_RE.find_iter(input) {
-        let raw = &input[start..end];
-        if let Ok(year) = raw.parse::<i32>()
-            && (MIN_YEAR..=MAX_YEAR).contains(&year)
-        {
-            // Skip years that are part of technical terms (BT2020, x1920, etc.).
-            if start > 0 {
-                let prev = input.as_bytes()[start - 1];
-                if prev.is_ascii_alphabetic() {
-                    continue;
-                }
-            }
-            // Skip "1920x1080" and similar resolution patterns.
-            if end < input.len() {
-                let next = input.as_bytes()[end];
-                if next == b'x' || next == b'X' {
-                    continue;
-                }
-            }
-            matches.push(MatchSpan::new(start, end, Property::Year, raw).with_priority(-1));
+    let mut pos = 0;
+    while pos < input.len() {
+        let Some(m) = YEAR_RE.find_at(input, pos) else {
+            break;
+        };
+        pos = m.start() + 1;
+
+        // Boundary: no digit before or after.
+        if m.start() > 0 && bytes[m.start() - 1].is_ascii_digit() {
+            continue;
         }
+        if m.end() < bytes.len() && bytes[m.end()].is_ascii_digit() {
+            continue;
+        }
+
+        let raw = m.as_str();
+        let Ok(year) = raw.parse::<i32>() else {
+            continue;
+        };
+        if !(MIN_YEAR..=MAX_YEAR).contains(&year) {
+            continue;
+        }
+
+        // Skip years attached to tech terms: BT2020, x1920.
+        if m.start() > 0 && bytes[m.start() - 1].is_ascii_alphabetic() {
+            continue;
+        }
+        // Skip "1920x1080" resolution patterns.
+        if m.end() < bytes.len() && matches!(bytes[m.end()], b'x' | b'X') {
+            continue;
+        }
+
+        matches.push(MatchSpan::new(m.start(), m.end(), Property::Year, raw).with_priority(-1));
+        pos = m.end();
     }
     matches
 }
