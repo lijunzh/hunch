@@ -1,8 +1,11 @@
-//! Pipeline v0.2: tokenize → match → zones → title → result.
+//! Pipeline v0.2.1: tokenize → zones → match → disambiguate → title → result.
 //!
-//! The v0.2 pipeline tokenizes the input first, then matches tokens
-//! against TOML rules and raw-string patterns. Zone detection replaces
-//! the v0.1 prune_* heuristics.
+//! The pipeline tokenizes the input, builds zone boundaries, then matches
+//! tokens against TOML rules and legacy matchers. Zone-aware disambiguation
+//! replaces v0.1 prune_* heuristics.
+
+mod proper_count;
+mod zone_rules;
 
 use crate::hunch_result::HunchResult;
 use crate::matcher::engine;
@@ -17,45 +20,45 @@ use std::sync::LazyLock;
 // ── TOML rule sets (embedded at compile time) ──────────────────────────────
 
 static VIDEO_CODEC_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_codec.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_codec.toml")));
 static COLOR_DEPTH_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/color_depth.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/color_depth.toml")));
 static COUNTRY_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/country.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/country.toml")));
 static STREAMING_SERVICE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/streaming_service.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/streaming_service.toml")));
 static VIDEO_PROFILE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_profile.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_profile.toml")));
 static EPISODE_DETAILS_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/episode_details.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/episode_details.toml")));
 static EDITION_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/edition.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/edition.toml")));
 static AUDIO_CODEC_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_codec.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_codec.toml")));
 static AUDIO_PROFILE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_profile.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_profile.toml")));
 static AUDIO_CHANNELS_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_channels.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_channels.toml")));
 static OTHER_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/other.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other.toml")));
 static OTHER_WEAK_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/other_weak.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other_weak.toml")));
 static VIDEO_API_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_api.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_api.toml")));
 static SOURCE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/source.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/source.toml")));
 static SCREEN_SIZE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/screen_size.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/screen_size.toml")));
 static CONTAINER_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/container.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/container.toml")));
 static FRAME_RATE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/frame_rate.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/frame_rate.toml")));
 static LANGUAGE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/language.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/language.toml")));
 static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/subtitle_language.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/subtitle_language.toml")));
 static EPISODE_FORMAT_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/episode_format.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/episode_format.toml")));
 
 // ── Legacy matchers (not yet migrated to TOML) ─────────────────────────────
 
@@ -297,11 +300,13 @@ impl Pipeline {
         // Step 3: Resolve overlapping conflicts.
         engine::resolve_conflicts(&mut all_matches);
 
-        // Step 4: Zone-based disambiguation (replaces prune_* functions).
-        self.apply_zone_rules(input, &token_stream, &mut all_matches);
+        // Step 4: Zone-based disambiguation.
+        // Uses ZoneMap for structural zone boundaries instead of re-deriving
+        // them from match positions (v0.2.1 improvement).
+        zone_rules::apply_zone_rules(input, &zone_map, &mut all_matches);
 
         // Step 5: Post-processing.
-        if let Some(title_match) = title::extract_title(input, &all_matches) {
+        if let Some(title_match) = title::extract_title(input, &all_matches, &zone_map) {
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
@@ -318,7 +323,7 @@ impl Pipeline {
         }
 
         let media_type = title::infer_media_type(&all_matches);
-        let proper_count = compute_proper_count(input, &all_matches);
+        let proper_count = proper_count::compute_proper_count(input, &all_matches);
 
         // Step 6: Build result.
         let mut result = HunchResult::from_matches(&all_matches);
@@ -492,257 +497,6 @@ impl Pipeline {
             }
         }
     }
-
-    /// Zone-based disambiguation.
-    ///
-    /// Replaces the v0.1 prune_* functions with structural zone detection.
-    /// The "title zone" is everything before the first anchor (tech token).
-    /// Language/source/episode_details in the title zone are likely title words.
-    fn apply_zone_rules(
-        &self,
-        input: &str,
-        _token_stream: &TokenStream,
-        matches: &mut Vec<MatchSpan>,
-    ) {
-        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-
-        // ── Rule 1: Language in title zone → likely a title word ─────────
-        // Anchor set for language zone: ALL technical properties.
-        let lang_anchor_props = [
-            Property::Year,
-            Property::VideoCodec,
-            Property::AudioCodec,
-            Property::Source,
-            Property::ScreenSize,
-            Property::Edition,
-            Property::Other,
-            Property::AudioChannels,
-            Property::Season,
-            Property::Episode,
-            Property::StreamingService,
-        ];
-
-        let first_tech_pos = matches
-            .iter()
-            .filter(|m| m.start >= fn_start && lang_anchor_props.contains(&m.property))
-            .map(|m| m.start)
-            .min();
-
-        if let Some(tech_pos) = first_tech_pos {
-            let title_zone_mid = fn_start + (tech_pos - fn_start) / 2;
-            matches.retain(|m| {
-                !(m.property == Property::Language
-                    && m.start >= fn_start
-                    && m.start < title_zone_mid)
-            });
-        } else {
-            // No technical tokens. Prune language when there's substantial
-            // unmatched content that looks like a title (e.g., "Italian"
-            // in "The_Italian_Job.mkv" is a title word, not a language).
-            // Keep language when it's the only content or nearly so.
-            let lang_matches: Vec<&MatchSpan> = matches
-                .iter()
-                .filter(|m| m.start >= fn_start && m.property == Property::Language)
-                .collect();
-
-            if !lang_matches.is_empty() {
-                // Count unmatched bytes in the filename (content not covered
-                // by any match). Many unmatched bytes = title words present.
-                let fn_end = input.len();
-                let matched_bytes: usize = matches
-                    .iter()
-                    .filter(|m| m.start >= fn_start)
-                    .map(|m| m.end.saturating_sub(m.start))
-                    .sum();
-                let unmatched = (fn_end - fn_start).saturating_sub(matched_bytes);
-
-                // If unmatched content is longer than the language match,
-                // the language is likely a title word.
-                let lang_bytes: usize = lang_matches
-                    .iter()
-                    .map(|m| m.end.saturating_sub(m.start))
-                    .sum();
-                if unmatched > lang_bytes {
-                    matches.retain(|m| !(m.property == Property::Language && m.start >= fn_start));
-                }
-            }
-        }
-
-        // ── Rule 2: Duplicate source in title zone → title word ─────────
-        // Uses year/season/episode as anchor (NOT full tech set).
-        let source_anchor_pos = matches
-            .iter()
-            .filter(|m| {
-                m.start >= fn_start
-                    && matches!(
-                        m.property,
-                        Property::Year | Property::Season | Property::Episode
-                    )
-            })
-            .map(|m| m.start)
-            .min();
-
-        if let Some(anchor) = source_anchor_pos {
-            let has_early_source = matches
-                .iter()
-                .any(|m| m.property == Property::Source && m.start >= fn_start && m.start < anchor);
-            let has_late_source = matches
-                .iter()
-                .any(|m| m.property == Property::Source && m.start >= anchor);
-
-            if has_early_source && has_late_source {
-                matches.retain(|m| {
-                    !(m.property == Property::Source && m.start >= fn_start && m.start < anchor)
-                });
-            }
-        }
-
-        // ── Rule 3: Redundant HD tags when source has UHD ────────────────
-        let source_has_uhd = matches
-            .iter()
-            .any(|m| m.property == Property::Source && m.value.contains("Ultra HD"));
-        if source_has_uhd {
-            matches.retain(|m| !(m.property == Property::Other && m.value == "Ultra HD"));
-        }
-
-        // ── Rule 4: EpisodeDetails before any episode marker → title ─────
-        let first_ep_pos = matches
-            .iter()
-            .filter(|m| {
-                m.start >= fn_start
-                    && (m.property == Property::Season || m.property == Property::Episode)
-            })
-            .map(|m| m.start)
-            .min();
-
-        matches.retain(|m| {
-            if m.property != Property::EpisodeDetails || m.start < fn_start {
-                return true;
-            }
-            match first_ep_pos {
-                Some(ep_pos) => m.start >= ep_pos,
-                None => false,
-            }
-        });
-
-        // ── Rule 5: Other overlapping ReleaseGroup → drop ambiguous Other ───
-        let rg_spans: Vec<(usize, usize)> = matches
-            .iter()
-            .filter(|m| m.property == Property::ReleaseGroup)
-            .map(|m| (m.start, m.end))
-            .collect();
-
-        if !rg_spans.is_empty() {
-            const AMBIGUOUS_OTHER: &[&str] = &["High Quality", "High Resolution"];
-            matches.retain(|m| {
-                if m.property != Property::Other || !AMBIGUOUS_OTHER.contains(&m.value.as_ref()) {
-                    return true;
-                }
-                !rg_spans.iter().any(|(rs, re)| m.start < *re && m.end > *rs)
-            });
-        }
-
-        // ── Rule 6: Language/SubtitleLanguage contained within a tech span ───
-        //
-        // Replaces the fancy_regex lookbehind (?<!WEB[-. ]) that used to
-        // prevent "DL" from matching inside "WEB-DL". With token-based
-        // matching, "WEB-DL" becomes a Source span and "DL" within it
-        // is a nested language span — drop the inner language span.
-        //
-        // "Contained" = language span start AND end both fall within the
-        // tech span (not just overlapping).
-        let tech_spans: Vec<(usize, usize)> = matches
-            .iter()
-            .filter(|m| {
-                matches!(
-                    m.property,
-                    Property::Source
-                        | Property::VideoCodec
-                        | Property::AudioCodec
-                        | Property::ScreenSize
-                        | Property::StreamingService
-                )
-            })
-            .map(|m| (m.start, m.end))
-            .collect();
-
-        if !tech_spans.is_empty() {
-            matches.retain(|m| {
-                if !matches!(m.property, Property::Language | Property::SubtitleLanguage) {
-                    return true;
-                }
-                // Drop if the language span is fully contained within any tech span.
-                !tech_spans
-                    .iter()
-                    .any(|(ts, te)| m.start >= *ts && m.end <= *te)
-            });
-        }
-    }
-}
-
-// ── Proper count computation ───────────────────────────────────────────────
-
-static REAL_RE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?i)^REAL$").unwrap());
-
-static REPACK_RE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").unwrap());
-
-fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
-    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-    let mut has_real = false;
-    let mut proper_count_raw: u32 = 0;
-    let mut repack_count: u32 = 0;
-
-    let tech_start = matches
-        .iter()
-        .filter(|m| {
-            m.start >= fn_start
-                && matches!(
-                    m.property,
-                    Property::VideoCodec
-                        | Property::AudioCodec
-                        | Property::Source
-                        | Property::ScreenSize
-                )
-        })
-        .map(|m| m.start)
-        .min();
-
-    if let Some(ts) = tech_start {
-        // Use tokenizer to check for standalone REAL in tech zone.
-        let tech_tokens = tokenizer::tokenize(&input[ts..]);
-        if tech_tokens
-            .tokens
-            .iter()
-            .any(|t| t.text.eq_ignore_ascii_case("REAL"))
-        {
-            has_real = true;
-        }
-    }
-
-    for m in matches
-        .iter()
-        .filter(|m| m.property == Property::Other && m.value == "Proper" && m.start >= fn_start)
-    {
-        let raw = &input[m.start..m.end];
-        if REAL_RE.is_match(raw) {
-            has_real = true;
-            continue;
-        }
-        if let Some(caps) = REPACK_RE.captures(raw) {
-            if let Some(num) = caps.get(1) {
-                repack_count += num.as_str().parse::<u32>().unwrap_or(1);
-            } else {
-                repack_count += 1;
-            }
-            continue;
-        }
-        proper_count_raw += 1;
-    }
-
-    let base = if has_real { 2 } else { proper_count_raw };
-    base + repack_count
 }
 
 #[cfg(test)]

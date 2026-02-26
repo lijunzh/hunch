@@ -97,11 +97,11 @@ Input string
   │
   ├─ 3. Conflict resolution (sort by priority desc, length desc; sweep overlaps)
   │
-  ├─ 4. Zone-based disambiguation (6 rules, replaces v0.1 prune_* heuristics)
-  │     ├─ Rule 1: Language in title zone → drop
+  ├─ 4. Zone-based disambiguation (5 active rules in zone_rules.rs)
+  │     ├─ Rule 1: Language in title zone → drop (uses ZoneMap)
   │     ├─ Rule 2: Duplicate source in title zone → drop early
   │     ├─ Rule 3: Redundant HD tags with UHD source → drop
-  │     ├─ Rule 4: EpisodeDetails before episode marker → drop
+  │     ├─ Rule 4: RETIRED (episode_details.toml zone_scope="tech_only")
   │     ├─ Rule 5: Other overlapping ReleaseGroup → drop ambiguous
   │     └─ Rule 6: Language contained within tech span → drop
   │
@@ -491,8 +491,16 @@ matchers incrementally.
 3. ⬜ Pass `ZoneMap` to `match_tokens_in_segment()` for filtering
 4. ⬜ Tag ambiguous TOML rules: `other.toml`, `edition.toml`,
    `language.toml`, `episode_details.toml`
-5. ⬜ Retire `apply_zone_rules()` heuristics incrementally
-6. ⬜ Simplify `extract_title()` to use zone boundaries
+5. ✅ Retire `apply_zone_rules()` heuristics incrementally
+   - Rule 4 (EpisodeDetails before episode marker) retired →
+     `episode_details.toml` now uses `zone_scope = "tech_only"`
+   - Rule 1 (Language in title zone) now uses ZoneMap boundaries
+     directly instead of re-deriving zones from match positions
+   - Remaining rules (2, 3, 5, 6) extracted to `zone_rules.rs`
+6. ✅ Simplify `extract_title()` to use zone boundaries
+   - Uses ZoneMap's year disambiguation for year-as-title cases
+   - Split into `title/mod.rs`, `title/clean.rs`, `title/secondary.rs`
+   - Extracted `handle_empty_title` and `extract_title_after_position`
 7. ⬜ Integrate year disambiguation into zone map
 
 ### Phase B: Remove legacy matchers (incremental)

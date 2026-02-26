@@ -1,5 +1,8 @@
 # Episode details patterns.
+# These tokens (Special, Pilot, etc.) are ambiguous in the title zone
+# (e.g., "Special Agent" vs "S01E02 Special"). Suppress before anchors.
 property = "episode_details"
+zone_scope = "tech_only"
 
 [exact]
 special  = "Special"
