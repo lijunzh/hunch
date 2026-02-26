@@ -32,15 +32,10 @@ impl HunchResult {
         let mut props: BTreeMap<Property, Vec<String>> = BTreeMap::new();
         for m in matches {
             let values = props.entry(m.property).or_default();
-            let is_lang = matches!(
-                m.property,
-                Property::Language | Property::SubtitleLanguage
-            );
+            let is_lang = matches!(m.property, Property::Language | Property::SubtitleLanguage);
             let already_present = if is_lang {
                 // Case-insensitive dedup for language values.
-                values
-                    .iter()
-                    .any(|v| v.eq_ignore_ascii_case(&m.value))
+                values.iter().any(|v| v.eq_ignore_ascii_case(&m.value))
             } else {
                 values.contains(&m.value)
             };

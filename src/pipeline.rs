@@ -58,9 +58,8 @@ static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
 
 use crate::properties::title;
 use crate::properties::{
-    aspect_ratio, bonus, crc32, date, episode_count, episodes,
-    language, other, part, release_group, size, source,
-    subtitle_language, uuid, version, website, year,
+    aspect_ratio, bonus, crc32, date, episode_count, episodes, language, other, part,
+    release_group, size, source, subtitle_language, uuid, version, website, year,
 };
 
 /// A legacy matcher function: takes raw input, returns property matches.
@@ -105,24 +104,99 @@ impl Pipeline {
             // Tech properties: unambiguous tokens safe for all segments.
             // These were previously scanned across full paths by legacy matchers.
             // Tokens like XviD, x264, 720p, AAC are unambiguous in directory names.
-            (&VIDEO_CODEC_RULES, Property::VideoCodec, 0, SegmentScope::AllSegments),
-            (&COLOR_DEPTH_RULES, Property::ColorDepth, 0, SegmentScope::AllSegments),
-            (&AUDIO_CODEC_RULES, Property::AudioCodec, 0, SegmentScope::AllSegments),
-            (&AUDIO_PROFILE_RULES, Property::AudioProfile, 1, SegmentScope::AllSegments),
-            (&AUDIO_CHANNELS_RULES, Property::AudioChannels, -1, SegmentScope::AllSegments),
-            (&FRAME_RATE_RULES, Property::FrameRate, 0, SegmentScope::AllSegments),
-            (&SCREEN_SIZE_RULES, Property::ScreenSize, 0, SegmentScope::AllSegments),
+            (
+                &VIDEO_CODEC_RULES,
+                Property::VideoCodec,
+                0,
+                SegmentScope::AllSegments,
+            ),
+            (
+                &COLOR_DEPTH_RULES,
+                Property::ColorDepth,
+                0,
+                SegmentScope::AllSegments,
+            ),
+            (
+                &AUDIO_CODEC_RULES,
+                Property::AudioCodec,
+                0,
+                SegmentScope::AllSegments,
+            ),
+            (
+                &AUDIO_PROFILE_RULES,
+                Property::AudioProfile,
+                1,
+                SegmentScope::AllSegments,
+            ),
+            (
+                &AUDIO_CHANNELS_RULES,
+                Property::AudioChannels,
+                -1,
+                SegmentScope::AllSegments,
+            ),
+            (
+                &FRAME_RATE_RULES,
+                Property::FrameRate,
+                0,
+                SegmentScope::AllSegments,
+            ),
+            (
+                &SCREEN_SIZE_RULES,
+                Property::ScreenSize,
+                0,
+                SegmentScope::AllSegments,
+            ),
             // Tech properties: ambiguous tokens, filename only.
             // Short tokens (HD, DV, TV, TS) would false-positive in dir names.
-            (&STREAMING_SERVICE_RULES, Property::StreamingService, 1, SegmentScope::FilenameOnly),
-            (&VIDEO_PROFILE_RULES, Property::VideoProfile, -2, SegmentScope::FilenameOnly),
-            (&EPISODE_DETAILS_RULES, Property::EpisodeDetails, -1, SegmentScope::FilenameOnly),
-            (&EDITION_RULES, Property::Edition, 0, SegmentScope::FilenameOnly),
+            (
+                &STREAMING_SERVICE_RULES,
+                Property::StreamingService,
+                1,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &VIDEO_PROFILE_RULES,
+                Property::VideoProfile,
+                -2,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &EPISODE_DETAILS_RULES,
+                Property::EpisodeDetails,
+                -1,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &EDITION_RULES,
+                Property::Edition,
+                0,
+                SegmentScope::FilenameOnly,
+            ),
             (&OTHER_RULES, Property::Other, 0, SegmentScope::FilenameOnly),
-            (&OTHER_WEAK_RULES, Property::Other, -2, SegmentScope::FilenameOnly),
-            (&VIDEO_API_RULES, Property::VideoApi, 0, SegmentScope::FilenameOnly),
-            (&SOURCE_RULES, Property::Source, 0, SegmentScope::FilenameOnly),
-            (&CONTAINER_RULES, Property::Container, 5, SegmentScope::FilenameOnly),
+            (
+                &OTHER_WEAK_RULES,
+                Property::Other,
+                -2,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &VIDEO_API_RULES,
+                Property::VideoApi,
+                0,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &SOURCE_RULES,
+                Property::Source,
+                0,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &CONTAINER_RULES,
+                Property::Container,
+                5,
+                SegmentScope::FilenameOnly,
+            ),
             // Contextual properties: match all segments (dirs carry real metadata)
             // NOTE: Language, SubtitleLanguage, and Country are kept FilenameOnly
             // for now because directory names contain title words that false-match
@@ -132,9 +206,24 @@ impl Pipeline {
             // which run on the raw input string.
             // When those legacy matchers are retired, we'll need segment-aware
             // zone rules to filter directory title words from language matches.
-            (&COUNTRY_RULES, Property::Country, -2, SegmentScope::FilenameOnly),
-            (&LANGUAGE_RULES, Property::Language, -1, SegmentScope::FilenameOnly),
-            (&SUBTITLE_LANGUAGE_RULES, Property::SubtitleLanguage, -1, SegmentScope::FilenameOnly),
+            (
+                &COUNTRY_RULES,
+                Property::Country,
+                -2,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &LANGUAGE_RULES,
+                Property::Language,
+                -1,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &SUBTITLE_LANGUAGE_RULES,
+                Property::SubtitleLanguage,
+                -1,
+                SegmentScope::FilenameOnly,
+            ),
         ];
 
         // Legacy matchers — everything not yet in TOML.
@@ -187,9 +276,7 @@ impl Pipeline {
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
-        if let Some((film_title, adjusted_title)) =
-            title::extract_film_title(input, &all_matches)
-        {
+        if let Some((film_title, adjusted_title)) = title::extract_film_title(input, &all_matches) {
             all_matches.retain(|m| m.property != Property::Title);
             all_matches.push(film_title);
             all_matches.push(adjusted_title);
@@ -327,9 +414,9 @@ impl Pipeline {
                     }
                     if let Some(ref required) = token_match.requires_after {
                         let ok = last_idx + 1 < tokens.len()
-                            && required.iter().any(|r| {
-                                r == &tokens[last_idx + 1].text.to_lowercase()
-                            });
+                            && required
+                                .iter()
+                                .any(|r| r == &tokens[last_idx + 1].text.to_lowercase());
                         if !ok {
                             continue;
                         }
@@ -426,9 +513,7 @@ impl Pipeline {
                     .map(|m| m.end.saturating_sub(m.start))
                     .sum();
                 if unmatched > lang_bytes {
-                    matches.retain(|m| {
-                        !(m.property == Property::Language && m.start >= fn_start)
-                    });
+                    matches.retain(|m| !(m.property == Property::Language && m.start >= fn_start));
                 }
             }
         }

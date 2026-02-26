@@ -805,18 +805,14 @@ fn detect_absolute_episodes(input: &str, matches: &mut Vec<MatchSpan>) {
         .filter(|m| m.property == Property::Season || m.property == Property::Episode)
         .map(|m| (m.start, m.end))
         .collect();
-    let in_se_span = |pos: usize| -> bool {
-        se_spans.iter().any(|(s, e)| pos >= *s && pos < *e)
-    };
+    let in_se_span = |pos: usize| -> bool { se_spans.iter().any(|(s, e)| pos >= *s && pos < *e) };
 
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let bytes = input.as_bytes();
 
     // Find number ranges: "313-314", "313-315", or bare "313".
-    static NUM_RANGE: LazyLock<regex::Regex> = LazyLock::new(|| {
-        regex::Regex::new(r"(?P<start>\d{2,4})(?:-(?P<end>\d{2,4}))?")
-            .unwrap()
-    });
+    static NUM_RANGE: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"(?P<start>\d{2,4})(?:-(?P<end>\d{2,4}))?").unwrap());
 
     for cap in NUM_RANGE.captures_iter(input) {
         let start_m = cap.name("start").unwrap();
@@ -827,14 +823,20 @@ fn detect_absolute_episodes(input: &str, matches: &mut Vec<MatchSpan>) {
 
         // Boundary checks: must be preceded and followed by separator or boundary.
         if start_m.start() > 0
-            && !matches!(bytes[start_m.start() - 1], b'.' | b'-' | b'_' | b' ' | b'(' | b'[')
+            && !matches!(
+                bytes[start_m.start() - 1],
+                b'.' | b'-' | b'_' | b' ' | b'(' | b'['
+            )
         {
             continue;
         }
 
         let range_end_pos = cap.name("end").map(|m| m.end()).unwrap_or(start_m.end());
         if range_end_pos < bytes.len()
-            && !matches!(bytes[range_end_pos], b'.' | b'-' | b'_' | b' ' | b')' | b']')
+            && !matches!(
+                bytes[range_end_pos],
+                b'.' | b'-' | b'_' | b' ' | b')' | b']'
+            )
         {
             continue;
         }

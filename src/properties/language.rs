@@ -77,15 +77,14 @@ mod tests {
 
     fn lang(input: &str) -> Option<String> {
         let map = hunch(input).to_flat_map();
-        map.get("language")
-            .map(|v| match v {
-                serde_json::Value::String(s) => s.clone(),
-                serde_json::Value::Array(arr) => {
-                    let strs: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
-                    strs.join(", ")
-                }
-                _ => format!("{v}"),
-            })
+        map.get("language").map(|v| match v {
+            serde_json::Value::String(s) => s.clone(),
+            serde_json::Value::Array(arr) => {
+                let strs: Vec<&str> = arr.iter().filter_map(|v| v.as_str()).collect();
+                strs.join(", ")
+            }
+            _ => format!("{v}"),
+        })
     }
 
     #[test]

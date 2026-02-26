@@ -197,10 +197,7 @@ impl RuleSet {
                 // Dynamic value — substitute capture groups into template.
                 if let Some(caps) = rule.regex.captures(token) {
                     let value = substitute_captures(&rule.template, &caps);
-                    return Some(TokenMatch::from_pattern(
-                        Cow::Owned(value),
-                        rule,
-                    ));
+                    return Some(TokenMatch::from_pattern(Cow::Owned(value), rule));
                 }
             }
         }
@@ -440,7 +437,10 @@ not_after = ["web"]
 
         let hd = rules.match_token("HD").expect("should match");
         assert_eq!(hd.value, "HD");
-        assert_eq!(hd.not_before.as_deref(), Some(&["tv".to_string(), "dvd".to_string()][..]));
+        assert_eq!(
+            hd.not_before.as_deref(),
+            Some(&["tv".to_string(), "dvd".to_string()][..])
+        );
         assert!(hd.not_after.is_none());
         assert!(hd.requires_after.is_none());
 

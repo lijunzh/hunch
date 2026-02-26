@@ -83,18 +83,10 @@ pub fn extract_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
         // treat the entire input as title (e.g., "tv", "cat", "scr").
         // These are bare words that happen to match property patterns but
         // have no tech context to confirm they're properties.
-        if !input.contains(['/', '\\'])
-            && !input.contains('.')
-            && input.len() <= 10
-        {
+        if !input.contains(['/', '\\']) && !input.contains('.') && input.len() <= 10 {
             let cleaned = clean_title(input);
             if !cleaned.is_empty() {
-                return Some(MatchSpan::new(
-                    0,
-                    input.len(),
-                    Property::Title,
-                    cleaned,
-                ));
+                return Some(MatchSpan::new(0, input.len(), Property::Title, cleaned));
             }
         }
         // Try parent directory.
@@ -188,7 +180,6 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
 
     // Iterate deepest-first (reverse order).
     for &(dir_start, dir_end, dir_name) in dir_spans.iter().rev() {
-
         if dir_name.is_empty() || is_generic_dir(dir_name) {
             continue;
         }
@@ -631,8 +622,7 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
 
     // Must have season or episode marker as anchor.
     let has_anchor = matches.iter().any(|m| {
-        m.start >= filename_start
-            && matches!(m.property, Property::Episode | Property::Season)
+        m.start >= filename_start && matches!(m.property, Property::Episode | Property::Season)
     });
     if !has_anchor {
         return None;
@@ -642,8 +632,7 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     let last_ep_match = matches
         .iter()
         .filter(|m| {
-            m.start >= filename_start
-                && matches!(m.property, Property::Episode | Property::Season)
+            m.start >= filename_start && matches!(m.property, Property::Episode | Property::Season)
         })
         .max_by_key(|m| m.end)?;
 
@@ -757,10 +746,7 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
 ///   → film_title: "James Bond", title: "Goldeneye" (title already set), film: 17
 ///
 /// Returns (film_title_span, adjusted_title_span) if applicable.
-pub fn extract_film_title(
-    input: &str,
-    matches: &[MatchSpan],
-) -> Option<(MatchSpan, MatchSpan)> {
+pub fn extract_film_title(input: &str, matches: &[MatchSpan]) -> Option<(MatchSpan, MatchSpan)> {
     // Only trigger when we have a Film property.
     let film_match = matches.iter().find(|m| m.property == Property::Film)?;
     // Ensure there's already a title to split.
@@ -797,15 +783,13 @@ pub fn extract_film_title(
         })
         .min_by_key(|m| m.start);
 
-    let title_end = next_match_after_film
-        .map(|m| m.start)
-        .unwrap_or_else(|| {
-            // Strip extension.
-            input[fn_start..]
-                .rfind('.')
-                .map(|p| fn_start + p)
-                .unwrap_or(input.len())
-        });
+    let title_end = next_match_after_film.map(|m| m.start).unwrap_or_else(|| {
+        // Strip extension.
+        input[fn_start..]
+            .rfind('.')
+            .map(|p| fn_start + p)
+            .unwrap_or(input.len())
+    });
 
     if title_end <= after_film {
         return None;
@@ -824,7 +808,12 @@ pub fn extract_film_title(
 
     Some((
         MatchSpan::new(fn_start, film_match.start, Property::FilmTitle, film_title),
-        MatchSpan::new(after_film, title_end.len() + after_film, Property::Title, title_end),
+        MatchSpan::new(
+            after_film,
+            title_end.len() + after_film,
+            Property::Title,
+            title_end,
+        ),
     ))
 }
 
@@ -833,10 +822,7 @@ pub fn extract_film_title(
 /// When the title is truncated at a structural separator (` - `, `--`, `(`),
 /// the remaining content before the next property match is the alternative title.
 /// e.g., `OSS_117--Cairo,_Nest_of_Spies.mkv` → alternative_title: "Cairo, Nest of Spies"
-pub fn extract_alternative_title(
-    input: &str,
-    matches: &[MatchSpan],
-) -> Option<MatchSpan> {
+pub fn extract_alternative_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
 
     let first_match = matches
@@ -877,13 +863,18 @@ pub fn extract_alternative_title(
 
     // The alternative title is everything AFTER the boundary separator.
     let after = &raw_title[boundary_offset..];
-    let sep_len = if after.starts_with(" - ") || after.starts_with("_-_") || after.starts_with(".-.") {
-        3
-    } else if after.starts_with("--") || after.starts_with(" (") || after.starts_with("_(") || after.starts_with(".(") {
-        2
-    } else {
-        1
-    };
+    let sep_len =
+        if after.starts_with(" - ") || after.starts_with("_-_") || after.starts_with(".-.") {
+            3
+        } else if after.starts_with("--")
+            || after.starts_with(" (")
+            || after.starts_with("_(")
+            || after.starts_with(".(")
+        {
+            2
+        } else {
+            1
+        };
     let sep_end = boundary_offset + sep_len;
 
     if sep_end >= raw_title.len() {

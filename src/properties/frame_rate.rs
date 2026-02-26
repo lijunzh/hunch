@@ -28,7 +28,10 @@ mod tests {
 
     #[test]
     fn resolution_attached_25() {
-        assert_eq!(fps("MotoGP.2016x03.USA.Race.BTSportHD.1080p25"), Some("25fps".into()));
+        assert_eq!(
+            fps("MotoGP.2016x03.USA.Race.BTSportHD.1080p25"),
+            Some("25fps".into())
+        );
     }
 
     #[test]

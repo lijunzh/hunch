@@ -6,11 +6,20 @@ mod tests {
 
     fn profile(input: &str) -> Option<String> {
         let map = hunch(input).to_flat_map();
-        map.get("video_profile").and_then(|v| v.as_str()).map(String::from)
+        map.get("video_profile")
+            .and_then(|v| v.as_str())
+            .map(String::from)
     }
 
     #[test]
-    fn test_high_10() { assert_eq!(profile("Movie.Hi10P.mkv"), Some("High 10".into())); }
+    fn test_high_10() {
+        assert_eq!(profile("Movie.Hi10P.mkv"), Some("High 10".into()));
+    }
     #[test]
-    fn test_avchd() { assert_eq!(profile("Movie.AVCHD.mkv"), Some("Advanced Video Codec High Definition".into())); }
+    fn test_avchd() {
+        assert_eq!(
+            profile("Movie.AVCHD.mkv"),
+            Some("Advanced Video Codec High Definition".into())
+        );
+    }
 }

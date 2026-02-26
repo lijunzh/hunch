@@ -6,9 +6,13 @@ mod tests {
 
     fn country(input: &str) -> Option<String> {
         let map = hunch(input).to_flat_map();
-        map.get("country").and_then(|v| v.as_str()).map(String::from)
+        map.get("country")
+            .and_then(|v| v.as_str())
+            .map(String::from)
     }
 
     #[test]
-    fn test_us() { assert_eq!(country("Movie.US.mkv"), Some("US".into())); }
+    fn test_us() {
+        assert_eq!(country("Movie.US.mkv"), Some("US".into()));
+    }
 }

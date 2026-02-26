@@ -649,7 +649,11 @@ mod tests {
     fn test_path_segments_dir_metadata() {
         let ts = tokenize("movies/Movie Name (2009) BRrip 720p/abbreviated.avi");
         assert_eq!(ts.segments.len(), 3);
-        let dir_tokens: Vec<&str> = ts.segments[1].tokens.iter().map(|t| t.text.as_str()).collect();
+        let dir_tokens: Vec<&str> = ts.segments[1]
+            .tokens
+            .iter()
+            .map(|t| t.text.as_str())
+            .collect();
         assert!(dir_tokens.contains(&"BRrip"));
         assert!(dir_tokens.contains(&"720p"));
         assert!(dir_tokens.contains(&"2009"));
@@ -660,8 +664,14 @@ mod tests {
         let ts = tokenize("D:\\TV\\Show.S01E01.mkv");
         // Drive letter "D:" should be skipped.
         assert_eq!(ts.segments.last().unwrap().kind, SegmentKind::Filename);
-        let filename_tokens: Vec<&str> = ts.segments.last().unwrap()
-            .tokens.iter().map(|t| t.text.as_str()).collect();
+        let filename_tokens: Vec<&str> = ts
+            .segments
+            .last()
+            .unwrap()
+            .tokens
+            .iter()
+            .map(|t| t.text.as_str())
+            .collect();
         assert!(filename_tokens.contains(&"Show"));
         assert!(filename_tokens.contains(&"S01E01"));
     }
@@ -678,7 +688,11 @@ mod tests {
     fn test_dir_no_extension_stripping() {
         // Directory "movie.2009" should NOT have "2009" stripped as extension.
         let ts = tokenize("movie.2009/file.mkv");
-        let dir_tokens: Vec<&str> = ts.segments[0].tokens.iter().map(|t| t.text.as_str()).collect();
+        let dir_tokens: Vec<&str> = ts.segments[0]
+            .tokens
+            .iter()
+            .map(|t| t.text.as_str())
+            .collect();
         assert!(dir_tokens.contains(&"2009"));
     }
 }
