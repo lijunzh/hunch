@@ -532,6 +532,26 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
                 result = stripped;
             }
         }
+
+        // Strip trailing episode keywords: "Naruto Shippuden Episode" → "Naruto Shippuden".
+        let re_ep_word =
+            regex::Regex::new(r"(?i)\s+(?:Episodes?|Ep\.?)\s*$").unwrap();
+        if let Some(m) = re_ep_word.find(&result) {
+            let stripped = result[..m.start()].to_string();
+            if !stripped.trim().is_empty() {
+                result = stripped;
+            }
+        }
+
+        // Strip trailing bonus markers: "Casino Royale-x01" → "Casino Royale".
+        let re_bonus =
+            regex::Regex::new(r"(?i)[-]x\d{1,3}\s*$").unwrap();
+        if let Some(m) = re_bonus.find(&result) {
+            let stripped = result[..m.start()].to_string();
+            if !stripped.trim().is_empty() {
+                result = stripped;
+            }
+        }
     }
 
     result
@@ -622,7 +642,11 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
 
     // Must have season or episode marker as anchor.
     let has_anchor = matches.iter().any(|m| {
-        m.start >= filename_start && matches!(m.property, Property::Episode | Property::Season)
+        m.start >= filename_start
+            && matches!(
+                m.property,
+                Property::Episode | Property::Season
+            )
     });
     if !has_anchor {
         return None;
@@ -632,7 +656,11 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     let last_ep_match = matches
         .iter()
         .filter(|m| {
-            m.start >= filename_start && matches!(m.property, Property::Episode | Property::Season)
+            m.start >= filename_start
+                && matches!(
+                    m.property,
+                    Property::Episode | Property::Season
+                )
         })
         .max_by_key(|m| m.end)?;
 
@@ -641,8 +669,6 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     // Find the next "technical" property match after the episode marker.
     // Exclude ReleaseGroup — it's positional (last word) and would eat the
     // episode title's last word otherwise.
-    // Exclude Other — words like "Proper", "REAL" are common in episode titles
-    // and shouldn't be treated as technical boundaries.
     let technical_props = [
         Property::VideoCodec,
         Property::AudioCodec,
@@ -655,6 +681,7 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
         Property::Container,
         Property::StreamingService,
         Property::Year,
+        Property::Part,
     ];
 
     let next_tech = matches

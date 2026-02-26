@@ -816,6 +816,10 @@ fn detect_absolute_episodes(input: &str, matches: &mut Vec<MatchSpan>) {
         .collect();
     let in_se_span = |pos: usize| -> bool { se_spans.iter().any(|(s, e)| pos >= *s && pos < *e) };
 
+    // Numbers before the first S/E match are likely part of the title
+    // (e.g., "The.100.S01E13" — "100" is part of "The 100", not absolute).
+    let first_se_start = se_spans.iter().map(|(s, _)| *s).min().unwrap_or(usize::MAX);
+
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let bytes = input.as_bytes();
 
@@ -857,6 +861,11 @@ fn detect_absolute_episodes(input: &str, matches: &mut Vec<MatchSpan>) {
 
         // Skip if before the filename or too close to start.
         if start_m.start() < fn_start + 3 {
+            continue;
+        }
+
+        // Skip if before the first S/E match (likely title content).
+        if start_m.start() < first_se_start {
             continue;
         }
 
