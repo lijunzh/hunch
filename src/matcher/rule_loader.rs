@@ -65,11 +65,31 @@ struct PatternRule {
     requires_after: Option<Vec<String>>,
 }
 
+/// How a TOML rule set interacts with the ZoneMap.
+///
+/// Controls whether matches are suppressed based on their position
+/// relative to the title zone boundary. See ARCHITECTURE.md D006.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ZoneScope {
+    /// Match in all zones (default, backwards-compatible).
+    /// Use for unambiguous tech tokens: codecs, suffixed resolutions.
+    #[default]
+    Unrestricted,
+    /// Suppress matches in the title zone.
+    /// Use for ambiguous tokens that could be title words: Other, Edition.
+    TechOnly,
+    /// Match only after the first anchor (year, S/E, tech token).
+    /// Use for Language, SubtitleLanguage, Country.
+    AfterAnchor,
+}
+
 /// A parsed rule file loaded from TOML.
 #[derive(Debug)]
 pub struct RuleSet {
     /// The property this rule set matches (e.g., "video_codec").
     pub property: String,
+    /// Zone scope for this rule set.
+    pub zone_scope: ZoneScope,
     /// Case-insensitive exact token lookups.
     exact: HashMap<String, String>,
     /// Case-sensitive exact token lookups (for short ambiguous tokens like country codes).
@@ -82,6 +102,8 @@ pub struct RuleSet {
 #[derive(Deserialize)]
 struct RawRuleFile {
     property: String,
+    #[serde(default)]
+    zone_scope: Option<String>,
     #[serde(default)]
     exact: HashMap<String, String>,
     #[serde(default)]
@@ -119,6 +141,17 @@ impl RuleSet {
     pub fn from_toml(toml_str: &str) -> Self {
         let raw: RawRuleFile =
             toml::from_str(toml_str).unwrap_or_else(|e| panic!("Bad TOML rule file: {e}"));
+
+        // Parse zone scope.
+        let zone_scope = match raw.zone_scope.as_deref() {
+            None | Some("unrestricted") => ZoneScope::Unrestricted,
+            Some("tech_only") => ZoneScope::TechOnly,
+            Some("after_anchor") => ZoneScope::AfterAnchor,
+            Some(other) => panic!(
+                "Unknown zone_scope '{}' in {} rules. Valid: unrestricted, tech_only, after_anchor",
+                other, raw.property
+            ),
+        };
 
         // Build case-insensitive exact lookup.
         let exact: HashMap<String, String> = raw
@@ -158,6 +191,7 @@ impl RuleSet {
 
         Self {
             property: raw.property,
+            zone_scope,
             exact,
             exact_sensitive: raw.exact_sensitive,
             patterns,

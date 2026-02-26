@@ -10,6 +10,7 @@ use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::options::Options;
 use crate::tokenizer::{self, TokenStream};
+use crate::zone_map::{self, ZoneMap};
 
 use std::sync::LazyLock;
 
@@ -271,8 +272,11 @@ impl Pipeline {
         // Step 1: Tokenize.
         let token_stream = tokenizer::tokenize(input);
 
+        // Step 1b: Build zone map (anchor detection + year disambiguation).
+        let zone_map = zone_map::build_zone_map(input, &token_stream);
+
         // Step 2: Match — TOML rules against tokens + legacy matchers against raw input.
-        let mut all_matches = self.match_all(input, &token_stream);
+        let mut all_matches = self.match_all(input, &token_stream, &zone_map);
 
         // Step 3: Resolve overlapping conflicts.
         engine::resolve_conflicts(&mut all_matches);
@@ -310,7 +314,12 @@ impl Pipeline {
     }
 
     /// Run all matchers: TOML token rules + legacy raw-string matchers.
-    fn match_all(&self, input: &str, token_stream: &TokenStream) -> Vec<MatchSpan> {
+    fn match_all(
+        &self,
+        input: &str,
+        token_stream: &TokenStream,
+        zone_map: &ZoneMap,
+    ) -> Vec<MatchSpan> {
         let mut matches = Vec::new();
 
         // TOML rules: segment-aware matching.
@@ -340,6 +349,7 @@ impl Pipeline {
                     rule_set,
                     *property,
                     effective_priority,
+                    zone_map,
                     &mut matches,
                 );
             }
@@ -370,6 +380,7 @@ impl Pipeline {
     /// Uses a sliding window of 1–3 tokens (longest first) to handle compound
     /// patterns like "WEB-DL" or "HD-DVD". Emits primary matches and any
     /// side-effect spans declared in the TOML pattern.
+    #[allow(clippy::too_many_arguments)]
     fn match_tokens_in_segment(
         &self,
         input: &str,
@@ -377,8 +388,11 @@ impl Pipeline {
         rule_set: &RuleSet,
         property: Property,
         priority: i32,
+        zone_map: &ZoneMap,
         matches: &mut Vec<MatchSpan>,
     ) {
+        use crate::matcher::rule_loader::ZoneScope;
+
         let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
 
         for window_size in (1..=3).rev() {
@@ -389,6 +403,14 @@ impl Pipeline {
 
                 let win_start = tokens[i].start;
                 let win_end = tokens[i + window_size - 1].end;
+
+                // ── Zone scope filtering ─────────────────────────────
+                let in_title_zone = zone_map.title_zone.contains(&win_start);
+                match rule_set.zone_scope {
+                    ZoneScope::TechOnly if in_title_zone => continue,
+                    ZoneScope::AfterAnchor if in_title_zone => continue,
+                    _ => {}
+                }
                 if matched_ranges
                     .iter()
                     .any(|(s, e)| win_start < *e && win_end > *s)
