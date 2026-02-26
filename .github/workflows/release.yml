@@ -93,19 +93,23 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - name: Extract release notes from CHANGELOG
+      - name: Extract release notes
         id: notes
         run: |
-          # Extract the section for the current tag version from CHANGELOG.md
           TAG="${GITHUB_REF#refs/tags/v}"
-          # Get everything between this version header and the next version header
-          awk "/^## \[${TAG}\]/{found=1; next} /^## \[/{if(found) exit} found" CHANGELOG.md > release_notes.md
-          # Fallback to auto-generated if CHANGELOG section is empty
-          if [ ! -s release_notes.md ]; then
-            echo "No CHANGELOG entry found for v${TAG}, using auto-generated notes."
-            echo "generate=true" >> $GITHUB_OUTPUT
-          else
+          # Prefer RELEASE_NOTES.md (comprehensive narrative) if it exists
+          if [ -f RELEASE_NOTES.md ] && [ -s RELEASE_NOTES.md ]; then
+            cp RELEASE_NOTES.md release_notes.md
             echo "generate=false" >> $GITHUB_OUTPUT
+          else
+            # Fall back to extracting from CHANGELOG.md
+            awk "/^## \[${TAG}\]/{found=1; next} /^## \[/{if(found) exit} found" CHANGELOG.md > release_notes.md
+            if [ ! -s release_notes.md ]; then
+              echo "No release notes found, using auto-generated notes."
+              echo "generate=true" >> $GITHUB_OUTPUT
+            else
+              echo "generate=false" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Create GitHub Release
