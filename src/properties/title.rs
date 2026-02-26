@@ -629,11 +629,12 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     let filename = &input[filename_start..];
     let filename_end = filename_start + filename.len();
 
-    // Must have an actual episode match (not just season).
-    let has_episode = matches
-        .iter()
-        .any(|m| m.property == Property::Episode && m.start >= filename_start);
-    if !has_episode {
+    // Must have season or episode marker as anchor.
+    let has_anchor = matches.iter().any(|m| {
+        m.start >= filename_start
+            && matches!(m.property, Property::Episode | Property::Season)
+    });
+    if !has_anchor {
         return None;
     }
 
@@ -642,7 +643,7 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
         .iter()
         .filter(|m| {
             m.start >= filename_start
-                && (m.property == Property::Episode || m.property == Property::Season)
+                && matches!(m.property, Property::Episode | Property::Season)
         })
         .max_by_key(|m| m.end)?;
 
@@ -725,7 +726,11 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     }
     // Reject if it looks like a season reference.
     let lower = trimmed.to_lowercase();
-    if lower.starts_with("season") || lower.starts_with("saison") || lower.starts_with("tem") {
+    if lower.starts_with("season")
+        || lower.starts_with("saison")
+        || lower.starts_with("tem")
+        || lower.starts_with("stagione")
+    {
         return None;
     }
     // Reject if it contains another episode/season match within it.
