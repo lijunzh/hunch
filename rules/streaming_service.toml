@@ -4,7 +4,6 @@ property = "streaming_service"
 [exact]
 amzn      = "Amazon Prime"
 amazon    = "Amazon Prime"
-amazonhd  = "Amazon Prime"
 nflx      = "Netflix"
 netflix    = "Netflix"
 netflixuhd = "Netflix"
@@ -27,6 +26,12 @@ df        = "DramaFever"
 viki      = "Viki"
 mbcvod    = "MBC"
 mbc       = "MBC"
+
+[[patterns]]
+# AmazonHD → Amazon Prime + Other:HD
+match = '(?i)^amazonhd$'
+value = "Amazon Prime"
+side_effects = [{ property = "other", value = "HD" }]
 
 [[patterns]]
 # Netflix with suffixes: NetflixRip, NetflixUHDRip

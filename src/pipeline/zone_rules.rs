@@ -121,7 +121,7 @@ pub fn apply_zone_rules(
     // EpisodeDetails before episode marker → now handled by
     // episode_details.toml zone_scope = "tech_only".
 
-    // ── Rule 5: Other overlapping ReleaseGroup → drop ambiguous Other ───
+    // ── Rule 5: Other overlapping or adjacent to ReleaseGroup → drop ambiguous Other ───
     let rg_spans: Vec<(usize, usize)> = matches
         .iter()
         .filter(|m| m.property == Property::ReleaseGroup)
@@ -129,12 +129,18 @@ pub fn apply_zone_rules(
         .collect();
 
     if !rg_spans.is_empty() {
-        const AMBIGUOUS_OTHER: &[&str] = &["High Quality", "High Resolution"];
+        const AMBIGUOUS_OTHER: &[&str] = &["High Quality", "High Resolution", "Fan Subtitled"];
+        // Max gap (in bytes) to consider "adjacent" — covers separator chars.
+        const ADJACENCY_GAP: usize = 2;
         matches.retain(|m| {
             if m.property != Property::Other || !AMBIGUOUS_OTHER.contains(&m.value.as_ref()) {
                 return true;
             }
-            !rg_spans.iter().any(|(rs, re)| m.start < *re && m.end > *rs)
+            // Drop if overlapping or immediately adjacent to any release group span.
+            !rg_spans.iter().any(|(rs, re)| {
+                m.start < re.saturating_add(ADJACENCY_GAP)
+                    && m.end.saturating_add(ADJACENCY_GAP) > *rs
+            })
         });
     }
 
