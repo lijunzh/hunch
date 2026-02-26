@@ -29,21 +29,21 @@ The problem decomposes into three sub-problems, each favoring a different approa
 
 ## Current Status
 
-**Overall: 74.5%** (975 / 1,309 guessit test cases). Phase B complete (legacy
-matcher migration + fancy_regex removal). Phase C accuracy in progress.
+**Overall: 75.8%** (992 / 1,309 guessit test cases). Phase C accuracy
+improvements in progress. `fancy_regex` removed, `regex`-only.
 
 | Tier | Properties |
 |------|------------|
 | ✅ 100% | video_api, season_count, disc, aspect_ratio, proper_count, version, bonus, film, size, frame_rate, date, episode_count |
 | ✅ 95–99% | edition, source, color_depth, crc32, year |
 | 🟡 90–94% | container, video_codec, screen_size, season, type, audio_codec, website, streaming_service, episode |
-| 🟡 85–89% | release_group, title, uuid, video_profile, other, audio_profile, language |
-| 🟡 80–84% | part, audio_channels |
-| ⚠️ 60–70% | episode_title, country, episode_details, bonus_title, cd, cd_count |
-| ❌ <50% | subtitle_language (49%), episode_format, alternative_title, film_title, absolute_episode (0%) |
+| 🟡 85–89% | release_group, title, uuid, video_profile, other, audio_profile |
+| 🟡 80–84% | language, part, audio_channels |
+| ⚠️ 60–78% | subtitle_language (78%), episode_title, country, episode_details, bonus_title, cd |
+| ❌ <50% | cd_count, absolute_episode, film_title, alternative_title (0%) |
 
-Highest-ROI targets: subtitle_language (22 failures), title (19),
-release_group (18), episode_title (depends on title accuracy).
+Highest-ROI targets: title (19 failures), subtitle_language (18),
+release_group (18), episode_title (16).
 
 ---
 
