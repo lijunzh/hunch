@@ -3,6 +3,7 @@
 pub mod aspect_ratio;
 pub mod audio_codec;
 pub mod audio_profile;
+pub mod bit_rate;
 pub mod bonus;
 pub mod color_depth;
 pub mod container;

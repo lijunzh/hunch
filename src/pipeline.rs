@@ -53,12 +53,14 @@ static LANGUAGE_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/language.toml")));
 static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/subtitle_language.toml")));
+static EPISODE_FORMAT_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/episode_format.toml")));
 
 // ── Legacy matchers (not yet migrated to TOML) ─────────────────────────────
 
 use crate::properties::title;
 use crate::properties::{
-    aspect_ratio, bonus, crc32, date, episode_count, episodes, language, other, part,
+    aspect_ratio, bit_rate, bonus, crc32, date, episode_count, episodes, language, other, part,
     release_group, size, source, subtitle_language, uuid, version, website, year,
 };
 
@@ -167,6 +169,12 @@ impl Pipeline {
                 SegmentScope::FilenameOnly,
             ),
             (
+                &EPISODE_FORMAT_RULES,
+                Property::EpisodeFormat,
+                -1,
+                SegmentScope::FilenameOnly,
+            ),
+            (
                 &EDITION_RULES,
                 Property::Edition,
                 0,
@@ -244,6 +252,7 @@ impl Pipeline {
             uuid::find_matches,
             website::find_matches,
             size::find_matches,
+            bit_rate::find_matches,
             part::find_matches,
             bonus::find_matches,
             version::find_matches,

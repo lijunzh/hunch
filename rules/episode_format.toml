@@ -1,0 +1,9 @@
+# Episode format patterns.
+#
+# Detects the format/type of an episode (e.g., Minisode).
+# Both singular and plural forms map to the singular canonical value.
+property = "episode_format"
+
+[exact]
+minisode  = "Minisode"
+minisodes = "Minisode"

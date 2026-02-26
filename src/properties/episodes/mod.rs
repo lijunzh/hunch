@@ -774,6 +774,15 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     // e.g., "Show.Name.313-315.s16e03-05" → episode=[3,4,5], absolute_episode=[313,314,315]
     detect_absolute_episodes(input, &mut matches);
 
+    // 12. Week detection: "Week 45", "Week.12".
+    for cap in WEEK.captures_iter(input) {
+        let full = cap.get(0).unwrap();
+        let week = parse_num(&cap, "week");
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Week, week).with_priority(1),
+        );
+    }
+
     matches
 }
 

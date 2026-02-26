@@ -277,3 +277,63 @@ fn crc32_in_brackets() {
         Some("ABCD1234")
     );
 }
+
+// ─── Bit Rate ─────────────────────────────────────────────────────────────
+
+#[test]
+fn bit_rate_kbps() {
+    let r = hunch("Chuck Berry The Very Best Of Chuck Berry(2010)[320 Kbps]");
+    assert_eq!(
+        r.first(hunch::matcher::span::Property::BitRate),
+        Some("320Kbps")
+    );
+    assert_eq!(r.year(), Some(2010));
+}
+
+#[test]
+fn bit_rate_mbps() {
+    let r = hunch("Title Name [480p][1.5Mbps][.mp4]");
+    assert_eq!(
+        r.first(hunch::matcher::span::Property::BitRate),
+        Some("1.5Mbps")
+    );
+    assert_eq!(r.screen_size(), Some("480p"));
+}
+
+#[test]
+fn bit_rate_after_codec() {
+    let r = hunch("Show.Name.S01E01.H264.384Kbps.mkv");
+    assert_eq!(
+        r.first(hunch::matcher::span::Property::BitRate),
+        Some("384Kbps")
+    );
+    assert_eq!(r.video_codec(), Some("H.264"));
+}
+
+// ─── Episode Format ────────────────────────────────────────────────────────
+
+#[test]
+fn episode_format_minisode() {
+    let r = hunch(
+        "Series/Breaking Bad/Minisodes/Breaking.Bad.(Minisodes).01.Good.Cop.Bad.Cop.WEBRip.XviD.avi",
+    );
+    assert_eq!(
+        r.first(hunch::matcher::span::Property::EpisodeFormat),
+        Some("Minisode")
+    );
+    assert_eq!(r.title(), Some("Breaking Bad"));
+    assert_eq!(r.episode(), Some(1));
+}
+
+// ─── Week ──────────────────────────────────────────────────────────────────
+
+#[test]
+fn week_in_episode_context() {
+    let r = hunch("Show Name - S32-Week 45-Ep 6478");
+    assert_eq!(
+        r.first(hunch::matcher::span::Property::Week),
+        Some("45")
+    );
+    assert_eq!(r.season(), Some(32));
+    assert_eq!(r.episode(), Some(6478));
+}
