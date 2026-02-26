@@ -317,23 +317,27 @@ fn find_title_boundary(raw: &str) -> Option<usize> {
     // at leading separators like "- Episode Name").
     let min_title_len = 3;
 
-    // Check for " - " (most common title/subtitle separator).
-    if let Some(pos) = raw.find(" - ") {
-        if pos >= min_title_len {
-            return Some(pos);
+    // Check for " (" / "_(" / ".(" — parenthesized group after title content.
+    // Check BEFORE dashes, since parens inside dirs may contain dashes.
+    for sep in [" (", "_(", ".("] {
+        if let Some(pos) = raw.find(sep) {
+            if pos >= min_title_len {
+                return Some(pos);
+            }
+        }
+    }
+
+    // Check for " - " / "_-_" / ".-" (most common title/subtitle separator).
+    for sep in [" - ", "_-_", ".-."] {
+        if let Some(pos) = raw.find(sep) {
+            if pos >= min_title_len {
+                return Some(pos);
+            }
         }
     }
 
     // Check for "--" (double-dash separator).
     if let Some(pos) = raw.find("--") {
-        if pos >= min_title_len {
-            return Some(pos);
-        }
-    }
-
-    // Check for " (" — parenthesized group after title content.
-    // But NOT "(" at position 0 (leading parens are bracket groups).
-    if let Some(pos) = raw.find(" (") {
         if pos >= min_title_len {
             return Some(pos);
         }
