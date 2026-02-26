@@ -29,23 +29,24 @@ The problem decomposes into three sub-problems, each favoring a different approa
 
 ## Current Status
 
-**Overall: 77.3%** (1012 / 1,309 guessit test cases). `regex`-only (no
+**Overall: 78.2%** (1,023 / 1,309 guessit test cases). `regex`-only (no
 `fancy_regex`). TOML-driven rule engine with side effects, neighbor
 constraints, and path-segment awareness.
 
 | Tier | Properties |
 |------|------------|
-| ✅ 100% | video_api, season_count, disc, aspect_ratio, proper_count, version, bonus, film, size, frame_rate, date, episode_count |
+| ✅ 100% | video_api, season_count, disc, aspect_ratio, proper_count, version, bonus, film, size, frame_rate, date, episode_count, episode_format, week |
 | ✅ 95–99% | video_codec (98.6%), screen_size (98.4%), audio_codec (97.8%), edition, source, color_depth, crc32, year |
-| 🟡 90–94% | container, season, type, absolute_episode (90%), website, streaming_service, episode |
-| 🟡 85–89% | release_group, film_title (87.5%), title (87.9%), uuid, other, audio_profile |
-| 🟡 77–84% | subtitle_language (77.8%), language, part, audio_channels |
-| ⚠️ 60–70% | episode_title (70.6%), country, episode_details, bonus_title |
-| ⚠️ 43–60% | alternative_title (43.8%), cd, cd_count |
-| ❌ <10% | absolute_episode edge cases, episode_format, audio/video bit_rate (0%) |
+| 🟡 90–94% | container, season, type, absolute_episode (90%), website, streaming_service, episode, audio_channels |
+| 🟡 85–89% | release_group (89.1%), title (89.0%), film_title (87.5%), uuid, other, audio_profile |
+| 🟡 77–84% | subtitle_language (77.8%), language |
+| ⚠️ 60–70% | episode_title (70.6%), bonus_title, part, country |
+| ⚠️ <60% | alternative_title (43.8%), cd, cd_count |
 
-Highest-ROI targets: title (19 failures), release_group (18),
-subtitle_language (18), episode_title (14).
+Properties: 49/49 implemented (3 intentionally diverged — see COMPATIBILITY.md).
+
+Highest-ROI targets: title (18 single-prop fails), release_group (19),
+episode_title (14), other (8).
 
 ---
 
@@ -88,7 +89,7 @@ Input string
   │     └─ TokenStream { tokens: [{text, start, end, separator, in_brackets}...], extension }
   │
   ├─ 2a. TOML rules: iterate tokens + multi-token windows (1–3, longest first)
-  │      └─ 18 TOML rule files (exact lookups + regex + {N} capture templates)
+  │      └─ 19 TOML rule files (exact lookups + regex + {N} capture templates)
   │
   ├─ 2b. Legacy matchers: regex against raw input (transitional, being removed)
   │
@@ -108,6 +109,171 @@ Input string
   │
   └─ 6. Build HunchResult → JSON
 ```
+
+### v0.2 pipeline limitations
+
+The v0.2 pipeline follows a **match-everything-then-prune** pattern. Every
+ambiguous token generates a match first; zone rules try to undo mistakes
+after the fact. This has three structural problems:
+
+1. **Lost information**: once a token is claimed (e.g., "Proof" → Other),
+   title extraction sees it as consumed. Removing the Other match doesn't
+   restore it as title content — the title extractor already ran.
+2. **Scattered zone logic**: six zone rules in `apply_zone_rules()` each
+   reconstruct a partial view of the filename's structure. Title extraction,
+   episode title extraction, and release group extraction each independently
+   re-derive zone boundaries.
+3. **No positional awareness during matching**: TOML rules match tokens
+   without knowing whether the token is in the title zone or the tech zone.
+   The same token ("Proof", "French", "3D") should match in tech zones
+   but be suppressed in title zones.
+
+---
+
+## v0.2.1 Pipeline: Zone Map
+
+v0.2.1 introduces a **ZoneMap** — a structural analysis of the filename
+that identifies zones *before* full matching runs. This inverts the
+control flow from "match then prune" to "know zones, then match
+appropriately."
+
+```
+Input string
+  │
+  ├─ 1. Tokenize (unchanged)
+  │     └─ TokenStream { segments, extension }
+  │
+  ├─ 2. Anchor detection (NEW — fast, unambiguous patterns only)
+  │     Find high-confidence markers that never need disambiguation:
+  │     ├─ Year:      (2015), .2015.  (parenthesized or dot-bounded 4-digit)
+  │     ├─ Season/Ep: S01E02, 1x03   (SxxExx, NxN patterns)
+  │     ├─ Extension: .mkv, .avi     (from tokenizer)
+  │     ├─ Brackets:  [Group], (year) (leading/trailing bracket groups)
+  │     └─ Group:     -GROUP.ext      (trailing hyphen-group)
+  │
+  ├─ 3. Zone map construction (NEW)
+  │     From anchors, derive zone boundaries per filename segment:
+  │
+  │     [Group] Title.Words.Year.SxxExx.Ep_Title.Source.Codec-Group.ext
+  │      ──┬──  ───┬───── ─┬── ───┬─── ────┬───── ──────┬────── ─┬─── ─┬─
+  │     release title     anchor          ep_title    tech          release ext
+  │     (lead)  zone      (year/ep)       zone        zone          (trail)
+  │
+  │     ZoneMap {
+  │       title_zone:      fn_start .. first_anchor,
+  │       tech_zone:       first_anchor .. group_start,
+  │       ep_title_zone:   ep_end .. first_tech_after_ep,  // if episode exists
+  │       release_zone:    group_start .. ext_start,        // if group detected
+  │     }
+  │
+  ├─ 4. Zone-aware matching (CHANGED)
+  │     TOML rules declare a `zone_scope`:
+  │     ├─ Unrestricted: match everywhere (default, backwards-compatible)
+  │     │   VideoCodec, AudioCodec, ScreenSize (with p/i suffix), Source, ...
+  │     ├─ TechOnly: suppress in title zone (ambiguous tokens)
+  │     │   Other (Proof, HDR, 3D), Language, Edition, EpisodeDetails
+  │     └─ TechOrAfterAnchor: match in tech zone + after any anchor
+  │         Country, SubtitleLanguage
+  │
+  ├─ 4b. Legacy matchers (unchanged, transitional)
+  │
+  ├─ 5. Conflict resolution (unchanged)
+  │
+  ├─ 6. Zone-informed disambiguation (REPLACES apply_zone_rules)
+  │     Most zone rules become unnecessary because matching was already
+  │     zone-aware. Remaining rules handle cross-zone conflicts only.
+  │
+  ├─ 7. Post-processing (SIMPLIFIED)
+  │     Title extraction uses zone boundaries directly instead of
+  │     re-deriving them from match positions.
+  │
+  └─ 8. Build HunchResult → JSON
+```
+
+### Anchors
+
+Anchors are tokens that are **unambiguous regardless of position**.
+They mean the same thing in the title zone, tech zone, or anywhere else.
+Anchor detection runs a small, fast subset of matchers — no TOML rules,
+just regex patterns that have zero false positives.
+
+| Anchor type | Pattern | Examples |
+|---|---|---|
+| Year | `(NNNN)` or `.NNNN.` in 1920–2039 | `(2015)`, `.2008.` |
+| Season/Episode | `SxxExx`, `NxNN` | `S01E02`, `1x03` |
+| Extension | Last `.xxx` from tokenizer | `.mkv`, `.avi` |
+| Leading bracket | `[text]` at start of filename | `[SubGroup]` |
+| Trailing group | `-GROUP.ext` at end | `-DEMAND.mkv` |
+
+Anchors are NOT full matchers. They don't produce `MatchSpan`s for the
+result — they only produce zone boundaries. The full matchers (TOML rules,
+legacy matchers) run afterwards with zone context.
+
+### Zone scopes for TOML rules
+
+Each TOML rule file can declare a `zone_scope` (defaults to `"unrestricted"`
+for backwards compatibility):
+
+```toml
+property = "other"
+zone_scope = "tech_only"     # NEW: suppress in title zone
+
+[exact]
+proof    = "Proof"
+hdr      = "HDR"
+hdr10    = "HDR10"
+```
+
+| Scope | Behavior | Use for |
+|---|---|---|
+| `unrestricted` | Match in all zones (default) | Unambiguous tech: codecs, resolutions |
+| `tech_only` | Suppress matches in title zone | Ambiguous tokens: Other, Edition |
+| `after_anchor` | Match only after first anchor | Language, SubtitleLanguage, Country |
+
+The pipeline passes the `ZoneMap` to `match_tokens_in_segment()`. If a
+token falls in the title zone and the rule's scope is `tech_only`, the
+match is silently skipped — no span is emitted, no conflict to resolve.
+
+### What ZoneMap solves
+
+| Problem | v0.2 (match-then-prune) | v0.2.1 (zones-first) |
+|---|---|---|
+| "Proof" at start → Other | Other claims it, title gets nothing | title_zone → Other suppressed → title |
+| "French" before year | Language claims it, zone rule partial fix | title_zone → Language suppressed → title |
+| "3D" in movie title | ScreenSize claims it | title_zone → ambiguous ScreenSize suppressed |
+| "LiNE" in title | Other (Line Audio) claims it | title_zone → Other suppressed → title |
+| "Edition" in title | Edition claims it before title runs | title_zone → Edition suppressed → title |
+| Episode title boundary | Independently re-derives zones | Uses ep_title_zone from ZoneMap |
+| Path segment selection | Title picks wrong dir | Per-segment zone analysis → best structure |
+
+### What ZoneMap does NOT solve
+
+These problems are orthogonal to zones:
+
+- **Multi-token compounds** ("Edition Collector") — needs TOML engine
+  multi-token window enhancement, not zone awareness.
+- **Compound release groups** ("Tigole QxR") — needs release_group.rs
+  logic for merging across brackets, not zones.
+- **Layer 2 disambiguation** ("2001 A Space Odyssey") — needs external
+  title DB. Out of scope for this crate (D004).
+
+### Incremental implementation path
+
+No big-bang rewrite. Each step is a separate commit, tested independently:
+
+1. **Add `ZoneMap` struct + `detect_anchors()`** — non-breaking new code.
+   Compute zones after tokenization, log to debug. (~100 lines)
+2. **Add `zone` field to TOML `RuleSet`** — additive, defaults to
+   `Unrestricted`. Parse `zone_scope` from TOML files. (~30 lines)
+3. **Pass `ZoneMap` to `match_tokens_in_segment()`** — add filtering
+   alongside existing matching code. Tokens in title zone skip
+   `TechOnly` rules. (~20 lines)
+4. **Tag ambiguous TOML rules** with `zone_scope = "tech_only"` —
+   start with `other.toml`, `edition.toml`. Each file is one commit.
+5. **Retire `apply_zone_rules()` heuristics** one at a time as zone
+   scopes make them redundant.
+6. **Simplify `extract_title()`** — use `title_zone` boundaries
+   instead of re-scanning for first-match positions.
 
 ### Why not rebulk?
 
@@ -232,6 +398,15 @@ matchers incrementally.
 6. ✅ Extract `match_tokens_in_segment()` for clarity
 7. ⬜ Split tokenizer.rs (684 lines, over 600-line limit)
 
+### Phase A.1: Zone map (v0.2.1) — IN PROGRESS
+1. ⬜ Add `ZoneMap` struct + `detect_anchors()` function
+2. ⬜ Add `zone_scope` field to TOML `RuleSet` + parser
+3. ⬜ Pass `ZoneMap` to `match_tokens_in_segment()` for filtering
+4. ⬜ Tag ambiguous TOML rules: `other.toml`, `edition.toml`,
+   `language.toml`, `episode_details.toml`
+5. ⬜ Retire `apply_zone_rules()` heuristics incrementally
+6. ⬜ Simplify `extract_title()` to use zone boundaries
+
 ### Phase B: Remove legacy matchers (incremental)
 Retire one legacy matcher at a time, in order of coverage:
 1. **Already TOML-only**: color_depth, audio_profile, other_weak, video_api
@@ -305,6 +480,35 @@ These three are interdependent:
 
 **Status**: Decided, permanent. See "Why not rebulk?" above.
 
+### D006: Zone map for disambiguation (anchors first, zones second, matching third)
+
+**Status**: In progress (v0.2.1)
+
+The v0.2 pipeline matches all tokens against all rules, then prunes
+mistakes via post-hoc zone rules. This loses information (a pruned match
+can't be restored as title content) and scatters zone logic across
+multiple components.
+
+v0.2.1 inverts the flow: detect unambiguous anchors first (year, S/E,
+extension, release group), construct a zone map from those anchors,
+then run TOML rules with zone-awareness so ambiguous tokens in the
+title zone are never matched in the first place.
+
+**Key insight**: anchors are tokens that are unambiguous regardless of
+position. They divide the filename into structural zones. Each zone gets
+different matching rules — title zone suppresses ambiguous vocabulary,
+tech zone allows full matching.
+
+**Consequences**:
+- Eliminates the "match-then-prune" anti-pattern for most disambiguation
+- Zone logic lives in one place (`ZoneMap`) instead of scattered heuristics
+- Title extraction becomes simpler (uses zone boundaries, not re-scanning)
+- Incremental: each TOML rule file can opt-in to zone scoping independently
+- Backwards compatible: default scope is `unrestricted` (no behavior change)
+
+**Does NOT solve**: multi-token compounds, compound release groups,
+title DB lookups (Layer 2). These are orthogonal problems.
+
 ---
 
 ## Module Map
@@ -317,21 +521,23 @@ src/
 ├── options.rs              # Options / configuration
 ├── pipeline.rs             # v0.2 pipeline orchestration
 ├── tokenizer.rs            # Input → TokenStream (separators, brackets, extension)
+├── zone_map.rs             # (v0.2.1) Anchor detection + zone boundary computation
 ├── matcher/
 │   ├── mod.rs              # Re-exports
-│   ├── span.rs             # MatchSpan, Property enum (46 variants)
+│   ├── span.rs             # MatchSpan, Property enum (55 variants)
 │   ├── engine.rs           # Conflict resolution (priority + length sweep)
 │   ├── regex_utils.rs      # ValuePattern + BoundedRegex (LEGACY — to be removed)
-│   └── rule_loader.rs      # TOML rule engine: exact + regex + {N} templates
-└── properties/             # 30 property matcher modules
+│   └── rule_loader.rs      # TOML rule engine: exact + regex + {N} templates + zone_scope
+└── properties/             # 31 property matcher modules
     ├── title.rs             # Title/episode_title extraction (algorithmic, stays)
-    ├── episodes/            # S01E02, 1x03, ranges, anime (algorithmic, stays)
+    ├── episodes/            # S01E02, 1x03, ranges, anime, week (algorithmic, stays)
     ├── release_group.rs     # Positional heuristics (stays)
+    ├── bit_rate.rs          # Bit rate detection (v0.2.1)
     ├── date.rs              # Date parsing (algorithmic, stays)
     ├── year.rs              # Year detection (stays)
     └── ...                  # ~25 legacy matchers (being migrated to TOML)
 
-rules/                      # 18 TOML data files (compile-time embedded)
+rules/                      # 20 TOML data files (compile-time embedded)
 ├── video_codec.toml        # H.264, H.265, AV1, Xvid, …
 ├── audio_codec.toml        # AAC, DTS, Dolby, FLAC, Opus, …
 ├── source.toml             # Blu-ray, WEB-DL, HDTV, DVDRip, …
@@ -346,11 +552,13 @@ rules/                      # 18 TOML data files (compile-time embedded)
 ├── streaming_service.toml  # AMZN, NF, HMAX, DSNP, …
 ├── video_profile.toml      # Hi10P, HP, SVC, …
 ├── audio_profile.toml      # Atmos, DTS:X, TrueHD, …
+├── audio_channels.toml     # 5.1, 7.1, 2ch, …
 ├── color_depth.toml        # 10-bit, 8-bit, 12-bit, …
 ├── country.toml            # US, UK, GB, CA, AU, NZ
 ├── episode_details.toml    # Special, Pilot, Unaired, Final
+├── episode_format.toml     # Minisode (v0.2.1)
 └── video_api.toml          # DXVA, D3D11, CUDA, …
-
+```
 tests/
 ├── guessit_regression.rs   # 22 fixture files, ratchet-pattern floors
 ├── integration.rs          # 27 hand-written end-to-end tests
@@ -364,6 +572,7 @@ tests/
 
 ```toml
 property = "video_codec"
+zone_scope = "unrestricted"  # (v0.2.1) "unrestricted" | "tech_only" | "after_anchor"
 
 [exact]                    # Case-insensitive exact token lookups
 x264 = "H.264"
