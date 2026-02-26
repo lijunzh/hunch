@@ -14,8 +14,8 @@ property = "subtitle_language"
 
 # ── VOST family (French anime/TV conventions) ──────────────────────────
 [exact]
-vostfr   = "French"
-fastsub  = "French"
+vostfr   = "fr"
+fastsub  = "fr"
 vost     = "und"       # original version, language unspecified
 
 # ── Compound lang+sub markers ──────────────────────────────────────────
@@ -118,6 +118,11 @@ match = '(?i)^e[-. ]?subs?$'
 value = "und"
 
 [[patterns]]
-# SUB.FR / Sub-FR (2-token: language code after sub marker)
-match = '(?i)^sub[-. ]?(fr|en|es|de|it|nl|sv|no|da|fi|pl|cs|hu|ro|hr|sr|bg|uk|he|ar|ru|hi|zh|ja|ko|pt|br|ca)$'
-value = "und"   # language-specific value emitted by subtitle_language.rs parse_sub_lang
+# SUB.FR / Sub-FR / Sub.EN (2-token: language code after sub marker)
+match = '(?i)^subs?[-. ]?(fr|en|es|de|it|nl|sv|no|da|fi|pl|cs|hu|ro|hr|sr|bg|uk|he|ar|ru|hi|zh|ja|ko|pt|br|ca)$'
+value = "{1}"
+
+[[patterns]]
+# FR-SUB / EN-SUB (language code before sub marker)
+match = '(?i)^(fr|en|es|de|it|nl|sv|no|da|fi|pl|cs|hu|ro|hr|sr|bg|uk|he|ar|ru|hi|zh|ja|ko|pt|br|ca)[-. ]?subs?$'
+value = "{1}"
