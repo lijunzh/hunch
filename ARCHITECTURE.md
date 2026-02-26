@@ -143,13 +143,16 @@ Input string
   ├─ 1. Tokenize (unchanged)
   │     └─ TokenStream { segments, extension }
   │
-  ├─ 2. Anchor detection (NEW — fast, unambiguous patterns only)
-  │     Find high-confidence markers that never need disambiguation:
-  │     ├─ Year:      (2015), .2015.  (parenthesized or dot-bounded 4-digit)
-  │     ├─ Season/Ep: S01E02, 1x03   (SxxExx, NxN patterns)
-  │     ├─ Extension: .mkv, .avi     (from tokenizer)
-  │     ├─ Brackets:  [Group], (year) (leading/trailing bracket groups)
-  │     └─ Group:     -GROUP.ext      (trailing hyphen-group)
+  ├─ 2. Anchor detection (NEW — two-phase, no TOML rules)
+  │     Phase 1: Find high-confidence markers (Tier 1 + Tier 2):
+  │     ├─ Structural:  S01E02, 1x03, 1080p, .mkv  (Tier 1)
+  │     ├─ Tech vocab:  x264, BluRay, DTS, HDTV     (Tier 2)
+  │     └─ → Establishes `tech_zone_start` (first Tier 1/2 token)
+  │
+  │     Phase 2: Disambiguate position-dependent tokens (Tier 3):
+  │     ├─ Year-like numbers: use tech_zone_start + position + count
+  │     ├─ Leading brackets:  [Group] at start
+  │     └─ Trailing group:    -GROUP.ext at end
   │
   ├─ 3. Zone map construction (NEW)
   │     From anchors, derive zone boundaries per filename segment:
@@ -190,24 +193,101 @@ Input string
   └─ 8. Build HunchResult → JSON
 ```
 
-### Anchors
+### Anchor confidence tiers
 
-Anchors are tokens that are **unambiguous regardless of position**.
-They mean the same thing in the title zone, tech zone, or anywhere else.
-Anchor detection runs a small, fast subset of matchers — no TOML rules,
-just regex patterns that have zero false positives.
+Not all tokens are equally unambiguous. Anchors exist on a **confidence
+spectrum**, and zone construction must account for this.
 
-| Anchor type | Pattern | Examples |
+#### Tier 1: Structural anchors (always unambiguous)
+
+These tokens have built-in structural markers (prefix, suffix, or
+position) that make them unambiguous regardless of where they appear.
+They never appear as title words.
+
+| Anchor | Signal | Examples |
 |---|---|---|
-| Year | `(NNNN)` or `.NNNN.` in 1920–2039 | `(2015)`, `.2008.` |
-| Season/Episode | `SxxExx`, `NxNN` | `S01E02`, `1x03` |
-| Extension | Last `.xxx` from tokenizer | `.mkv`, `.avi` |
-| Leading bracket | `[text]` at start of filename | `[SubGroup]` |
-| Trailing group | `-GROUP.ext` at end | `-DEMAND.mkv` |
+| Season/Episode | `S`/`E` prefix + digits | `S01E02`, `S03-E01` |
+| NxN episode | Digit-x-digit pattern | `1x03`, `5x09` |
+| Suffixed resolution | Digits + `p`/`i` suffix | `1080p`, `720i`, `2160p` |
+| Extension | Last `.xxx` position | `.mkv`, `.avi`, `.mp4` |
 
-Anchors are NOT full matchers. They don't produce `MatchSpan`s for the
-result — they only produce zone boundaries. The full matchers (TOML rules,
-legacy matchers) run afterwards with zone context.
+#### Tier 2: Unambiguous vocabulary (high confidence)
+
+These tokens have unique vocabulary that virtually never appears in
+titles. They are safe to use as zone boundary markers.
+
+| Anchor | Examples |
+|---|---|
+| Video codec | `x264`, `x265`, `H.264`, `XviD`, `HEVC`, `AV1` |
+| Audio codec | `DTS`, `AAC`, `AC3`, `FLAC`, `Atmos`, `TrueHD` |
+| Source | `BluRay`, `WEB-DL`, `HDTV`, `DVDRip`, `BDRip` |
+| Container (inline) | `MKV`, `AVI` when not in extension position |
+
+#### Tier 3: Position-dependent (need disambiguation)
+
+These tokens can be either metadata or title content. Their meaning
+depends on **absolute position** (where in the filename) and **relative
+position** (what's around them).
+
+| Token | As metadata | As title | Disambiguation |
+|---|---|---|---|
+| Year-like (1920–2039) | Release year | Movie title | See below |
+| `[Group]` at start | Release group | Subtitle tag | Anime heuristics |
+| `-GROUP` at end | Release group | Hyphenated word | Tech tokens must precede |
+| `HD`, `3D` | Other / ScreenSize | Title word | Zone position |
+
+### Year disambiguation strategy
+
+Year-like numbers (1920–2039) are the most important position-dependent
+anchor. Notable title-as-year examples:
+
+- `1917.2019.1080p.BluRay` — "1917" is title, "2019" is year
+- `2001.A.Space.Odyssey.1968.1080p` — "2001" is title, "1968" is year
+- `2012.2009.720p.BluRay` — "2012" is title, "2009" is year
+- `1922.2017.WEB-DL` — "1922" is title, "2017" is year
+
+**Key insight**: tech tokens define the zone boundary; years are
+disambiguated *using* that boundary, not the other way around.
+
+The algorithm:
+
+1. **Find `tech_zone_start`** from Tier 1 + Tier 2 anchors (the first
+   structural anchor or unambiguous tech token in the filename). This
+   does NOT use year-like numbers.
+
+2. **Classify each year candidate** using `tech_zone_start`:
+
+   | Position | Context | Classification |
+   |---|---|---|
+   | Parenthesized `(NNNN)` | Any | **Year** (very high confidence) |
+   | After `tech_zone_start` | In tech zone | **Year** |
+   | Before `tech_zone_start` | Only year candidate | **Year** (also zone boundary) |
+   | Before `tech_zone_start` | Multiple candidates; this is first | **Title** |
+   | Before `tech_zone_start` | Multiple candidates; this is last | **Year** |
+   | At filename start (pos 0) | Followed by non-year words | **Title** |
+   | At filename start (pos 0) | Immediately before tech | **Ambiguous** (could be either) |
+
+3. **Refine `title_zone`**: if the year candidate that survives as
+   the actual year is before `tech_zone_start`, it becomes the new
+   zone boundary. If the year is title content, the boundary stays
+   at `tech_zone_start`.
+
+Example walkthrough:
+```
+2001.A.Space.Odyssey.1968.HDDVD.1080p.DTS.x264.mkv
+ │                     │    │     │    │    │
+ │                     │    └─────┴────┴────┴── Tier 2 tech tokens
+ │                     │
+ ├─ Year candidate #1  ├─ Year candidate #2
+ │  pos=0 (start)       │  pos=before tech zone
+ │  followed by words   │  immediately before HDDVD (Tier 2)
+ │                      │
+ └─ → Title content     └─ → Actual year
+
+tech_zone_start = position of "HDDVD" (Tier 2, first tech token)
+title_zone = [0 .. "1968") → "2001 A Space Odyssey"
+year = 1968
+```
 
 ### Zone scopes for TOML rules
 
@@ -243,6 +323,7 @@ match is silently skipped — no span is emitted, no conflict to resolve.
 | "3D" in movie title | ScreenSize claims it | title_zone → ambiguous ScreenSize suppressed |
 | "LiNE" in title | Other (Line Audio) claims it | title_zone → Other suppressed → title |
 | "Edition" in title | Edition claims it before title runs | title_zone → Edition suppressed → title |
+| "2001" as title | Both 2001 and 1968 claimed as year | Year disambiguation: first=title, last=year |
 | Episode title boundary | Independently re-derives zones | Uses ep_title_zone from ZoneMap |
 | Path segment selection | Title picks wrong dir | Per-segment zone analysis → best structure |
 
@@ -262,8 +343,10 @@ These problems are orthogonal to zones:
 No big-bang rewrite. Each step is a separate commit, tested independently:
 
 1. **Add `ZoneMap` struct + `detect_anchors()`** — non-breaking new code.
-   Compute zones after tokenization, log to debug. (~100 lines)
-2. **Add `zone` field to TOML `RuleSet`** — additive, defaults to
+   Two-phase: (a) find Tier 1+2 tech tokens → `tech_zone_start`,
+   (b) disambiguate Tier 3 year candidates using that boundary.
+   Compute zones, log to debug. (~150 lines)
+2. **Add `zone_scope` field to TOML `RuleSet`** — additive, defaults to
    `Unrestricted`. Parse `zone_scope` from TOML files. (~30 lines)
 3. **Pass `ZoneMap` to `match_tokens_in_segment()`** — add filtering
    alongside existing matching code. Tokens in title zone skip
@@ -274,6 +357,8 @@ No big-bang rewrite. Each step is a separate commit, tested independently:
    scopes make them redundant.
 6. **Simplify `extract_title()`** — use `title_zone` boundaries
    instead of re-scanning for first-match positions.
+7. **Integrate year disambiguation** into the zone map so title
+   extraction naturally includes year-as-title numbers.
 
 ### Why not rebulk?
 
@@ -399,13 +484,16 @@ matchers incrementally.
 7. ⬜ Split tokenizer.rs (684 lines, over 600-line limit)
 
 ### Phase A.1: Zone map (v0.2.1) — IN PROGRESS
-1. ⬜ Add `ZoneMap` struct + `detect_anchors()` function
+1. ⬜ Add `ZoneMap` struct + two-phase `detect_anchors()` function
+   - Phase 1: Tier 1+2 anchors → tech_zone_start
+   - Phase 2: Tier 3 year disambiguation using tech_zone_start
 2. ⬜ Add `zone_scope` field to TOML `RuleSet` + parser
 3. ⬜ Pass `ZoneMap` to `match_tokens_in_segment()` for filtering
 4. ⬜ Tag ambiguous TOML rules: `other.toml`, `edition.toml`,
    `language.toml`, `episode_details.toml`
 5. ⬜ Retire `apply_zone_rules()` heuristics incrementally
 6. ⬜ Simplify `extract_title()` to use zone boundaries
+7. ⬜ Integrate year disambiguation into zone map
 
 ### Phase B: Remove legacy matchers (incremental)
 Retire one legacy matcher at a time, in order of coverage:
@@ -489,20 +577,28 @@ mistakes via post-hoc zone rules. This loses information (a pruned match
 can't be restored as title content) and scatters zone logic across
 multiple components.
 
-v0.2.1 inverts the flow: detect unambiguous anchors first (year, S/E,
-extension, release group), construct a zone map from those anchors,
-then run TOML rules with zone-awareness so ambiguous tokens in the
-title zone are never matched in the first place.
+v0.2.1 inverts the flow: detect unambiguous anchors first, construct a
+zone map from those anchors, then run TOML rules with zone-awareness so
+ambiguous tokens in the title zone are never matched in the first place.
 
-**Key insight**: anchors are tokens that are unambiguous regardless of
-position. They divide the filename into structural zones. Each zone gets
-different matching rules — title zone suppresses ambiguous vocabulary,
-tech zone allows full matching.
+**Key insight 1**: Anchors are not binary — they have confidence tiers.
+Structural markers (SxxExx, 1080p, .mkv) are always unambiguous.
+Tech vocabulary (x264, BluRay) is almost always unambiguous. But
+position-dependent tokens like year-like numbers (1920–2039) need
+contextual disambiguation.
+
+**Key insight 2**: Tech tokens define the zone boundary; years are
+disambiguated *using* that boundary, not the other way around. The
+first unambiguous tech token establishes `tech_zone_start`. Year
+candidates before it may be title content (e.g., "2001" in
+"2001.A.Space.Odyssey.1968"); year candidates at or after it are
+metadata.
 
 **Consequences**:
 - Eliminates the "match-then-prune" anti-pattern for most disambiguation
 - Zone logic lives in one place (`ZoneMap`) instead of scattered heuristics
 - Title extraction becomes simpler (uses zone boundaries, not re-scanning)
+- Year-as-title cases (1917, 2001, 2012) are handled structurally
 - Incremental: each TOML rule file can opt-in to zone scoping independently
 - Backwards compatible: default scope is `unrestricted` (no behavior change)
 
