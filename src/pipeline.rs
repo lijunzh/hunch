@@ -277,6 +277,23 @@ impl Pipeline {
         // Step 2: Match — TOML rules against tokens + legacy matchers against raw input.
         let mut all_matches = self.match_all(input, &token_stream, &zone_map);
 
+        // Step 2b: Year disambiguation using ZoneMap.
+        // When title-years are detected (e.g., "2001" in "2001.A.Space.Odyssey.1968"),
+        // remove those year matches so they become part of the title.
+        if let Some(ref yi) = zone_map.year
+            && !yi.title_years.is_empty()
+        {
+            all_matches.retain(|m| {
+                if m.property != Property::Year {
+                    return true;
+                }
+                // Keep only the disambiguated year, drop title-years.
+                !yi.title_years
+                    .iter()
+                    .any(|ty| m.start == ty.start && m.end == ty.end)
+            });
+        }
+
         // Step 3: Resolve overlapping conflicts.
         engine::resolve_conflicts(&mut all_matches);
 
