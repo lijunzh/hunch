@@ -107,21 +107,19 @@ fn handle_empty_title(
     first_match_in_filename: Option<&MatchSpan>,
 ) -> Option<MatchSpan> {
     // Year-as-title via ZoneMap: e.g., "2001" in "2001.A.Space.Odyssey.1968".
-    if let Some(ref yi) = zone_map.year {
-        if let Some(ty) = yi.title_years.iter().find(|ty| ty.start == filename_start) {
-            if let Some(title) = extract_title_after_position(input, ty.end, filename_start, filename, matches) {
-                return Some(title);
-            }
-        }
+    if let Some(ref yi) = zone_map.year
+        && let Some(ty) = yi.title_years.iter().find(|ty| ty.start == filename_start)
+        && let Some(title) = extract_title_after_position(input, ty.end, filename_start, filename, matches)
+    {
+        return Some(title);
     }
     // Fallback: first match is a Year at filename start.
     if let Some(first_m) = first_match_in_filename
         && first_m.property == Property::Year
         && first_m.start == filename_start
+        && let Some(title) = extract_title_after_position(input, first_m.end, filename_start, filename, matches)
     {
-        if let Some(title) = extract_title_after_position(input, first_m.end, filename_start, filename, matches) {
-            return Some(title);
-        }
+        return Some(title);
     }
     // Single short word with no path/extension → treat as title.
     if !input.contains(['/', '\\']) && !input.contains('.') && input.len() <= 10 {

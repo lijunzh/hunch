@@ -7,12 +7,12 @@
 **A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
 for extracting media metadata from filenames.**
 
-> ⚠️ **Work in progress.** Hunch currently passes **78.2%** of guessit's own
-> 1,309-case test suite (1,023 / 1,309). All 49 guessit properties are
+> ⚠️ **Work in progress.** Hunch currently passes **76.6%** of guessit's own
+> 1,309-case test suite (1,003 / 1,309). All 49 guessit properties are
 > implemented (3 intentionally diverged). Core properties like video codec,
 > screen size, source, audio codec, and year are 95–99% accurate. Title,
 > episode, language, and 40+ other properties are steadily improving.
-> `fancy_regex` has been fully removed — all regex is linear-time (ReDoS-immune).
+> All regex is linear-time via the `regex` crate (ReDoS-immune).
 > See [COMPATIBILITY.md](COMPATIBILITY.md) for the full breakdown.
 
 Hunch extracts title, year, season, episode, resolution, codec, language,
@@ -73,7 +73,7 @@ against guessit's own YAML test suite:
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% (by definition) | **78.2%** (1,023 / 1,309) |
+| Overall pass rate | 100% (by definition) | **76.6%** (1,003 / 1,309) |
 | Properties implemented | 49 | 49 (3 diverged) |
 | Properties at 90%+ | 49 | 29 |
 | Properties at 100% | 49 | 15 |
@@ -86,8 +86,8 @@ proper_count, date, disc, episode_format, week, video_api.
 
 **Where hunch is developing** (70–90%):
 title (89%), release_group (89%), episode (90%), season (94%),
-audio_channels (95%), language (85%), subtitle_language (78%),
-episode_title (71%), other (86%), audio_profile (85%).
+audio_channels (95%), language (78%), subtitle_language (77%),
+episode_title (70%), other (82%), audio_profile (85%).
 
 For per-property breakdowns, per-file results, and known gaps,
 see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
@@ -131,25 +131,29 @@ src/
 ├── main.rs             # CLI binary (clap)
 ├── hunch_result.rs     # HunchResult type + JSON serialization
 ├── options.rs          # Configuration
-├── pipeline.rs         # Orchestration: tokenize → match → resolve → extract
+├── zone_map.rs         # ZoneMap: structural filename zone analysis
 ├── tokenizer.rs        # Input → TokenStream (segments, brackets, extension)
+├── pipeline/           # Orchestration: tokenize → zones → match → resolve
+│   ├── mod.rs          # Pipeline struct + run/match_all
+│   ├── zone_rules.rs   # Post-match zone disambiguation (7 rules)
+│   └── proper_count.rs # PROPER/REPACK count computation
 ├── matcher/
 │   ├── span.rs         # MatchSpan + Property enum (55 variants)
 │   ├── engine.rs       # Conflict resolution
-│   ├── regex_utils.rs  # BoundedRegex + ValuePattern (legacy)
-│   └── rule_loader.rs  # TOML rule engine: exact + regex + templates
+│   ├── regex_utils.rs  # BoundedRegex + boundary checking
+│   └── rule_loader.rs  # TOML rule engine: exact + regex + templates + zone_scope
 └── properties/         # 31 property matcher modules
-    ├── title.rs        # Title/episode_title extraction (algorithmic)
-    ├── episodes/       # Season/episode detection (SxxExx, NxN, anime, week)
+    ├── title/          # Title extraction (mod.rs + clean.rs + secondary.rs)
+    ├── episodes/       # Season/episode (mod.rs + patterns.rs + tests.rs)
     ├── release_group.rs # Positional release group heuristics
-    ├── bit_rate.rs     # Bit rate detection
     └── ...             # year, date, source, language, etc.
 
 rules/                  # 20 TOML data files (compile-time embedded)
-├── video_codec.toml, audio_codec.toml, source.toml, ...
-├── language.toml, subtitle_language.toml, edition.toml, ...
-└── episode_format.toml, video_api.toml, ...
-
+├── source.toml         # Source patterns with Rip/Screener side_effects
+├── other.toml          # Other flags (unambiguous)
+├── other_positional.toml # Position-dependent Other (zone_scope=tech_only)
+└── ...                 # video_codec, audio_codec, language, edition, etc.
+```
 tests/
 ├── integration.rs      # 32 hand-written end-to-end tests
 ├── guessit_regression.rs # 22 regression suites + compatibility report

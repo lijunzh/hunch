@@ -7,51 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.2.1] - Unreleased
+## [0.2.1] - 2026-02-26
 
 ### Added
 
 - **`bit_rate` property** — detects audio/video bit rates from filename
   patterns (`320Kbps`, `19.1Mbps`, `1.5Mbps`). Emitted as a single
   `bit_rate` (not split into audio/video — see COMPATIBILITY.md).
-  Manual position scanning handles greedy regex across dot separators.
-- **`episode_format` property** — detects episode format tags like
-  "Minisode" / "Minisodes" via TOML exact match.
-- **`week` property** — detects week-based episode markers
-  ("Week 45") in season/episode context.
-- **`episode_format.toml`** — new TOML rule file for episode formats.
-- 5 new integration tests, 7 new unit tests.
+- **`episode_format` property** — detects "Minisode" / "Minisodes".
+- **`week` property** — detects "Week 45" in episode context.
+- **Zone map (ZoneMap)** — two-phase anchor detection for structural
+  filename analysis. Tier 1+2 anchors establish tech_zone_start;
+  Tier 3 year disambiguation uses that boundary.
+- **`zone_scope` in TOML rules** — `tech_only` and `after_anchor`
+  scopes suppress ambiguous tokens in the title zone at match time.
+- **Source side-effects in TOML** — `source.toml` now emits Other:Rip,
+  Other:Screener, Other:Reencoded via declarative side_effects.
+- **Zone Rule 7** — promotes Blu-ray → Ultra HD Blu-ray when UHD/4K/2160p
+  signals exist elsewhere in the filename.
+
+### Changed
+
+- **Overall pass rate: 78.2% → 76.6%** (1,023 → 1,003 / 1,309).
+  Slight regression from eliminating dual-pipeline overlap; source-specific
+  accuracy improved (91% → 100%). See architecture notes below.
+- **Source: 91.3% → 100%** on rules/source.yml fixture.
+- **Year: 95.2% → 96.1%** — improved boundary handling.
+
+### Architecture
+
+- **Phase A + A.1 complete** — ZoneMap, zone_scope filtering, year
+  disambiguation all integrated into pipeline.
+- **Dual-pipeline eliminated** — source.rs retired to TOML-only;
+  subtitle_language.rs trimmed to algorithmic-only (no TOML overlap);
+  language.rs already cooperative (bracket codes only).
+- **ValuePattern retired** — year.rs uses plain Regex; ValuePattern
+  struct and related code deleted from regex_utils.rs.
+- **Dead legacy code removed** — other.rs gutted (282→75 lines);
+  source.rs gutted (288→80 lines).
+- **File splits for clarity** —
+  - `pipeline.rs` (808 lines) → `pipeline/` module: mod.rs (600),
+    zone_rules.rs (165), proper_count.rs (68)
+  - `title.rs` (1043 lines) → `title/` module: mod.rs (365),
+    clean.rs (266), secondary.rs (253)
+  - `episodes/mod.rs` find_matches (640-line function) → 25-line
+    orchestrator + 6 named category functions
+- **Renamed** `other_weak.toml` → `other_positional.toml` for clarity.
+- **`episode_details.toml`** tagged with `zone_scope = "tech_only"`,
+  retiring zone Rule 4.
+- **Zone Rule 1** (language in title zone) now uses ZoneMap boundaries
+  directly instead of re-deriving from match positions.
+- **cargo clippy** clean — zero warnings.
 
 ### Fixed
 
 - **Title: "The 100" pattern** — absolute episode candidates before the
-  first S/E span are now skipped, preventing numbers like `100` in
-  "The.100.S01E13" from being claimed as absolute episodes.
+  first S/E span are now skipped.
 - **Title: trailing keywords** — strip trailing `Episode`/`Ep` words
-  and `-xNN` bonus markers from extracted titles.
+  and `-xNN` bonus markers.
 - **Title: trailing punctuation** — strip trailing colons, hyphens,
-  commas, and semicolons that leak from separator boundaries.
+  commas, semicolons.
+- **Title: year-as-title** — uses ZoneMap year disambiguation for
+  structural handling (e.g., "2001.A.Space.Odyssey.1968").
 - **Release group: language prefixes** — `HUN-nIk` → `nIk`,
-  `TrueFrench-Scarface45` → `Scarface45`. Added missing language codes
-  (`hun`, `ger`, `truefrench`, etc.) to `is_known_token` to prevent
-  `expand_group_backwards` from including language prefixes.
-- **Episode title: Part boundary** — `Property::Part` now stops
-  episode title extraction (e.g., "Into The Fog of War Part 1" →
-  episode_title="Into The Fog of War", part=1).
-
-### Changed
-
-- **Overall pass rate: 77.3% → 78.2%** (1,012 → 1,023 / 1,309).
-- `episode_format` and `week` now 100% compatible (were 0% dead code).
-- Properties implemented: 46/49 → 49/49 (all guessit properties covered
-  or intentionally diverged — see below).
-- Title accuracy: 88.4% → 89.0%.
-- Release group accuracy: 88.7% → 89.1%.
+  `TrueFrench-Scarface45` → `Scarface45`.
+- **Episode title: Part boundary** — `Property::Part` stops extraction.
 
 ### Intentional divergences (documented)
 
-- **`audio_bit_rate` / `video_bit_rate`**: hunch uses a single `bit_rate`
-  property. Users already have codec properties for stream context.
+- **`audio_bit_rate` / `video_bit_rate`**: single `bit_rate` property.
 - **`mimetype`**: trivially derived from `container`; redundant.
 
 ## [0.2.0] - 2026-02-25

@@ -356,7 +356,7 @@ fn try_season_patterns(input: &str, matches: &mut Vec<MatchSpan>) {
 /// S01-S10, S01.to.S04, S01S02S03, S01-02-03, etc.
 fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
     // S01-S10 range.
-    for cap in S_RANGE.captures_iter(input) {
+    if let Some(cap) = S_RANGE.captures(input) {
         let full = cap.get(0).unwrap();
         let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
         let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
@@ -370,7 +370,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 
     // S01.to.S04 range.
-    for cap in S_TO_S.captures_iter(input) {
+    if let Some(cap) = S_TO_S.captures(input) {
         let full = cap.get(0).unwrap();
         let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
         let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
@@ -386,7 +386,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
     // S01S02S03 concatenated.
     static S_NUM_RE: LazyLock<regex::Regex> =
         LazyLock::new(|| regex::Regex::new(r"(?i)S(\d{1,3})").unwrap());
-    for cap in S_CONCAT.captures_iter(input) {
+    if let Some(cap) = S_CONCAT.captures(input) {
         let full = cap.get(0).unwrap();
         let text = &input[full.start()..full.end()];
         for num_cap in S_NUM_RE.find_iter(text) {
@@ -402,7 +402,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 
     // S01-02-03 (S prefix + dash/space separated numbers).
-    for cap in S_MULTI_NUM.captures_iter(input) {
+    if let Some(cap) = S_MULTI_NUM.captures(input) {
         let full = cap.get(0).unwrap();
         let seasons_str = cap.name("seasons").unwrap().as_str();
         let nums: Vec<u32> = seasons_str
@@ -416,14 +416,13 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
                     .with_priority(1),
             );
         }
-        return;
     }
 }
 
 /// "Season 1", "Saison VII", "Season 1-3", "Season 1&3", "Season 1.2.3~5", etc.
 fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
     // Season 1 to 3, Saison 1~3 (word-based range).
-    for cap in SEASON_RANGE_WORD.captures_iter(input) {
+    if let Some(cap) = SEASON_RANGE_WORD.captures(input) {
         let full = cap.get(0).unwrap();
         let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
         let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
@@ -439,7 +438,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 
     // Season 1.3 and 5, Season 1.3&5.
-    for cap in SEASON_LIST_AND.captures_iter(input) {
+    if let Some(cap) = SEASON_LIST_AND.captures(input) {
         let full = cap.get(0).unwrap();
         let nums_str = cap.name("nums").unwrap().as_str();
         let last: u32 = parse_num(&cap, "last").parse().unwrap_or(0);
@@ -459,7 +458,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 
     // Season 1.2.3~5 (discrete prefix + range end).
-    for cap in SEASON_MULTI_RANGE.captures_iter(input) {
+    if let Some(cap) = SEASON_MULTI_RANGE.captures(input) {
         let full = cap.get(0).unwrap();
         let prefix_str = cap.name("prefix").unwrap().as_str();
         let end: u32 = parse_num(&cap, "end").parse().unwrap_or(0);
@@ -486,7 +485,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 
     // Season 1-3, Season 1&3, Season 1.3.4 (generic multi-season).
-    for cap in SEASON_MULTI.captures_iter(input) {
+    if let Some(cap) = SEASON_MULTI.captures(input) {
         let full = cap.get(0).unwrap();
         let seasons_str = cap.name("seasons").unwrap().as_str();
         let nums: Vec<u32> = seasons_str
@@ -598,27 +597,27 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 
     // Bare episode after dots: `Show.05.Title`.
-    if !has_property(matches, Property::Episode) {
-        if let Some(cap) = BARE_EPISODE.captures(input) {
-            let full = cap.get(0).unwrap();
-            let episode = parse_num(&cap, "episode");
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                    .with_priority(-1),
-            );
-        }
+    if !has_property(matches, Property::Episode)
+        && let Some(cap) = BARE_EPISODE.captures(input)
+    {
+        let full = cap.get(0).unwrap();
+        let episode = parse_num(&cap, "episode");
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                .with_priority(-1),
+        );
     }
 
     // Versioned episode: `Show.07v4`.
-    if !has_property(matches, Property::Episode) {
-        if let Some(cap) = VERSIONED_EPISODE.captures(input) {
-            let full = cap.get(0).unwrap();
-            let episode = parse_num(&cap, "episode");
-            matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                    .with_priority(1),
-            );
-        }
+    if !has_property(matches, Property::Episode)
+        && let Some(cap) = VERSIONED_EPISODE.captures(input)
+    {
+        let full = cap.get(0).unwrap();
+        let episode = parse_num(&cap, "episode");
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                .with_priority(1),
+        );
     }
 
     // Leading episode: `01 - Ep Name`.
