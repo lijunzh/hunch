@@ -1,10 +1,73 @@
-# Weak Other patterns (priority -2): tokens that are ambiguous but genuinely
-# unambiguous as STANDALONE tokens that can't be part of larger tech tags.
+# Weak / ambiguous Other patterns (zone_scope = tech_only).
 #
-# Note: HD, DV, HQ, HR, LD, MD, SBS, OU, RC, FIX stay in legacy other.rs
-# because they need full-string lookaround assertions to avoid false positives
-# (e.g., HD in DTS-HD, HQ in filename, etc.)
+# These tokens can be either metadata OR title words depending on position.
+# Zone filtering suppresses them in the title zone, preventing false
+# positives like "Proof" (the TV show) or "3D" (in movie titles).
 property = "other"
+zone_scope = "tech_only"
 
 [exact]
-sample = "Sample"
+proof       = "Proof"
+sample      = "Sample"
+3d          = "3D"
+
+[exact_sensitive]
+LiNE  = "Line Audio"
+
+[[patterns]]
+# DV (Dolby Vision) — short, ambiguous
+match = '(?i)^dv$'
+value = "Dolby Vision"
+not_before = ["d", "b", "r"]
+
+[[patterns]]
+# HD (standalone) — not when adjacent to DTS, TV, CAM, etc.
+match = '(?i)^hd$'
+value = "HD"
+not_before = ["tv", "dvd", "cam", "rip", "tc", "ts"]
+not_after = ["dts"]
+
+[[patterns]]
+# HQ (High Quality)
+match = '(?i)^hq$'
+value = "High Quality"
+
+[[patterns]]
+# HR (High Resolution)
+match = '(?i)^hr$'
+value = "High Resolution"
+
+[[patterns]]
+# LD (Line Dubbed)
+match = '(?i)^ld$'
+value = "Line Dubbed"
+
+[[patterns]]
+# MD (Mic Dubbed)
+match = '(?i)^md$'
+value = "Mic Dubbed"
+
+[[patterns]]
+# RC (Region C)
+match = '(?i)^rc$'
+value = "Region C"
+
+[[patterns]]
+# FIX (standalone)
+match = '(?i)^fix$'
+value = "Fix"
+
+[[patterns]]
+# iTunes HD
+match = '(?i)^itunes[- .]?hd$'
+value = "HD"
+
+[[patterns]]
+# Side-by-Side / Half-SBS (3D variant)
+match = '(?i)^(?:half[- .]?)?sbs$'
+value = "3D"
+
+[[patterns]]
+# Over-Under / Half-OU (3D variant)
+match = '(?i)^(?:half[- .]?)?ou$'
+value = "3D"

@@ -61,7 +61,7 @@ static EPISODE_FORMAT_RULES: LazyLock<RuleSet> =
 
 use crate::properties::title;
 use crate::properties::{
-    aspect_ratio, bit_rate, bonus, crc32, date, episode_count, episodes, language, other, part,
+    aspect_ratio, bit_rate, bonus, crc32, date, episode_count, episodes, language, part,
     release_group, size, source, subtitle_language, uuid, version, website, year,
 };
 
@@ -246,7 +246,6 @@ impl Pipeline {
             date::find_matches,
             episodes::find_matches,
             episode_count::find_matches,
-            other::find_matches,
             language::find_matches,
             subtitle_language::find_matches,
             crc32::find_matches,
@@ -405,11 +404,14 @@ impl Pipeline {
                 let win_end = tokens[i + window_size - 1].end;
 
                 // ── Zone scope filtering ─────────────────────────────
-                let in_title_zone = zone_map.title_zone.contains(&win_start);
-                match rule_set.zone_scope {
-                    ZoneScope::TechOnly if in_title_zone => continue,
-                    ZoneScope::AfterAnchor if in_title_zone => continue,
-                    _ => {}
+                // Only filter when we have reliable zone boundaries.
+                if zone_map.has_anchors {
+                    let in_title_zone = zone_map.title_zone.contains(&win_start);
+                    match rule_set.zone_scope {
+                        ZoneScope::TechOnly if in_title_zone => continue,
+                        ZoneScope::AfterAnchor if in_title_zone => continue,
+                        _ => {}
+                    }
                 }
                 if matched_ranges
                     .iter()

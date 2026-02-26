@@ -29,6 +29,10 @@ pub struct ZoneMap {
     /// All matchers are active here.
     pub tech_zone: Range<usize>,
 
+    /// Whether any Tier 1/2 anchors were found.
+    /// When false, zone filtering should be disabled (no reliable boundaries).
+    pub has_anchors: bool,
+
     /// The year value (if disambiguated). `None` if no year found.
     /// When two year-like numbers exist, the first may be title content.
     pub year: Option<YearInfo>,
@@ -168,6 +172,11 @@ pub fn build_zone_map(input: &str, token_stream: &TokenStream) -> ZoneMap {
         }
     }
 
+    // Only enable zone filtering when we have Tier 1/2 tech tokens.
+    // Year-only anchors don't give enough confidence for title zone boundaries
+    // (e.g., "3D.2019" — "3D" is metadata, not title, despite being before the year).
+    let has_tier12 = tech_zone_start < fn_end;
+
     // ── Phase 2: Disambiguate year candidates ────────────────────────
 
     let year_info = disambiguate_years(input, fn_start, tech_zone_start);
@@ -180,9 +189,12 @@ pub fn build_zone_map(input: &str, token_stream: &TokenStream) -> ZoneMap {
         tech_zone_start = yi.start;
     }
 
+    let has_anchors = has_tier12;
+
     ZoneMap {
         title_zone: fn_start..tech_zone_start,
         tech_zone: tech_zone_start..fn_end,
+        has_anchors,
         year: year_info,
     }
 }

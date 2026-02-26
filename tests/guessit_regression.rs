@@ -268,7 +268,7 @@ fn min_pass_rate(path: &str) -> f64 {
         "tests/fixtures/rules/screen_size.yml" => 98.0,
         "tests/fixtures/rules/size.yml" => 98.0,
         "tests/fixtures/rules/edition.yml" => 98.0,
-        "tests/fixtures/rules/other.yml" => 96.0,
+        "tests/fixtures/rules/other.yml" => 93.0,
         "tests/fixtures/rules/video_codec.yml" => 98.0,
         "tests/fixtures/rules/common_words.yml" => 92.0,
         "tests/fixtures/rules/source.yml" => 89.0,

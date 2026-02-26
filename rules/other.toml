@@ -1,10 +1,12 @@
 # Other property patterns: HDR, Remux, Proper, 3D, region codes, etc.
 # Matched token-by-token (or as 2–3-token windows), so no lookaround needed.
 #
-# IMPORTANT: Only put UNAMBIGUOUS patterns here — tokens that can only mean
-# one thing in a media filename. Short/ambiguous tokens (HD, DV, HQ, HR,
-# LD, MD, SBS, OU, FIX) stay in the legacy other.rs which uses full-string
-# lookaround assertions for accurate context detection.
+# This is the sole source of truth for Other patterns (v0.2.1+).
+# The legacy other.rs matcher has been retired.
+#
+# Zone: unrestricted — these tokens are almost never title words.
+# Truly ambiguous tokens (HD, DV, Proof, 3D) live in other_weak.toml
+# with zone_scope = "tech_only".
 property = "other"
 
 # Single-token exact matches (case-insensitive).
@@ -29,14 +31,12 @@ internal    = "Internal"
 xxx         = "XXX"
 colorized   = "Colorized"
 dubbed      = "Dubbed"
-3d          = "3D"
 repost      = "Repost"
 obfuscated  = "Obfuscated"
 obfuscation = "Obfuscated"
 scrambled   = "Obfuscated"
 complete    = "Complete"
 complet     = "Complete"
-proof       = "Proof"
 stv         = "Straight to Video"
 dirfix      = "Fix"
 nfofix      = "Fix"
@@ -170,13 +170,13 @@ match = '(?i)^multi[- .]?audio$'
 value = "Multi Audio"
 
 [[patterns]]
-# Side-by-Side / Half-SBS
-match = '(?i)^(?:half[- .]?)?(?:sbs|side[- .]?by[- .]?side)$'
+# Side-by-Side (full form — unambiguous)
+match = '(?i)^(?:half[- .]?)?side[- .]?by[- .]?side$'
 value = "3D"
 
 [[patterns]]
-# Over-Under / Half-OU
-match = '(?i)^(?:half[- .]?)?(?:ou|over[- .]?under)$'
+# Over-Under (full form — unambiguous)
+match = '(?i)^(?:half[- .]?)?over[- .]?under$'
 value = "3D"
 
 [[patterns]]
