@@ -26,11 +26,25 @@ pub struct HunchResult {
 
 impl HunchResult {
     /// Build a `HunchResult` from resolved match spans, deduplicating values.
+    /// Language/SubtitleLanguage values use case-insensitive dedup to prevent
+    /// duplicates from TOML captures ("NL") and legacy normalizers ("nl").
     pub(crate) fn from_matches(matches: &[MatchSpan]) -> Self {
         let mut props: BTreeMap<Property, Vec<String>> = BTreeMap::new();
         for m in matches {
             let values = props.entry(m.property).or_default();
-            if !values.contains(&m.value) {
+            let is_lang = matches!(
+                m.property,
+                Property::Language | Property::SubtitleLanguage
+            );
+            let already_present = if is_lang {
+                // Case-insensitive dedup for language values.
+                values
+                    .iter()
+                    .any(|v| v.eq_ignore_ascii_case(&m.value))
+            } else {
+                values.contains(&m.value)
+            };
+            if !already_present {
                 values.push(m.value.clone());
             }
         }
