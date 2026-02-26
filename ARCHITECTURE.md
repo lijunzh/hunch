@@ -502,13 +502,13 @@ Retire one legacy matcher at a time, in order of coverage:
    other_positional, video_api, video_codec, edition, streaming_service,
    video_profile, episode_details, country, audio_codec, screen_size,
    container, frame_rate, other
-2. **Cooperative legacy (no overlap)**: source (TOML-only),
+2. ✅ **Cooperative legacy (no overlap)**: source (TOML-only),
    language (bracket codes only), subtitle_language (algorithmic only)
-3. **Never TOML** (algorithmic): episodes, title, release_group, date,
+3. ✅ **ValuePattern retired**: year.rs uses plain Regex; ValuePattern
+   deleted from regex_utils.rs.
+4. **Never TOML** (algorithmic): episodes, title, release_group, date,
    year, crc32, uuid, website, size, part, bonus, version, aspect_ratio,
    bit_rate, episode_count
-
-After step 2: remove `regex_utils.rs` + `ValuePattern`.
 
 ### Phase C: Accuracy improvements
 1. Subtitle language (49% → 80%+) — highest ROI
@@ -518,11 +518,55 @@ After step 2: remove `regex_utils.rs` + `ValuePattern`.
 5. Release group edge cases
 
 ### Phase D: Polish
-- Bump version to 0.2.0
-- Update README + CHANGELOG
+- Bump version to 0.2.1
+- Update COMPATIBILITY.md, README, CHANGELOG
 - `cargo clippy` clean, no warnings
 - Benchmark comparison with guessit (Python)
 - Consider crates.io publish
+
+### Phase E: v0.3.x — Architectural improvements (future)
+
+#### E1: Release group → post-resolution extraction
+
+**Goal**: Replace the 150-line `is_known_token` hardcoded exclusion list
+in `release_group.rs` with structural overlap detection against resolved
+matches.
+
+**Current state (v0.2.1)**: Release group runs as a legacy matcher
+(before conflict resolution) and uses a manually-maintained list of
+~130 token strings to decide "is this word a tech token or a group name?"
+This is a DRY violation — tokens added to TOML rules must also be added
+to `is_known_token`, or release group gets false positives.
+
+**Target state**: Move release_group to run AFTER conflict resolution
+(Step 4b in the pipeline), using resolved `MatchSpan` positions to
+determine which tokens are already claimed.
+
+**Why it failed in v0.2.1 (attempted and reverted)**:
+
+The text-based `is_known_token("x264")` and the position-based
+`is_span_claimed(start, end, matches)` answer fundamentally different
+questions, and the edge cases don't align:
+
+| Scenario | `is_known_token` | `is_span_claimed` |
+|---|---|---|
+| `XviD-NoTV` (group after tech) | ✅ "NoTV" not in list → accept | ❓ Position overlaps depend on how tokenizer/regex splits compound segments |
+| `-GROUP.HebSubs` (metadata after group) | ✅ Strip "HebSubs" from META_TOKENS | ❌ Overlap-based stripping too aggressive (strips tech tokens + group together) |
+| `(Tigole) [QxR]` (paren+bracket compound) | N/A (separate issue) | N/A |
+
+**Requirements for v0.3.x implementation**:
+1. **Hybrid approach**: Use `is_span_claimed` as primary, keep a small
+   curated fallback list for edge cases where position boundaries are
+   ambiguous (compound tokens like `XviD-GROUP`).
+2. **strip_trailing_metadata**: Must use word-level metadata list (not
+   position overlap) since trailing segments can span tech+group in
+   a single dot-segment.
+3. **expand_group_backwards**: Needs absolute positions of `before`
+   text mapped to input offsets for clean overlap detection.
+4. **Test-driven**: Run against full fixture suite at each step;
+   never drop below current floors.
+5. Consider whether release_group should receive the full `TokenStream`
+   (not just resolved matches) for better word-boundary awareness.
 
 ---
 
