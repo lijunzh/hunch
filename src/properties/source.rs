@@ -1,288 +1,77 @@
 //! Source / origin detection (Blu-ray, WEB-DL, HDTV, DVD, etc.).
 //!
-//! When a source includes "Rip" (e.g., DVDRip), we emit BOTH
-//! `Source` and `Other: "Rip"` to match guessit's behavior.
-
-use regex::Regex;
-
-use crate::matcher::regex_utils::ValuePattern;
-use crate::matcher::span::{MatchSpan, Property};
-use std::sync::LazyLock;
-
-/// A source pattern that may also flag "Rip" or "Screener".
-struct SourcePattern {
-    vp: ValuePattern,
-    /// Does this pattern contain a "Rip" suffix?
-    has_rip_variant: bool,
-    /// Does this pattern contain a "Screener" component?
-    has_screener: bool,
-}
-
-impl SourcePattern {
-    fn plain(pattern: &str, value: &'static str) -> Self {
-        Self {
-            vp: ValuePattern::new(pattern, value),
-            has_rip_variant: false,
-            has_screener: false,
-        }
-    }
-    fn with_rip(pattern: &str, value: &'static str) -> Self {
-        Self {
-            vp: ValuePattern::new(pattern, value),
-            has_rip_variant: true,
-            has_screener: false,
-        }
-    }
-    fn with_screener(pattern: &str, value: &'static str) -> Self {
-        Self {
-            vp: ValuePattern::new(pattern, value),
-            has_rip_variant: false,
-            has_screener: true,
-        }
-    }
-}
-
-/// Detects whether the matched text ends with "Rip" or "Cap" (capture = rip).
-static REENCODED_RIP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^BR[-.]?Rip$").unwrap());
-
-static RIP_SUFFIX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)(?:Rip|Cap)$").unwrap());
-
-/// BRRip/BDRip are re-encoded from Blu-ray (not direct rips like BluRay.Rip).
-static SOURCE_PATTERNS: LazyLock<Vec<SourcePattern>> = LazyLock::new(|| {
-    vec![
-        // Ultra HD Blu-ray (must come before Blu-ray).
-        // Allow extra tokens (8bit, HDR, HQ, etc.) between UHD and Bluray.
-        SourcePattern::plain(
-            r"(?i)(?<![a-z])(?:UHD|Ultra[-. ]?HD)(?:[-. ]\w+){0,3}[-. ](?:Blu[-.]?ray|BD|BR)(?![a-z])",
-            "Ultra HD Blu-ray",
-        ),
-        SourcePattern::plain(
-            r"(?i)(?<![a-z])Ultra[-. ](?:Blu[-.]?ray|BD|BR)(?![a-z])",
-            "Ultra HD Blu-ray",
-        ),
-        SourcePattern::plain(
-            r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD|BR)[-. ]?(?:UHD|Ultra(?:[-. ]?HD)?)(?![a-z])",
-            "Ultra HD Blu-ray",
-        ),
-        SourcePattern::plain(
-            r"(?i)(?<![a-z])(?:4K|2160p)[-. ]?(?:Blu[-.]?ray|BD|BR)(?![a-z])",
-            "Ultra HD Blu-ray",
-        ),
-        SourcePattern::plain(
-            r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD|BR)[-. ]?(?:4K|2160p)(?![a-z])",
-            "Ultra HD Blu-ray",
-        ),
-        // UHD with BRRip/BDRip (may have other tokens between).
-        SourcePattern::plain(
-            r"(?i)(?<![a-z])UHD(?:.{0,20})(?:BR|BD)(?:Rip)?(?![a-z])",
-            "Ultra HD Blu-ray",
-        ),
-        SourcePattern::with_rip(
-            r"(?i)(?<![a-z])UHD(?:.{0,20})(?:BR|BD)[-.]?Rip(?![a-z])",
-            "Ultra HD Blu-ray",
-        ),
-        SourcePattern::plain(
-            r"(?i)(?<![a-z])(?:BR|BD)[-.]?Rip[^\n]{0,20}UHD(?![a-z])",
-            "Ultra HD Blu-ray",
-        ),
-        // Blu-ray variants.
-        SourcePattern::plain(
-            r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD[59R]?|BD25|BD50)(?![a-z])",
-            "Blu-ray",
-        ),
-        SourcePattern::with_rip(
-            r"(?i)(?<![a-z])(?:Blu[-.]?ray|BD)[-.]?Rip(?![a-z])",
-            "Blu-ray",
-        ),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])BR[-.]?Rip(?![a-z])", "Blu-ray"),
-        SourcePattern::plain(r"(?i)(?<![a-z])(?:BD|BR)[-.]?Remux(?![a-z])", "Blu-ray"),
-        SourcePattern::plain(r"(?i)(?<![a-z])BR[-.]?Scr(?:eener)?(?![a-z])", "Blu-ray"),
-        // Web sources.
-        SourcePattern::plain(r"(?i)(?<![a-z])WEB[-.]?DL(?![a-z])", "Web"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])WEB[-.]?(?:DL[-.]?)?Rip(?![a-z])", "Web"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])WEB[-.]?Cap(?:[-.]?Rip)?(?![a-z])", "Web"),
-        SourcePattern::plain(r"(?i)(?<![a-z])WEB[-.]?(?:UHD|HD)(?![a-z])", "Web"),
-        SourcePattern::plain(r"(?i)(?<![a-z])DL[-.]?WEB(?![a-z])", "Web"),
-        SourcePattern::plain(r"(?i)(?<![a-z])WEB(?![a-z])", "Web"),
-        SourcePattern::plain(r"(?i)(?<![a-z])DL[-.]?Mux(?![a-z])", "Web"),
-        // HDTV.
-        SourcePattern::plain(r"(?i)(?<![a-z])AHDTV(?![a-z])", "Analog HDTV"),
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?TV(?![a-z])", "HDTV"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?TV[-.]?Rip(?![a-z])", "HDTV"),
-        SourcePattern::plain(r"(?i)(?<![a-z])UHD[-.]?TV(?![a-z])", "Ultra HDTV"),
-        SourcePattern::with_rip(
-            r"(?i)(?<![a-z])UHD[-.]?(?:TV[-.]?)?Rip(?![a-z])",
-            "Ultra HDTV",
-        ),
-        SourcePattern::plain(r"(?i)(?<![a-z])PD[-.]?TV(?![a-z])", "Digital TV"),
-        SourcePattern::with_rip(
-            r"(?i)(?<![a-z])(?:PD[-.]?TV|DVB)[-.]?Rip(?![a-z])",
-            "Digital TV",
-        ),
-        SourcePattern::plain(r"(?i)(?<![a-z])DVB(?![a-z])", "Digital TV"),
-        // DVD.
-        SourcePattern::plain(r"(?i)(?<![a-z])VIDEO[-._\s]?TS(?![a-z])", "DVD"),
-        SourcePattern::plain(r"(?i)(?<![a-z])DVD(?:R|\s*[59])?(?![a-z])", "DVD"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])DVD[-.]?Rip(?![a-z])", "DVD"),
-        // HD-DVD.
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]?DVD(?![a-z])", "HD-DVD"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-. ]?DVD[-.]?Rip(?![a-z])", "HD-DVD"),
-        // Satellite.
-        SourcePattern::plain(r"(?i)(?<![a-z])(?:DSR|DTH)(?![a-z])", "Satellite"),
-        SourcePattern::with_rip(
-            r"(?i)(?<![a-z])(?:DSR?|DTH|SAT)[-. ]?Rip(?![a-z])",
-            "Satellite",
-        ),
-        // Telecine / Telesync.
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]?TELECINE(?![a-z])", "HD Telecine"),
-        SourcePattern::with_rip(
-            r"(?i)(?<![a-z])HD[-. ]?(?:TELECINE|TC)[-. ]?Rip(?![a-z])",
-            "HD Telecine",
-        ),
-        SourcePattern::plain(r"(?i)(?<![a-z])HDTC(?![a-z])", "HD Telecine"),
-        SourcePattern::plain(r"(?i)(?<![a-z])TELECINE(?![a-z])", "Telecine"),
-        SourcePattern::plain(r"(?i)(?<![a-z])TC(?![a-z])", "Telecine"),
-        SourcePattern::with_rip(
-            r"(?i)(?<![a-z])(?:TELECINE|TC)[-. ]?Rip(?![a-z])",
-            "Telecine",
-        ),
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]?TELESYNC(?![a-z])", "HD Telesync"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-. ]?TS[-.]?Rip(?![a-z])", "HD Telesync"),
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-. ]TS(?![a-z0-9])", "HD Telesync"),
-        SourcePattern::plain(r"(?i)(?<![a-z])TELESYNC(?![a-z])", "Telesync"),
-        SourcePattern::with_rip(
-            r"(?i)(?<![a-z])(?:TELESYNC|TS)[-.]?Rip(?![a-z])",
-            "Telesync",
-        ),
-        SourcePattern::plain(r"(?i)(?<![a-z.])TS(?![a-z])", "Telesync"),
-        // Camera.
-        SourcePattern::plain(r"(?i)(?<![a-z])HD[-.]?CAM(?![a-z])", "HD Camera"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?CAM[-.]?Rip(?![a-z])", "HD Camera"),
-        SourcePattern::plain(r"(?i)(?<![a-z])CAM(?![a-z])", "Camera"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])CAM[-.]?Rip(?![a-z])", "Camera"),
-        // Screener (with DVD/BD prefix → maps to source with Screener flag).
-        SourcePattern::with_screener(r"(?i)(?<![a-z])DVD[-.]?SCR(?:eener)?(?![a-z])", "DVD"),
-        SourcePattern::with_screener(
-            r"(?i)(?<![a-z])(?:BD|BR)[-.]?SCR(?:eener)?(?![a-z])",
-            "Blu-ray",
-        ),
-        SourcePattern::with_screener(r"(?i)(?<![a-z])WEB[-.]?SCR(?:eener)?(?![a-z])", "Web"),
-        // Generic screener (no prefix).
-        SourcePattern::plain(r"(?i)(?<![a-z])SCR(?:eener)?(?![a-z])", "Screener"),
-        // PPV / VOD.
-        SourcePattern::plain(r"(?i)(?<![a-z])PPV(?![a-z])", "Pay-per-view"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])PPV[-.]?Rip(?![a-z])", "Pay-per-view"),
-        SourcePattern::plain(r"(?i)(?<![a-z])VOD(?![a-z])", "Video on Demand"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])VOD[-.]?Rip(?![a-z])", "Video on Demand"),
-        // VHS / Workprint.
-        SourcePattern::plain(r"(?i)(?<![a-z])VHS(?![a-z])", "VHS"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])VHS[-.]?Rip(?![a-z])", "VHS"),
-        SourcePattern::plain(r"(?i)(?<![a-z])(?:WORKPRINT|WP)(?![a-z])", "Workprint"),
-        // Digital Master.
-        SourcePattern::plain(r"(?i)(?<![a-z])DM(?![a-z])", "Digital Master"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])DM[-.]?Rip(?![a-z])", "Digital Master"),
-        // SD TV (weak, must come last).
-        SourcePattern::plain(r"(?i)(?<![a-z])SD[-.]?TV(?![a-z])", "TV"),
-        SourcePattern::with_rip(r"(?i)(?<![a-z])(?:SD[-.]?)?TV[-.]?Rip(?![a-z])", "TV"),
-        SourcePattern::plain(r"(?i)(?<![a-z])TV[-.]?Dub(?![a-z])", "TV"),
-        // HD Rip (generic HD source).
-        SourcePattern::with_rip(r"(?i)(?<![a-z])HD[-.]?Rip(?![a-z])", "HD"),
-    ]
-});
-
-pub fn find_matches(input: &str) -> Vec<MatchSpan> {
-    let mut matches = Vec::new();
-    for sp in SOURCE_PATTERNS.iter() {
-        for (start, end) in sp.vp.find_iter(input) {
-            matches.push(MatchSpan::new(start, end, Property::Source, sp.vp.value));
-
-            // If this pattern has a rip variant AND the text ends with "Rip",
-            // also emit Other: "Rip".
-            if sp.has_rip_variant {
-                let matched_text = &input[start..end];
-                if RIP_SUFFIX.is_match(matched_text) {
-                    matches.push(MatchSpan::new(start, end, Property::Other, "Rip"));
-                    // BRRip is re-encoded from Blu-ray (BDRip is not).
-                    if REENCODED_RIP.is_match(matched_text) {
-                        matches.push(MatchSpan::new(start, end, Property::Other, "Reencoded"));
-                    }
-                }
-            }
-            // Screener patterns (DVDSCR, BDSCR, etc.) also emit Other: "Screener".
-            if sp.has_screener {
-                matches.push(MatchSpan::new(start, end, Property::Other, "Screener"));
-            }
-        }
-    }
-    matches
-}
+//! Now fully handled by TOML rules (`rules/source.toml`) with side_effects
+//! for Rip, Screener, and Reencoded flags. Ultra HD Blu-ray promotion for
+//! wide-gap patterns (UHD...Bluray with 4+ tokens between) is handled by
+//! zone_rules Rule 7.
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::hunch;
+    use crate::matcher::span::Property;
+
+    fn source(input: &str) -> Option<String> {
+        hunch(input)
+            .first(Property::Source)
+            .map(String::from)
+    }
+
+    fn other(input: &str) -> Vec<String> {
+        hunch(input).other().iter().map(|s| s.to_string()).collect()
+    }
 
     #[test]
     fn test_bluray() {
-        let m = find_matches("Movie.BluRay.mkv");
-        assert!(
-            m.iter()
-                .any(|x| x.value == "Blu-ray" && x.property == Property::Source)
-        );
-        // No Rip flag for plain Blu-ray.
-        assert!(!m.iter().any(|x| x.value == "Rip"));
+        assert_eq!(source("Movie.BluRay.mkv"), Some("Blu-ray".into()));
+        assert!(!other("Movie.BluRay.mkv").contains(&"Rip".to_string()));
     }
 
     #[test]
     fn test_dvdrip_emits_rip() {
-        let m = find_matches("Movie.DVDRip.mkv");
-        assert!(
-            m.iter()
-                .any(|x| x.value == "DVD" && x.property == Property::Source)
-        );
-        assert!(
-            m.iter()
-                .any(|x| x.value == "Rip" && x.property == Property::Other)
-        );
+        assert_eq!(source("Movie.DVDRip.mkv"), Some("DVD".into()));
+        assert!(other("Movie.DVDRip.mkv").contains(&"Rip".to_string()));
+    }
+
+    #[test]
+    fn test_brrip_emits_reencoded() {
+        assert_eq!(source("Movie.BRRip.mkv"), Some("Blu-ray".into()));
+        let o = other("Movie.BRRip.mkv");
+        assert!(o.contains(&"Rip".to_string()));
+        assert!(o.contains(&"Reencoded".to_string()));
     }
 
     #[test]
     fn test_webdl() {
-        let m = find_matches("Movie.WEB-DL.mkv");
-        assert!(m.iter().any(|x| x.value == "Web"));
+        assert_eq!(source("Movie.WEB-DL.mkv"), Some("Web".into()));
+    }
+
+    #[test]
+    fn test_webrip_emits_rip() {
+        assert_eq!(source("Movie.WEBRip.mkv"), Some("Web".into()));
+        assert!(other("Movie.WEBRip.mkv").contains(&"Rip".to_string()));
     }
 
     #[test]
     fn test_hdtv() {
-        let m = find_matches("Movie.HDTV.mkv");
-        assert!(m.iter().any(|x| x.value == "HDTV"));
-    }
-
-    #[test]
-    fn test_webrip() {
-        let m = find_matches("Movie.WEBRip.mkv");
-        assert!(m.iter().any(|x| x.value == "Web"));
-        assert!(
-            m.iter()
-                .any(|x| x.value == "Rip" && x.property == Property::Other)
-        );
+        assert_eq!(source("Movie.HDTV.mkv"), Some("HDTV".into()));
     }
 
     #[test]
     fn test_hd_dvd() {
-        let m = find_matches("Movie.HDDVD.mkv");
-        assert!(m.iter().any(|x| x.value == "HD-DVD"));
+        assert_eq!(source("Movie.HDDVD.mkv"), Some("HD-DVD".into()));
     }
 
     #[test]
-    fn test_hd_camera() {
-        let m = find_matches("Movie.HDCam.mkv");
-        assert!(m.iter().any(|x| x.value == "HD Camera"));
+    fn test_dvdscr_emits_screener() {
+        assert_eq!(source("Movie.DVDSCR.mkv"), Some("DVD".into()));
+        assert!(other("Movie.DVDSCR.mkv").contains(&"Screener".to_string()));
     }
 
     #[test]
-    fn test_satellite_rip() {
-        let m = find_matches("Movie.SatRip.mkv");
-        assert!(m.iter().any(|x| x.value == "Satellite"));
-        assert!(m.iter().any(|x| x.value == "Rip"));
+    fn test_uhd_bluray_promotion() {
+        assert_eq!(
+            source("Movie.UHD.2160p.BluRay.mkv"),
+            Some("Ultra HD Blu-ray".into())
+        );
     }
 }

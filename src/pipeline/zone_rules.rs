@@ -87,7 +87,29 @@ pub fn apply_zone_rules(
         }
     }
 
+    // ── Rule 7: Promote Blu-ray → Ultra HD Blu-ray when UHD signals exist ──
+    // When UHD/4K/2160p appears in the filename alongside a Blu-ray source,
+    // the source should be "Ultra HD Blu-ray". This handles cases where the
+    // UHD marker and Blu-ray marker are too far apart for TOML's 3-token
+    // window (e.g., "UHD.10bit.HDR.Bluray").
+    let has_uhd_signal = matches.iter().any(|m| {
+        m.start >= fn_start
+            && ((m.property == Property::Other && m.value == "Ultra HD")
+                || (m.property == Property::ScreenSize && m.value == "2160p"))
+    });
+    if has_uhd_signal {
+        for m in matches.iter_mut() {
+            if m.start >= fn_start
+                && m.property == Property::Source
+                && m.value == "Blu-ray"
+            {
+                m.value = "Ultra HD Blu-ray".into();
+            }
+        }
+    }
+
     // ── Rule 3: Redundant HD tags when source has UHD ────────────────
+    // Must run AFTER Rule 7 (promotion) so the promoted source is detected.
     let source_has_uhd = matches
         .iter()
         .any(|m| m.property == Property::Source && m.value.contains("Ultra HD"));
@@ -143,3 +165,4 @@ pub fn apply_zone_rules(
         });
     }
 }
+

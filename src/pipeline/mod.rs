@@ -65,7 +65,7 @@ static EPISODE_FORMAT_RULES: LazyLock<RuleSet> =
 use crate::properties::title;
 use crate::properties::{
     aspect_ratio, bit_rate, bonus, crc32, date, episode_count, episodes, language, part,
-    release_group, size, source, subtitle_language, uuid, version, website, year,
+    release_group, size, subtitle_language, uuid, version, website, year,
 };
 
 /// A legacy matcher function: takes raw input, returns property matches.
@@ -201,7 +201,7 @@ impl Pipeline {
                 &SOURCE_RULES,
                 Property::Source,
                 0,
-                SegmentScope::FilenameOnly,
+                SegmentScope::AllSegments,
             ),
             (
                 &CONTAINER_RULES,
@@ -238,12 +238,10 @@ impl Pipeline {
             ),
         ];
 
-        // Legacy matchers — everything not yet in TOML.
-        // Note: audio_codec is kept here only for combined codec+channel patterns (DD5.1,
-        // etc.) and standalone channel counts. Simple codec patterns are in audio_codec.toml.
-        // audio_profile is handled entirely by audio_profile.toml — no legacy needed.
+        // Legacy matchers — algorithmic patterns not expressible in TOML.
+        // Note: source is now fully TOML (source.toml with side_effects).
+        // audio_profile is handled entirely by audio_profile.toml.
         let legacy_matchers: Vec<LegacyMatcherFn> = vec![
-            source::find_matches,
             aspect_ratio::find_matches,
             year::find_matches,
             date::find_matches,
