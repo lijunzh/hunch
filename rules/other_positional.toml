@@ -1,8 +1,9 @@
-# Weak / ambiguous Other patterns (zone_scope = tech_only).
+# Position-dependent Other patterns (zone_scope = tech_only).
 #
-# These tokens can be either metadata OR title words depending on position.
-# Zone filtering suppresses them in the title zone, preventing false
-# positives like "Proof" (the TV show) or "3D" (in movie titles).
+# These tokens are ambiguous — they can be metadata OR title words
+# depending on their position in the filename. Zone filtering suppresses
+# them in the title zone, preventing false positives like "Proof"
+# (the TV show) or "3D" (in movie titles).
 property = "other"
 zone_scope = "tech_only"
 

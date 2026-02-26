@@ -41,8 +41,8 @@ static AUDIO_CHANNELS_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_channels.toml")));
 static OTHER_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other.toml")));
-static OTHER_WEAK_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other_weak.toml")));
+static OTHER_POSITIONAL_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other_positional.toml")));
 static VIDEO_API_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_api.toml")));
 static SOURCE_RULES: LazyLock<RuleSet> =
@@ -186,7 +186,7 @@ impl Pipeline {
             ),
             (&OTHER_RULES, Property::Other, 0, SegmentScope::FilenameOnly),
             (
-                &OTHER_WEAK_RULES,
+                &OTHER_POSITIONAL_RULES,
                 Property::Other,
                 -2,
                 SegmentScope::FilenameOnly,

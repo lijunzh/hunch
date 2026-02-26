@@ -488,7 +488,7 @@ matchers incrementally.
 2. ✅ `zone_scope` field in TOML `RuleSet` + parser (`rule_loader.rs`)
 3. ✅ `ZoneMap` passed to `match_tokens_in_segment()` for filtering
 4. ✅ Tagged ambiguous TOML rules:
-   - `other_weak.toml`: `zone_scope = "tech_only"`
+   - `other_positional.toml`: `zone_scope = "tech_only"`
    - `episode_details.toml`: `zone_scope = "tech_only"`
    - `edition.toml`, `other.toml`: intentionally unrestricted (unambiguous)
    - `language.toml`: handled by zone_rules Rule 1 (needs legacy matcher retirement first)
@@ -498,7 +498,7 @@ matchers incrementally.
 
 ### Phase B: Remove legacy matchers (incremental)
 Retire one legacy matcher at a time, in order of coverage:
-1. **Already TOML-only**: color_depth, audio_profile, other_weak, video_api
+1. **Already TOML-only**: color_depth, audio_profile, other_positional, video_api
 2. **Fully covered by TOML** (after Phase A): video_codec, edition,
    streaming_service, video_profile, episode_details, country
 3. **Partially covered**: source, screen_size, container, frame_rate,
@@ -645,7 +645,7 @@ rules/                      # 20 TOML data files (compile-time embedded)
 ├── subtitle_language.toml  # VOSTFR, NLsubs, SubForced, …
 ├── edition.toml            # Director's Cut, Extended, Unrated, …
 ├── other.toml              # HDR, Remux, Proper, Repack, 3D, …
-├── other_weak.toml         # Low-priority Other matches
+├── other_positional.toml    # Position-dependent Other (zone_scope = tech_only)
 ├── streaming_service.toml  # AMZN, NF, HMAX, DSNP, …
 ├── video_profile.toml      # Hi10P, HP, SVC, …
 ├── audio_profile.toml      # Atmos, DTS:X, TrueHD, …

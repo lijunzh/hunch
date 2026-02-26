@@ -5,7 +5,7 @@
 # The legacy other.rs matcher has been retired.
 #
 # Zone: unrestricted — these tokens are almost never title words.
-# Truly ambiguous tokens (HD, DV, Proof, 3D) live in other_weak.toml
+# Truly ambiguous tokens (HD, DV, Proof, 3D) live in other_positional.toml
 # with zone_scope = "tech_only".
 property = "other"
 
