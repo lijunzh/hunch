@@ -154,9 +154,15 @@ match = '(?i)^fast[- .]?sub(?:bed|titled|s)?$'
 value = "Fast Subtitled"
 
 [[patterns]]
-# Dual Audio / Dual-Audio
+# Dual Audio / Dual.Audio
 match = '(?i)^dual[- .]?audio$'
 value = "Dual Audio"
+
+[[patterns]]
+# Dual before media keywords (DVD, BD, Sub, etc.) implies Dual Audio
+match = '(?i)^dual$'
+value = "Dual Audio"
+requires_after = ["dvd", "bd", "br", "web", "bluray", "sub", "subs", "subtitulos"]
 
 [[patterns]]
 # Multi Audio / Multi-Audio

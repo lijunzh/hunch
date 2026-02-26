@@ -50,10 +50,6 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         // Dub / Sub flags (require explicit markers, not bare words).
         ValuePattern::new(r"(?i)(?<![a-z])DUBBED(?![a-z])", "Dubbed"),
         ValuePattern::new(
-            r"(?i)(?<![a-z])HC(?![a-z])(?=.*(?:SUB|sub|SUBS|subs))",
-            "Hardcoded Subtitles",
-        ),
-        ValuePattern::new(
             r"(?i)(?<![a-z])(?:HARDCODED|HC)[-. ]?SUBS?(?![a-z])",
             "Hardcoded Subtitles",
         ),
@@ -72,10 +68,6 @@ static OTHER_PATTERNS: LazyLock<Vec<ValuePattern>> = LazyLock::new(|| {
         ),
         // Dual / Multi audio.
         ValuePattern::new(r"(?i)(?<![a-z])Dual[-. ]?Audio(?![a-z])", "Dual Audio"),
-        ValuePattern::new(
-            r"(?i)(?<![a-z])Dual(?=[-. ]?(?:DVD|BD|BR|WEB|BluRay|Sub))(?![a-z])",
-            "Dual Audio",
-        ),
         ValuePattern::new(r"(?i)(?<![a-z])Multi[-. ]?Audio(?![a-z])", "Multi Audio"),
         ValuePattern::new(r"(?<![a-zA-Z])LiNE(?![a-zA-Z])", "Line Audio"),
         // Dubbing quality.

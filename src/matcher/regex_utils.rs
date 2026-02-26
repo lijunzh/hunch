@@ -1,8 +1,7 @@
 //! Regex utilities — helpers for boundary-aware pattern matching.
 //!
 //! Patterns use standard `regex` for the core match plus post-match
-//! boundary checks to replace the lookaround assertions that would
-//! otherwise require a fancy-regex crate.
+//! boundary checks to replace lookaround assertions.
 
 use regex::Regex;
 
@@ -47,38 +46,31 @@ impl CharClass {
 
 /// A compiled pattern with a canonical output value.
 ///
-/// Uses standard `regex::Regex` with post-match boundary checks when
-/// possible, falling back to `fancy_regex` for patterns with internal
-/// lookarounds.
+/// Uses standard `regex::Regex` with post-match boundary checks.
+/// Leading/trailing lookaround assertions are stripped and converted
+/// to `BoundarySpec` checks at match time.
 pub struct ValuePattern {
-    inner: CompiledPattern,
+    regex: Regex,
     pub value: &'static str,
     pub boundary: BoundarySpec,
-}
-
-enum CompiledPattern {
-    Standard(Regex),
-    /// Fallback for patterns with internal lookarounds.
-    Fancy(fancy_regex::Regex),
 }
 
 impl ValuePattern {
     /// Create a new ValuePattern.
     ///
     /// Leading/trailing lookaround assertions are stripped and converted
-    /// to boundary specs. If the remaining pattern still contains
-    /// lookarounds, falls back to `fancy_regex`.
+    /// to boundary specs. The remaining pattern is compiled with standard `regex`.
+    ///
+    /// # Panics
+    /// Panics if the pattern (after stripping boundaries) is not valid standard regex.
+    /// Internal lookarounds are NOT supported — rewrite them as boundary specs or
+    /// compound patterns.
     pub fn new(pattern: &str, value: &'static str) -> Self {
         let (core, boundary) = strip_boundaries(pattern);
-        let inner = match Regex::new(&core) {
-            Ok(re) => CompiledPattern::Standard(re),
-            Err(_) => CompiledPattern::Fancy(
-                fancy_regex::Regex::new(pattern)
-                    .unwrap_or_else(|e| panic!("Bad regex `{pattern}`: {e}")),
-            ),
-        };
+        let regex = Regex::new(&core)
+            .unwrap_or_else(|e| panic!("Bad regex `{pattern}` (core: `{core}`): {e}"));
         Self {
-            inner,
+            regex,
             value,
             boundary,
         }
@@ -87,40 +79,21 @@ impl ValuePattern {
     /// Find all non-overlapping matches, returning `(start, end)` byte offsets.
     pub fn find_iter<'a>(&'a self, input: &'a str) -> Vec<(usize, usize)> {
         let bytes = input.as_bytes();
-        match &self.inner {
-            CompiledPattern::Standard(re) => {
-                let mut results = Vec::new();
-                let mut pos = 0;
-                while pos < input.len() {
-                    if let Some(m) = re.find_at(input, pos) {
-                        if check_boundary(bytes, m.start(), m.end(), &self.boundary) {
-                            results.push((m.start(), m.end()));
-                            pos = m.end().max(pos + 1);
-                        } else {
-                            pos = m.start() + 1;
-                        }
-                    } else {
-                        break;
-                    }
+        let mut results = Vec::new();
+        let mut pos = 0;
+        while pos < input.len() {
+            if let Some(m) = self.regex.find_at(input, pos) {
+                if check_boundary(bytes, m.start(), m.end(), &self.boundary) {
+                    results.push((m.start(), m.end()));
+                    pos = m.end().max(pos + 1);
+                } else {
+                    pos = m.start() + 1;
                 }
-                results
-            }
-            CompiledPattern::Fancy(re) => {
-                // Boundaries embedded in pattern.
-                let mut results = Vec::new();
-                let mut start = 0;
-                while start < input.len() {
-                    match re.find_from_pos(input, start) {
-                        Ok(Some(m)) => {
-                            results.push((m.start(), m.end()));
-                            start = m.end().max(start + 1);
-                        }
-                        _ => break,
-                    }
-                }
-                results
+            } else {
+                break;
             }
         }
+        results
     }
 }
 
