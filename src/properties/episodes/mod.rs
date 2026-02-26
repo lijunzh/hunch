@@ -778,9 +778,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     for cap in WEEK.captures_iter(input) {
         let full = cap.get(0).unwrap();
         let week = parse_num(&cap, "week");
-        matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Week, week).with_priority(1),
-        );
+        matches
+            .push(MatchSpan::new(full.start(), full.end(), Property::Week, week).with_priority(1));
     }
 
     matches

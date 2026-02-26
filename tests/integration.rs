@@ -330,10 +330,7 @@ fn episode_format_minisode() {
 #[test]
 fn week_in_episode_context() {
     let r = hunch("Show Name - S32-Week 45-Ep 6478");
-    assert_eq!(
-        r.first(hunch::matcher::span::Property::Week),
-        Some("45")
-    );
+    assert_eq!(r.first(hunch::matcher::span::Property::Week), Some("45"));
     assert_eq!(r.season(), Some(32));
     assert_eq!(r.episode(), Some(6478));
 }

@@ -155,6 +155,5 @@ pub(super) static THREE_DIGIT: LazyLock<regex::Regex> =
 // ── Week pattern ──
 
 /// Week 45, Week.12, etc.
-pub(super) static WEEK: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?<![a-z])Week[. ]?(?P<week>\d{1,2})(?![a-z0-9])")
-});
+pub(super) static WEEK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?<![a-z])Week[. ]?(?P<week>\d{1,2})(?![a-z0-9])"));

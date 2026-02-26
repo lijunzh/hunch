@@ -11,9 +11,8 @@ use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
 /// Matches: 320Kbps, 448 Kbps, 19.1Mbps, 1.5 Mbps, etc.
-static BIT_RATE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>[KkMm]bps)").unwrap()
-});
+static BIT_RATE_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>[KkMm]bps)").unwrap());
 
 static BIT_RATE_BOUNDARY: BoundarySpec = BoundarySpec {
     left: Some(CharClass::AlphaDigit),
@@ -56,9 +55,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         // Output without spaces: "320Kbps", "19.1Mbps".
         let value = format!("{num}{normalized_unit}");
 
-        matches.push(
-            MatchSpan::new(abs_start, abs_end, Property::BitRate, &value).with_priority(1),
-        );
+        matches
+            .push(MatchSpan::new(abs_start, abs_end, Property::BitRate, &value).with_priority(1));
 
         // Advance past this match.
         search_start = abs_end;

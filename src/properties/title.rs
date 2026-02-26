@@ -511,7 +511,8 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
     let mut result = collapse_spaces(&cleaned);
 
     // Strip trailing punctuation that leaks from separator boundaries.
-    result = result.trim_end_matches(|c: char| c == ':' || c == '-' || c == ',' || c == ';')
+    result = result
+        .trim_end_matches([':', '-', ',', ';'])
         .trim()
         .to_string();
 
@@ -539,8 +540,7 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
         }
 
         // Strip trailing episode keywords: "Naruto Shippuden Episode" → "Naruto Shippuden".
-        let re_ep_word =
-            regex::Regex::new(r"(?i)\s+(?:Episodes?|Ep\.?)\s*$").unwrap();
+        let re_ep_word = regex::Regex::new(r"(?i)\s+(?:Episodes?|Ep\.?)\s*$").unwrap();
         if let Some(m) = re_ep_word.find(&result) {
             let stripped = result[..m.start()].to_string();
             if !stripped.trim().is_empty() {
@@ -549,8 +549,7 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
         }
 
         // Strip trailing bonus markers: "Casino Royale-x01" → "Casino Royale".
-        let re_bonus =
-            regex::Regex::new(r"(?i)[-]x\d{1,3}\s*$").unwrap();
+        let re_bonus = regex::Regex::new(r"(?i)[-]x\d{1,3}\s*$").unwrap();
         if let Some(m) = re_bonus.find(&result) {
             let stripped = result[..m.start()].to_string();
             if !stripped.trim().is_empty() {
@@ -647,11 +646,7 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
 
     // Must have season or episode marker as anchor.
     let has_anchor = matches.iter().any(|m| {
-        m.start >= filename_start
-            && matches!(
-                m.property,
-                Property::Episode | Property::Season
-            )
+        m.start >= filename_start && matches!(m.property, Property::Episode | Property::Season)
     });
     if !has_anchor {
         return None;
@@ -661,11 +656,7 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     let last_ep_match = matches
         .iter()
         .filter(|m| {
-            m.start >= filename_start
-                && matches!(
-                    m.property,
-                    Property::Episode | Property::Season
-                )
+            m.start >= filename_start && matches!(m.property, Property::Episode | Property::Season)
         })
         .max_by_key(|m| m.end)?;
 
