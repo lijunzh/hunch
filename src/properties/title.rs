@@ -746,6 +746,82 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     ))
 }
 
+/// Extract film_title when a `film` marker (-fNN-) splits franchise from movie title.
+///
+/// Pattern: `James_Bond-f17-Goldeneye.mkv`
+///   → film_title: "James Bond", title: "Goldeneye" (title already set), film: 17
+///
+/// Returns (film_title_span, adjusted_title_span) if applicable.
+pub fn extract_film_title(
+    input: &str,
+    matches: &[MatchSpan],
+) -> Option<(MatchSpan, MatchSpan)> {
+    // Only trigger when we have a Film property.
+    let film_match = matches.iter().find(|m| m.property == Property::Film)?;
+    let title_match = matches.iter().find(|m| m.property == Property::Title)?;
+
+    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+
+    // The film marker is at film_match.start..film_match.end.
+    // film_title = everything before the film marker (in the filename).
+    // title = everything after the film marker until the next property.
+    if film_match.start <= fn_start {
+        return None;
+    }
+
+    // Film title: from filename start to the film marker.
+    let film_title_raw = &input[fn_start..film_match.start];
+    let film_title = clean_title(film_title_raw);
+    if film_title.is_empty() {
+        return None;
+    }
+
+    // Movie title: from after the film marker to the next property (or end).
+    let after_film = film_match.end;
+    let next_match_after_film = matches
+        .iter()
+        .filter(|m| {
+            m.start > after_film
+                && m.start >= fn_start
+                && !m.is_extension
+                && !matches!(
+                    m.property,
+                    Property::Title | Property::ReleaseGroup | Property::Bonus
+                )
+        })
+        .min_by_key(|m| m.start);
+
+    let title_end = next_match_after_film
+        .map(|m| m.start)
+        .unwrap_or_else(|| {
+            // Strip extension.
+            input[fn_start..]
+                .rfind('.')
+                .map(|p| fn_start + p)
+                .unwrap_or(input.len())
+        });
+
+    if title_end <= after_film {
+        return None;
+    }
+
+    let title_raw = &input[after_film..title_end];
+    let title_cleaned = clean_title(title_raw);
+    if title_cleaned.is_empty() {
+        return None;
+    }
+
+    // Find structural boundary in the new title.
+    let title_end = find_title_boundary(&title_cleaned)
+        .map(|offset| title_cleaned[..offset].trim().to_string())
+        .unwrap_or(title_cleaned);
+
+    Some((
+        MatchSpan::new(fn_start, film_match.start, Property::FilmTitle, film_title),
+        MatchSpan::new(after_film, title_end.len() + after_film, Property::Title, title_end),
+    ))
+}
+
 /// Infer media type from the set of matched properties.
 pub fn infer_media_type(matches: &[MatchSpan]) -> &'static str {
     let has_episode = matches.iter().any(|m| m.property == Property::Episode);

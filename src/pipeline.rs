@@ -186,6 +186,14 @@ impl Pipeline {
         if let Some(title_match) = title::extract_title(input, &all_matches) {
             all_matches.push(title_match);
         }
+        // Film title: when -fNN- marker exists, split franchise from movie title.
+        if let Some((film_title, adjusted_title)) =
+            title::extract_film_title(input, &all_matches)
+        {
+            all_matches.retain(|m| m.property != Property::Title);
+            all_matches.push(film_title);
+            all_matches.push(adjusted_title);
+        }
         if let Some(ep_title) = title::extract_episode_title(input, &all_matches) {
             all_matches.push(ep_title);
         }
