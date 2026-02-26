@@ -197,6 +197,9 @@ impl Pipeline {
         if let Some(ep_title) = title::extract_episode_title(input, &all_matches) {
             all_matches.push(ep_title);
         }
+        if let Some(alt_title) = title::extract_alternative_title(input, &all_matches) {
+            all_matches.push(alt_title);
+        }
 
         let media_type = title::infer_media_type(&all_matches);
         let proper_count = compute_proper_count(input, &all_matches);

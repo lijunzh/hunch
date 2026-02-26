@@ -822,6 +822,90 @@ pub fn extract_film_title(
     ))
 }
 
+/// Extract alternative_title from content after the title boundary.
+///
+/// When the title is truncated at a structural separator (` - `, `--`, `(`),
+/// the remaining content before the next property match is the alternative title.
+/// e.g., `OSS_117--Cairo,_Nest_of_Spies.mkv` → alternative_title: "Cairo, Nest of Spies"
+pub fn extract_alternative_title(
+    input: &str,
+    matches: &[MatchSpan],
+) -> Option<MatchSpan> {
+    let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+
+    let first_match = matches
+        .iter()
+        .filter(|m| {
+            m.start >= filename_start
+                && !m.is_extension
+                && !matches!(
+                    m.property,
+                    Property::Title
+                        | Property::FilmTitle
+                        | Property::AlternativeTitle
+                        | Property::EpisodeTitle
+                )
+        })
+        .min_by_key(|m| m.start);
+
+    let filename = &input[filename_start..];
+    let title_end_abs = match first_match {
+        Some(m) => m.start,
+        None => {
+            // No tech matches — use extension position.
+            filename
+                .rfind('.')
+                .map(|p| filename_start + p)
+                .unwrap_or(input.len())
+        }
+    };
+
+    if title_end_abs <= filename_start {
+        return None;
+    }
+
+    let raw_title = &input[filename_start..title_end_abs];
+
+    // Find the title boundary — same logic as in extract_title.
+    let boundary_offset = find_title_boundary(raw_title)?;
+
+    // The alternative title is everything AFTER the boundary separator.
+    let sep_end = if raw_title[boundary_offset..].starts_with(" - ") {
+        boundary_offset + 3
+    } else if raw_title[boundary_offset..].starts_with("--") {
+        boundary_offset + 2
+    } else if raw_title[boundary_offset..].starts_with(" (") {
+        boundary_offset + 2
+    } else if raw_title[boundary_offset..].starts_with("_(") {
+        boundary_offset + 2
+    } else if raw_title[boundary_offset..].starts_with(".(") {
+        boundary_offset + 2
+    } else if raw_title[boundary_offset..].starts_with("_-_") {
+        boundary_offset + 3
+    } else if raw_title[boundary_offset..].starts_with(".-.") {
+        boundary_offset + 3
+    } else {
+        boundary_offset + 1
+    };
+
+    if sep_end >= raw_title.len() {
+        return None;
+    }
+
+    let alt_raw = &raw_title[sep_end..];
+    let alt_cleaned = clean_title(alt_raw);
+    if alt_cleaned.is_empty() {
+        return None;
+    }
+
+    Some(MatchSpan::new(
+        filename_start + sep_end,
+        title_end_abs,
+        Property::AlternativeTitle,
+        alt_cleaned,
+    ))
+}
+
 /// Infer media type from the set of matched properties.
 pub fn infer_media_type(matches: &[MatchSpan]) -> &'static str {
     let has_episode = matches.iter().any(|m| m.property == Property::Episode);
