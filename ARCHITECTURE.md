@@ -498,15 +498,17 @@ matchers incrementally.
 
 ### Phase B: Remove legacy matchers (incremental)
 Retire one legacy matcher at a time, in order of coverage:
-1. **Already TOML-only**: color_depth, audio_profile, other_positional, video_api
-2. **Fully covered by TOML** (after Phase A): video_codec, edition,
-   streaming_service, video_profile, episode_details, country
-3. **Partially covered**: source, screen_size, container, frame_rate,
-   audio_codec, language, subtitle_language, other
-4. **Never TOML** (algorithmic): episodes, title, release_group, date,
-   year, crc32, uuid, website, size, part, bonus, version, aspect_ratio
+1. ✅ **TOML-only (test shells remain)**: color_depth, audio_profile,
+   other_positional, video_api, video_codec, edition, streaming_service,
+   video_profile, episode_details, country, audio_codec, screen_size,
+   container, frame_rate, other
+2. **Dual-pipeline (both TOML + legacy run)**: source, language,
+   subtitle_language — need side_effects migration or legacy trimming
+3. **Never TOML** (algorithmic): episodes, title, release_group, date,
+   year, crc32, uuid, website, size, part, bonus, version, aspect_ratio,
+   bit_rate, episode_count
 
-After step 3: remove `regex_utils.rs` + `fancy-regex` dependency.
+After step 2: remove `regex_utils.rs` + `ValuePattern`.
 
 ### Phase C: Accuracy improvements
 1. Subtitle language (49% → 80%+) — highest ROI

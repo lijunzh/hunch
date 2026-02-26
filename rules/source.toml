@@ -1,10 +1,11 @@
 # Source / release origin patterns.
 #
-# ARCHITECTURE NOTE (v0.2):
+# ARCHITECTURE NOTE (v0.2.1):
 #   Single-token and compound-token (2–3 window) source lookups live here.
-#   Multi-property side-effects (Other:Rip, Other:Screener) cannot be expressed
-#   in TOML and are still emitted by the legacy source.rs matcher.
-#   Eventually source.rs will be reduced to side-effect-only logic.
+#   Multi-property side-effects (Other:Rip, Other:Screener) are still
+#   emitted by the legacy source.rs matcher. These should be migrated
+#   to TOML side_effects (the engine supports it since Phase A).
+#   Once migrated, source.rs can be removed from legacy_matchers.
 
 property = "source"
 
