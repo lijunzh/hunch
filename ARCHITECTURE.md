@@ -502,8 +502,8 @@ Retire one legacy matcher at a time, in order of coverage:
    other_positional, video_api, video_codec, edition, streaming_service,
    video_profile, episode_details, country, audio_codec, screen_size,
    container, frame_rate, other
-2. **Dual-pipeline (both TOML + legacy run)**: source, language,
-   subtitle_language — need side_effects migration or legacy trimming
+2. **Cooperative legacy (no overlap)**: source (TOML-only),
+   language (bracket codes only), subtitle_language (algorithmic only)
 3. **Never TOML** (algorithmic): episodes, title, release_group, date,
    year, crc32, uuid, website, size, part, bonus, version, aspect_ratio,
    bit_rate, episode_count

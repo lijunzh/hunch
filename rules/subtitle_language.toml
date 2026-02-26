@@ -1,14 +1,14 @@
 # Subtitle language patterns.
 #
-# ARCHITECTURE NOTE (v0.2):
-#   Simple vocabulary-based subtitle markers live here.
-#   The legacy subtitle_language.rs is kept for:
-#     - "LANG SUBS" / "LANG SUBBED" multi-token patterns
-#     - SubForced / SUBFORCED with optional language prefix
-#     - Language-code file extension (.eng.srt, .fr.sub)
-#     - Legendado/Subtitulado (Brazilian Portuguese patterns)
-#     - Complex compound markers needing capture groups
-#   The TOML layer handles the common standalone markers.
+# ARCHITECTURE NOTE (v0.2.1):
+#   Vocabulary-based subtitle markers live here.
+#   The legacy subtitle_language.rs handles ONLY algorithmic patterns:
+#     - File extension codes (.eng.srt, .fr.sub)
+#     - SUBFORCED with optional language prefix
+#     - LANG SUBS (full language names: "English Subs")
+#     - Sub.French / ST(Fr-Eng) (multi-language bracket parsing)
+#     - Legendado/Subtitulado (regional conventions)
+#   No overlap between TOML and legacy.
 
 property = "subtitle_language"
 
