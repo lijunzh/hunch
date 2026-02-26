@@ -29,20 +29,21 @@ The problem decomposes into three sub-problems, each favoring a different approa
 
 ## Current Status
 
-**Overall: 73.1%** (957 / 1,309 guessit test cases). Currently in v0.2 TOML
-migration — running TOML + legacy matchers in parallel.
+**Overall: 74.5%** (975 / 1,309 guessit test cases). Phase B complete (legacy
+matcher migration + fancy_regex removal). Phase C accuracy in progress.
 
 | Tier | Properties |
 |------|------------|
 | ✅ 100% | video_api, season_count, disc, aspect_ratio, proper_count, version, bonus, film, size, frame_rate, date, episode_count |
-| ✅ 95–99% | screen_size, edition, container, source, audio_codec, color_depth, crc32, year |
-| 🟡 90–94% | audio_channels, video_codec, season, type, website, streaming_service, episode, release_group |
-| 🟡 85–89% | uuid, other, video_profile, audio_profile, language, title, part |
+| ✅ 95–99% | edition, source, color_depth, crc32, year |
+| 🟡 90–94% | container, video_codec, screen_size, season, type, audio_codec, website, streaming_service, episode |
+| 🟡 85–89% | release_group, title, uuid, video_profile, other, audio_profile, language |
+| 🟡 80–84% | part, audio_channels |
 | ⚠️ 60–70% | episode_title, country, episode_details, bonus_title, cd, cd_count |
-| ❌ <50% | subtitle_language (49%), film_title (0%), bit_rates (0%), absolute_episode (0%), alternative_title (0%) |
+| ❌ <50% | subtitle_language (49%), episode_format, alternative_title, film_title, absolute_episode (0%) |
 
-Highest-ROI single-property failures: title (38), subtitle_language (22),
-release_group (19), episode_title (15), other (7), absolute_episode (6).
+Highest-ROI targets: subtitle_language (22 failures), title (19),
+release_group (18), episode_title (depends on title accuracy).
 
 ---
 
