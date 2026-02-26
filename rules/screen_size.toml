@@ -33,18 +33,25 @@ property = "screen_size"
 1080i  = "1080i"
 
 # Shorthand aliases
-4k     = "2160p"
 8k     = "4320p"
 uhd    = "2160p"
 fhd    = "1080p"
 qhd    = "1440p"
 "2k"   = "1080p"
 
-# HD suffix (e.g., 720hd)
+# HD suffix (e.g., 720hd, 720phd)
 720hd  = "720p"
 1080hd = "1080p"
+720phd  = "720p"
+1080phd = "1080p"
 
 # ── Regex patterns (still fixed-value — no capture groups) ──────────────────
+
+[[patterns]]
+# 4K — skip when followed by edition qualifiers ("4K Restored", "4K Remastered")
+match = '(?i)^4k$'
+value = "2160p"
+not_before = ["restored", "remastered", "restoration"]
 
 [[patterns]]
 # 4K UHD / 4K.UHD (2-token window: "4K" + "UHD")
@@ -65,7 +72,13 @@ match = '(?i)^(\d{3,4})[pi](\d{2,3})$'
 value = "{1}p"
 
 [[patterns]]
-# WxH dimensions: 1920x1080 → use the height + "p".
-match = '(?i)^\d{3,4}x(\d{3,4})$'
+# WxH dimensions: 1920x1080, 1280*720 → use the height + "p".
+match = '(?i)^\d{3,4}[x*](\d{3,4})$'
 value = "{1}p"
+
+[[patterns]]
+# Bare resolution before Hi10p profile: [720.Hi10p] → 720p
+match = '(?i)^(720|1080|480|2160)$'
+value = "{1}p"
+requires_after = ["hi10p", "hi8p", "hip", "hi10"]
 

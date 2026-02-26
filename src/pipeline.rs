@@ -57,7 +57,7 @@ static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
 use crate::properties::title;
 use crate::properties::{
     aspect_ratio, audio_codec, bonus, crc32, date, episode_count, episodes,
-    language, other, part, release_group, screen_size, size, source,
+    language, other, part, release_group, size, source,
     subtitle_language, uuid, version, website, year,
 };
 
@@ -137,7 +137,6 @@ impl Pipeline {
         let legacy_matchers: Vec<LegacyMatcherFn> = vec![
             audio_codec::find_matches,
             source::find_matches,
-            screen_size::find_matches,
             aspect_ratio::find_matches,
             year::find_matches,
             date::find_matches,
