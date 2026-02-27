@@ -3,7 +3,7 @@
 //! Post-matching disambiguation that handles cross-property semantics
 //! not expressible as TOML zone_scope or requires_context declarations.
 //!
-//! ## Rule inventory (7 active)
+//! ## Rule inventory (8 active)
 //!
 //! | # | Name | Purpose |
 //! |---|------|---------|
@@ -14,6 +14,7 @@
 //! | 5 | Ambiguous Other ↔ ReleaseGroup | Drop HQ/FanSub near release groups |
 //! | 6 | Source subsumption | Drop generic source when specific exists |
 //! | 7 | Language inside tech span | Drop lang contained in source/codec spans |
+//! | 8 | Language inside subtitle span | Drop lang contained in subtitle_language spans |
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::zone_map::ZoneMap;
@@ -171,6 +172,29 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
     // which are now extracted in Pass 2 (post-resolution).
 
     // ── Rule 7: Language/SubtitleLanguage contained within a tech span ───
+
+    // ── Rule 8: Language contained within a SubtitleLanguage span ────────
+    // When a short language token (e.g., "FR", "SWE") falls inside a wider
+    // subtitle_language span (e.g., "FR Sub", "SWE Sub"), drop the language
+    // match — the token is part of a subtitle marker, not an audio language.
+    {
+        let sub_spans: Vec<(usize, usize)> = matches
+            .iter()
+            .filter(|m| m.property == Property::SubtitleLanguage)
+            .map(|m| (m.start, m.end))
+            .collect();
+
+        if !sub_spans.is_empty() {
+            matches.retain(|m| {
+                if m.property != Property::Language {
+                    return true;
+                }
+                !sub_spans
+                    .iter()
+                    .any(|(ss, se)| m.start >= *ss && m.end <= *se)
+            });
+        }
+    }
 
     // ── Rule 6: Deduplicate subsumed Source values ──────────────────────────
     // When both a generic source (TV, HD) and a specific source (HDTV, HD-DVD)

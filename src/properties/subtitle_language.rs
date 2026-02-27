@@ -37,14 +37,14 @@ static LANG_SUBFORCED: LazyLock<Regex> = LazyLock::new(|| {
 /// Explicit: Sub.French, sub FR, ST(Fr-Eng), Sub_ITA
 static SUB_LANG: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?:(?:sub(?:s|titled|titles)?|Soft[-. ]?sub)[-. _({\[]?|ST[-. _({\[])(?P<langs>[a-z]{2,}(?:[-. _+,)}&\]]+[a-z]{2,})*)"
+    r"(?i)(?:(?:sub(?:s|titled|titles)?|Soft[-. ]?sub)[-. _({\[]?|ST[-. _({\[])(?P<langs>[a-z]{2,}(?:[-. _+,]+[a-z]{2,})*)"
     ).unwrap()
 });
 
-/// LANG SUBS: ENG SUBS, SPANISH SUBBED, German.Subbed
+/// LANG SUBS: ENG SUBS, SPANISH SUBBED, German.Subbed, FR Sub
 static LANG_SUBS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?i)(?P<lang>English|French|Spanish|German|Italian|Portuguese|Dutch|Swedish|Norwegian|Danish|Finnish|Greek|Turkish|Arabic|Russian|Hindi|Chinese|Japanese|Korean|Hebrew|Romanian|Polish|Czech|Hungarian|Croatian|Serbian|Slovak|Slovenian|Estonian|Latvian|Lithuanian|Catalan|Eng|Fre|Spa|Ger|Ita|Por|Dut|Swe|Nor|Dan|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Kor|Heb|Ron|Pol|Cze|Hun|Hrv|Srp|Slk|Slv|Est|Lav|Lit|Cat)[-. ]+(?:(?:Soft|Custom|Hard|Forced)[-. ])*(?:sub(?:s|bed|titled|titles)?)"
+    r"(?i)(?P<lang>English|French|Spanish|German|Italian|Portuguese|Dutch|Swedish|Norwegian|Danish|Finnish|Greek|Turkish|Arabic|Russian|Hindi|Chinese|Japanese|Korean|Hebrew|Romanian|Polish|Czech|Hungarian|Croatian|Serbian|Slovak|Slovenian|Estonian|Latvian|Lithuanian|Catalan|Eng|Fre|Spa|Ger|Ita|Por|Dut|Swe|Nor|Dan|Fin|Gre|Tur|Ara|Rus|Hin|Chi|Jpn|Kor|Heb|Ron|Pol|Cze|Hun|Hrv|Srp|Slk|Slv|Est|Lav|Lit|Cat|FR|EN|ES|DE|IT|PT|NL|SV|NO|DA|FI|PL|CS|HU|RO|HR|SR|BG|UK|HE|AR|RU|HI|ZH|JA|KO)[-. ]+(?:(?:Soft|Custom|Hard|Forced)[-. ])*(?:sub(?:s|bed|titled|titles)?)"
     ).unwrap()
 });
 
