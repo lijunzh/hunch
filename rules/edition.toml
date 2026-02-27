@@ -28,8 +28,7 @@ restored     = "Restored"
 restore      = "Restored"
 uncensored   = "Uncensored"
 uncut        = "Uncut"
-# NOTE: "festival" standalone removed — too ambiguous as edition.
-# Only matches in compound: "Festival Cut", "Festival Edition".
+festival     = "Festival"
 anniversary  = "Anniversary Edition"
 
 # Multi-token patterns (matched against 2-3 token windows).
