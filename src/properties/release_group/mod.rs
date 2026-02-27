@@ -281,6 +281,36 @@ pub fn find_matches(
         }
     }
 
+    // 8b. Mid-filename bracket group containing a single non-tech word.
+    // E.g., `[HorribleSubs]` in `Show!.Name.2.-.10.(2016).[HorribleSubs][WEBRip]..[HD.720p]`.
+    if matches.is_empty() {
+        for bg in &token_stream.bracket_groups {
+            if bg.open < filename_start || bg.kind != crate::tokenizer::BracketKind::Square {
+                continue;
+            }
+            let content = bg.content.trim();
+            // Single word, no separators, not a CRC, not tech.
+            if content.is_empty()
+                || content.contains([' ', '.', '-', '_', '/'])
+                || is_hex_crc(content)
+            {
+                continue;
+            }
+            let abs_start = bg.open + 1;
+            let abs_end = bg.close;
+            if !is_rejected_group(content, abs_start, abs_end, resolved)
+                && content.len() >= 3
+                && content.chars().next().is_some_and(|c| c.is_alphabetic())
+            {
+                matches.push(
+                    MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, content)
+                        .with_priority(-4),
+                );
+                break;
+            }
+        }
+    }
+
     // 9. Check parent directory for release group.
     if filename_start > 0 {
         let parent = &input[..filename_start.saturating_sub(1)];
