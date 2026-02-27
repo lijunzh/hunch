@@ -81,7 +81,7 @@ pub(super) static BARE_EPISODE: LazyLock<Regex> =
 
 pub(super) static SEASON_ONLY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Stagione|Tem\.?)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])",
+        r"(?i)(?<![a-z])(?:Season|Saison|Temporada|Stagione|Temp?\.?)\s*\.?\s*(?P<season>\d{1,2})(?![a-z0-9])",
     )
 });
 
