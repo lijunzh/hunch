@@ -1,185 +1,156 @@
-# Hunch v0.2.0 — The TOML Engine
+# Hunch v0.2.2 — Phase C: Accuracy & Refactors
 
-This release is a **ground-up architectural redesign** of hunch's matching
-engine. The parser is faster, safer, more accurate, and significantly
-simpler to extend.
+This release focuses on **accuracy improvements** and **structural refactoring**,
+pushing the guessit compatibility rate from 76.6% to **79.1%** (+33 test cases).
 
-## The Big Picture
+## The Numbers
 
-Hunch v0.1 was a direct port of Python's guessit — regex patterns running
-against raw input strings, using `fancy_regex` for lookaround assertions.
-It worked, but the architecture had three problems:
-
-1. **Security**: `fancy_regex` enables backtracking, making ReDoS possible
-2. **Complexity**: 21 legacy matchers with ~1,400 lines of regex patterns
-3. **Extensibility**: adding a new codec meant writing Rust code
-
-v0.2 solves all three.
-
-## What Changed
-
-### TOML-driven rule engine
-
-Property patterns now live in **declarative TOML files** embedded at compile
-time. Adding a new video codec is one line:
-
-```toml
-# rules/video_codec.toml
-av1 = "AV1"
+```
+v0.2.1  ████████████████████████████████████████░░░░░░░░░░░  76.6%  (1,003 / 1,309)
+v0.2.2  ████████████████████████████████████████████░░░░░░░░  79.1%  (1,036 / 1,309)
+                                                  ▲
+                                               +33 cases
 ```
 
-The engine supports:
-- **Exact lookups**: case-sensitive and case-insensitive hash maps
-- **Regex patterns**: with `{N}` capture-group templates (`1920x1080` → `1080p`)
-- **Side effects**: one match → multiple properties (`DVDRip` → Source:DVD + Other:Rip)
-- **Neighbor constraints**: `not_before`, `not_after`, `requires_after` for context-aware matching
+| Metric | v0.2.1 | v0.2.2 |
+|---|---|---|
+| Overall pass rate | 76.6% | **79.1%** |
+| Properties at 100% | 15 | **16** |
+| Properties at 90%+ | 29 | **30** |
+| Single-property failures | 124 | **99** |
 
-19 TOML rule files now define the vocabulary for all non-algorithmic properties.
+## Highlights
 
-### `fancy_regex` removed entirely
+### 🎯 edition reaches 100%
 
-All regex matching uses the standard `regex` crate — **linear-time, ReDoS-immune
-by construction**. Lookaround assertions are replaced by:
-- Token isolation (the tokenizer provides word boundaries for free)
-- Post-match `BoundarySpec` checks (character class guards)
-- TOML neighbor constraints (`not_before = ["tv", "dvd"]`)
+The `edition` property now matches guessit perfectly across all 83 test
+assertions. Key fix: the `Edition Collector` pattern (French reversed
+form) and directory-level edition detection (AllSegments scope).
 
-Test execution time dropped ~50% from eliminating `fancy_regex` compilation overhead.
+### 📈 title crosses 90%
 
-### Path-segment tokenizer
+Title extraction improved from 89.1% → 90.8% through:
 
-The tokenizer now processes **all path segments** (directories + filename),
-not just the filename. Each segment is tagged with `SegmentKind` (Directory
-vs Filename), and each TOML rule set declares a `SegmentScope`:
+- **Bracket group title boundaries** — `[Ayako] Infinite Stratos - IS`
+  now correctly extracts just `Infinite Stratos` (stops at ` - `)
+- **Year-as-anchor zone filtering** — `A.Common.Title.Special.2014`
+  keeps `Special` as title content instead of matching it as metadata
+- **Parent directory after-match extraction** — `S02 Some Series/E01.mkv`
+  now extracts `Some Series` from the directory (after the season marker)
 
-- **`AllSegments`**: unambiguous tech tokens (XviD, 720p, AAC) are matched
-  in directory names too, recovering metadata that v0.1 could see
-- **`FilenameOnly`**: ambiguous tokens (HD, TV, DV) skip directories to
-  avoid false positives
+### 🧠 New engine capability: `requires_context`
 
-Directory matches receive a priority penalty so filename matches always win.
+TOML patterns can now declare `requires_context = true` to match only
+when the filename contains recognized technical tokens (Tier 1/2 anchors).
+This replaces fragile 90-token enumeration lists with a structural check:
 
-### Title extraction overhaul
+```toml
+# Before (884 characters!):
+requires_before = ["season", "saison", "dvd", "bluray", ... 87 more ...]
 
-Three structural improvements to how titles are extracted:
+# After (clean and automatic):
+requires_context = true
+requires_before = ["season", "saison", "temporada", "staffel", "serie", "series"]
+```
 
-1. **Boundary detection**: structural separators (` - `, `--`, `()`) now
-   stop the title at subtitle/director content instead of consuming it
-2. **Single-word handling**: bare inputs like `"tv"` are treated as titles,
-   not property matches
-3. **Deepest-first directory walk**: title fallback now prefers directories
-   closest to the filename
+When `requires_context` and `requires_before` are combined, the
+`requires_before` acts as a fallback for anchor-less filenames.
 
-### New properties
+### ♻️ release_group module split
 
-| Property | Description | Accuracy |
-|----------|-------------|:--------:|
-| `absolute_episode` | Anime-style absolute numbering (Episode 366) | 90% |
-| `film_title` | Franchise title from `-fNN-` markers (James Bond) | 87.5% |
-| `alternative_title` | Content after title boundary separators | 43.8% |
+The 626-line monolithic `release_group.rs` was split into a clean module:
 
-### Legacy matcher migration
+- `release_group/mod.rs` (312 lines) — regex patterns + matching logic
+- `release_group/known_tokens.rs` (190 lines) — token exclusion list,
+  strip_trailing_metadata, expand_group_backwards, helper functions
 
-4 legacy matchers fully retired to TOML-only:
-- `frame_rate.rs` → `rules/frame_rate.toml`
-- `container.rs` → `rules/container.toml` + pipeline PATH A
-- `screen_size.rs` → `rules/screen_size.toml`
-- `audio_codec.rs` → `rules/audio_codec.toml` + `rules/audio_channels.toml`
+Organized `is_known_token()` into categorized sections (containers,
+video codecs, audio codecs, sources, quality, release tags, languages,
+subtitle markers) for easier maintenance.
 
-`language.rs` gutted from 213 to 95 lines — TOML handles tokens, Rust
-handles only bracket/brace multi-language codes (`[ENG+RU+PT]`).
+## Per-Property Improvements
 
-8 additional modules had dead `ValuePattern` code removed.
+| Property | v0.2.1 | v0.2.2 | Delta |
+|---|---|---|---|
+| edition | 97.6% | **100%** | +2.4% |
+| source | 95.4% | **97.5%** | +2.1% |
+| year | 96.1% | **96.5%** | +0.4% |
+| title | 89.1% | **90.8%** | +1.7% |
+| other | 81.7% | **84.5%** | +2.8% |
+| language | 77.5% | **84.5%** | +7.0% |
+| episode_title | 70.1% | **72.1%** | +2.0% |
 
-**Net: -827 lines of code removed.**
+## What's New
 
-## Accuracy
+### Engine features
 
-| | v0.1.2 | v0.2.0 | Delta |
-|---|:---:|:---:|:---:|
-| **Overall** | **75.1%** (983) | **77.3%** (1,012) | **+29** |
-| video_codec | 94.0% | 98.6% | +24 |
-| screen_size | 93.7% | 98.4% | +20 |
-| audio_codec | 91.2% | 97.8% | +15 |
-| subtitle_language | 49.4% | 77.8% | +23 |
-| title | 84.6% | 87.9% | +35 |
-| language | 77.5% | 84.5% | +10 |
-| absolute_episode | 0% | 90.0% | new |
-| film_title | 0% | 87.5% | new |
-| alternative_title | 0% | 43.8% | new |
+- **`requires_context`** — TOML constraint: match only when filename has
+  tech anchors. Replaces fragile token-enumeration lists.
+- **`requires_before`** — symmetric with `requires_after`: match only
+  when the previous token is in the list.
+- **Zone Rule 6** — source subsumption dedup: when both TV and HDTV
+  exist, the generic TV is dropped automatically.
+- **AmazonHD side_effects** — `AmazonHD` now emits both
+  `streaming_service: Amazon Prime` and `other: HD`.
 
-12 properties at 100%. 17 properties above 95%. 5 properties above 90% that
-were below 95% in v0.1.
+### TOML rule improvements
 
-## Dependencies
+- `bd` → Source: Blu-ray (standalone BD detection)
+- `scr` → Other: Screener (standalone SCR detection)
+- `ultra` → Other: Ultra HD (standalone Ultra detection)
+- `hq`, `ld` moved from zone_scope=tech_only to unrestricted
+- `dubbed` → not_after constraint for language names
+- Audio profile HQ now requires AAC prefix (standalone HQ → Other)
+- Complete uses `requires_context` with season-word fallback
+- Fix requires tech tokens on both sides via `requires_before`+`requires_after`
+- FLEMISH → `nl-be` (Belgian Dutch)
+- Edition Collector pattern (French reversed form)
+- Fansub/fastsub added to release_group known tokens
 
-| Crate | Purpose | Change |
-|-------|---------|--------|
-| `regex` | Pattern matching (linear-time) | Kept |
-| `fancy-regex` | Lookaround fallback | **Removed** |
-| `serde` + `serde_json` | JSON output | Kept |
-| `clap` | CLI parsing | Kept |
-| `toml` | Rule file parsing | Kept |
+### Zone & pipeline improvements
 
-## Road Ahead
+- Tier 2 anchor expansion: `dvd`, `dvdr`, `bd`, `pal`, `ntsc`, `secam`
+- Year-as-anchor zone filtering (when title content ≥ 6 bytes)
+- Date as episode_title anchor (date-based shows like Simply Red)
+- Bracket group title boundary detection
+- Parent directory title extraction after leading matches
+- Year disambiguation: first parenthesized year wins
+- Title-year overlap: range-based instead of exact position match
+- Zone Rule 5: adjacency-based HQ/FanSub pruning near release groups
+- Zone rules audited and renumbered (7 active, no gaps)
 
-### Near-term (v0.2.1)
+## Performance
 
-- ✅ **`bit_rate` property** — detect `NNNKbps` and `NN.NMbps` patterns.
-- ✅ **`episode_format` property** — detect "Minisode" / "Minisodes".
-- ✅ **`week` property** — detect "Week NN" patterns in episode context.
-- ✅ **Title hardening** — "The 100" pattern, trailing Ep/Episode/bonus
-  markers, trailing punctuation.
-- ✅ **Release group** — language prefix stripping (HUN-nIk, TrueFrench-).
-- ⬜ **ZoneMap architecture** — anchor detection + zone-aware matching
-  to replace match-then-prune disambiguation. See ARCHITECTURE.md D006.
+Benchmarks are stable or improved compared to v0.2.1:
 
-### Near-term (v0.2.x)
-
-- **Subtitle language** (77.8% → 90%+) — migrate remaining complex
-  patterns from the 406-line legacy matcher
-- **Release group** edge cases (89.1% → 93%+)
-- **Episode title** improvements (70.6% → 80%+)
-
-### Intentionally omitted guessit properties
-
-- **`audio_bit_rate` / `video_bit_rate`** — hunch uses a single
-  `bit_rate` property. Users already have codec properties to determine
-  which stream the bitrate refers to.
-- **`mimetype`** — trivially derived from `container`. Redundant.
-
-### Medium-term (v0.3)
-
-- **Retire `other.rs` and `source.rs`** — the last two legacy matchers
-  using `ValuePattern` (now standard `regex`, but still raw-string scanners)
-- **Remove `regex_utils.rs`** entirely once all matchers are TOML or
-  algorithmic-only
-- **Absolute episode** improvements for anime formats
-- **Alternative title** from parenthesized content (43.8% → 80%+)
-
-### Long-term
-
-- **80%+ overall accuracy** — pattern grinding on remaining edge cases
-- **Layer 2**: optional TMDB/TVDB integration for title validation
-  (separate crate, not in core `hunch`)
-- **crates.io publish** and stable API
-- **Benchmark suite** — quantitative comparison with Python guessit
+| Benchmark | v0.2.2 | vs v0.2.1 |
+|---|---|---|
+| movie_basic | 453 µs | -3.6% |
+| movie_complex | 718 µs | ~0% |
+| episode_sxxexx | 608 µs | ~0% |
+| episode_with_path | 979 µs | ~0% |
+| anime_bracket | 937 µs | ~0% |
+| minimal | 387 µs | -3.4% |
 
 ## Breaking Changes
 
-- `fancy-regex` is no longer a dependency. If you were depending on it
-  transitively through hunch, you'll need to add it directly.
-- The `HunchResult` now lowercases language/subtitle_language values for
-  case-insensitive deduplication. Values like `"French"` remain title-cased,
-  but duplicate entries from multiple matchers (e.g., `"nl"` and `"NL"`)
-  are now deduplicated.
+None. v0.2.2 is fully backwards-compatible with v0.2.1.
 
-## Thank You
+## What's Next
 
-This release represents a complete rethink of how media filename parsing
-should work: data-driven rules over hardcoded patterns, structural
-disambiguation over regex heuristics, and linear-time safety by design.
+- **Phase E1**: Release group → post-resolution extraction
+  (eliminate the 190-line `is_known_token` exclusion list)
+- **Path B**: Sprint to 80% (12 more cases needed)
+- **crates.io**: Consider publishing
 
-The architecture is now clean enough that contributors can add new codecs,
-editions, or streaming services by editing a TOML file — no Rust knowledge
-required.
+## Install
+
+```bash
+cargo install hunch
+# or
+cargo add hunch
+```
+
+## Full Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the complete list of changes.
