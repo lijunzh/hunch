@@ -12,7 +12,11 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     let filename_end = filename_start + filename.len();
 
     let has_anchor = matches.iter().any(|m| {
-        m.start >= filename_start && matches!(m.property, Property::Episode | Property::Season)
+        m.start >= filename_start
+            && matches!(
+                m.property,
+                Property::Episode | Property::Season | Property::Date
+            )
     });
     if !has_anchor {
         return None;
@@ -21,7 +25,11 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     let last_ep_match = matches
         .iter()
         .filter(|m| {
-            m.start >= filename_start && matches!(m.property, Property::Episode | Property::Season)
+            m.start >= filename_start
+                && matches!(
+                    m.property,
+                    Property::Episode | Property::Season | Property::Date
+                )
         })
         .max_by_key(|m| m.end)?;
 

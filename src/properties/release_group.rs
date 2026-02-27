@@ -410,6 +410,9 @@ fn is_known_token(s: &str) -> bool {
             | "swesub"
             | "noreleasegroup"
             // Subtitle markers.
+            | "fansub"
+            | "fansubbed"
+            | "fastsub"
             | "multiple subtitle"
             | "multi subs"
             | "multisubs"
