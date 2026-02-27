@@ -266,6 +266,7 @@ pub fn find_matches(
     }
 
     // 8. Last dot-segment as fallback (requires tech zone anchors).
+    //    Also tries to merge preceding dot-segments (e.g., `YTS.LT` → "YTS.LT").
     if matches.is_empty()
         && zone_map.has_anchors
         && let Some(cap) = RELEASE_GROUP_LAST_DOT.captures(filename)
@@ -275,8 +276,26 @@ pub fn find_matches(
         let abs_start = filename_start + group.start();
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) {
+            // Try merging backwards: check if preceding dot-segment is also
+            // unclaimed and non-tech (e.g., `YTS.LT` → "YTS.LT").
+            let mut merged_value = value.to_string();
+            let mut merged_start = abs_start;
+            let before = &filename[..group.start().saturating_sub(1)]; // text before the dot
+            if let Some(dot) = before.rfind('.') {
+                let prev_seg = &before[dot + 1..];
+                let prev_abs_start = filename_start + dot + 1;
+                let prev_abs_end = filename_start + dot + 1 + prev_seg.len();
+                if !prev_seg.is_empty()
+                    && prev_seg.chars().next().is_some_and(|c| c.is_alphabetic())
+                    && !is_rejected_group(prev_seg, prev_abs_start, prev_abs_end, resolved)
+                {
+                    merged_value = format!("{}.{}", prev_seg, value);
+                    merged_start = prev_abs_start;
+                }
+            }
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-3),
+                MatchSpan::new(merged_start, abs_end, Property::ReleaseGroup, merged_value)
+                    .with_priority(-3),
             );
         }
     }
