@@ -44,6 +44,14 @@ fn is_tech_property(p: Property) -> bool {
     )
 }
 
+/// Whether a property is an episode/season marker.
+fn is_episode_property(p: Property) -> bool {
+    matches!(
+        p,
+        Property::Episode | Property::Season | Property::Date | Property::AbsoluteEpisode
+    )
+}
+
 /// Extract title from the input string by finding the gap before the first
 /// recognized match. This is a post-processing step, not a `PropertyMatcher`.
 ///

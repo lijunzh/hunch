@@ -191,13 +191,12 @@ pub fn find_matches(
     // 3c. Compound bracket merging using tokenizer's bracket model.
     // Must run BEFORE individual bracket steps (4-6) to catch
     // `(Tigole) [QxR]`, `(JBENT)[TAoE]` patterns.
-    if matches.is_empty() {
-        if let Some(compound) =
+    if matches.is_empty()
+        && let Some(compound) =
             find_compound_bracket_group_from_tokenstream(token_stream, filename_start, resolved)
         {
             matches.push(compound);
         }
-    }
 
     // 4. `-[GROUP]` at end.
     if matches.is_empty()
