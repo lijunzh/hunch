@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.2] - 2026-02-26
 
 ### Added
 
@@ -24,14 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **Overall pass rate: 76.6% → 79.0%** (1,003 → 1,034 / 1,309).
+- **Overall pass rate: 76.6% → 79.1%** (1,003 → 1,036 / 1,309).
 - **edition: 97.6% → 100%** on per-property accuracy.
-- **source: 95.4% → 97.5%** — BD standalone, Zone Rule 8 dedup.
-- **title: 89.1% → 90.1%** — bracket group boundary detection,
-  year-as-anchor zone filtering, Edition Collector pattern.
-- **other: 81.7% → 83.7%** — HQ/LD unrestricted, Complete context,
+- **source: 95.4% → 97.5%** — BD standalone, source dedup.
+- **title: 89.1% → 90.8%** — bracket group boundary detection,
+  year-as-anchor zone filtering, Edition Collector pattern,
+  parent dir after-match extraction.
+- **other: 81.7% → 84.5%** — HQ/LD unrestricted, Complete context,
   SCR screener, FanSub pruning, Dubbed not_after.
 - **language: 77.5% → 84.5%** — FLEMISH nl-be, Tier 2 anchor improvements.
+- **episode_title: 70.1% → 72.1%** — Date-based anchoring, Part exclusion.
+- **year: 96.1% → 96.5%** — first-paren disambiguation.
+- **release_group module** split into `mod.rs` + `known_tokens.rs`
+  (626 lines → 312 + 190).
 
 ### Fixed
 
@@ -251,6 +256,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[0.2.2]: https://github.com/lijunzh/hunch/releases/tag/v0.2.2
 [0.2.1]: https://github.com/lijunzh/hunch/releases/tag/v0.2.1
 [0.2.0]: https://github.com/lijunzh/hunch/releases/tag/v0.2.0
 [0.1.2]: https://github.com/lijunzh/hunch/releases/tag/v0.1.2

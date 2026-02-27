@@ -7,11 +7,11 @@
 **A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
 for extracting media metadata from filenames.**
 
-> ⚠️ **Work in progress.** Hunch currently passes **76.6%** of guessit's own
-> 1,309-case test suite (1,003 / 1,309). All 49 guessit properties are
+> ⚠️ **Work in progress.** Hunch currently passes **79.1%** of guessit's own
+> 1,309-case test suite (1,036 / 1,309). All 49 guessit properties are
 > implemented (3 intentionally diverged). Core properties like video codec,
-> screen size, source, audio codec, and year are 95–99% accurate. Title,
-> episode, language, and 40+ other properties are steadily improving.
+> screen size, source, audio codec, edition, and year are 96–100% accurate.
+> Title (91%), episode (90%), and 40+ other properties are steadily improving.
 > All regex is linear-time via the `regex` crate (ReDoS-immune).
 > See [COMPATIBILITY.md](COMPATIBILITY.md) for the full breakdown.
 
@@ -73,21 +73,22 @@ against guessit's own YAML test suite:
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% (by definition) | **76.6%** (1,003 / 1,309) |
+| Overall pass rate | 100% (by definition) | **79.1%** (1,036 / 1,309) |
 | Properties implemented | 49 | 49 (3 diverged) |
-| Properties at 90%+ | 49 | 29 |
-| Properties at 100% | 49 | 15 |
+| Properties at 90%+ | 49 | 30 |
+| Properties at 100% | 49 | 16 |
 
-**Where hunch matches guessit** (95–100% accuracy):
+**Where hunch matches guessit** (96–100% accuracy):
 year, video_codec, container, source, screen_size, audio_codec, crc32,
 color_depth, streaming_service, bonus, film, aspect_ratio, size, edition,
 episode_details, version, frame_rate, episode_count, season_count,
 proper_count, date, disc, episode_format, week, video_api.
 
-**Where hunch is developing** (70–90%):
-title (89%), release_group (89%), episode (90%), season (94%),
-audio_channels (95%), language (78%), subtitle_language (77%),
-episode_title (70%), other (82%), audio_profile (85%).
+**Where hunch is developing** (70–95%):
+title (91%), release_group (89%), episode (90%), season (94%),
+audio_channels (95%), language (85%), other (85%),
+episode_title (72%), subtitle_language (77%),
+audio_profile (85%).
 
 For per-property breakdowns, per-file results, and known gaps,
 see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
@@ -145,7 +146,9 @@ src/
 └── properties/         # 31 property matcher modules
     ├── title/          # Title extraction (mod.rs + clean.rs + secondary.rs)
     ├── episodes/       # Season/episode (mod.rs + patterns.rs + tests.rs)
-    ├── release_group.rs # Positional release group heuristics
+    ├── release_group/ # Positional release group heuristics
+    │   ├── mod.rs       # Regex patterns + matching logic
+    │   └── known_tokens.rs # Token exclusion list + helpers
     └── ...             # year, date, source, language, etc.
 
 rules/                  # 20 TOML data files (compile-time embedded)
