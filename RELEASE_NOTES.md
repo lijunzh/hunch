@@ -1,147 +1,176 @@
-# Hunch v0.2.2 — Phase C: Accuracy & Refactors
+# Hunch v0.3.0 — Two-Pass Pipeline & 80% Milestone
 
-This release focuses on **accuracy improvements** and **structural refactoring**,
-pushing the guessit compatibility rate from 76.6% to **79.1%** (+33 test cases).
+This is a **major architectural release** that introduces a two-pass parsing
+pipeline, eliminates the 130-token exclusion list, and crosses the **80%
+guessit compatibility threshold**.
 
 ## The Numbers
 
 ```
-v0.2.1  ████████████████████████████████████████░░░░░░░░░░░  76.6%  (1,003 / 1,309)
-v0.2.2  ████████████████████████████████████████████░░░░░░░░  79.1%  (1,036 / 1,309)
-                                                  ▲
-                                               +33 cases
+v0.2.2  ████████████████████████████████████████████░░░░░░░░  79.0%  (1,034 / 1,309)
+v0.3.0  ████████████████████████████████████████████████░░░░  80.0%  (1,047 / 1,309)
+                                                      ▲
+                                                   +13 cases
 ```
 
-| Metric | v0.2.1 | v0.2.2 |
+| Metric | v0.2.2 | v0.3.0 |
 |---|---|---|
-| Overall pass rate | 76.6% | **79.1%** |
-| Properties at 100% | 15 | **16** |
-| Properties at 90%+ | 29 | **30** |
-| Single-property failures | 124 | **99** |
+| Overall pass rate | 79.0% | **80.0%** |
+| Properties at 100% | 16 | **16** |
+| Properties at 90%+ | 27 | **31** |
+| Single-property failures | 99 | **63** |
 
-## Highlights
+## 🏗️ Architecture: Two-Pass Pipeline
 
-### 🎯 edition reaches 100%
+The biggest change in this release is the **two-pass pipeline**. Release group
+extraction now runs AFTER conflict resolution, using resolved match positions
+instead of a manually-maintained exclusion list.
 
-The `edition` property now matches guessit perfectly across all 83 test
-assertions. Key fix: the `Edition Collector` pattern (French reversed
-form) and directory-level edition detection (AllSegments scope).
-
-### 📈 title crosses 90%
-
-Title extraction improved from 89.1% → 90.8% through:
-
-- **Bracket group title boundaries** — `[Ayako] Infinite Stratos - IS`
-  now correctly extracts just `Infinite Stratos` (stops at ` - `)
-- **Year-as-anchor zone filtering** — `A.Common.Title.Special.2014`
-  keeps `Special` as title content instead of matching it as metadata
-- **Parent directory after-match extraction** — `S02 Some Series/E01.mkv`
-  now extracts `Some Series` from the directory (after the season marker)
-
-### 🧠 New engine capability: `requires_context`
-
-TOML patterns can now declare `requires_context = true` to match only
-when the filename contains recognized technical tokens (Tier 1/2 anchors).
-This replaces fragile 90-token enumeration lists with a structural check:
-
-```toml
-# Before (884 characters!):
-requires_before = ["season", "saison", "dvd", "bluray", ... 87 more ...]
-
-# After (clean and automatic):
-requires_context = true
-requires_before = ["season", "saison", "temporada", "staffel", "serie", "series"]
+```
+BEFORE (v0.2.x single pass):         AFTER (v0.3.0 two-pass):
+┌─────────────────────────┐         ┌─── PASS 1 ────────────────┐
+│ TOML rules              │         │ TOML rules                │
+│ Legacy matchers         │         │ Legacy matchers (no RG)   │
+│   └─ release_group     │         │ Conflict resolution       │
+│ Conflict resolution     │         │ Zone disambiguation       │
+│ Zone rules              │         │  → resolved_tech_matches  │
+│ Title extraction        │         ├─── PASS 2 ────────────────┤
+└─────────────────────────┘         │ release_group(resolved)   │
+                                    │ Title extraction          │
+                                    │ Episode title             │
+                                    └─────────────────────────┘
 ```
 
-When `requires_context` and `requires_before` are combined, the
-`requires_before` acts as a fallback for anchor-less filenames.
+### What this unlocks
 
-### ♻️ release_group module split
+- **`is_known_token` (130 tokens) → DELETED** — No more maintaining a
+  parallel exclusion list that duplicates TOML rules. Release group
+  validation now uses `is_position_claimed()` against resolved matches.
+- **Small curated list** — Only ~20 non-group tokens remain (subtitle
+  markers, containers not covered by TOML).
+- **Zone Rule 5 post-RG** — HQ/HR/FanSub adjacency pruning now runs
+  after release group extraction, so it can actually see the group.
 
-The 626-line monolithic `release_group.rs` was split into a clean module:
+## 🏗️ Architecture: Tokenizer Bracket Model
 
-- `release_group/mod.rs` (312 lines) — regex patterns + matching logic
-- `release_group/known_tokens.rs` (190 lines) — token exclusion list,
-  strip_trailing_metadata, expand_group_backwards, helper functions
+The tokenizer now extracts **structured bracket groups** from the input:
 
-Organized `is_known_token()` into categorized sections (containers,
-video codecs, audio codecs, sources, quality, release tags, languages,
-subtitle markers) for easier maintenance.
+```rust
+BracketGroup {
+    kind: BracketKind::Square,  // Round, Square, or Curly
+    open: 42,                   // Position of opening bracket
+    close: 48,                  // Position of closing bracket
+    content: "1080p",           // Content between brackets
+    segment_idx: 1,             // Which path segment
+}
+```
 
-## Per-Property Improvements
+This enables future bracket-aware parsing for compound release groups
+like `(Tigole) [QxR]`, subtitle language codes like `{Fr-Eng}`, and
+CRC32 checksums like `[DEADBEEF]`.
 
-| Property | v0.2.1 | v0.2.2 | Delta |
+## 🏗️ Architecture: Per-Directory Zone Maps
+
+Zone filtering now works for **directory segments**, not just the filename.
+Each directory component gets its own `SegmentZone` with title/tech
+boundaries. TOML rules with `zone_scope = "tech_only"` are now properly
+suppressed in directory title zones.
+
+## 🏗️ Architecture: TokenStream in Pass 2
+
+All Pass 2 extractors (release_group, title, episode_title, film_title,
+alternative_title) now receive the full `TokenStream`. This provides
+access to:
+- Structured bracket groups
+- Per-segment token positions
+- Path segment information
+- Extension detection
+
+## 📊 Per-Property Improvements
+
+| Property | v0.2.2 | v0.3.0 | Delta |
 |---|---|---|---|
-| edition | 97.6% | **100%** | +2.4% |
-| source | 95.4% | **97.5%** | +2.1% |
-| year | 96.1% | **96.5%** | +0.4% |
-| title | 89.1% | **90.8%** | +1.7% |
-| other | 81.7% | **84.5%** | +2.8% |
-| language | 77.5% | **84.5%** | +7.0% |
-| episode_title | 70.1% | **72.1%** | +2.0% |
+| title | 90.1% | **91.6%** | +1.5% |
+| release_group | 89.1% | **90.2%** | +1.1% |
+| other | 83.7% | **84.8%** | +1.1% |
+| episode_title | 70.1% | **74.1%** | +4.0% |
+
+### Key property milestones
+
+- **title crosses 91%** — leading codec handling, language dedup,
+  asterisk stripping, year-as-title improvements
+- **release_group crosses 90%** — post-resolution extraction, SC/SDH
+  context-dependent matching, Zone Rule 5 post-RG
+- **episode_title gains 4%** — EpisodeCount boundaries, show title
+  separator splitting, suspicious Other detection, trailing Part stripping
 
 ## What's New
 
 ### Engine features
 
-- **`requires_context`** — TOML constraint: match only when filename has
-  tech anchors. Replaces fragile token-enumeration lists.
-- **`requires_before`** — symmetric with `requires_after`: match only
-  when the previous token is in the list.
-- **Zone Rule 6** — source subsumption dedup: when both TV and HDTV
-  exist, the generic TV is dropped automatically.
-- **AmazonHD side_effects** — `AmazonHD` now emits both
-  `streaming_service: Amazon Prime` and `other: HD`.
+- **Two-pass pipeline** — Pass 1 resolves tech properties, Pass 2
+  extracts positional properties using resolved match positions.
+- **Position-based release group validation** — `is_position_claimed()`
+  replaces the 130-token `is_known_token` exclusion list.
+- **Bracket group model** — `BracketGroup` struct in tokenizer for
+  structured bracket content parsing.
+- **Per-directory zone maps** — `SegmentZone` provides title/tech
+  boundaries for each path segment.
+- **Suspicious Other detection** — `Other:Proper` in episode titles is
+  recognized as title content when followed by non-tech words.
+- **Episode title separator splitting** — ` - ShowTitle - EpTitle`
+  patterns are correctly split.
+- **Trailing Part stripping** — "Part N" at the end of episode titles
+  is stripped (Part is extracted as a separate property).
 
 ### TOML rule improvements
 
-- `bd` → Source: Blu-ray (standalone BD detection)
-- `scr` → Other: Screener (standalone SCR detection)
-- `ultra` → Other: Ultra HD (standalone Ultra detection)
-- `hq`, `ld` moved from zone_scope=tech_only to unrestricted
-- `dubbed` → not_after constraint for language names
-- Audio profile HQ now requires AAC prefix (standalone HQ → Other)
-- Complete uses `requires_context` with season-word fallback
-- Fix requires tech tokens on both sides via `requires_before`+`requires_after`
-- FLEMISH → `nl-be` (Belgian Dutch)
-- Edition Collector pattern (French reversed form)
-- Fansub/fastsub added to release_group known tokens
+- **video_profile.toml** — SC/SCH/SDH now require a preceding codec
+  token (`requires_before`). Prevents false positives where SC is a
+  release group or SDH means subtitles.
+- **video_codec.toml** — HEVC suffix regex tightened from `hevc.+` to
+  `hevc[a-zA-Z0-9_]+` to prevent multi-token window over-matching.
 
 ### Zone & pipeline improvements
 
-- Tier 2 anchor expansion: `dvd`, `dvdr`, `bd`, `pal`, `ntsc`, `secam`
-- Year-as-anchor zone filtering (when title content ≥ 6 bytes)
-- Date as episode_title anchor (date-based shows like Simply Red)
-- Bracket group title boundary detection
-- Parent directory title extraction after leading matches
-- Year disambiguation: first parenthesized year wins
-- Title-year overlap: range-based instead of exact position match
-- Zone Rule 5: adjacency-based HQ/FanSub pruning near release groups
-- Zone rules audited and renumbered (7 active, no gaps)
-
-## Performance
-
-Benchmarks are stable or improved compared to v0.2.1:
-
-| Benchmark | v0.2.2 | vs v0.2.1 |
-|---|---|---|
-| movie_basic | 453 µs | -3.6% |
-| movie_complex | 718 µs | ~0% |
-| episode_sxxexx | 608 µs | ~0% |
-| episode_with_path | 979 µs | ~0% |
-| anime_bracket | 937 µs | ~0% |
-| minimal | 387 µs | -3.4% |
+- **Zone Rule 1 enhanced** — drops duplicate language in title zone
+  when the same language appears in the tech zone.
+- **Zone Rule 5 moved to post-RG** — HQ/HR/FanSub adjacency pruning
+  now runs after release group extraction.
+- **Title: leading tech skip** — when filename starts with codec tokens
+  (e.g., `h265 - HEVC Riddick...`), title extraction skips to the next gap.
+- **Title: asterisk stripping** — `*` treated as separator character.
 
 ## Breaking Changes
 
-None. v0.2.2 is fully backwards-compatible with v0.2.1.
+### API
+
+- `release_group::find_matches()` signature changed — now takes
+  `(input, resolved_matches, zone_map, token_stream)` instead of
+  just `(input)`.
+- `title::extract_title()` and all secondary title extractors now
+  take an additional `token_stream` parameter.
+- These are library-internal functions; the public API (`hunch()`,
+  `Pipeline::run()`) is unchanged.
+
+### Semantic
+
+- Release group detection may differ slightly from v0.2.2 in edge cases
+  where position-based overlap detection behaves differently from the
+  old text-based exclusion list.
+
+## Performance
+
+No measurable performance regression. The two-pass pipeline adds minimal
+overhead since Pass 2 operates on already-resolved matches.
 
 ## What's Next
 
-- **Phase E1**: Release group → post-resolution extraction
-  (eliminate the 190-line `is_known_token` exclusion list)
-- **Path B**: Sprint to 80% (12 more cases needed)
-- **crates.io**: Consider publishing
+- Episode title: directory-based extraction (Bones, Scrubs cases)
+- Release group: compound bracket merging using bracket model
+- Subtitle language: bracket-based `{Fr-Eng}` parsing
+- Per-directory zone filtering for Language/Other in dir names
+- Sprint to 85%
 
 ## Install
 

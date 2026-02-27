@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-02-26
+
+### Added
+
+- **Two-pass pipeline** — Release group extraction runs after conflict
+  resolution (Pass 2), using resolved match positions instead of a
+  130-token exclusion list.
+- **Position-based release group validation** — `is_position_claimed()`
+  checks candidate spans against resolved tech matches. Replaces the
+  DRY-violating `is_known_token()` function.
+- **Bracket group model** — `BracketGroup` struct in tokenizer tracks
+  matched bracket pairs (Square, Round, Curly) with positions and content.
+- **Per-directory zone maps** — `SegmentZone` provides title/tech zone
+  boundaries for directory segments. TOML zone-scope filtering now works
+  for directory tokens.
+- **TokenStream in Pass 2** — All positional extractors (release_group,
+  title, episode_title, film_title, alternative_title) receive the full
+  TokenStream for bracket-aware and path-aware parsing.
+- **Suspicious Other detection** — `Other:Proper` in episode titles is
+  treated as title content when the original token text is not a release
+  tag and the next word is not a tech token.
+- **Episode title separator splitting** — show title repetition after
+  ` - ` is correctly split from the actual episode title.
+- **Trailing Part stripping** — "Part N" at the end of episode titles
+  is stripped (Part is extracted as a separate property).
+- **EpisodeCount/SeasonCount boundary** — episode title extraction
+  starts after episode_count matches, not just episode matches.
+- **Title: leading tech skip** — when filename starts with codec tokens,
+  title extraction skips to the first non-tech gap.
+- **Zone Rule 1 duplicate language detection** — drops language in
+  title zone when the same language appears in the tech zone.
+
+### Changed
+
+- **Overall pass rate: 79.0% → 80.0%** (1,034 → 1,047 / 1,309).
+- **title: 90.1% → 91.6%** — leading codec, language dedup, asterisks.
+- **release_group: 89.1% → 90.2%** — post-resolution, SC/SDH context.
+- **episode_title: 70.1% → 74.1%** — boundaries, Part strip, suspicious Other.
+- **other: 83.7% → 84.8%** — Zone Rule 5 post-RG, HQ adjacency.
+- **`release_group::find_matches()`** signature changed to accept
+  `(input, resolved_matches, zone_map, token_stream)`.
+- **All Pass 2 extractors** now accept `token_stream` parameter.
+- **Zone Rule 5** moved to `apply_post_release_group_rules()` so it
+  can see release group positions.
+
+### Fixed
+
+- **video_codec.toml**: HEVC suffix regex `hevc.+` → `hevc[a-zA-Z0-9_]+`
+  to prevent multi-token window over-matching (e.g., HEVC.Atmos-GROUP).
+- **video_profile.toml**: SC/SCH/SDH require preceding codec token
+  (`requires_before`). Prevents false positives where SC is a release
+  group name or SDH means subtitle tag.
+- **Title asterisk stripping**: `*` treated as separator character.
+- **Episode title REPACK/REAL**: checks original input text, not just
+  the Other match value, to distinguish metadata from title content.
+
+### Removed
+
+- **`is_known_token()`** — 130-token exclusion list replaced by
+  position-based overlap detection + 20-token curated non-group list.
+
 ## [0.2.2] - 2026-02-26
 
 ### Added
