@@ -7,6 +7,10 @@ use crate::tokenizer::TokenStream;
 
 /// Extract episode title: the text between the last episode/season marker
 /// and the next technical property in the filename portion.
+///
+/// Uses resolved matches for suspicious match detection (v0.3):
+/// if an `Other` match is surrounded by non-tech words, it's likely
+/// title content (e.g., "Proper" in "Proper Pigs"), not metadata.
 pub fn extract_episode_title(
     input: &str,
     matches: &[MatchSpan],
@@ -27,13 +31,20 @@ pub fn extract_episode_title(
         return None;
     }
 
+    // Find the last episode/season/date/episode_count marker.
+    // Include EpisodeCount and SeasonCount so "14.of.21.Title" starts
+    // the episode title after "21", not after "14".
     let last_ep_match = matches
         .iter()
         .filter(|m| {
             m.start >= filename_start
                 && matches!(
                     m.property,
-                    Property::Episode | Property::Season | Property::Date
+                    Property::Episode
+                        | Property::Season
+                        | Property::Date
+                        | Property::EpisodeCount
+                        | Property::SeasonCount
                 )
         })
         .max_by_key(|m| m.end)?;
@@ -48,7 +59,6 @@ pub fn extract_episode_title(
         Property::Source,
         Property::ScreenSize,
         Property::Edition,
-        Property::Other,
         Property::Language,
         Property::AudioChannels,
         Property::Container,
@@ -57,14 +67,27 @@ pub fn extract_episode_title(
         Property::FrameRate,
         Property::ColorDepth,
         Property::VideoProfile,
+        // NOTE: Property::Other is handled below with suspicious match detection.
     ];
 
+    // Find Other matches in the episode title zone and check if they're suspicious.
+    // An Other match is "suspicious" (likely title content) if the word after it
+    // is NOT a tech token. E.g., "Proper.Pigs" → "Proper" is title, not Other.
+    let _other_matches_in_zone: Vec<&MatchSpan> = matches
+        .iter()
+        .filter(|m| {
+            m.property == Property::Other && m.start >= ep_title_start && m.start < filename_end
+        })
+        .collect();
+
+    // Find first stopping tech property (including non-suspicious Other matches).
     let next_tech = matches
         .iter()
         .filter(|m| {
             m.start >= ep_title_start
                 && m.start < filename_end
-                && technical_props.contains(&m.property)
+                && (technical_props.contains(&m.property)
+                    || (m.property == Property::Other && !is_suspicious_other(m, input, matches)))
         })
         .min_by_key(|m| m.start);
 
@@ -100,6 +123,11 @@ pub fn extract_episode_title(
     }
 
     let raw = &input[ep_title_start..ep_title_end];
+
+    // Split at " - " separator when the text before it matches the show title.
+    // Handles: "2x05 - Pure Laine - Je Me Souviens" → ep_title = "Je Me Souviens"
+    let raw = split_ep_title_at_show_repeat(raw, matches);
+
     let cleaned = clean_episode_title(raw);
     if cleaned.is_empty() {
         return None;
@@ -284,4 +312,102 @@ pub fn infer_media_type(matches: &[MatchSpan]) -> &'static str {
     } else {
         "movie"
     }
+}
+
+// ── Episode title helpers ────────────────────────────────────────────────
+
+/// Check if an `Other` match is "suspicious" — likely title content,
+/// not actual metadata.
+///
+/// Only a curated set of Other values can be title content. Words like
+/// "Proper", "Proof", "Line" are common English words that appear in titles.
+/// Words like "REPACK", "Remux", "XXX" are never title content.
+fn is_suspicious_other(other_match: &MatchSpan, input: &str, _matches: &[MatchSpan]) -> bool {
+    // Only these Other values could plausibly be title words.
+    const TITLE_AMBIGUOUS_OTHER: &[&str] = &[
+        "Proper", // "Proper Pigs", "A Proper Lady"
+        "Fix",    // "The Fix"
+        "3D",     // "Step Up 3D"
+        "HD",     // rare but possible
+    ];
+
+    if !TITLE_AMBIGUOUS_OTHER
+        .iter()
+        .any(|v| v.eq_ignore_ascii_case(&other_match.value))
+    {
+        return false;
+    }
+
+    // Check that the next word after the match is NOT a tech token.
+    let after_pos = other_match.end;
+    if after_pos >= input.len() {
+        return false;
+    }
+
+    let rest = &input[after_pos..];
+    let next_word: String = rest
+        .trim_start_matches(['.', '-', '_', ' '])
+        .chars()
+        .take_while(|c| c.is_alphanumeric())
+        .collect();
+
+    if next_word.is_empty() {
+        return false;
+    }
+
+    // If the next word is NOT a tech token, this Other match is suspicious.
+    !crate::zone_map::is_tier2_token(&next_word) && !is_tech_word(&next_word)
+}
+
+/// Quick check for common tech words that aren't in Tier 2.
+fn is_tech_word(word: &str) -> bool {
+    let lower = word.to_lowercase();
+    matches!(
+        lower.as_str(),
+        "720p" | "1080p" | "2160p" | "480p" | "hdr" | "hdr10" | "sdr"
+    )
+}
+
+/// Split episode title at " - " when the text before it repeats the show title.
+///
+/// Pattern: `" - Show Title - Actual Episode Title"`
+/// The show title appears in the parent dir or the Title match.
+fn split_ep_title_at_show_repeat<'a>(raw: &'a str, matches: &[MatchSpan]) -> &'a str {
+    // Get the show title for comparison.
+    let show_title = matches
+        .iter()
+        .find(|m| m.property == Property::Title)
+        .map(|m| m.value.to_lowercase());
+
+    let show_title = match show_title {
+        Some(t) => t,
+        None => return raw,
+    };
+
+    // Look for " - " separators.
+    let separators = [" - ", "_-_", ".-."];
+    for sep in &separators {
+        // Find all occurrences.
+        let mut search_start = 0;
+        while let Some(pos) = raw[search_start..].find(sep) {
+            let abs_pos = search_start + pos;
+            let before = raw[..abs_pos].trim();
+            let before_clean = before.replace(['.', '_'], " ").trim().to_lowercase();
+
+            // If the text before this separator matches the show title,
+            // the episode title starts after it.
+            if before_clean == show_title || show_title.contains(&before_clean) {
+                let after = &raw[abs_pos + sep.len()..];
+                // Look for another " - " after this one (nested separators).
+                if let Some(next_pos) = after.find(sep) {
+                    // Return the part after the LAST separator that follows the title.
+                    return &raw[abs_pos + sep.len() + next_pos + sep.len()..];
+                }
+                return &raw[abs_pos + sep.len()..];
+            }
+            search_start = abs_pos + sep.len();
+        }
+    }
+
+    raw
 }
