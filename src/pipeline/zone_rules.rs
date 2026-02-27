@@ -1,7 +1,19 @@
 //! Zone-based disambiguation rules.
 //!
 //! Post-matching disambiguation that handles cross-property semantics
-//! not expressible as TOML zone_scope declarations.
+//! not expressible as TOML zone_scope or requires_context declarations.
+//!
+//! ## Rule inventory (7 active)
+//!
+//! | # | Name | Purpose |
+//! |---|------|---------|
+//! | 1 | Language in title zone | Drop language in first half of title zone |
+//! | 2 | Duplicate source | Drop early source when late source exists |
+//! | 3 | UHD Blu-ray promotion | Promote Blu-ray → Ultra HD Blu-ray |
+//! | 4 | Redundant UHD Other | Drop Other:Ultra HD when source has UHD |
+//! | 5 | Ambiguous Other ↔ ReleaseGroup | Drop HQ/FanSub near release groups |
+//! | 6 | Source subsumption | Drop generic source when specific exists |
+//! | 7 | Language inside tech span | Drop lang contained in source/codec spans |
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::zone_map::ZoneMap;
@@ -87,7 +99,7 @@ pub fn apply_zone_rules(
         }
     }
 
-    // ── Rule 7: Promote Blu-ray → Ultra HD Blu-ray when UHD signals exist ──
+    // ── Rule 3: Promote Blu-ray → Ultra HD Blu-ray when UHD signals exist ──
     // When UHD/4K/2160p appears in the filename alongside a Blu-ray source,
     // the source should be "Ultra HD Blu-ray". This handles cases where the
     // UHD marker and Blu-ray marker are too far apart for TOML's 3-token
@@ -108,18 +120,14 @@ pub fn apply_zone_rules(
         }
     }
 
-    // ── Rule 3: Redundant HD tags when source has UHD ────────────────
-    // Must run AFTER Rule 7 (promotion) so the promoted source is detected.
+    // ── Rule 4: Redundant HD tags when source has UHD ────────────────
+    // Must run AFTER Rule 3 (promotion) so the promoted source is detected.
     let source_has_uhd = matches
         .iter()
         .any(|m| m.property == Property::Source && m.value.contains("Ultra HD"));
     if source_has_uhd {
         matches.retain(|m| !(m.property == Property::Other && m.value == "Ultra HD"));
     }
-
-    // ── Rule 4: RETIRED ──────────────────────────────────────────────
-    // EpisodeDetails before episode marker → now handled by
-    // episode_details.toml zone_scope = "tech_only".
 
     // ── Rule 5: Other overlapping or adjacent to ReleaseGroup → drop ambiguous Other ───
     let rg_spans: Vec<(usize, usize)> = matches
@@ -144,9 +152,9 @@ pub fn apply_zone_rules(
         });
     }
 
-    // ── Rule 6: Language/SubtitleLanguage contained within a tech span ───
+    // ── Rule 7: Language/SubtitleLanguage contained within a tech span ───
 
-    // ── Rule 8: Deduplicate subsumed Source values ──────────────────────────
+    // ── Rule 6: Deduplicate subsumed Source values ──────────────────────────
     // When both a generic source (TV, HD) and a specific source (HDTV, HD-DVD)
     // exist, drop the generic one since the specific subsumes it.
     {
