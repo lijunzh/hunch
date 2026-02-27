@@ -206,7 +206,10 @@ pub fn find_matches(
         let value = group.as_str().trim();
         let abs_start = filename_start + group.start();
         let abs_end = filename_start + group.end();
-        if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
+        if !value.contains('/')
+            && !is_rejected_group(value, abs_start, abs_end, resolved)
+            && !is_hex_crc(value)
+        {
             matches.push(
                 MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
             );
@@ -221,7 +224,10 @@ pub fn find_matches(
         let value = group.as_str().trim();
         let abs_start = filename_start + group.start();
         let abs_end = filename_start + group.end();
-        if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
+        if !value.contains('/')
+            && !is_rejected_group(value, abs_start, abs_end, resolved)
+            && !is_hex_crc(value)
+        {
             matches.push(
                 MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
             );
