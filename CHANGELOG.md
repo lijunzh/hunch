@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **Overall pass rate: 76.6% → 78.7%** (1,003 → 1,030 / 1,309).
+- **Overall pass rate: 76.6% → 79.0%** (1,003 → 1,034 / 1,309).
 - **edition: 97.6% → 100%** on per-property accuracy.
 - **source: 95.4% → 97.5%** — BD standalone, Zone Rule 8 dedup.
 - **title: 89.1% → 90.1%** — bracket group boundary detection,

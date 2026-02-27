@@ -29,7 +29,7 @@ The problem decomposes into three sub-problems, each favoring a different approa
 
 ## Current Status
 
-**Overall: 78.7%** (1,030 / 1,309 guessit test cases). `regex`-only (no
+**Overall: 79.0%** (1,034 / 1,309 guessit test cases). `regex`-only (no
 `fancy_regex`). TOML-driven rule engine with side effects, neighbor
 constraints (`not_before`/`not_after`/`requires_after`/`requires_before`),
 zone-scope filtering, and path-segment awareness.
