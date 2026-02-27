@@ -230,11 +230,12 @@ match = '(?i)^dok[cu](?:mentary)?$'
 value = "Documentary"
 
 [[patterns]]
-# Complete / Complet — only when preceded by season/series/number context.
-# Standalone "Complete" is a title word, not metadata.
+# Complete / Complet — match when tech context exists (anchors),
+# OR when preceded by season/series keywords (fallback for anchor-less cases).
 match = '(?i)^complet(?:e|s)?$'
 value = "Complete"
-requires_before = ["season", "saison", "temporada", "staffel", "serie", "series", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "s01", "s02", "s03", "s04", "s05", "s06", "s07", "s08", "s09", "s10", "s11", "s12", "s13", "s14", "s15", "s16", "s17", "s18", "s19", "s20", "english", "french", "spanish", "german", "italian", "portuguese", "russian", "japanese", "chinese", "korean", "dutch", "swedish", "norwegian", "danish", "finnish", "polish", "czech", "turkish", "greek", "hungarian", "romanian", "catalan", "croatian", "serbian", "bulgarian", "ukrainian", "hebrew", "truefrench", "vff", "multi", "eng", "fre", "ger", "spa", "ita", "jpn", "rus", "kor", "dut", "por", "dvd", "bluray", "hdtv", "web", "bd", "pal", "ntsc", "dubbed", "subbed"]
+requires_context = true
+requires_before = ["season", "saison", "temporada", "staffel", "serie", "series"]
 
 [[patterns]]
 # Dubbed — only when NOT immediately after a language name.

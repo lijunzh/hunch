@@ -476,13 +476,31 @@ impl Pipeline {
                             continue;
                         }
                     }
-                    if let Some(ref required) = token_match.requires_before {
-                        let ok = i > 0
-                            && required
-                                .iter()
-                                .any(|r| r == &tokens[i - 1].text.to_lowercase());
-                        if !ok {
+                    // requires_context: only match when tech anchors exist
+                    // OR when requires_before matches (fallback for context words).
+                    if token_match.requires_context && !zone_map.has_anchors {
+                        // If requires_before is also set, use it as fallback.
+                        if let Some(ref required) = token_match.requires_before {
+                            let ok = i > 0
+                                && required
+                                    .iter()
+                                    .any(|r| r == &tokens[i - 1].text.to_lowercase());
+                            if !ok {
+                                continue;
+                            }
+                        } else {
                             continue;
+                        }
+                    } else if !token_match.requires_context {
+                        // Normal requires_before check (not combined with requires_context).
+                        if let Some(ref required) = token_match.requires_before {
+                            let ok = i > 0
+                                && required
+                                    .iter()
+                                    .any(|r| r == &tokens[i - 1].text.to_lowercase());
+                            if !ok {
+                                continue;
+                            }
                         }
                     }
 
