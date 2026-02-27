@@ -594,14 +594,13 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                         .find(|c: char| !c.is_ascii_digit())
                         .map(|p| num_start + p)
                         .unwrap_or(remaining.len());
-                    if num_end > num_start {
-                        if let Ok(n) = remaining[num_start..num_end].parse::<u32>() {
+                    if num_end > num_start
+                        && let Ok(n) = remaining[num_start..num_end].parse::<u32>() {
                             extra_eps.push(n);
                             extended_end = full.end() + num_end;
                             pos = num_end;
                             continue;
                         }
-                    }
                 }
                 break;
             }
