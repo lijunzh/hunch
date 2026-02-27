@@ -193,7 +193,7 @@ pub fn strip_trailing_metadata(filename: &str) -> String {
     let mut result = base.to_string();
     loop {
         // Strip trailing `.-.` separators.
-        let trimmed = result.trim_end_matches(['.', '-', '_', ' ', '+']);
+        let trimmed = result.trim_end_matches(['.', '-', '_', ' ', '+', '[', ']']);
         if trimmed.len() < result.len() {
             result = trimmed.to_string();
             continue;
