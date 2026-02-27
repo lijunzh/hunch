@@ -322,6 +322,9 @@ impl Pipeline {
         let rg_matches = release_group::find_matches(input, &all_matches, &zone_map);
         all_matches.extend(rg_matches);
 
+        // Step 5a.1: Zone rules that depend on release group positions.
+        zone_rules::apply_post_release_group_rules(&mut all_matches);
+
         // Step 5b: Title extraction.
         if let Some(title_match) = title::extract_title(input, &all_matches, &zone_map) {
             all_matches.push(title_match);

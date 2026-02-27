@@ -120,28 +120,9 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
         matches.retain(|m| !(m.property == Property::Other && m.value == "Ultra HD"));
     }
 
-    // ── Rule 5: Other overlapping or adjacent to ReleaseGroup → drop ambiguous Other ───
-    let rg_spans: Vec<(usize, usize)> = matches
-        .iter()
-        .filter(|m| m.property == Property::ReleaseGroup)
-        .map(|m| (m.start, m.end))
-        .collect();
-
-    if !rg_spans.is_empty() {
-        const AMBIGUOUS_OTHER: &[&str] = &["High Quality", "High Resolution", "Fan Subtitled"];
-        // Max gap (in bytes) to consider "adjacent" — covers separator chars.
-        const ADJACENCY_GAP: usize = 2;
-        matches.retain(|m| {
-            if m.property != Property::Other || !AMBIGUOUS_OTHER.contains(&m.value.as_ref()) {
-                return true;
-            }
-            // Drop if overlapping or immediately adjacent to any release group span.
-            !rg_spans.iter().any(|(rs, re)| {
-                m.start < re.saturating_add(ADJACENCY_GAP)
-                    && m.end.saturating_add(ADJACENCY_GAP) > *rs
-            })
-        });
-    }
+    // ── Rule 5: MOVED to apply_post_release_group_rules() ─────────────────
+    // HQ/HR/FanSub adjacency check depends on release group positions,
+    // which are now extracted in Pass 2 (post-resolution).
 
     // ── Rule 7: Language/SubtitleLanguage contained within a tech span ───
 
@@ -199,6 +180,36 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
             !tech_spans
                 .iter()
                 .any(|(ts, te)| m.start >= *ts && m.end <= *te)
+        });
+    }
+}
+
+/// Post-release-group zone rules.
+///
+/// These rules depend on release group positions, which are only available
+/// after Pass 2 extraction. Called from the pipeline after release_group
+/// has been extracted.
+pub fn apply_post_release_group_rules(matches: &mut Vec<MatchSpan>) {
+    // ── Rule 5: Other overlapping or adjacent to ReleaseGroup → drop ambiguous Other ───
+    let rg_spans: Vec<(usize, usize)> = matches
+        .iter()
+        .filter(|m| m.property == Property::ReleaseGroup)
+        .map(|m| (m.start, m.end))
+        .collect();
+
+    if !rg_spans.is_empty() {
+        const AMBIGUOUS_OTHER: &[&str] = &["High Quality", "High Resolution", "Fan Subtitled"];
+        // Max gap (in bytes) to consider "adjacent" — covers separator chars.
+        const ADJACENCY_GAP: usize = 2;
+        matches.retain(|m| {
+            if m.property != Property::Other || !AMBIGUOUS_OTHER.contains(&m.value.as_ref()) {
+                return true;
+            }
+            // Drop if overlapping or immediately adjacent to any release group span.
+            !rg_spans.iter().any(|(rs, re)| {
+                m.start < re.saturating_add(ADJACENCY_GAP)
+                    && m.end.saturating_add(ADJACENCY_GAP) > *rs
+            })
         });
     }
 }

@@ -72,7 +72,7 @@ static RELEASE_GROUP_SPACE_END: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\s(?P<group>[A-Za-z][A-Za-z0-9]{1,15})(?:\.[a-z0-9]{2,5})?$").unwrap()
 });
 
-/// Last token after dots as fallback: `720p.YIFY`.
+/// Last token after dots as fallback: `720p.YIFY` or `HDTV.SC`.
 static RELEASE_GROUP_LAST_DOT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\.(?P<group>[A-Za-z][A-Za-z0-9]{1,15})(?:\.[a-z0-9]{2,5})?$").unwrap()
 });
