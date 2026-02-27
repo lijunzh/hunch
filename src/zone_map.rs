@@ -265,6 +265,21 @@ fn build_dir_zones(input: &str, token_stream: &TokenStream) -> Vec<SegmentZone> 
             }
         }
 
+        // Tier 1b: Directory-only anchors — standalone season markers.
+        // S02, Season 2, etc. are structural anchors in directory names
+        // but not matched by SXXEXX_ANCHOR (which requires S##E##).
+        static DIR_SEASON_ANCHOR: LazyLock<regex::Regex> = LazyLock::new(|| {
+            regex::Regex::new(r"(?i)(?:^|[^a-zA-Z0-9])(?:S\d{1,3}|Season\s*\d+)(?:$|[^a-zA-Z0-9])")
+                .unwrap()
+        });
+        if let Some(m) = DIR_SEASON_ANCHOR.find(seg_text) {
+            let offset = if m.start() == 0 { 0 } else { 1 };
+            let abs_pos = seg_start + m.start() + offset;
+            if abs_pos < tech_start {
+                tech_start = abs_pos;
+            }
+        }
+
         // Tier 2: tech vocabulary.
         for token in &segment.tokens {
             if token.start >= tech_start {

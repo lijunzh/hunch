@@ -34,6 +34,31 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
 
     // ── Rule 1: Language in title zone → likely a title word ─────────
+
+    // 1a: Filter directory language matches using per-directory zone maps.
+    // Directories WITHOUT tech anchors: drop all language matches (title words).
+    // Directories WITH tech anchors: drop language in the title zone.
+    if fn_start > 0 {
+        matches.retain(|m| {
+            if m.property != Property::Language || m.start >= fn_start {
+                return true;
+            }
+            // Find the directory zone this match belongs to.
+            if let Some(dz) = zone_map.dir_zones.iter().find(|dz| {
+                dz.title_zone.start <= m.start && m.end <= dz.tech_zone.end.max(dz.title_zone.end)
+            }) {
+                if !dz.has_anchors {
+                    return false; // No anchors → likely title word
+                }
+                if dz.title_zone.contains(&m.start) {
+                    return false; // In title zone → title word
+                }
+            }
+            true
+        });
+    }
+
+    // 1b: Filename language filtering.
     if zone_map.has_anchors {
         let title_zone_mid =
             zone_map.title_zone.start + (zone_map.title_zone.end - zone_map.title_zone.start) / 2;

@@ -230,7 +230,7 @@ impl Pipeline {
                 &LANGUAGE_RULES,
                 Property::Language,
                 -1,
-                SegmentScope::FilenameOnly,
+                SegmentScope::AllSegments,
             ),
             (
                 &SUBTITLE_LANGUAGE_RULES,
