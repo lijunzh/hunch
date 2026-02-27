@@ -89,7 +89,7 @@ pub fn find_matches(
     input: &str,
     resolved: &[MatchSpan],
     zone_map: &ZoneMap,
-    _token_stream: &TokenStream,
+    token_stream: &TokenStream,
 ) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 
@@ -185,6 +185,17 @@ pub fn find_matches(
             matches.push(
                 MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
             );
+        }
+    }
+
+    // 3c. Compound bracket merging using tokenizer's bracket model.
+    // Must run BEFORE individual bracket steps (4-6) to catch
+    // `(Tigole) [QxR]`, `(JBENT)[TAoE]` patterns.
+    if matches.is_empty() {
+        if let Some(compound) =
+            find_compound_bracket_group_from_tokenstream(token_stream, filename_start, resolved)
+        {
+            matches.push(compound);
         }
     }
 
@@ -295,78 +306,89 @@ pub fn find_matches(
         }
     }
 
-    // 10. Compound bracket merging: `(GroupA) [GroupB]` → "GroupA GroupB".
-    if matches.is_empty()
-        && let Some(compound) = find_compound_bracket_group(filename, filename_start, resolved)
-    {
-        matches.push(compound);
+    // 10. Merge `-GROUP [BRACKET]` when Step 2 found a dash-group
+    // but missed an adjacent bracket suffix (separated by space).
+    // E.g., `-0SEC [GloDLS].mkv` → "0SEC [GloDLS]" (was just "0SEC").
+    if matches.len() == 1 {
+        let rg = &matches[0];
+        // Find bracket groups that immediately follow the release group.
+        let fn_bracket_groups: Vec<_> = token_stream
+            .bracket_groups
+            .iter()
+            .filter(|bg| bg.open >= filename_start)
+            .collect();
+
+        for bg in &fn_bracket_groups {
+            // Adjacent if bracket starts within 3 bytes of group end.
+            if bg.open > rg.end && bg.open <= rg.end + 3 {
+                let bracket_content = &bg.content;
+                if !bracket_content.is_empty()
+                    && !bracket_content.contains('.')
+                    && !is_rejected_group(bracket_content, bg.open + 1, bg.close, resolved)
+                    && !is_hex_crc(bracket_content)
+                {
+                    let merged = format!("{} [{}]", rg.value, bracket_content);
+                    matches[0] =
+                        MatchSpan::new(rg.start, bg.close + 1, Property::ReleaseGroup, merged)
+                            .with_priority(rg.priority);
+                    break;
+                }
+            }
+        }
     }
 
     matches
 }
 
-/// Detect compound bracket groups like `(Tigole) [QxR]` or `(JBENT)[TAoE]`.
+/// Detect compound bracket groups using the tokenizer's bracket model.
 ///
-/// Scans for adjacent parenthesized and bracketed groups in the tech zone,
-/// merging them into a single release group value.
-fn find_compound_bracket_group(
-    filename: &str,
+/// Looks for adjacent bracket pairs at the end of the filename where
+/// the last non-tech word from each forms a valid group name.
+/// E.g., `(1080p BluRay x265 Tigole) [QxR]` → "Tigole QxR".
+fn find_compound_bracket_group_from_tokenstream(
+    token_stream: &TokenStream,
     filename_start: usize,
     resolved: &[MatchSpan],
 ) -> Option<MatchSpan> {
-    // Look for pattern: (...GROUP...) optional-space [GROUP2]
-    // The paren group may contain tech tokens before the actual group name.
-    let mut bracket_groups: Vec<(usize, usize, String)> = Vec::new();
+    // Get bracket groups in the filename portion.
+    let fn_brackets: Vec<_> = token_stream
+        .bracket_groups
+        .iter()
+        .filter(|bg| bg.open >= filename_start)
+        .collect();
 
-    let bytes = filename.as_bytes();
-    let mut i = 0;
-    while i < bytes.len() {
-        let (_open, close) = match bytes[i] {
-            b'(' => (b'(', b')'),
-            b'[' => (b'[', b']'),
-            _ => {
-                i += 1;
-                continue;
-            }
-        };
-
-        // Find matching close.
-        if let Some(end_offset) = filename[i + 1..].find(close as char) {
-            let content = &filename[i + 1..i + 1 + end_offset];
-            let abs_start = filename_start + i;
-            let abs_end = filename_start + i + 1 + end_offset + 1;
-
-            // Extract the last non-tech token from the bracket content.
-            // For "(1080p AMZN Webrip x265 10bit EAC3 5.1 - JBENT)",
-            // we want "JBENT".
-            let last_word = extract_last_non_tech_word(content, abs_start + 1, resolved);
-
-            if let Some((word, _word_start, _word_end)) = last_word {
-                bracket_groups.push((abs_start, abs_end, word));
-            }
-
-            i += 1 + end_offset + 1;
-        } else {
-            i += 1;
-        }
+    if fn_brackets.len() < 2 {
+        return None;
     }
 
-    // Merge adjacent bracket groups.
-    if bracket_groups.len() >= 2 {
-        // Take the last two bracket groups (most likely to be group + indexer).
-        let len = bracket_groups.len();
-        let (start1, _, ref name1) = bracket_groups[len - 2];
-        let (_, end2, ref name2) = bracket_groups[len - 1];
+    // Check the last two bracket groups for compound pattern.
+    let last = fn_brackets[fn_brackets.len() - 1];
+    let second_last = fn_brackets[fn_brackets.len() - 2];
 
-        if !name1.is_empty() && !name2.is_empty() {
-            let merged = format!("{} {}", name1, name2);
-            return Some(
-                MatchSpan::new(start1, end2, Property::ReleaseGroup, merged).with_priority(-2),
-            );
-        }
+    // They should be adjacent (within a few bytes).
+    if last.open > second_last.close + 4 {
+        return None;
     }
 
-    None
+    // Extract last non-tech word from each.
+    let name1 = extract_last_non_tech_word(&second_last.content, second_last.open + 1, resolved);
+    let name2 = extract_last_non_tech_word(&last.content, last.open + 1, resolved);
+
+    match (name1, name2) {
+        (Some((n1, _, _)), Some((n2, _, _))) if !n1.is_empty() && !n2.is_empty() => {
+            let merged = format!("{} {}", n1, n2);
+            Some(
+                MatchSpan::new(
+                    second_last.open,
+                    last.close + 1,
+                    Property::ReleaseGroup,
+                    merged,
+                )
+                .with_priority(-2),
+            )
+        }
+        _ => None,
+    }
 }
 
 /// Extract the last non-tech word from bracket content.
