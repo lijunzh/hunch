@@ -109,9 +109,15 @@ pub fn extract_episode_title(
     };
 
     // Trim at opening brackets/parens (metadata, not title content).
+    // But skip parens whose content starts with digits (date references like "(14-01...").
     let ep_title_end = {
         let region = &input[ep_title_start..ep_title_end];
-        let bracket_pos = region.find('[').or_else(|| region.find('('));
+        let bracket_pos = region.find('[').or_else(|| {
+            region.find('(').filter(|&pos| {
+                let after = &region[pos + 1..];
+                !after.starts_with(|c: char| c.is_ascii_digit())
+            })
+        });
         match bracket_pos {
             Some(pos) if pos > 0 => ep_title_start + pos,
             _ => ep_title_end,
