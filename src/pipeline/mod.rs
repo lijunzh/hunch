@@ -184,7 +184,9 @@ impl Pipeline {
                 0,
                 SegmentScope::AllSegments,
             ),
-            (&OTHER_RULES, Property::Other, 0, SegmentScope::FilenameOnly),
+            // Other: AllSegments with dir priority penalty.
+            // Per-directory zone maps filter false positives in title zones.
+            (&OTHER_RULES, Property::Other, 0, SegmentScope::AllSegments),
             (
                 &OTHER_POSITIONAL_RULES,
                 Property::Other,

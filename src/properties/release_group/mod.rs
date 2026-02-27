@@ -194,9 +194,9 @@ pub fn find_matches(
     if matches.is_empty()
         && let Some(compound) =
             find_compound_bracket_group_from_tokenstream(token_stream, filename_start, resolved)
-        {
-            matches.push(compound);
-        }
+    {
+        matches.push(compound);
+    }
 
     // 4. `-[GROUP]` at end.
     if matches.is_empty()
