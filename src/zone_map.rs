@@ -36,6 +36,24 @@ pub struct ZoneMap {
     /// The year value (if disambiguated). `None` if no year found.
     /// When two year-like numbers exist, the first may be title content.
     pub year: Option<YearInfo>,
+
+    /// Per-directory zone maps (index matches `token_stream.segments`).
+    /// Only populated for directory segments that contain recognizable
+    /// tech anchors. Empty for filename-only inputs.
+    pub dir_zones: Vec<SegmentZone>,
+}
+
+/// Zone boundaries for a single path segment (directory or filename).
+#[derive(Debug, Clone)]
+pub struct SegmentZone {
+    /// Which segment index in `TokenStream.segments` this corresponds to.
+    pub segment_idx: usize,
+    /// Title zone within this segment.
+    pub title_zone: Range<usize>,
+    /// Tech zone within this segment.
+    pub tech_zone: Range<usize>,
+    /// Whether this segment has anchors.
+    pub has_anchors: bool,
 }
 
 /// Disambiguated year information.
@@ -203,12 +221,71 @@ pub fn build_zone_map(input: &str, token_stream: &TokenStream) -> ZoneMap {
             title_len >= 6
         });
 
+    // Build per-directory zone maps.
+    let dir_zones = build_dir_zones(input, token_stream);
+
     ZoneMap {
         title_zone: fn_start..tech_zone_start,
         tech_zone: tech_zone_start..fn_end,
         has_anchors,
         year: year_info,
+        dir_zones,
     }
+}
+
+/// Build zone maps for directory segments.
+///
+/// Each directory segment gets a simple zone analysis: find the first
+/// Tier 1/2 anchor to establish a title/tech boundary.
+fn build_dir_zones(input: &str, token_stream: &TokenStream) -> Vec<SegmentZone> {
+    use crate::tokenizer::SegmentKind;
+
+    let mut zones = Vec::new();
+
+    for (idx, segment) in token_stream.segments.iter().enumerate() {
+        if segment.kind != SegmentKind::Directory || segment.tokens.is_empty() {
+            continue;
+        }
+
+        let seg_start = segment.start;
+        let seg_end = segment.end;
+
+        // Find first Tier 1+2 anchor in this directory segment.
+        let mut tech_start = seg_end;
+
+        // Tier 1: structural anchors.
+        let seg_text = &input[seg_start..seg_end];
+        for re in [&*SXXEXX_ANCHOR, &*NXN_ANCHOR, &*SUFFIXED_RESOLUTION] {
+            if let Some(m) = re.find(seg_text) {
+                let offset = if m.start() == 0 { 0 } else { 1 };
+                let abs_pos = seg_start + m.start() + offset;
+                if abs_pos < tech_start {
+                    tech_start = abs_pos;
+                }
+            }
+        }
+
+        // Tier 2: tech vocabulary.
+        for token in &segment.tokens {
+            if token.start >= tech_start {
+                break;
+            }
+            if is_tier2_token(&token.text) {
+                tech_start = token.start;
+            }
+        }
+
+        let has_anchors = tech_start < seg_end;
+
+        zones.push(SegmentZone {
+            segment_idx: idx,
+            title_zone: seg_start..tech_start,
+            tech_zone: tech_start..seg_end,
+            has_anchors,
+        });
+    }
+
+    zones
 }
 
 /// Disambiguate year-like numbers in the filename.

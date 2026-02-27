@@ -86,6 +86,47 @@ pub struct PathSegment {
     pub depth: usize,
 }
 
+/// A bracket-delimited group in the input.
+///
+/// Tracks matched bracket pairs like `[1080p]`, `(2019)`, `{Fr-Eng}`.
+/// Used by Pass 2 extractors for context-aware parsing of bracket content.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BracketGroup {
+    /// The bracket type.
+    pub kind: BracketKind,
+    /// Byte offset of the opening bracket in the original input.
+    pub open: usize,
+    /// Byte offset of the closing bracket (inclusive) in the original input.
+    pub close: usize,
+    /// The raw content between the brackets (excluding the brackets themselves).
+    pub content: String,
+    /// Which path segment this bracket group belongs to.
+    pub segment_idx: usize,
+}
+
+impl BracketGroup {
+    /// Byte range of the entire bracket group including delimiters.
+    pub fn span(&self) -> std::ops::Range<usize> {
+        self.open..self.close + 1
+    }
+
+    /// Byte range of the content only (excluding delimiters).
+    pub fn content_span(&self) -> std::ops::Range<usize> {
+        self.open + 1..self.close
+    }
+}
+
+/// The type of bracket delimiter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BracketKind {
+    /// `[...]`
+    Square,
+    /// `(...)`
+    Round,
+    /// `{...}`
+    Curly,
+}
+
 /// Result of tokenizing an input string.
 #[derive(Debug, Clone)]
 pub struct TokenStream {
@@ -99,6 +140,8 @@ pub struct TokenStream {
     pub filename_start: usize,
     /// File extension if detected (lowercase, without the dot).
     pub extension: Option<String>,
+    /// All matched bracket groups in the input, ordered by position.
+    pub bracket_groups: Vec<BracketGroup>,
 }
 
 /// Tokenize a media filename/path into a stream of tokens.
@@ -167,13 +210,63 @@ pub fn tokenize(input: &str) -> TokenStream {
         .flat_map(|seg| seg.tokens.iter().cloned())
         .collect();
 
+    // Extract bracket groups from the full input.
+    let bracket_groups = extract_bracket_groups(input, &segments);
+
     TokenStream {
         input: input.to_string(),
         tokens,
         segments,
         filename_start,
         extension,
+        bracket_groups,
     }
+}
+
+/// Extract all matched bracket groups from the input string.
+fn extract_bracket_groups(input: &str, segments: &[PathSegment]) -> Vec<BracketGroup> {
+    let mut groups = Vec::new();
+    let bytes = input.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let (open_char, close_char, kind) = match bytes[i] {
+            b'[' => (b'[', b']', BracketKind::Square),
+            b'(' => (b'(', b')', BracketKind::Round),
+            b'{' => (b'{', b'}', BracketKind::Curly),
+            _ => {
+                i += 1;
+                continue;
+            }
+        };
+        let _ = open_char; // suppress unused warning
+
+        // Find matching close bracket (no nesting support — flat scan).
+        if let Some(close_offset) = input[i + 1..].find(close_char as char) {
+            let close_pos = i + 1 + close_offset;
+            let content = &input[i + 1..close_pos];
+
+            // Determine which segment this bracket belongs to.
+            let segment_idx = segments
+                .iter()
+                .position(|seg| i >= seg.start && i < seg.end)
+                .unwrap_or(segments.len().saturating_sub(1));
+
+            groups.push(BracketGroup {
+                kind,
+                open: i,
+                close: close_pos,
+                content: content.to_string(),
+                segment_idx,
+            });
+
+            i = close_pos + 1;
+        } else {
+            i += 1;
+        }
+    }
+
+    groups
 }
 
 /// Split input at path separators, returning `(segment_text, byte_offset)` pairs.
@@ -694,5 +787,38 @@ mod tests {
             .map(|t| t.text.as_str())
             .collect();
         assert!(dir_tokens.contains(&"2009"));
+    }
+
+    #[test]
+    fn test_bracket_groups() {
+        let ts = tokenize("[SubGroup] Title - 01 [1080p][DEADBEEF].mkv");
+        assert_eq!(ts.bracket_groups.len(), 3);
+        assert_eq!(ts.bracket_groups[0].content, "SubGroup");
+        assert_eq!(ts.bracket_groups[0].kind, BracketKind::Square);
+        assert_eq!(ts.bracket_groups[1].content, "1080p");
+        assert_eq!(ts.bracket_groups[2].content, "DEADBEEF");
+    }
+
+    #[test]
+    fn test_bracket_groups_mixed() {
+        let ts = tokenize("Movie (2019) {Fr-Eng} [Group].mkv");
+        assert_eq!(ts.bracket_groups.len(), 3);
+        assert_eq!(ts.bracket_groups[0].kind, BracketKind::Round);
+        assert_eq!(ts.bracket_groups[0].content, "2019");
+        assert_eq!(ts.bracket_groups[1].kind, BracketKind::Curly);
+        assert_eq!(ts.bracket_groups[1].content, "Fr-Eng");
+        assert_eq!(ts.bracket_groups[2].kind, BracketKind::Square);
+        assert_eq!(ts.bracket_groups[2].content, "Group");
+    }
+
+    #[test]
+    fn test_compound_bracket_groups() {
+        let ts = tokenize("Movie (1080p BluRay x265 HEVC 10bit AAC 7.1 Tigole) [QxR].mkv");
+        assert_eq!(ts.bracket_groups.len(), 2);
+        assert_eq!(
+            ts.bracket_groups[0].content,
+            "1080p BluRay x265 HEVC 10bit AAC 7.1 Tigole"
+        );
+        assert_eq!(ts.bracket_groups[1].content, "QxR");
     }
 }

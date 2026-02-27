@@ -319,30 +319,36 @@ impl Pipeline {
         // ══════════════════════════════════════════════════════════════════
 
         // Step 5a: Release group (post-resolution — can see claimed positions).
-        let rg_matches = release_group::find_matches(input, &all_matches, &zone_map);
+        let rg_matches = release_group::find_matches(input, &all_matches, &zone_map, &token_stream);
         all_matches.extend(rg_matches);
 
         // Step 5a.1: Zone rules that depend on release group positions.
         zone_rules::apply_post_release_group_rules(&mut all_matches);
 
         // Step 5b: Title extraction.
-        if let Some(title_match) = title::extract_title(input, &all_matches, &zone_map) {
+        if let Some(title_match) =
+            title::extract_title(input, &all_matches, &zone_map, &token_stream)
+        {
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
-        if let Some((film_title, adjusted_title)) = title::extract_film_title(input, &all_matches) {
+        if let Some((film_title, adjusted_title)) =
+            title::extract_film_title(input, &all_matches, &token_stream)
+        {
             all_matches.retain(|m| m.property != Property::Title);
             all_matches.push(film_title);
             all_matches.push(adjusted_title);
         }
 
         // Step 5c: Episode title.
-        if let Some(ep_title) = title::extract_episode_title(input, &all_matches) {
+        if let Some(ep_title) = title::extract_episode_title(input, &all_matches, &token_stream) {
             all_matches.push(ep_title);
         }
 
         // Step 5d: Alternative title.
-        if let Some(alt_title) = title::extract_alternative_title(input, &all_matches) {
+        if let Some(alt_title) =
+            title::extract_alternative_title(input, &all_matches, &token_stream)
+        {
             all_matches.push(alt_title);
         }
 
@@ -372,7 +378,7 @@ impl Pipeline {
         //   FilenameOnly  → skip directory segments entirely
         //   AllSegments   → match dirs too, but with a priority penalty
         for (rule_set, property, priority, scope) in &self.toml_rules {
-            for segment in &token_stream.segments {
+            for (seg_idx, segment) in token_stream.segments.iter().enumerate() {
                 let is_dir = segment.kind == tokenizer::SegmentKind::Directory;
 
                 // Skip directory segments for filename-only rules.
@@ -387,6 +393,16 @@ impl Pipeline {
                     *priority
                 };
 
+                // Use per-directory zone map for directory segments.
+                let dir_zone = if is_dir {
+                    zone_map
+                        .dir_zones
+                        .iter()
+                        .find(|dz| dz.segment_idx == seg_idx)
+                } else {
+                    None
+                };
+
                 let tokens = &segment.tokens;
                 self.match_tokens_in_segment(
                     input,
@@ -395,6 +411,7 @@ impl Pipeline {
                     *property,
                     effective_priority,
                     zone_map,
+                    dir_zone,
                     &mut matches,
                 );
             }
@@ -434,6 +451,7 @@ impl Pipeline {
         property: Property,
         priority: i32,
         zone_map: &ZoneMap,
+        dir_zone: Option<&zone_map::SegmentZone>,
         matches: &mut Vec<MatchSpan>,
     ) {
         use crate::matcher::rule_loader::ZoneScope;
@@ -450,9 +468,15 @@ impl Pipeline {
                 let win_end = tokens[i + window_size - 1].end;
 
                 // ── Zone scope filtering ─────────────────────────────
-                // Only filter when we have reliable zone boundaries.
-                if zone_map.has_anchors {
-                    let in_title_zone = zone_map.title_zone.contains(&win_start);
+                // Use per-directory zone when available, otherwise filename zone.
+                let (effective_has_anchors, effective_title_zone) = if let Some(dz) = dir_zone {
+                    (dz.has_anchors, &dz.title_zone)
+                } else {
+                    (zone_map.has_anchors, &zone_map.title_zone)
+                };
+
+                if effective_has_anchors {
+                    let in_title_zone = effective_title_zone.contains(&win_start);
                     match rule_set.zone_scope {
                         ZoneScope::TechOnly if in_title_zone => continue,
                         ZoneScope::AfterAnchor if in_title_zone => continue,

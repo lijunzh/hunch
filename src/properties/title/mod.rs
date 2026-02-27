@@ -12,6 +12,7 @@ pub use secondary::{
 };
 
 use crate::matcher::span::{MatchSpan, Property};
+use crate::tokenizer::TokenStream;
 use crate::zone_map::ZoneMap;
 use clean::{
     clean_title, is_abbreviated, is_generic_dir, is_likely_extension, pick_better_casing,
@@ -48,7 +49,12 @@ fn is_tech_property(p: Property) -> bool {
 ///
 /// The `zone_map` is used for year-as-title disambiguation (e.g., "2001" in
 /// "2001.A.Space.Odyssey.1968" is a title word, not the release year).
-pub fn extract_title(input: &str, matches: &[MatchSpan], zone_map: &ZoneMap) -> Option<MatchSpan> {
+pub fn extract_title(
+    input: &str,
+    matches: &[MatchSpan],
+    zone_map: &ZoneMap,
+    _token_stream: &TokenStream,
+) -> Option<MatchSpan> {
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let filename = &input[filename_start..];
 
@@ -418,12 +424,17 @@ mod tests {
         zone_map::build_zone_map(input, &ts)
     }
 
+    fn test_ts(input: &str) -> tokenizer::TokenStream {
+        tokenizer::tokenize(input)
+    }
+
     #[test]
     fn test_title_before_year() {
         let input = "The.Matrix.1999.1080p.mkv";
         let matches = vec![MatchSpan::new(11, 15, Property::Year, "1999")];
         let zm = test_zone_map(input);
-        let title = extract_title(input, &matches, &zm).unwrap();
+        let ts = test_ts(input);
+        let title = extract_title(input, &matches, &zm, &ts).unwrap();
         assert_eq!(title.value, "The Matrix");
     }
 
@@ -431,7 +442,8 @@ mod tests {
     fn test_title_no_matches() {
         let input = "JustATitle.mkv";
         let zm = test_zone_map(input);
-        let title = extract_title(input, &[], &zm).unwrap();
+        let ts = test_ts(input);
+        let title = extract_title(input, &[], &zm, &ts).unwrap();
         assert_eq!(title.value, "JustATitle");
     }
 
@@ -440,7 +452,8 @@ mod tests {
         let input = "/movies/dir/The.Movie.2020.mkv";
         let matches = vec![MatchSpan::new(22, 26, Property::Year, "2020")];
         let zm = test_zone_map(input);
-        let title = extract_title(input, &matches, &zm).unwrap();
+        let ts = test_ts(input);
+        let title = extract_title(input, &matches, &zm, &ts).unwrap();
         assert_eq!(title.value, "The Movie");
     }
 
@@ -449,7 +462,8 @@ mod tests {
         let input = "Movies/Alice in Wonderland DVDRip.XviD-DiAMOND/dmd-aw.avi";
         let matches = vec![MatchSpan::new(27, 34, Property::Source, "DVD")];
         let zm = test_zone_map(input);
-        let title = extract_title(input, &matches, &zm);
+        let ts = test_ts(input);
+        let title = extract_title(input, &matches, &zm, &ts);
         assert!(title.is_some());
         assert_eq!(title.unwrap().value, "Alice in Wonderland");
     }

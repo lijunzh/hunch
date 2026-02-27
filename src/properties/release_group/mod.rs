@@ -25,6 +25,7 @@ mod known_tokens;
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
+use crate::tokenizer::TokenStream;
 use crate::zone_map::ZoneMap;
 use known_tokens::{
     expand_group_backwards, is_hex_crc, is_rejected_group, strip_trailing_metadata,
@@ -84,7 +85,12 @@ static RELEASE_GROUP_LAST_DOT: LazyLock<Regex> = LazyLock::new(|| {
 /// This runs in Pass 2 of the pipeline, AFTER conflict resolution.
 /// Instead of `is_known_token`, it checks whether candidate positions
 /// are already claimed by resolved matches.
-pub fn find_matches(input: &str, resolved: &[MatchSpan], zone_map: &ZoneMap) -> Vec<MatchSpan> {
+pub fn find_matches(
+    input: &str,
+    resolved: &[MatchSpan],
+    zone_map: &ZoneMap,
+    _token_stream: &TokenStream,
+) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
@@ -404,13 +410,13 @@ mod tests {
     fn test_find(input: &str) -> Vec<MatchSpan> {
         let ts = tokenizer::tokenize(input);
         let zm = zone_map::build_zone_map(input, &ts);
-        find_matches(input, &[], &zm)
+        find_matches(input, &[], &zm, &ts)
     }
 
     fn test_find_with_resolved(input: &str, resolved: Vec<MatchSpan>) -> Vec<MatchSpan> {
         let ts = tokenizer::tokenize(input);
         let zm = zone_map::build_zone_map(input, &ts);
-        find_matches(input, &resolved, &zm)
+        find_matches(input, &resolved, &zm, &ts)
     }
 
     #[test]

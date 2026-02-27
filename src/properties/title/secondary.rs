@@ -3,10 +3,15 @@
 use super::clean::{clean_episode_title, clean_title};
 use super::find_title_boundary;
 use crate::matcher::span::{MatchSpan, Property};
+use crate::tokenizer::TokenStream;
 
 /// Extract episode title: the text between the last episode/season marker
 /// and the next technical property in the filename portion.
-pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
+pub fn extract_episode_title(
+    input: &str,
+    matches: &[MatchSpan],
+    _token_stream: &TokenStream,
+) -> Option<MatchSpan> {
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let filename = &input[filename_start..];
     let filename_end = filename_start + filename.len();
@@ -130,7 +135,11 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
 }
 
 /// Extract film_title when a `film` marker (-fNN-) splits franchise from movie title.
-pub fn extract_film_title(input: &str, matches: &[MatchSpan]) -> Option<(MatchSpan, MatchSpan)> {
+pub fn extract_film_title(
+    input: &str,
+    matches: &[MatchSpan],
+    _token_stream: &TokenStream,
+) -> Option<(MatchSpan, MatchSpan)> {
     let film_match = matches.iter().find(|m| m.property == Property::Film)?;
     let _title_match = matches.iter().find(|m| m.property == Property::Title)?;
 
@@ -193,7 +202,11 @@ pub fn extract_film_title(input: &str, matches: &[MatchSpan]) -> Option<(MatchSp
 }
 
 /// Extract alternative_title from content after the title boundary.
-pub fn extract_alternative_title(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
+pub fn extract_alternative_title(
+    input: &str,
+    matches: &[MatchSpan],
+    _token_stream: &TokenStream,
+) -> Option<MatchSpan> {
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
 
     let first_match = matches
