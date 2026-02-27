@@ -322,8 +322,13 @@ pub fn infer_media_type(matches: &[MatchSpan]) -> &'static str {
     let has_episode = matches.iter().any(|m| m.property == Property::Episode);
     let has_season = matches.iter().any(|m| m.property == Property::Season);
     let has_date = matches.iter().any(|m| m.property == Property::Date);
+    // Bonus without Film or Year = TV series bonus (episode), not movie extra.
+    // Movie extras typically have years: Moon_(2009)-x02-Making_Of
+    let has_bonus_no_film = matches.iter().any(|m| m.property == Property::Bonus)
+        && !matches.iter().any(|m| m.property == Property::Film)
+        && !matches.iter().any(|m| m.property == Property::Year);
 
-    if has_episode || has_season || has_date {
+    if has_episode || has_season || has_date || has_bonus_no_film {
         "episode"
     } else {
         "movie"
