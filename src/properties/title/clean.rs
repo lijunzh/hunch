@@ -75,7 +75,7 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
                 if prev_alnum && next_alnum { '-' } else { ' ' }
             } else if c == '.' && in_protected(byte_positions[i]) {
                 '.'
-            } else if SEPS.contains(&c) || BRACKETS.contains(&c) {
+            } else if SEPS.contains(&c) || BRACKETS.contains(&c) || c == '*' {
                 ' '
             } else {
                 c
