@@ -338,6 +338,19 @@ fn is_suspicious_other(other_match: &MatchSpan, input: &str, _matches: &[MatchSp
         return false;
     }
 
+    // Check the original token text in the input. Release tags like REPACK,
+    // READNFO, REAL, PROPER produce Other:Proper via side effects but the
+    // original text is obviously metadata, not a title word.
+    if other_match.end > other_match.start && other_match.end <= input.len() {
+        let original_text = input[other_match.start..other_match.end].to_lowercase();
+        if matches!(
+            original_text.as_str(),
+            "repack" | "readnfo" | "real" | "proper" | "rerip" | "internal"
+        ) {
+            return false;
+        }
+    }
+
     // Check that the next word after the match is NOT a tech token.
     let after_pos = other_match.end;
     if after_pos >= input.len() {
