@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-02-27
+
+### Fixed
+
+- **Language/subtitle_language disambiguation** — Add zone Rule 8 to
+  suppress Language matches contained within SubtitleLanguage spans.
+  Fixes cases like `ENG.-.FR Sub` where `FR` was incorrectly detected
+  as both language and subtitle_language.
+- **Subtitle language 2-letter codes** — Add ISO 639-1 codes (FR, SV,
+  DE, etc.) to the `LANG SUBS` regex. Patterns like `FR Sub` and
+  `SV Sub` now correctly produce subtitle_language matches.
+- **Bracket subtitle over-matching** — Tighten the `SUB_LANG` regex
+  separator class to exclude `)}]`, preventing greedy matches that
+  consumed content past closing brackets (e.g., `St{Fr-Eng}.Chaps]`).
+  Multi-language bracket patterns like `St{Fr-Eng}` now correctly
+  extract both languages.
+- **Remove unused `is_episode_property`** — Dead code cleanup.
+
+### Changed
+
+- **language.yml pass rate** — 66.7% → 100% (ratcheted to 98%).
+- **Enable Language rules in directory segments** — Language TOML
+  matching now applies to directory components with per-directory
+  zone filtering.
+- **LC-AAC audio profile** — Added Low Complexity pattern.
+- **Space-separated episode numbers** — Zero-padded episode numbers
+  with spaces are now detected.
+- **Spanish season keyword** — `Temp` recognized as Temporada.
+- **Bonus without film/year** — Implies episode media type.
+- **Portuguese 'pt' code** — Added ISO 639-1 code for language matching.
+- **Multi-dot release groups** — Names like `YTS.LT` are merged.
+- **Mid-filename bracket release groups** — Detection improved.
+- **Bracket trailing strip** — Metadata cleanup for release groups.
+- **Episode title paren fix** — Don't truncate at parens with digits.
+- **Bracket '/' skip** — Skip bracket groups with slashes in RG detection.
+- **Episode title separator** — Strip leading separators.
+- **Per-directory Other rules** — Other property matching with zone filtering.
+- **Compound bracket groups** — Tokenizer model improvements.
+
 ## [0.3.0] - 2026-02-26
 
 ### Added
