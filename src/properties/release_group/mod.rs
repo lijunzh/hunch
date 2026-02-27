@@ -84,11 +84,7 @@ static RELEASE_GROUP_LAST_DOT: LazyLock<Regex> = LazyLock::new(|| {
 /// This runs in Pass 2 of the pipeline, AFTER conflict resolution.
 /// Instead of `is_known_token`, it checks whether candidate positions
 /// are already claimed by resolved matches.
-pub fn find_matches(
-    input: &str,
-    resolved: &[MatchSpan],
-    zone_map: &ZoneMap,
-) -> Vec<MatchSpan> {
+pub fn find_matches(input: &str, resolved: &[MatchSpan], zone_map: &ZoneMap) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
@@ -110,8 +106,7 @@ pub fn find_matches(
 
         if !is_rejected_group(&value, abs_start, abs_end, resolved) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(-1),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-1),
             );
         }
     }
@@ -130,12 +125,8 @@ pub fn find_matches(
                 let mut start = group.start();
 
                 let before_group = &fname[..start.saturating_sub(1)];
-                let expanded = expand_group_backwards(
-                    before_group,
-                    &value,
-                    filename_start,
-                    resolved,
-                );
+                let expanded =
+                    expand_group_backwards(before_group, &value, filename_start, resolved);
                 if expanded != value {
                     start = start.saturating_sub(expanded.len() - value.len());
                     value = expanded;
@@ -153,15 +144,10 @@ pub fn find_matches(
 
                 if !is_rejected_group(&value, abs_start, abs_end, resolved) {
                     matches.push(
-                        MatchSpan::new(
-                            abs_start,
-                            abs_end,
-                            Property::ReleaseGroup,
-                            value,
-                        )
-                        .with_priority(-1),
+                        MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                            .with_priority(-1),
                     );
-}
+                }
             }
         }
     }
@@ -176,8 +162,7 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(-2),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
             );
         }
     }
@@ -192,8 +177,7 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(-2),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
             );
         }
     }
@@ -208,8 +192,7 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(-2),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
             );
         }
     }
@@ -224,8 +207,7 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(-2),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
             );
         }
     }
@@ -240,8 +222,7 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(-1),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-1),
             );
         }
     }
@@ -257,8 +238,7 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) && value.len() >= 3 {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(-4),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-4),
             );
         }
     }
@@ -274,8 +254,7 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(-3),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-3),
             );
         }
     }
@@ -291,8 +270,7 @@ pub fn find_matches(
             let abs_start = parent.len() - parent_name.len() + group.start();
             let abs_end = parent.len() - parent_name.len() + group.end();
             if !is_rejected_group(value, abs_start, abs_end, resolved) {
-                let filename_is_abbreviated = !zone_map.has_anchors
-                    && filename.len() < 20;
+                let filename_is_abbreviated = !zone_map.has_anchors && filename.len() < 20;
 
                 if matches.is_empty() || filename_is_abbreviated {
                     if filename_is_abbreviated {
@@ -313,9 +291,10 @@ pub fn find_matches(
 
     // 10. Compound bracket merging: `(GroupA) [GroupB]` → "GroupA GroupB".
     if matches.is_empty()
-        && let Some(compound) = find_compound_bracket_group(filename, filename_start, resolved) {
-            matches.push(compound);
-        }
+        && let Some(compound) = find_compound_bracket_group(filename, filename_start, resolved)
+    {
+        matches.push(compound);
+    }
 
     matches
 }
@@ -494,7 +473,10 @@ mod tests {
     fn test_position_claimed_rejects_codec() {
         let resolved = vec![MatchSpan::new(6, 10, Property::VideoCodec, "H.264")];
         let m = test_find_with_resolved("Movie-x264.mkv", resolved);
-        assert!(m.is_empty(), "x264 should be rejected (claimed by VideoCodec)");
+        assert!(
+            m.is_empty(),
+            "x264 should be rejected (claimed by VideoCodec)"
+        );
     }
 
     #[test]

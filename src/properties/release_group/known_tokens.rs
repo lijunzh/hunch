@@ -309,9 +309,7 @@ pub fn expand_group_backwards(
         .unwrap_or("");
     if !last_word_before.is_empty() {
         let compound = format!("{}{}", last_word_before, segment).to_lowercase();
-        if zone_map::is_tier2_token(&compound)
-            || is_non_group_token(&compound)
-        {
+        if zone_map::is_tier2_token(&compound) || is_non_group_token(&compound) {
             return current.to_string();
         }
     }

@@ -41,10 +41,7 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
         // Collect language values that appear in the tech zone.
         let tech_langs: Vec<String> = matches
             .iter()
-            .filter(|m| {
-                m.property == Property::Language
-                    && m.start >= zone_map.tech_zone.start
-            })
+            .filter(|m| m.property == Property::Language && m.start >= zone_map.tech_zone.start)
             .map(|m| m.value.to_lowercase())
             .collect();
 
@@ -59,9 +56,7 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
             // Drop language in the second half of title zone when the
             // same language appears again in the tech zone (duplicate
             // = the title-zone one is a title word, e.g., "Immersion.French").
-            if m.start < zone_map.title_zone.end
-                && tech_langs.contains(&m.value.to_lowercase())
-            {
+            if m.start < zone_map.title_zone.end && tech_langs.contains(&m.value.to_lowercase()) {
                 return false;
             }
             true
