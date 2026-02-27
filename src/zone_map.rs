@@ -297,10 +297,11 @@ fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> 
     // - Last candidate before tech_zone_start → year.
     // - Earlier candidates before tech_zone_start → title content.
 
-    // Prefer parenthesized candidates.
+    // Prefer parenthesized candidates — pick the FIRST one.
+    // "2011 2013 (2012) (2015)" → year = 2012 (first paren).
     let paren_candidates: Vec<&YearCandidate> =
         candidates.iter().filter(|c| c.parenthesized).collect();
-    if let Some(paren) = paren_candidates.last() {
+    if let Some(paren) = paren_candidates.first() {
         let title_years: Vec<TitleYear> = candidates
             .iter()
             .filter(|c| c.start != paren.start)

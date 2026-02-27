@@ -195,6 +195,25 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
 
         let title_end = first_match_in_dir.map(|m| m.start).unwrap_or(dir_end);
         if title_end <= dir_start {
+            // Directory starts with a match (e.g., "S02 Some Series").
+            // Try extracting title from content AFTER the first match.
+            if let Some(first_m) = first_match_in_dir {
+                let after = first_m.end;
+                let next_match = matches
+                    .iter()
+                    .filter(|m| m.start > after && m.start < dir_end && !m.is_extension)
+                    .min_by_key(|m| m.start);
+                let after_end = next_match.map(|m| m.start).unwrap_or(dir_end);
+                if after_end > after {
+                    let raw = &input[after..after_end];
+                    let cleaned = clean_title(raw);
+                    if !cleaned.is_empty() {
+                        return Some(MatchSpan::new(
+                            after, after_end, Property::Title, cleaned,
+                        ));
+                    }
+                }
+            }
             continue;
         }
 

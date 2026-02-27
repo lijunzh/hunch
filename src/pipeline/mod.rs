@@ -289,9 +289,11 @@ impl Pipeline {
                     return true;
                 }
                 // Keep only the disambiguated year, drop title-years.
+                // Use overlap check (not exact match) because zone_map may
+                // include parentheses in positions while year.rs uses bare digits.
                 !yi.title_years
                     .iter()
-                    .any(|ty| m.start == ty.start && m.end == ty.end)
+                    .any(|ty| m.start < ty.end && m.end > ty.start)
             });
         }
 
