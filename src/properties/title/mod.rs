@@ -7,11 +7,16 @@
 mod clean;
 mod secondary;
 
-pub use secondary::{extract_alternative_title, extract_episode_title, extract_film_title, infer_media_type};
+pub use secondary::{
+    extract_alternative_title, extract_episode_title, extract_film_title, infer_media_type,
+};
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::zone_map::ZoneMap;
-use clean::{clean_title, is_abbreviated, is_generic_dir, is_likely_extension, pick_better_casing, strip_extension};
+use clean::{
+    clean_title, is_abbreviated, is_generic_dir, is_likely_extension, pick_better_casing,
+    strip_extension,
+};
 
 /// Separators used in media filenames.
 const SEPS: &[char] = &['.', ' ', '_', '-', '+'];
@@ -52,7 +57,14 @@ pub fn extract_title(input: &str, matches: &[MatchSpan], zone_map: &ZoneMap) -> 
     };
 
     if title_end_abs <= filename_start {
-        return handle_empty_title(input, filename_start, filename, matches, zone_map, first_match_in_filename);
+        return handle_empty_title(
+            input,
+            filename_start,
+            filename,
+            matches,
+            zone_map,
+            first_match_in_filename,
+        );
     }
 
     let raw_title = &input[filename_start..title_end_abs];
@@ -81,7 +93,10 @@ pub fn extract_title(input: &str, matches: &[MatchSpan], zone_map: &ZoneMap) -> 
         let best = pick_better_casing(&cleaned, &parent_match.value);
         if best != cleaned {
             return Some(MatchSpan::new(
-                filename_start, title_end_abs, Property::Title, best,
+                filename_start,
+                title_end_abs,
+                Property::Title,
+                best,
             ));
         }
     }
@@ -94,7 +109,12 @@ pub fn extract_title(input: &str, matches: &[MatchSpan], zone_map: &ZoneMap) -> 
         return Some(parent_title);
     }
 
-    Some(MatchSpan::new(filename_start, title_end_abs, Property::Title, cleaned))
+    Some(MatchSpan::new(
+        filename_start,
+        title_end_abs,
+        Property::Title,
+        cleaned,
+    ))
 }
 
 /// Handle the case where title_end_abs <= filename_start (empty title zone).
@@ -109,7 +129,8 @@ fn handle_empty_title(
     // Year-as-title via ZoneMap: e.g., "2001" in "2001.A.Space.Odyssey.1968".
     if let Some(ref yi) = zone_map.year
         && let Some(ty) = yi.title_years.iter().find(|ty| ty.start == filename_start)
-        && let Some(title) = extract_title_after_position(input, ty.end, filename_start, filename, matches)
+        && let Some(title) =
+            extract_title_after_position(input, ty.end, filename_start, filename, matches)
     {
         return Some(title);
     }
@@ -117,7 +138,8 @@ fn handle_empty_title(
     if let Some(first_m) = first_match_in_filename
         && first_m.property == Property::Year
         && first_m.start == filename_start
-        && let Some(title) = extract_title_after_position(input, first_m.end, filename_start, filename, matches)
+        && let Some(title) =
+            extract_title_after_position(input, first_m.end, filename_start, filename, matches)
     {
         return Some(title);
     }
@@ -208,9 +230,7 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
                     let raw = &input[after..after_end];
                     let cleaned = clean_title(raw);
                     if !cleaned.is_empty() {
-                        return Some(MatchSpan::new(
-                            after, after_end, Property::Title, cleaned,
-                        ));
+                        return Some(MatchSpan::new(after, after_end, Property::Title, cleaned));
                     }
                 }
             }
@@ -220,7 +240,12 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
         let raw_title = &input[dir_start..title_end];
         let cleaned = clean_title(raw_title);
         if !cleaned.is_empty() {
-            return Some(MatchSpan::new(dir_start, title_end, Property::Title, cleaned));
+            return Some(MatchSpan::new(
+                dir_start,
+                title_end,
+                Property::Title,
+                cleaned,
+            ));
         }
     }
 
@@ -266,7 +291,10 @@ fn extract_after_bracket_group(
                 .iter()
                 .any(|m| m.property == Property::Container && m.start >= filename_start);
             if has_ext {
-                filename.rfind('.').map(|dot| filename_start + dot).unwrap_or(filename_end)
+                filename
+                    .rfind('.')
+                    .map(|dot| filename_start + dot)
+                    .unwrap_or(filename_end)
             } else {
                 filename_end
             }
@@ -290,7 +318,12 @@ fn extract_after_bracket_group(
         return None;
     }
 
-    Some(MatchSpan::new(title_start_abs, title_end_abs, Property::Title, cleaned))
+    Some(MatchSpan::new(
+        title_start_abs,
+        title_end_abs,
+        Property::Title,
+        cleaned,
+    ))
 }
 
 fn has_parent_dir(input: &str) -> bool {

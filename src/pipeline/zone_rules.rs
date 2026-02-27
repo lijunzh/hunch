@@ -30,21 +30,15 @@ use crate::zone_map::ZoneMap;
 ///   - Redundant UHD tags
 ///   - Ambiguous Other overlapping ReleaseGroup
 ///   - Language nested inside tech spans
-pub fn apply_zone_rules(
-    input: &str,
-    zone_map: &ZoneMap,
-    matches: &mut Vec<MatchSpan>,
-) {
+pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<MatchSpan>) {
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
 
     // ── Rule 1: Language in title zone → likely a title word ─────────
     if zone_map.has_anchors {
-        let title_zone_mid = zone_map.title_zone.start
-            + (zone_map.title_zone.end - zone_map.title_zone.start) / 2;
+        let title_zone_mid =
+            zone_map.title_zone.start + (zone_map.title_zone.end - zone_map.title_zone.start) / 2;
         matches.retain(|m| {
-            !(m.property == Property::Language
-                && m.start >= fn_start
-                && m.start < title_zone_mid)
+            !(m.property == Property::Language && m.start >= fn_start && m.start < title_zone_mid)
         });
     } else {
         // No anchors → prune language when substantial unmatched content exists.
@@ -111,10 +105,7 @@ pub fn apply_zone_rules(
     });
     if has_uhd_signal {
         for m in matches.iter_mut() {
-            if m.start >= fn_start
-                && m.property == Property::Source
-                && m.value == "Blu-ray"
-            {
+            if m.start >= fn_start && m.property == Property::Source && m.value == "Blu-ray" {
                 m.value = "Ultra HD Blu-ray".into();
             }
         }
@@ -211,4 +202,3 @@ pub fn apply_zone_rules(
         });
     }
 }
-

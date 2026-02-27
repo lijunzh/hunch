@@ -29,10 +29,10 @@ The problem decomposes into three sub-problems, each favoring a different approa
 
 ## Current Status
 
-**Overall: 79.0%** (1,034 / 1,309 guessit test cases). `regex`-only (no
+**Overall: 78.8%** (1,032 / 1,309 guessit test cases). `regex`-only (no
 `fancy_regex`). TOML-driven rule engine with side effects, neighbor
 constraints (`not_before`/`not_after`/`requires_after`/`requires_before`),
-zone-scope filtering, and path-segment awareness.
+zone-scope filtering, and two-pass pipeline (tech resolution → positional extraction).
 
 | Tier | Properties |
 |------|------------|
@@ -88,26 +88,39 @@ Input string
   ├─ 1. Tokenize: split on separators, extract extension, detect brackets
   │     └─ TokenStream { tokens: [{text, start, end, separator, in_brackets}...], extension }
   │
-  ├─ 2a. TOML rules: iterate tokens + multi-token windows (1–3, longest first)
-  │      └─ 19 TOML rule files (exact lookups + regex + {N} capture templates)
+  ├─ 1b. Zone map: anchor detection + year disambiguation (v0.2.1)
+  │     └─ ZoneMap { title_zone, tech_zone, has_anchors, year }
   │
-  ├─ 2b. Legacy matchers: regex against raw input (transitional, being removed)
+  ═══ PASS 1: Tech Property Resolution ═════════════════════════════════════
+  │
+  ├─ 2a. TOML rules: iterate tokens + multi-token windows (1–3, longest first)
+  │      └─ 20 TOML rule files (exact lookups + regex + {N} capture templates)
+  │
+  ├─ 2b. Legacy matchers: regex against raw input (algorithmic properties)
+  │      └─ year, date, episodes, language, subtitle_language, etc.
+  │      └─ NOTE: release_group NOT included (runs in Pass 2)
   │
   ├─ 2c. Extension → Container span (priority 10)
   │
-  ├─ 3. Conflict resolution (sort by priority desc, length desc; sweep overlaps)
+  ├─ 3. Year disambiguation (ZoneMap title-years)
   │
-  ├─ 4. Zone-based disambiguation (5 active rules in zone_rules.rs)
-  │     ├─ Rule 1: Language in title zone → drop (uses ZoneMap)
-  │     ├─ Rule 2: Duplicate source in title zone → drop early
-  │     ├─ Rule 3: Redundant HD tags with UHD source → drop
-  │     ├─ Rule 4: RETIRED (episode_details.toml zone_scope="tech_only")
-  │     ├─ Rule 5: Other overlapping ReleaseGroup → drop ambiguous
-  │     └─ Rule 6: Language contained within tech span → drop
+  ├─ 4. Conflict resolution (sort by priority desc, length desc; sweep overlaps)
   │
-  ├─ 5. Post-processing: title extraction, episode_title, media_type, proper_count
+  ├─ 5. Zone-based disambiguation (7 active rules in zone_rules.rs)
+  │     └─ Output: resolved_tech_matches
   │
-  └─ 6. Build HunchResult → JSON
+  ═══ PASS 2: Positional Property Extraction ═══════════════════════════════
+  │
+  ├─ 6a. release_group(input, resolved_matches, zone_map)
+  │      └─ Uses resolved positions instead of is_known_token exclusion list
+  │
+  ├─ 6b. title extraction (uses zone_map boundaries)
+  │
+  ├─ 6c. episode_title, film_title, alternative_title
+  │
+  ├─ 7. Computed: media_type, proper_count
+  │
+  └─ 8. Build HunchResult → JSON
 ```
 
 ### v0.2 pipeline limitations
@@ -539,49 +552,38 @@ Retire one legacy matcher at a time, in order of coverage:
 - Benchmark comparison with guessit (Python)
 - Consider crates.io publish
 
-### Phase E: v0.3.x — Architectural improvements (future)
+### Phase E: v0.3.x — Architectural improvements ✉️ DONE
 
-#### E1: Release group → post-resolution extraction
+#### E1: Release group → post-resolution extraction ✅ IMPLEMENTED
 
 **Goal**: Replace the 150-line `is_known_token` hardcoded exclusion list
 in `release_group.rs` with structural overlap detection against resolved
 matches.
 
-**Current state (v0.2.1)**: Release group runs as a legacy matcher
-(before conflict resolution) and uses a manually-maintained list of
-~130 token strings to decide "is this word a tech token or a group name?"
-This is a DRY violation — tokens added to TOML rules must also be added
-to `is_known_token`, or release group gets false positives.
+**Implemented in v0.3**: Two-pass pipeline. Pass 1 resolves all tech
+properties (TOML rules + legacy matchers). Pass 2 runs release_group
+with access to resolved match positions. `is_known_token` (∼130 tokens)
+replaced by:
 
-**Target state**: Move release_group to run AFTER conflict resolution
-(Step 4b in the pipeline), using resolved `MatchSpan` positions to
-determine which tokens are already claimed.
+- `is_position_claimed()` — checks if candidate overlaps any resolved tech match
+- `is_non_group_token()` — small curated list (∼20 tokens) for subtitle markers
+  and containers not covered by TOML rules
+- `zone_map::is_tier2_token()` — reuses existing Tier 2 vocabulary
+- `is_suffixed_resolution()` — catches NNNNp/i patterns
 
-**Why it failed in v0.2.1 (attempted and reverted)**:
+**Key design decisions**:
 
-The text-based `is_known_token("x264")` and the position-based
-`is_span_claimed(start, end, matches)` answer fundamentally different
-questions, and the edge cases don't align:
-
-| Scenario | `is_known_token` | `is_span_claimed` |
-|---|---|---|
-| `XviD-NoTV` (group after tech) | ✅ "NoTV" not in list → accept | ❓ Position overlaps depend on how tokenizer/regex splits compound segments |
-| `-GROUP.HebSubs` (metadata after group) | ✅ Strip "HebSubs" from META_TOKENS | ❌ Overlap-based stripping too aggressive (strips tech tokens + group together) |
-| `(Tigole) [QxR]` (paren+bracket compound) | N/A (separate issue) | N/A |
-
-**Requirements for v0.3.x implementation**:
-1. **Hybrid approach**: Use `is_span_claimed` as primary, keep a small
-   curated fallback list for edge cases where position boundaries are
-   ambiguous (compound tokens like `XviD-GROUP`).
-2. **strip_trailing_metadata**: Must use word-level metadata list (not
-   position overlap) since trailing segments can span tech+group in
-   a single dot-segment.
-3. **expand_group_backwards**: Needs absolute positions of `before`
-   text mapped to input offsets for clean overlap detection.
-4. **Test-driven**: Run against full fixture suite at each step;
-   never drop below current floors.
-5. Consider whether release_group should receive the full `TokenStream`
-   (not just resolved matches) for better word-boundary awareness.
+1. **Positional properties excluded from overlap check**: Title, EpisodeTitle,
+   BonusTitle, AlternativeTitle are broad positional spans that shouldn't
+   block release group detection.
+2. **50%+ overlap threshold**: Prevents over-broad regex matches (like a
+   VideoCodec pattern spanning `HEVC.Atmos-GROUP`) from blocking groups.
+3. **Tech-only claims for backwards expansion**: `expand_group_backwards`
+   only treats codec/source/screen_size matches as "tech" anchors, not
+   Language/SubtitleLanguage (which would cause `SPANISH.AUDIO-GROUP` to
+   incorrectly expand through AUDIO).
+4. **Compound token check preserved**: `DVD+R = dvdr` is checked against
+   Tier 2 tokens to prevent `DVD-R-GROUP` from expanding to `R-GROUP`.
 
 ---
 

@@ -27,8 +27,10 @@ avc   = "H.264"
 avchd = "H.264"
 
 [[patterns]]
-# HEVC with suffix: hevc10, HEVC-YUV420P10, etc.
-match = '(?i)^hevc.+$'
+# HEVC with suffix: hevc10, HEVC_YUV420P10, etc.
+# Use word chars only (no dots/dashes) to avoid matching compound tokens
+# like "HEVC.Atmos-GROUP" or "HEVC-MZABI" in multi-token windows.
+match = '(?i)^hevc[a-zA-Z0-9_]+$'
 value = "H.265"
 
 [[patterns]]

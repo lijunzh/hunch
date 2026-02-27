@@ -229,15 +229,25 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
         let ep_start: u32 = cap.name("ep_start").unwrap().as_str().parse().unwrap_or(0);
 
         matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Season, season.to_string())
-                .with_priority(-1),
+            MatchSpan::new(
+                full.start(),
+                full.end(),
+                Property::Season,
+                season.to_string(),
+            )
+            .with_priority(-1),
         );
 
         let ep_rest = cap.name("ep_rest").map(|m| m.as_str()).unwrap_or("");
         if ep_rest.is_empty() {
             matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                    .with_priority(5),
+                MatchSpan::new(
+                    full.start(),
+                    full.end(),
+                    Property::Episode,
+                    ep_start.to_string(),
+                )
+                .with_priority(5),
             );
         } else {
             for ep in &parse_multi_episodes(ep_start, ep_rest) {
@@ -273,8 +283,13 @@ fn try_nxn(input: &str, matches: &mut Vec<MatchSpan>) {
         let ep_start: u32 = cap.name("ep_start").unwrap().as_str().parse().unwrap_or(0);
 
         matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Season, season.to_string())
-                .with_priority(3),
+            MatchSpan::new(
+                full.start(),
+                full.end(),
+                Property::Season,
+                season.to_string(),
+            )
+            .with_priority(3),
         );
 
         let ep_end = cap.name("ep2").and_then(|m| m.as_str().parse::<u32>().ok());
@@ -284,8 +299,13 @@ fn try_nxn(input: &str, matches: &mut Vec<MatchSpan>) {
             }
             Some(end) => {
                 matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                        .with_priority(3),
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        ep_start.to_string(),
+                    )
+                    .with_priority(3),
                 );
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Episode, end.to_string())
@@ -294,8 +314,13 @@ fn try_nxn(input: &str, matches: &mut Vec<MatchSpan>) {
             }
             None => {
                 matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                        .with_priority(3),
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        ep_start.to_string(),
+                    )
+                    .with_priority(3),
                 );
             }
         }
@@ -558,8 +583,13 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
 
             if ep_rest.is_empty() {
                 matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                        .with_priority(2),
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        ep_start.to_string(),
+                    )
+                    .with_priority(2),
                 );
             } else {
                 for ep in &parse_multi_episodes(ep_start, ep_rest) {
@@ -577,15 +607,22 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
         for cap in EPISODE_WORD.captures_iter(input) {
             let full = cap.get(0).unwrap();
             let ep_start: u32 = parse_num(&cap, "episode").parse().unwrap_or(0);
-            let ep_end = cap.name("ep_end").and_then(|m| m.as_str().parse::<u32>().ok());
+            let ep_end = cap
+                .name("ep_end")
+                .and_then(|m| m.as_str().parse::<u32>().ok());
             if let Some(end) = ep_end {
                 if end > ep_start {
                     matches.extend(episode_range(ep_start, end, full.start(), full.end(), 2));
                 }
             } else {
                 matches.push(
-                    MatchSpan::new(full.start(), full.end(), Property::Episode, ep_start.to_string())
-                        .with_priority(2),
+                    MatchSpan::new(
+                        full.start(),
+                        full.end(),
+                        Property::Episode,
+                        ep_start.to_string(),
+                    )
+                    .with_priority(2),
                 );
             }
         }
@@ -603,8 +640,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
         let full = cap.get(0).unwrap();
         let episode = parse_num(&cap, "episode");
         matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                .with_priority(-1),
+            MatchSpan::new(full.start(), full.end(), Property::Episode, episode).with_priority(-1),
         );
     }
 
@@ -615,8 +651,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
         let full = cap.get(0).unwrap();
         let episode = parse_num(&cap, "episode");
         matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
-                .with_priority(1),
+            MatchSpan::new(full.start(), full.end(), Property::Episode, episode).with_priority(1),
         );
     }
 
@@ -660,8 +695,13 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                     matches.extend(episode_range(ep1, ep2, full.start(), full.end(), 3));
                 } else {
                     matches.push(
-                        MatchSpan::new(full.start(), full.end(), Property::Episode, ep1.to_string())
-                            .with_priority(3),
+                        MatchSpan::new(
+                            full.start(),
+                            full.end(),
+                            Property::Episode,
+                            ep1.to_string(),
+                        )
+                        .with_priority(3),
                     );
                 }
             } else {
@@ -703,8 +743,13 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
         if is_anime_style {
             // Anime: emit as absolute episode (no season decomposition).
             matches.push(
-                MatchSpan::new(num_m.start(), num_m.end(), Property::Episode, num.to_string())
-                    .with_priority(0),
+                MatchSpan::new(
+                    num_m.start(),
+                    num_m.end(),
+                    Property::Episode,
+                    num.to_string(),
+                )
+                .with_priority(0),
             );
             break;
         } else {
@@ -714,12 +759,22 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
                 continue;
             }
             matches.push(
-                MatchSpan::new(num_m.start(), num_m.end(), Property::Season, season.to_string())
-                    .with_priority(0),
+                MatchSpan::new(
+                    num_m.start(),
+                    num_m.end(),
+                    Property::Season,
+                    season.to_string(),
+                )
+                .with_priority(0),
             );
             matches.push(
-                MatchSpan::new(num_m.start(), num_m.end(), Property::Episode, episode.to_string())
-                    .with_priority(0),
+                MatchSpan::new(
+                    num_m.start(),
+                    num_m.end(),
+                    Property::Episode,
+                    episode.to_string(),
+                )
+                .with_priority(0),
             );
             break;
         }

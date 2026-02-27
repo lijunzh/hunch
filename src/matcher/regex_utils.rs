@@ -44,7 +44,6 @@ impl CharClass {
     }
 }
 
-
 /// Check that the boundary conditions hold for a match at `[start..end]`.
 pub fn check_boundary(input: &[u8], start: usize, end: usize, spec: &BoundarySpec) -> bool {
     if let Some(ref left) = spec.left
@@ -314,7 +313,6 @@ mod tests {
         assert!(spec.left.is_some());
         assert!(spec.right.is_some());
     }
-
 
     #[test]
     fn test_custom_char_class() {

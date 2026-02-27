@@ -1,8 +1,8 @@
 //! Secondary title extractors — episode title, film title, alternative title.
 
-use crate::matcher::span::{MatchSpan, Property};
-use super::clean::{clean_title, clean_episode_title};
+use super::clean::{clean_episode_title, clean_title};
 use super::find_title_boundary;
+use crate::matcher::span::{MatchSpan, Property};
 
 /// Extract episode title: the text between the last episode/season marker
 /// and the next technical property in the filename portion.
@@ -38,11 +38,19 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
     // Properties that should stop episode title extraction.
     // Part is intentionally excluded — episode titles often contain "Part N".
     let technical_props = [
-        Property::VideoCodec, Property::AudioCodec, Property::Source,
-        Property::ScreenSize, Property::Edition, Property::Other,
-        Property::Language, Property::AudioChannels, Property::Container,
-        Property::StreamingService, Property::Year,
-        Property::FrameRate, Property::ColorDepth,
+        Property::VideoCodec,
+        Property::AudioCodec,
+        Property::Source,
+        Property::ScreenSize,
+        Property::Edition,
+        Property::Other,
+        Property::Language,
+        Property::AudioChannels,
+        Property::Container,
+        Property::StreamingService,
+        Property::Year,
+        Property::FrameRate,
+        Property::ColorDepth,
         Property::VideoProfile,
     ];
 
@@ -62,7 +70,10 @@ pub fn extract_episode_title(input: &str, matches: &[MatchSpan]) -> Option<Match
                 .iter()
                 .any(|m| m.property == Property::Container && m.start >= filename_start);
             if has_container {
-                filename.rfind('.').map(|pos| filename_start + pos).unwrap_or(filename_end)
+                filename
+                    .rfind('.')
+                    .map(|pos| filename_start + pos)
+                    .unwrap_or(filename_end)
             } else {
                 filename_end
             }
@@ -203,12 +214,10 @@ pub fn extract_alternative_title(input: &str, matches: &[MatchSpan]) -> Option<M
     let filename = &input[filename_start..];
     let title_end_abs = match first_match {
         Some(m) => m.start,
-        None => {
-            filename
-                .rfind('.')
-                .map(|p| filename_start + p)
-                .unwrap_or(input.len())
-        }
+        None => filename
+            .rfind('.')
+            .map(|p| filename_start + p)
+            .unwrap_or(input.len()),
     };
 
     if title_end_abs <= filename_start {

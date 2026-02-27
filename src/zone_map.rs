@@ -90,20 +90,17 @@ const TIER2_TOKENS: &[&str] = &[
     "aac", "ac3", "dts", "flac", "opus", "truehd", "atmos", "eac3", "pcm",
     // Sources (compound/rip forms)
     "bluray", "bdrip", "brrip", "dvdrip", "webrip", "hdrip", "hdtv", "pdtv", "sdtv", "dsr",
-    "dvdscr", "hddvd",
-    // Sources (standalone — unambiguous, never title words)
+    "dvdscr", "hddvd", // Sources (standalone — unambiguous, never title words)
     "dvd", "dvdr", "bd",
     // Compound sources (matched as multi-token windows by TOML, but
     // single tokens when hyphenated: WEB-DL, WEB-Rip)
-    "web-dl", "web-rip",
-    // Broadcast standards (never title words)
-    "pal", "ntsc", "secam",
-    // Other unambiguous tech
+    "web-dl", "web-rip", // Broadcast standards (never title words)
+    "pal", "ntsc", "secam", // Other unambiguous tech
     "remux", "repack", "proper",
 ];
 
 /// Check if a token text (lowercase) is a Tier 2 tech token.
-fn is_tier2_token(text: &str) -> bool {
+pub fn is_tier2_token(text: &str) -> bool {
     let lower = text.to_lowercase();
     TIER2_TOKENS.contains(&lower.as_str())
 }

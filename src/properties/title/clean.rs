@@ -104,8 +104,7 @@ fn strip_trailing_keywords(result: &str) -> String {
 
     // Strip trailing "Part" + optional roman/number.
     let re_part =
-        regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$")
-            .unwrap();
+        regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$").unwrap();
     if let Some(m) = re_part.find(&result) {
         let stripped = result[..m.start()].to_string();
         if !stripped.trim().is_empty() {
@@ -179,11 +178,43 @@ pub(super) fn strip_extension(s: &str) -> &str {
 pub(super) fn is_likely_extension(ext: &str) -> bool {
     matches!(
         ext,
-        "mkv" | "mp4" | "avi" | "wmv" | "flv" | "mov" | "webm" | "ogm" | "ogv"
-            | "ts" | "m2ts" | "m4v" | "mpg" | "mpeg" | "vob" | "divx" | "3gp"
-            | "srt" | "sub" | "ssa" | "ass" | "idx" | "sup" | "vtt"
-            | "nfo" | "txt" | "jpg" | "jpeg" | "png"
-            | "nzb" | "par" | "par2" | "iso" | "img" | "rar" | "zip" | "7z"
+        "mkv"
+            | "mp4"
+            | "avi"
+            | "wmv"
+            | "flv"
+            | "mov"
+            | "webm"
+            | "ogm"
+            | "ogv"
+            | "ts"
+            | "m2ts"
+            | "m4v"
+            | "mpg"
+            | "mpeg"
+            | "vob"
+            | "divx"
+            | "3gp"
+            | "srt"
+            | "sub"
+            | "ssa"
+            | "ass"
+            | "idx"
+            | "sup"
+            | "vtt"
+            | "nfo"
+            | "txt"
+            | "jpg"
+            | "jpeg"
+            | "png"
+            | "nzb"
+            | "par"
+            | "par2"
+            | "iso"
+            | "img"
+            | "rar"
+            | "zip"
+            | "7z"
     )
 }
 
@@ -230,10 +261,29 @@ pub(super) fn is_generic_dir(name: &str) -> bool {
     let lower = name.to_lowercase();
     matches!(
         lower.as_str(),
-        "movies" | "movie" | "films" | "film" | "series" | "tv shows" | "tvshows"
-            | "tv" | "media" | "video" | "videos" | "downloads" | "download"
-            | "completed" | "mnt" | "nas" | "share" | "shares" | "data"
-            | "public" | "home" | "tmp" | "temp"
+        "movies"
+            | "movie"
+            | "films"
+            | "film"
+            | "series"
+            | "tv shows"
+            | "tvshows"
+            | "tv"
+            | "media"
+            | "video"
+            | "videos"
+            | "downloads"
+            | "download"
+            | "completed"
+            | "mnt"
+            | "nas"
+            | "share"
+            | "shares"
+            | "data"
+            | "public"
+            | "home"
+            | "tmp"
+            | "temp"
     ) || lower.starts_with("season")
         || lower.starts_with("saison")
         || lower.starts_with("temporada")

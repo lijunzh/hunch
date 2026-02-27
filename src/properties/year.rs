@@ -8,8 +8,7 @@ use std::sync::LazyLock;
 const MIN_YEAR: i32 = 1920;
 const MAX_YEAR: i32 = 2029;
 
-static YEAR_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?:19|20)\d{2}").unwrap());
+static YEAR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?:19|20)\d{2}").unwrap());
 
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let bytes = input.as_bytes();

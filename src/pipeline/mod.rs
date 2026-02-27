@@ -257,7 +257,7 @@ impl Pipeline {
             part::find_matches,
             bonus::find_matches,
             version::find_matches,
-            release_group::find_matches,
+            // NOTE: release_group is NOT here — it runs in Pass 2 (post-resolution).
         ];
 
         Self {
@@ -268,7 +268,21 @@ impl Pipeline {
     }
 
     /// Run the full pipeline on an input string.
+    ///
+    /// ## Two-pass architecture (v0.3)
+    ///
+    /// **Pass 1**: Tech property resolution — TOML rules + legacy matchers
+    /// (everything except release_group). Conflict resolution + zone
+    /// disambiguation produces `resolved_tech_matches`.
+    ///
+    /// **Pass 2**: Positional property extraction — release_group uses
+    /// resolved match positions (no more `is_known_token` exclusion list).
+    /// Title, episode_title, alternative_title use all resolved matches.
     pub fn run(&self, input: &str) -> HunchResult {
+        // ══════════════════════════════════════════════════════════════════
+        // Pass 1: Tech property resolution
+        // ══════════════════════════════════════════════════════════════════
+
         // Step 1: Tokenize.
         let token_stream = tokenizer::tokenize(input);
 
@@ -276,11 +290,10 @@ impl Pipeline {
         let zone_map = zone_map::build_zone_map(input, &token_stream);
 
         // Step 2: Match — TOML rules against tokens + legacy matchers against raw input.
+        // NOTE: release_group is NOT included here — it runs in Pass 2.
         let mut all_matches = self.match_all(input, &token_stream, &zone_map);
 
         // Step 2b: Year disambiguation using ZoneMap.
-        // When title-years are detected (e.g., "2001" in "2001.A.Space.Odyssey.1968"),
-        // remove those year matches so they become part of the title.
         if let Some(ref yi) = zone_map.year
             && !yi.title_years.is_empty()
         {
@@ -288,9 +301,6 @@ impl Pipeline {
                 if m.property != Property::Year {
                     return true;
                 }
-                // Keep only the disambiguated year, drop title-years.
-                // Use overlap check (not exact match) because zone_map may
-                // include parentheses in positions while year.rs uses bare digits.
                 !yi.title_years
                     .iter()
                     .any(|ty| m.start < ty.end && m.end > ty.start)
@@ -301,11 +311,18 @@ impl Pipeline {
         engine::resolve_conflicts(&mut all_matches);
 
         // Step 4: Zone-based disambiguation.
-        // Uses ZoneMap for structural zone boundaries instead of re-deriving
-        // them from match positions (v0.2.1 improvement).
         zone_rules::apply_zone_rules(input, &zone_map, &mut all_matches);
 
-        // Step 5: Post-processing.
+        // ══════════════════════════════════════════════════════════════════
+        // Pass 2: Positional property extraction
+        // Uses resolved tech match positions for context-aware extraction.
+        // ══════════════════════════════════════════════════════════════════
+
+        // Step 5a: Release group (post-resolution — can see claimed positions).
+        let rg_matches = release_group::find_matches(input, &all_matches, &zone_map);
+        all_matches.extend(rg_matches);
+
+        // Step 5b: Title extraction.
         if let Some(title_match) = title::extract_title(input, &all_matches, &zone_map) {
             all_matches.push(title_match);
         }
@@ -315,9 +332,13 @@ impl Pipeline {
             all_matches.push(film_title);
             all_matches.push(adjusted_title);
         }
+
+        // Step 5c: Episode title.
         if let Some(ep_title) = title::extract_episode_title(input, &all_matches) {
             all_matches.push(ep_title);
         }
+
+        // Step 5d: Alternative title.
         if let Some(alt_title) = title::extract_alternative_title(input, &all_matches) {
             all_matches.push(alt_title);
         }

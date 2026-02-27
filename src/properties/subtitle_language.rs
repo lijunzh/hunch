@@ -288,7 +288,11 @@ mod tests {
         // HebSubs handled by TOML now; test through pipeline
         use crate::hunch;
         let r = hunch("Show.S01E01.HDTV.HebSubs.mkv");
-        assert!(r.all(Property::SubtitleLanguage).iter().any(|v| v.to_lowercase().contains("he")));
+        assert!(
+            r.all(Property::SubtitleLanguage)
+                .iter()
+                .any(|v| v.to_lowercase().contains("he"))
+        );
     }
 
     #[test]
@@ -296,6 +300,10 @@ mod tests {
         // SWESUB handled by TOML now; test through pipeline
         use crate::hunch;
         let r = hunch("Show.S06E16.HC.SWESUB.HDTV.x264");
-        assert!(r.all(Property::SubtitleLanguage).iter().any(|v| v.to_lowercase().contains("sw")));
+        assert!(
+            r.all(Property::SubtitleLanguage)
+                .iter()
+                .any(|v| v.to_lowercase().contains("sw"))
+        );
     }
 }

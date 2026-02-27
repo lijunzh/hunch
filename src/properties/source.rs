@@ -11,9 +11,7 @@ mod tests {
     use crate::matcher::span::Property;
 
     fn source(input: &str) -> Option<String> {
-        hunch(input)
-            .first(Property::Source)
-            .map(String::from)
+        hunch(input).first(Property::Source).map(String::from)
     }
 
     fn other(input: &str) -> Vec<String> {
