@@ -37,8 +37,34 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
     if zone_map.has_anchors {
         let title_zone_mid =
             zone_map.title_zone.start + (zone_map.title_zone.end - zone_map.title_zone.start) / 2;
+
+        // Collect language values that appear in the tech zone.
+        let tech_langs: Vec<String> = matches
+            .iter()
+            .filter(|m| {
+                m.property == Property::Language
+                    && m.start >= zone_map.tech_zone.start
+            })
+            .map(|m| m.value.to_lowercase())
+            .collect();
+
         matches.retain(|m| {
-            !(m.property == Property::Language && m.start >= fn_start && m.start < title_zone_mid)
+            if m.property != Property::Language || m.start < fn_start {
+                return true;
+            }
+            // Always drop language in the first half of title zone.
+            if m.start < title_zone_mid {
+                return false;
+            }
+            // Drop language in the second half of title zone when the
+            // same language appears again in the tech zone (duplicate
+            // = the title-zone one is a title word, e.g., "Immersion.French").
+            if m.start < zone_map.title_zone.end
+                && tech_langs.contains(&m.value.to_lowercase())
+            {
+                return false;
+            }
+            true
         });
     } else {
         // No anchors → prune language when substantial unmatched content exists.

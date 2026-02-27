@@ -644,7 +644,7 @@ mod tests {
         assert!(VIDEO_CODEC_RULES.exact_count() >= 10);
         assert!(COLOR_DEPTH_RULES.exact_count() >= 3);
         assert!(STREAMING_SERVICE_RULES.exact_count() >= 10);
-        assert!(VIDEO_PROFILE_RULES.exact_count() >= 5);
+        assert!(VIDEO_PROFILE_RULES.exact_count() >= 2);
         assert!(EPISODE_DETAILS_RULES.exact_count() >= 4);
         assert!(EDITION_RULES.exact_count() >= 10);
     }

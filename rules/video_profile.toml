@@ -6,9 +6,24 @@ avchd = "Advanced Video Codec High Definition"
 avc   = "Advanced Video Codec High Definition"
 hevc  = "High Efficiency Video Coding"
 hp    = "High"
-sc    = "Scalable Video Coding"
-sch   = "Scalable Video Coding"
-sdh   = "Scalable Video Coding"
+
+# SC/SCH/SDH are ambiguous: Scalable Video Coding when after a codec,
+# but release group names or subtitle tags in other contexts.
+# Use requires_before to only match after codec tokens.
+[[patterns]]
+match = '(?i)^sc$'
+value = "Scalable Video Coding"
+requires_before = ["264", "265", "h264", "h.264", "x264", "h265", "h.265", "x265", "hevc", "avc", "avchd", "mpeg4"]
+
+[[patterns]]
+match = '(?i)^sch$'
+value = "Scalable Video Coding"
+requires_before = ["264", "265", "h264", "h.264", "x264", "h265", "h.265", "x265", "hevc", "avc", "avchd", "mpeg4"]
+
+[[patterns]]
+match = '(?i)^sdh$'
+value = "Scalable Video Coding"
+requires_before = ["264", "265", "h264", "h.264", "x264", "h265", "h.265", "x265", "hevc", "avc", "avchd", "mpeg4"]
 
 [[patterns]]
 # Hi10/Hi10P → High 10

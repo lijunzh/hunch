@@ -24,6 +24,25 @@ const SEPS: &[char] = &['.', ' ', '_', '-', '+'];
 /// Characters we strip from title boundaries.
 const BRACKETS: &[char] = &['(', ')', '[', ']', '{', '}'];
 
+/// Whether a property is a technical metadata property (not a title word).
+fn is_tech_property(p: Property) -> bool {
+    matches!(
+        p,
+        Property::VideoCodec
+            | Property::AudioCodec
+            | Property::Source
+            | Property::ScreenSize
+            | Property::AudioChannels
+            | Property::AudioProfile
+            | Property::VideoProfile
+            | Property::FrameRate
+            | Property::ColorDepth
+            | Property::StreamingService
+            | Property::Edition
+            | Property::Other
+    )
+}
+
 /// Extract title from the input string by finding the gap before the first
 /// recognized match. This is a post-processing step, not a `PropertyMatcher`.
 ///
@@ -142,6 +161,33 @@ fn handle_empty_title(
             extract_title_after_position(input, first_m.end, filename_start, filename, matches)
     {
         return Some(title);
+    }
+    // Leading tech tokens at filename start (e.g., "h265 - HEVC Riddick...").
+    // Skip past all contiguous tech matches at the start to find the title gap.
+    if let Some(first_m) = first_match_in_filename
+        && first_m.start == filename_start
+        && is_tech_property(first_m.property)
+    {
+        // Find the end of the last contiguous tech match at the start.
+        let mut skip_end = first_m.end;
+        loop {
+            let next = matches.iter().find(|m| {
+                m.start >= skip_end
+                    && m.start <= skip_end + 3 // allow small separator gap
+                    && m.start < filename_start + filename.len()
+                    && !m.is_extension
+                    && is_tech_property(m.property)
+            });
+            match next {
+                Some(m) => skip_end = m.end,
+                None => break,
+            }
+        }
+        if let Some(title) =
+            extract_title_after_position(input, skip_end, filename_start, filename, matches)
+        {
+            return Some(title);
+        }
     }
     // Single short word with no path/extension → treat as title.
     if !input.contains(['/', '\\']) && !input.contains('.') && input.len() <= 10 {
