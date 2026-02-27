@@ -60,8 +60,13 @@ match = '(?i)^(?:aac[- .]?)?(?:he|high[- .]?efficiency)$'
 value = "High Efficiency"
 
 [[patterns]]
-# AAC-LC / Low Complexity
+# AAC-LC / LC-AAC / Low Complexity
 match = '(?i)^(?:aac[- .]?)?lc$'
+value = "Low Complexity"
+
+[[patterns]]
+# LC-AAC (reversed form)
+match = '(?i)^lc[- .]?aac$'
 value = "Low Complexity"
 
 [[patterns]]
