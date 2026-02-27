@@ -133,6 +133,16 @@ pub fn extract_episode_title(
         return None;
     }
 
+    // Strip trailing "Part N" from episode titles.
+    // Part in the MIDDLE of a title is kept ("Harry Potter Part 2 The Quest"),
+    // but trailing Part is always a separate metadata property.
+    let re_trailing_part =
+        regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)\s*$").unwrap();
+    let cleaned = re_trailing_part.replace(&cleaned, "").trim().to_string();
+    if cleaned.is_empty() {
+        return None;
+    }
+
     let trimmed = cleaned.trim();
     if trimmed.len() <= 1 {
         return None;
