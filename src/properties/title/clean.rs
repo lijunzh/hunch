@@ -8,7 +8,8 @@ pub(super) fn clean_title(raw: &str) -> String {
 }
 
 pub(super) fn clean_episode_title(raw: &str) -> String {
-    clean_title_inner(raw, false)
+    let trimmed = raw.trim_start_matches(|c: char| c == '.' || c == '_' || c == ' ' || c == '-');
+    clean_title_inner(trimmed, false)
 }
 
 fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
