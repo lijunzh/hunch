@@ -581,7 +581,32 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
             let ep_start: u32 = parse_num(&cap, "ep_start").parse().unwrap_or(0);
             let ep_rest = cap.name("ep_rest").map(|m| m.as_str()).unwrap_or("");
 
-            if ep_rest.is_empty() {
+            // Extend match end for space-separated zero-padded episodes:
+            // E01 02 03 → episodes [1, 2, 3]
+            let mut extended_end = full.end();
+            let mut extra_eps: Vec<u32> = Vec::new();
+            let remaining = &input[full.end()..];
+            let mut pos = 0;
+            while pos < remaining.len() && remaining.as_bytes()[pos] == b' ' {
+                let num_start = pos + 1;
+                if num_start < remaining.len() && remaining.as_bytes()[num_start] == b'0' {
+                    let num_end = remaining[num_start..]
+                        .find(|c: char| !c.is_ascii_digit())
+                        .map(|p| num_start + p)
+                        .unwrap_or(remaining.len());
+                    if num_end > num_start {
+                        if let Ok(n) = remaining[num_start..num_end].parse::<u32>() {
+                            extra_eps.push(n);
+                            extended_end = full.end() + num_end;
+                            pos = num_end;
+                            continue;
+                        }
+                    }
+                }
+                break;
+            }
+
+            if ep_rest.is_empty() && extra_eps.is_empty() {
                 matches.push(
                     MatchSpan::new(
                         full.start(),
@@ -591,6 +616,28 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                     )
                     .with_priority(2),
                 );
+            } else if !extra_eps.is_empty() {
+                // Space-separated zero-padded episodes: E01 02 03
+                matches.push(
+                    MatchSpan::new(
+                        full.start(),
+                        extended_end,
+                        Property::Episode,
+                        ep_start.to_string(),
+                    )
+                    .with_priority(2),
+                );
+                for ep in &extra_eps {
+                    matches.push(
+                        MatchSpan::new(
+                            full.start(),
+                            extended_end,
+                            Property::Episode,
+                            ep.to_string(),
+                        )
+                        .with_priority(2),
+                    );
+                }
             } else {
                 for ep in &parse_multi_episodes(ep_start, ep_rest) {
                     matches.push(

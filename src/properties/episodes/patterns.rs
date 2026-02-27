@@ -47,10 +47,10 @@ pub(super) static NXN: LazyLock<Regex> = LazyLock::new(|| {
 
 // ── Standalone episode patterns ──
 
-/// E01, Ep01, E02-03, E02-E03, etc.
+/// E01, Ep01, E02-03, E02-E03, E01 02 03 (space-separated zero-padded), etc.
 pub(super) static EP_ONLY: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?P<ep_rest>(?:(?:[-+]E?|E)\d{1,4})+)?(?![a-z0-9])",
+        r"(?i)(?<![a-z0-9])(?:E|Ep\.?)\s*(?P<ep_start>\d{1,4})(?P<ep_rest>(?:(?:[-+]E?|[. ]E|E)\d{1,4})+)?(?![a-z0-9])",
     )
 });
 
