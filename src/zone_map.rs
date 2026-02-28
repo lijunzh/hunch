@@ -88,11 +88,14 @@ pub struct TitleYear {
 // (the `regex` crate doesn't support lookaround). The match includes
 // the boundary char, so we offset +1 when extracting position.
 
-static SXXEXX_ANCHOR: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?i)(?:^|[^a-zA-Z0-9])S\d{1,3}[. ]?E\d{1,4}").expect("SXXEXX_ANCHOR regex is valid"));
+static SXXEXX_ANCHOR: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(?i)(?:^|[^a-zA-Z0-9])S\d{1,3}[. ]?E\d{1,4}")
+        .expect("SXXEXX_ANCHOR regex is valid")
+});
 
 static NXN_ANCHOR: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"(?:^|[^a-zA-Z0-9])\d{1,2}[xX]\d{1,4}(?:$|[^a-zA-Z0-9])").expect("NXN_ANCHOR regex is valid")
+    regex::Regex::new(r"(?:^|[^a-zA-Z0-9])\d{1,2}[xX]\d{1,4}(?:$|[^a-zA-Z0-9])")
+        .expect("NXN_ANCHOR regex is valid")
 });
 
 static SUFFIXED_RESOLUTION: LazyLock<regex::Regex> = LazyLock::new(|| {
@@ -130,8 +133,9 @@ pub fn is_tier2_token(text: &str) -> bool {
 
 // ── Tier 3: Year candidates ─────────────────────────────────────────────
 
-static YEAR_CANDIDATE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?P<year>(?:19|20)\d{2})").expect("YEAR_CANDIDATE regex is valid"));
+static YEAR_CANDIDATE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(?P<year>(?:19|20)\d{2})").expect("YEAR_CANDIDATE regex is valid")
+});
 
 /// Check that a year candidate has non-digit boundaries.
 fn year_has_boundaries(input: &[u8], start: usize, end: usize) -> bool {
@@ -140,8 +144,9 @@ fn year_has_boundaries(input: &[u8], start: usize, end: usize) -> bool {
     left_ok && right_ok
 }
 
-static PAREN_YEAR: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"\((?P<year>(?:19|20)\d{2})\)").expect("PAREN_YEAR regex is valid"));
+static PAREN_YEAR: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"\((?P<year>(?:19|20)\d{2})\)").expect("PAREN_YEAR regex is valid")
+});
 
 /// A raw year candidate before disambiguation.
 #[derive(Debug, Clone)]
@@ -231,8 +236,13 @@ pub fn build_zone_map(input: &str, token_stream: &TokenStream) -> ZoneMap {
 
     debug!(
         "zone map built: title={}..{}, tech={}..{}, anchors={}, year={:?}, dir_zones={}",
-        fn_start, tech_zone_start, tech_zone_start, fn_end,
-        has_anchors, year_info.as_ref().map(|y| y.value), dir_zones.len()
+        fn_start,
+        tech_zone_start,
+        tech_zone_start,
+        fn_end,
+        has_anchors,
+        year_info.as_ref().map(|y| y.value),
+        dir_zones.len()
     );
 
     ZoneMap {
@@ -326,7 +336,9 @@ fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> 
 
     // Parenthesized years first (highest confidence).
     for cap in PAREN_YEAR.captures_iter(filename) {
-        let year_match = cap.name("year").expect("year group always present in PAREN_YEAR");
+        let year_match = cap
+            .name("year")
+            .expect("year group always present in PAREN_YEAR");
         let value: u32 = year_match.as_str().parse().unwrap_or(0);
         let full = cap.get(0).expect("group 0 always present in a regex match");
         candidates.push(YearCandidate {
@@ -340,7 +352,9 @@ fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> 
     // Bare year candidates (boundary-validated).
     let bytes = input.as_bytes();
     for cap in YEAR_CANDIDATE.captures_iter(filename) {
-        let year_match = cap.name("year").expect("year group always present in YEAR_CANDIDATE");
+        let year_match = cap
+            .name("year")
+            .expect("year group always present in YEAR_CANDIDATE");
         let value: u32 = year_match.as_str().parse().unwrap_or(0);
         let abs_start = fn_start + year_match.start();
         let abs_end = fn_start + year_match.end();
@@ -421,7 +435,9 @@ fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> 
 
     // No parenthesized: last candidate is the year, earlier ones are title.
     // Safety: we return early above when candidates.is_empty() or len() == 1.
-    let last = candidates.last().expect("candidates is non-empty after earlier checks");
+    let last = candidates
+        .last()
+        .expect("candidates is non-empty after earlier checks");
     let title_years: Vec<TitleYear> = candidates[..candidates.len() - 1]
         .iter()
         .map(|c| TitleYear {

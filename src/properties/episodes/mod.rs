@@ -226,8 +226,18 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
     // S01E02 (highest priority, with multi-episode support).
     for cap in SXXEXX.captures_iter(input) {
         let full = cap.get(0).expect("group 0 always present");
-        let season: u32 = cap.name("season").expect("season group always present").as_str().parse().unwrap_or(0);
-        let ep_start: u32 = cap.name("ep_start").expect("ep_start group always present").as_str().parse().unwrap_or(0);
+        let season: u32 = cap
+            .name("season")
+            .expect("season group always present")
+            .as_str()
+            .parse()
+            .unwrap_or(0);
+        let ep_start: u32 = cap
+            .name("ep_start")
+            .expect("ep_start group always present")
+            .as_str()
+            .parse()
+            .unwrap_or(0);
 
         matches.push(
             MatchSpan::new(
@@ -280,8 +290,18 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
 fn try_nxn(input: &str, matches: &mut Vec<MatchSpan>) {
     for cap in NXN.captures_iter(input) {
         let full = cap.get(0).expect("group 0 always present");
-        let season: u32 = cap.name("season").expect("season group always present").as_str().parse().unwrap_or(0);
-        let ep_start: u32 = cap.name("ep_start").expect("ep_start group always present").as_str().parse().unwrap_or(0);
+        let season: u32 = cap
+            .name("season")
+            .expect("season group always present")
+            .as_str()
+            .parse()
+            .unwrap_or(0);
+        let ep_start: u32 = cap
+            .name("ep_start")
+            .expect("ep_start group always present")
+            .as_str()
+            .parse()
+            .unwrap_or(0);
 
         matches.push(
             MatchSpan::new(
@@ -561,7 +581,10 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
     // Roman numeral: Season VII.
     for cap in SEASON_ROMAN.captures_iter(input) {
         let full = cap.get(0).expect("group 0 always present");
-        let roman_str = cap.name("season").expect("season group always present").as_str();
+        let roman_str = cap
+            .name("season")
+            .expect("season group always present")
+            .as_str();
         if let Some(num) = roman_to_int(roman_str) {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, num.to_string())

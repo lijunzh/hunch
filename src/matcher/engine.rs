@@ -57,16 +57,24 @@ pub fn resolve_conflicts(matches: &mut Vec<MatchSpan>) {
                 if matches[j].priority > matches[i].priority {
                     trace!(
                         "conflict: dropping {:?}={} (pri={}) in favour of {:?}={} (pri={})",
-                        matches[i].property, matches[i].value, matches[i].priority,
-                        matches[j].property, matches[j].value, matches[j].priority
+                        matches[i].property,
+                        matches[i].value,
+                        matches[i].priority,
+                        matches[j].property,
+                        matches[j].value,
+                        matches[j].priority
                     );
                     keep[i] = false;
                     break;
                 }
                 trace!(
                     "conflict: dropping {:?}={} (pri={}) in favour of {:?}={} (pri={})",
-                    matches[j].property, matches[j].value, matches[j].priority,
-                    matches[i].property, matches[i].value, matches[i].priority
+                    matches[j].property,
+                    matches[j].value,
+                    matches[j].priority,
+                    matches[i].property,
+                    matches[i].value,
+                    matches[i].priority
                 );
                 keep[j] = false;
             }

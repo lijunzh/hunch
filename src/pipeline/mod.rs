@@ -307,18 +307,38 @@ impl Pipeline {
 
         // Step 1: Tokenize.
         let token_stream = tokenizer::tokenize(input);
-        debug!("step 1: tokenized into {} segment(s), {} total token(s)", token_stream.segments.len(), token_stream.segments.iter().map(|s| s.tokens.len()).sum::<usize>());
+        debug!(
+            "step 1: tokenized into {} segment(s), {} total token(s)",
+            token_stream.segments.len(),
+            token_stream
+                .segments
+                .iter()
+                .map(|s| s.tokens.len())
+                .sum::<usize>()
+        );
 
         // Step 1b: Build zone map (anchor detection + year disambiguation).
         let zone_map = zone_map::build_zone_map(input, &token_stream);
-        debug!("step 1b: zone map — has_anchors={}, title_zone={}..{}, year={:?}", zone_map.has_anchors, zone_map.title_zone.start, zone_map.title_zone.end, zone_map.year.as_ref().map(|y| y.value));
+        debug!(
+            "step 1b: zone map — has_anchors={}, title_zone={}..{}, year={:?}",
+            zone_map.has_anchors,
+            zone_map.title_zone.start,
+            zone_map.title_zone.end,
+            zone_map.year.as_ref().map(|y| y.value)
+        );
 
         // Step 2: Match — TOML rules against tokens + legacy matchers against raw input.
         // NOTE: release_group is NOT included here — it runs in Pass 2.
         let mut all_matches = self.match_all(input, &token_stream, &zone_map);
-        debug!("step 2: matching produced {} raw match(es)", all_matches.len());
+        debug!(
+            "step 2: matching produced {} raw match(es)",
+            all_matches.len()
+        );
         for m in &all_matches {
-            trace!("  raw match: {:?}={} at {}..{} (pri={})", m.property, m.value, m.start, m.end, m.priority);
+            trace!(
+                "  raw match: {:?}={} at {}..{} (pri={})",
+                m.property, m.value, m.start, m.end, m.priority
+            );
         }
 
         // Step 2b: Year disambiguation using ZoneMap.
@@ -338,14 +358,25 @@ impl Pipeline {
         // Step 3: Resolve overlapping conflicts.
         let pre_resolve_count = all_matches.len();
         engine::resolve_conflicts(&mut all_matches);
-        debug!("step 3: conflict resolution — {} → {} match(es)", pre_resolve_count, all_matches.len());
+        debug!(
+            "step 3: conflict resolution — {} → {} match(es)",
+            pre_resolve_count,
+            all_matches.len()
+        );
 
         // Step 4: Zone-based disambiguation.
         let pre_zone_count = all_matches.len();
         zone_rules::apply_zone_rules(input, &zone_map, &mut all_matches);
-        debug!("step 4: zone disambiguation — {} → {} match(es)", pre_zone_count, all_matches.len());
+        debug!(
+            "step 4: zone disambiguation — {} → {} match(es)",
+            pre_zone_count,
+            all_matches.len()
+        );
         for m in &all_matches {
-            trace!("  resolved: {:?}={} at {}..{}", m.property, m.value, m.start, m.end);
+            trace!(
+                "  resolved: {:?}={} at {}..{}",
+                m.property, m.value, m.start, m.end
+            );
         }
 
         // ══════════════════════════════════════════════════════════════════
@@ -356,7 +387,13 @@ impl Pipeline {
         // Step 5a: Release group (post-resolution — can see claimed positions).
         let rg_matches = release_group::find_matches(input, &all_matches, &zone_map, &token_stream);
         if !rg_matches.is_empty() {
-            debug!("step 5a: release group — found {:?}", rg_matches.iter().map(|m| m.value.as_str()).collect::<Vec<_>>());
+            debug!(
+                "step 5a: release group — found {:?}",
+                rg_matches
+                    .iter()
+                    .map(|m| m.value.as_str())
+                    .collect::<Vec<_>>()
+            );
         }
         all_matches.extend(rg_matches);
 
@@ -367,7 +404,10 @@ impl Pipeline {
         if let Some(title_match) =
             title::extract_title(input, &all_matches, &zone_map, &token_stream)
         {
-            debug!("step 5b: title extracted — \"{}\" at {}..{}", title_match.value, title_match.start, title_match.end);
+            debug!(
+                "step 5b: title extracted — \"{}\" at {}..{}",
+                title_match.value, title_match.start, title_match.end
+            );
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
@@ -396,7 +436,11 @@ impl Pipeline {
         let proper_count = proper_count::compute_proper_count(input, &all_matches);
 
         // Step 6: Build result.
-        debug!("step 6: building result from {} final match(es), media_type={}", all_matches.len(), media_type);
+        debug!(
+            "step 6: building result from {} final match(es), media_type={}",
+            all_matches.len(),
+            media_type
+        );
         let mut result = HunchResult::from_matches(&all_matches);
         result.set(Property::MediaType, media_type);
         if proper_count > 0 {

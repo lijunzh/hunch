@@ -149,8 +149,9 @@ pub(super) static CAP_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
 
 // ── Digit decomposition ──
 
-pub(super) static THREE_DIGIT: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"[.\-_ ](?P<num>\d{3,4})").expect("episode pattern regex is valid"));
+pub(super) static THREE_DIGIT: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"[.\-_ ](?P<num>\d{3,4})").expect("episode pattern regex is valid")
+});
 
 // ── Week pattern ──
 

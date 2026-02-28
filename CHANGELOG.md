@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-02-28
+
+### Fixed
+
+- **`cargo fmt`** — applied rustfmt to all files modified in v1.1.0.
+  No logic changes; line wrapping only.
+
 ## [1.1.0] - 2026-02-28
 
 ### Added
@@ -430,6 +437,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.1]: https://github.com/lijunzh/hunch/releases/tag/v1.1.1
 [1.1.0]: https://github.com/lijunzh/hunch/releases/tag/v1.1.0
 [1.0.1]: https://github.com/lijunzh/hunch/releases/tag/v1.0.1
 [1.0.0]: https://github.com/lijunzh/hunch/releases/tag/v1.0.0

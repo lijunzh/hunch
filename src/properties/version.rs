@@ -10,7 +10,8 @@ use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
 /// Matches `v2`, `v3`, etc. (case-insensitive).
-static VERSION_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)v(\d+)").expect("VERSION_REGEX regex is valid"));
+static VERSION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)v(\d+)").expect("VERSION_REGEX regex is valid"));
 
 static VERSION_BOUNDARY: BoundarySpec = BoundarySpec {
     left: Some(CharClass::Alpha),       // (?i)(?<![a-z]) → Alpha

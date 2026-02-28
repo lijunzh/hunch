@@ -9,7 +9,8 @@ use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
 static SIZE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?P<size>[0-9]+(?:\.[0-9]+)?\s*(?:GB|MB|TB|GiB|MiB|TiB))").expect("SIZE regex is valid")
+    Regex::new(r"(?i)(?P<size>[0-9]+(?:\.[0-9]+)?\s*(?:GB|MB|TB|GiB|MiB|TiB))")
+        .expect("SIZE regex is valid")
 });
 
 static SIZE_BOUNDARY: BoundarySpec = BoundarySpec {
