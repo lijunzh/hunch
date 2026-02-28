@@ -79,6 +79,7 @@ fn word_to_int(s: &str) -> Option<u32> {
     }
 }
 
+/// Scan for part/CD/disc markers (e.g., `Part 2`, `CD1`, `Disc 3`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let bytes = input.as_bytes();
     let mut matches = Vec::new();

@@ -1,44 +1,60 @@
-# Hunch v1.0.1 — Documentation Patch
+# Hunch v1.1.0 — Logging & Documentation
 
-Patch release to fix incorrect documentation shipped with v1.0.0.
-No code changes — only documentation and compatibility numbers corrected.
+This release adds structured logging for debugging misparses and brings
+Rustdoc coverage from 0% to 100% (zero `missing_docs` warnings).
 
-## What Changed Since v1.0.0
+No parsing behavior changes — all 1,069 guessit compatibility cases
+still pass.
 
-- Fixed README compatibility numbers to match actual test results (81.7%)
-- Fixed COMPATIBILITY.md version reference
-- Updated RELEASE_NOTES.md for v1.0.1
-- Added CHANGELOG entries for v1.0.0 and v1.0.1
+## What's New
 
-## Highlights (unchanged from v1.0.0)
+### 🔍 Structured Logging
 
-- **81.7% compatibility** with guessit's 1,309-case YAML test suite
-  (1,069 / 1,309 cases pass)
-- **22 properties at 95%+ accuracy**, 16 at 100%
-- **All 49 properties implemented** (3 intentionally diverged)
-- Zero-dependency on network, databases, or ML
-- Single binary, TOML rules embedded at compile time
+The full pipeline is now instrumented with `log` crate diagnostics.
+See exactly how each filename is tokenized, matched, and resolved:
 
-## Accuracy Summary
+```bash
+# Debug level — stage summaries
+hunch -v "Movie.2024.1080p.BluRay.x264-GROUP.mkv"
 
-| Tier | Properties |
-|------|------------|
-| 100% | 16 properties (edition, date, proper_count, …) |
-| 95–99% | video_codec (98.6%), screen_size (98.4%), audio_codec (97.8%), source (97.5%), year (96.5%), crc32 (96.0%) |
-| 90–94% | season (93.9%), type (93.6%), title (91.7%), release_group (91.1%), episode (90.6%), … |
-| 80–89% | other (87.7%), language (87.3%), subtitle_language (82.7%), … |
+# Trace level — every match span and conflict decision
+RUST_LOG=hunch=trace hunch "Movie.2024.1080p.mkv"
+```
 
-## Install
+Zero runtime cost when logging is disabled (the default).
+
+### 📖 Comprehensive Rustdoc
+
+- All 49 `Property` variants documented with example values
+- `HunchResult`, `Options`, `Pipeline`, `MatchSpan` enriched with
+  examples and cross-links
+- `hunch_with()` fully documented with worked examples
+- Crate-level docs expanded: 7 sections covering all usage patterns
+- 15 doc-tests compiled and run as part of `cargo test`
+- `#![warn(missing_docs)]` prevents future regressions
+
+### 🛡️ Robustness
+
+- ~30 bare `.unwrap()` → descriptive `.expect()` messages
+- CLI JSON errors now reported to stderr (was silently swallowed)
+
+## Compatibility (unchanged)
+
+- **81.7%** guessit compatibility (1,069 / 1,309)
+- **22 properties at 95%+**, 16 at 100%
+- **295 tests** (225 unit + 23 regression + 32 integration + 15 doc-tests)
+
+## Install / Upgrade
 
 ```bash
 # Homebrew
-brew install lijunzh/hunch/hunch
+brew upgrade hunch
 
 # Cargo
 cargo install hunch
 
 # As a library
-cargo add hunch
+cargo add hunch@1.1.0
 ```
 
 ## Full Changelog

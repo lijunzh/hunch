@@ -48,7 +48,9 @@ pub struct TokenMatch<'a> {
 /// An additional property:value pair emitted as a side effect of a pattern match.
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
 pub struct SideEffect {
+    /// The target property name (e.g., `"other"`, `"source"`).
     pub property: String,
+    /// The value to emit for the target property (e.g., `"Rip"`, `"Reencoded"`).
     pub value: String,
 }
 
@@ -151,6 +153,7 @@ impl RuleSet {
     ///
     /// # Panics
     /// Panics if the TOML is malformed or any regex pattern is invalid.
+    /// Infallible at runtime: TOML is embedded at compile time via `include_str!`.
     pub fn from_toml(toml_str: &str) -> Self {
         let raw: RawRuleFile =
             toml::from_str(toml_str).unwrap_or_else(|e| panic!("Bad TOML rule file: {e}"));

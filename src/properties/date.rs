@@ -67,6 +67,7 @@ static DATE_MONTH_NAME: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
+/// Scan for date patterns (e.g., `2024-01-15`, `2024.01.15`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let bytes = input.as_bytes();
     let mut matches = Vec::new();

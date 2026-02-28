@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-02-28
+
+### Added
+
+- **Structured logging** — integrated the `log` crate with `debug!` and
+  `trace!` instrumentation across the full pipeline. Each stage (tokenize,
+  zone map, matching, conflict resolution, zone disambiguation, title
+  extraction) emits diagnostic messages. Zero runtime cost when no
+  subscriber is attached.
+- **`--verbose` / `-v` CLI flag** — enables `hunch=debug` logging via
+  `env_logger`. Users can also set `RUST_LOG=hunch=trace` for per-match
+  detail.
+- **`env_logger` dependency** — powers CLI log output.
+- **`#![warn(missing_docs)]`** — compiler lint prevents future doc
+  regressions.
+- **15 new doc-tests** — all rustdoc examples are compiled and run as
+  part of `cargo test` (total: 295 tests).
+
+### Changed
+
+- **Comprehensive Rustdoc coverage** — 81 missing-doc warnings → 0:
+  - All 49 `Property` enum variants documented with example values.
+  - `HunchResult`, `Options`, `Pipeline`, `MatchSpan`, `MediaType`
+    enriched with usage examples and cross-links.
+  - `hunch_with()` fully documented with two worked examples.
+  - Crate-level docs (`lib.rs`) expanded: Quick Start, Options,
+    Property access, Multi-valued, JSON output, Logging, Architecture.
+  - All 15 `find_matches()` functions documented.
+  - `SideEffect`, `BoundedRegex`, `TitleYear` fields documented.
+  - Internal modules (`matcher`, `properties`) marked with stability notes.
+- **README.md** — added Logging section, `--verbose` flag, `Options`
+  example, API Documentation section with docs.rs links, updated test
+  count (295).
+- **CLI error handling** — JSON serialization errors now print to stderr
+  and exit(1) instead of silently producing empty output.
+
+### Fixed
+
+- **~30 bare `.unwrap()` calls** replaced with descriptive `.expect()`
+  messages across `zone_map.rs`, `bit_rate.rs`, `size.rs`, `uuid.rs`,
+  `crc32.rs`, `year.rs`, `version.rs`, `proper_count.rs`,
+  `release_group/mod.rs`, `episodes/mod.rs`, `episodes/patterns.rs`.
+- **O(n²) comment** added to `resolve_conflicts()` documenting
+  algorithmic complexity and future optimization path.
+- **`#[allow(dead_code)]` on `Options`** annotated with TODO explaining
+  planned `media_type` / `expected_title` wiring.
+
 ## [1.0.1] - 2026-02-28
 
 ### Fixed
@@ -383,6 +430,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.0]: https://github.com/lijunzh/hunch/releases/tag/v1.1.0
 [1.0.1]: https://github.com/lijunzh/hunch/releases/tag/v1.0.1
 [1.0.0]: https://github.com/lijunzh/hunch/releases/tag/v1.0.0
 [0.3.1]: https://github.com/lijunzh/hunch/releases/tag/v0.3.1

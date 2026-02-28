@@ -1,4 +1,16 @@
-//! The `HunchResult` type — a structured bag of extracted metadata.
+//! The [`HunchResult`] type — a structured bag of extracted metadata.
+//!
+//! This is the return type of [`hunch`](crate::hunch) and
+//! [`hunch_with`](crate::hunch_with). It holds all properties extracted
+//! from a media filename, with typed accessors for common fields and
+//! generic [`first`](HunchResult::first) / [`all`](HunchResult::all)
+//! methods for the full 49-property set.
+//!
+//! # Display
+//!
+//! `HunchResult` implements [`Display`](std::fmt::Display) as
+//! pretty-printed JSON, and [`to_flat_map`](HunchResult::to_flat_map)
+//! provides a `BTreeMap` suitable for serialization.
 
 use std::collections::BTreeMap;
 
@@ -10,14 +22,33 @@ use crate::matcher::span::{MatchSpan, Property};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MediaType {
+    /// A standalone movie / film.
     Movie,
+    /// A TV series episode (has season/episode markers).
     Episode,
 }
 
 /// The result of parsing a media filename.
 ///
-/// Provides typed accessors for common properties and a generic
-/// `get(property)` for everything else.
+/// Provides typed convenience accessors for common properties (e.g.,
+/// [`title`](Self::title), [`year`](Self::year), [`season`](Self::season))
+/// and generic [`first`](Self::first) / [`all`](Self::all) methods that
+/// accept any [`Property`](crate::matcher::span::Property) variant.
+///
+/// # Example
+///
+/// ```rust
+/// use hunch::hunch;
+///
+/// let r = hunch("Breaking.Bad.S05E16.720p.BluRay.x264-DEMAND.mkv");
+/// assert_eq!(r.title(), Some("Breaking Bad"));
+/// assert_eq!(r.season(), Some(5));
+/// assert_eq!(r.episode(), Some(16));
+/// assert_eq!(r.release_group(), Some("DEMAND"));
+///
+/// // Pretty-print as JSON:
+/// println!("{r}");
+/// ```
 #[derive(Debug, Clone)]
 pub struct HunchResult {
     /// All properties extracted, keyed by property.

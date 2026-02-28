@@ -15,6 +15,7 @@ use crate::options::Options;
 use crate::tokenizer::{self, TokenStream};
 use crate::zone_map::{self, ZoneMap};
 
+use log::{debug, trace};
 use std::sync::LazyLock;
 
 // ── TOML rule sets (embedded at compile time) ──────────────────────────────
@@ -72,6 +73,14 @@ use crate::properties::{
 type LegacyMatcherFn = fn(&str) -> Vec<MatchSpan>;
 
 /// The parsing pipeline.
+///
+/// Orchestrates the full two-pass parsing flow: tokenization → zone mapping
+/// → TOML + legacy matching → conflict resolution → zone disambiguation
+/// → release group / title extraction → result assembly.
+///
+/// Most users should use [`hunch`](crate::hunch) or
+/// [`hunch_with`](crate::hunch_with) instead of constructing a `Pipeline`
+/// directly.
 /// Whether a TOML rule set should match tokens from directory segments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SegmentScope {
@@ -89,7 +98,13 @@ enum SegmentScope {
 /// Ensures filename matches always win over directory matches in conflict resolution.
 const DIR_PRIORITY_PENALTY: i32 = -5;
 
+/// The two-pass parsing pipeline.
+///
+/// See [`Pipeline::run`] for the main entry point, or use
+/// [`hunch`](crate::hunch) / [`hunch_with`](crate::hunch_with) for
+/// convenience.
 pub struct Pipeline {
+    // TODO: wire up media_type hint and expected_title options in the pipeline.
     #[allow(dead_code)]
     options: Options,
     /// TOML-driven rule sets: (rules, property, priority, segment_scope).
@@ -105,6 +120,11 @@ impl Default for Pipeline {
 }
 
 impl Pipeline {
+    /// Create a new pipeline with the given [`Options`].
+    ///
+    /// Prefer [`hunch_with`](crate::hunch_with) for one-shot parsing.
+    /// Construct a `Pipeline` directly when you want to reuse the same
+    /// configuration across many inputs.
     pub fn new(options: Options) -> Self {
         let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)> = vec![
             // Tech properties: unambiguous tokens safe for all segments.
@@ -287,13 +307,19 @@ impl Pipeline {
 
         // Step 1: Tokenize.
         let token_stream = tokenizer::tokenize(input);
+        debug!("step 1: tokenized into {} segment(s), {} total token(s)", token_stream.segments.len(), token_stream.segments.iter().map(|s| s.tokens.len()).sum::<usize>());
 
         // Step 1b: Build zone map (anchor detection + year disambiguation).
         let zone_map = zone_map::build_zone_map(input, &token_stream);
+        debug!("step 1b: zone map — has_anchors={}, title_zone={}..{}, year={:?}", zone_map.has_anchors, zone_map.title_zone.start, zone_map.title_zone.end, zone_map.year.as_ref().map(|y| y.value));
 
         // Step 2: Match — TOML rules against tokens + legacy matchers against raw input.
         // NOTE: release_group is NOT included here — it runs in Pass 2.
         let mut all_matches = self.match_all(input, &token_stream, &zone_map);
+        debug!("step 2: matching produced {} raw match(es)", all_matches.len());
+        for m in &all_matches {
+            trace!("  raw match: {:?}={} at {}..{} (pri={})", m.property, m.value, m.start, m.end, m.priority);
+        }
 
         // Step 2b: Year disambiguation using ZoneMap.
         if let Some(ref yi) = zone_map.year
@@ -310,10 +336,17 @@ impl Pipeline {
         }
 
         // Step 3: Resolve overlapping conflicts.
+        let pre_resolve_count = all_matches.len();
         engine::resolve_conflicts(&mut all_matches);
+        debug!("step 3: conflict resolution — {} → {} match(es)", pre_resolve_count, all_matches.len());
 
         // Step 4: Zone-based disambiguation.
+        let pre_zone_count = all_matches.len();
         zone_rules::apply_zone_rules(input, &zone_map, &mut all_matches);
+        debug!("step 4: zone disambiguation — {} → {} match(es)", pre_zone_count, all_matches.len());
+        for m in &all_matches {
+            trace!("  resolved: {:?}={} at {}..{}", m.property, m.value, m.start, m.end);
+        }
 
         // ══════════════════════════════════════════════════════════════════
         // Pass 2: Positional property extraction
@@ -322,6 +355,9 @@ impl Pipeline {
 
         // Step 5a: Release group (post-resolution — can see claimed positions).
         let rg_matches = release_group::find_matches(input, &all_matches, &zone_map, &token_stream);
+        if !rg_matches.is_empty() {
+            debug!("step 5a: release group — found {:?}", rg_matches.iter().map(|m| m.value.as_str()).collect::<Vec<_>>());
+        }
         all_matches.extend(rg_matches);
 
         // Step 5a.1: Zone rules that depend on release group positions.
@@ -331,6 +367,7 @@ impl Pipeline {
         if let Some(title_match) =
             title::extract_title(input, &all_matches, &zone_map, &token_stream)
         {
+            debug!("step 5b: title extracted — \"{}\" at {}..{}", title_match.value, title_match.start, title_match.end);
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
@@ -344,6 +381,7 @@ impl Pipeline {
 
         // Step 5c: Episode title.
         if let Some(ep_title) = title::extract_episode_title(input, &all_matches, &token_stream) {
+            debug!("step 5c: episode title — \"{}\"", ep_title.value);
             all_matches.push(ep_title);
         }
 
@@ -358,6 +396,7 @@ impl Pipeline {
         let proper_count = proper_count::compute_proper_count(input, &all_matches);
 
         // Step 6: Build result.
+        debug!("step 6: building result from {} final match(es), media_type={}", all_matches.len(), media_type);
         let mut result = HunchResult::from_matches(&all_matches);
         result.set(Property::MediaType, media_type);
         if proper_count > 0 {

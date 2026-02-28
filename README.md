@@ -1,7 +1,7 @@
 # 🔍 Hunch
 
 **A fast, offline media filename parser for Rust — extract title, year, season,
-episode, codec, language, and 40+ other properties from messy filenames.**
+episode, codec, language, and 49 properties from messy filenames.**
 
 Hunch is a Rust rewrite of Python's [guessit](https://github.com/guessit-io/guessit).
 All 49 guessit properties are implemented. The engine uses a tokenizer-first,
@@ -67,6 +67,7 @@ Options:
 -t, --type <TYPE>    Hint media type: "movie" or "episode"
 -n, --name-only      Treat input as name only (no path separators)
 -j, --json           Output compact JSON (default is pretty-printed)
+-v, --verbose        Enable debug logging (see Logging below)
 ```
 
 ### Library
@@ -76,21 +77,65 @@ use hunch::hunch;
 
 fn main() {
     let result = hunch("The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv");
-    println!("{:#?}", result);
-    // HunchResult {
-    //   title: Some("The Walking Dead"),
-    //   season: Some(5),
-    //   episode: Some(3),
-    //   screen_size: Some("720p"),
-    //   source: Some("Blu-ray"),
-    //   video_codec: Some("H.264"),
-    //   release_group: Some("DEMAND"),
-    //   container: Some("mkv"),
-    //   media_type: Episode,
-    //   ...
-    // }
+    assert_eq!(result.title(), Some("The Walking Dead"));
+    assert_eq!(result.season(), Some(5));
+    assert_eq!(result.episode(), Some(3));
+    assert_eq!(result.source(), Some("Blu-ray"));
+    assert_eq!(result.video_codec(), Some("H.264"));
+    assert_eq!(result.release_group(), Some("DEMAND"));
+    assert_eq!(result.container(), Some("mkv"));
 }
 ```
+
+### Parsing with Options
+
+```rust
+use hunch::{Options, hunch_with};
+
+// Hint the media type:
+let result = hunch_with(
+    "Show.S01E01.720p.HDTV.x264-LOL.mkv",
+    Options::new().with_type("episode"),
+);
+
+// Parse a bare release name (no path handling):
+let result = hunch_with(
+    "Movie.2024.1080p.BluRay.x264-GROUP",
+    Options::new().name_only(),
+);
+```
+
+## Logging
+
+Hunch uses the [`log`](https://docs.rs/log) crate for structured diagnostic
+output. This is invaluable for debugging misparses — you can see exactly
+which pipeline stage matched, dropped, or promoted each property.
+
+```bash
+# CLI: --verbose enables debug-level logging
+hunch -v "Movie.2024.1080p.BluRay.x264-GROUP.mkv"
+
+# Fine-grained control via RUST_LOG
+RUST_LOG=hunch=trace hunch "Movie.2024.1080p.mkv"
+```
+
+| Level | What it shows |
+|---|---|
+| `debug` | Pipeline stage transitions, match counts, title/release group decisions |
+| `trace` | Every individual match span, conflict resolution evictions, zone rule filtering |
+
+In library usage, attach any `log`-compatible subscriber (e.g., `env_logger`,
+`tracing-log`). When no subscriber is attached, all log calls compile to
+no-ops — **zero runtime cost**.
+
+## API Documentation
+
+Full API docs are available on **[docs.rs/hunch](https://docs.rs/hunch)**.
+
+All 49 [`Property`](https://docs.rs/hunch/latest/hunch/matcher/span/enum.Property.html)
+variants are documented with example values. The
+[`HunchResult`](https://docs.rs/hunch/latest/hunch/struct.HunchResult.html)
+type provides typed accessors plus generic `first()`/`all()` methods.
 
 ## guessit Compatibility
 
@@ -145,7 +190,7 @@ src/
 ├── options.rs          # Configuration
 ├── zone_map.rs         # Structural zone analysis
 ├── tokenizer.rs        # Input → TokenStream
-├── pipeline/           # Two-pass orchestration
+├── pipeline/           # Two-pass orchestration + logging
 ├── matcher/            # Conflict resolution + TOML rule engine
 └── properties/         # 31 property matcher modules
 
@@ -156,10 +201,13 @@ tests/                  # Integration tests + guessit regression suite
 ## Contributing
 
 ```bash
-cargo test              # Run all tests
+cargo test              # Run all tests (295 tests)
 cargo test -- --ignored # Run guessit compatibility report
 cargo bench             # Run benchmarks
+cargo doc --open        # Build and browse API docs locally
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
 ## License
 

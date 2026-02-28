@@ -24,6 +24,7 @@ static BONUS_TITLE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
+/// Scan for bonus content markers (e.g., `-x02`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let bytes = input.as_bytes();
     let mut matches = Vec::new();

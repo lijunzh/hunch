@@ -24,6 +24,7 @@ static EPISODE_COUNT_BOUNDARY: BoundarySpec = BoundarySpec {
     right: Some(CharClass::AlphaDigit), // (?i)(?![a-z0-9])
 };
 
+/// Scan for episode/season count patterns (e.g., `1 of 24`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
     // Track full spans of season count matches to avoid double-counting.

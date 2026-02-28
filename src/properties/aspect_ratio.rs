@@ -13,6 +13,7 @@ static RESOLUTION_WXH: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?P<w>[0-9]{3,4})\s*[xX×]\s*(?P<h>[0-9]{3,4})(?:i|p)?").unwrap()
 });
 
+/// Scan for aspect ratio patterns (e.g., `16:9`, `2.35:1`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 

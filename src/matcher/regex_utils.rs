@@ -230,10 +230,13 @@ fn parse_char_class(s: &str, case_insensitive: bool) -> Option<CharClass> {
 /// Construct from a pattern that may include lookaround assertions — they
 /// are automatically stripped and enforced via post-match boundary checks.
 ///
+/// # Panics
+///
 /// Panics if the core pattern (after stripping) is invalid or still contains
 /// lookarounds.
 pub struct BoundedRegex {
     re: Regex,
+    /// The boundary constraints extracted from the original pattern's lookarounds.
     pub boundary: BoundarySpec,
 }
 

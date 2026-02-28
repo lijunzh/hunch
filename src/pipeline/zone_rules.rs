@@ -16,6 +16,8 @@
 //! | 7 | Language inside tech span | Drop lang contained in source/codec spans |
 //! | 8 | Language inside subtitle span | Drop lang contained in subtitle_language spans |
 
+use log::trace;
+
 use crate::matcher::span::{MatchSpan, Property};
 use crate::zone_map::ZoneMap;
 
@@ -33,6 +35,7 @@ use crate::zone_map::ZoneMap;
 ///   - Language nested inside tech spans
 pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<MatchSpan>) {
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let initial_count = matches.len();
 
     // ── Rule 1: Language in title zone → likely a title word ─────────
 
@@ -111,6 +114,8 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
             }
         }
     }
+
+    trace!("zone rules: {} match(es) after language filtering (was {})", matches.len(), initial_count);
 
     // ── Rule 2: Duplicate source in title zone → title word ─────────
     let source_anchor_pos = matches

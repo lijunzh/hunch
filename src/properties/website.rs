@@ -30,6 +30,7 @@ static WEBSITE_INLINE: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
+/// Scan for embedded website URLs (e.g., `[www.example.com]`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 

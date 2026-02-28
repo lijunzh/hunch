@@ -13,6 +13,7 @@ use std::sync::LazyLock;
 static BRACKET_LANGS: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[\[{]([A-Za-z]{2,4}(?:[+-][A-Za-z]{2,4})+)[\]}]").unwrap());
 
+/// Scan for audio language markers (e.g., `English`, `FRENCH`, `MULTi`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 

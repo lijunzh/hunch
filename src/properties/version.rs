@@ -10,13 +10,14 @@ use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
 /// Matches `v2`, `v3`, etc. (case-insensitive).
-static VERSION_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)v(\d+)").unwrap());
+static VERSION_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)v(\d+)").expect("VERSION_REGEX regex is valid"));
 
 static VERSION_BOUNDARY: BoundarySpec = BoundarySpec {
     left: Some(CharClass::Alpha),       // (?i)(?<![a-z]) → Alpha
     right: Some(CharClass::AlphaDigit), // (?i)(?![a-z0-9]) → AlphaDigit
 };
 
+/// Scan for version markers (e.g., `v2`, `V4`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let bytes = input.as_bytes();
     let mut matches = Vec::new();
@@ -25,7 +26,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         let Some(cap) = VERSION_REGEX.captures_at(input, pos) else {
             break;
         };
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present in a regex match");
         if check_boundary(bytes, full.start(), full.end(), &VERSION_BOUNDARY) {
             if let Some(m) = cap.get(1) {
                 matches.push(MatchSpan::new(

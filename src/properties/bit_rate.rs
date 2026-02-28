@@ -12,13 +12,14 @@ use std::sync::LazyLock;
 
 /// Matches: 320Kbps, 448 Kbps, 19.1Mbps, 1.5 Mbps, etc.
 static BIT_RATE_PATTERN: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>[KkMm]bps)").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>[KkMm]bps)").expect("BIT_RATE regex is valid"));
 
 static BIT_RATE_BOUNDARY: BoundarySpec = BoundarySpec {
     left: Some(CharClass::AlphaDigit),
     right: Some(CharClass::Alpha),
 };
 
+/// Scan for bit rate patterns (e.g., `320Kbps`, `1.5Mbps`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let bytes = input.as_bytes();
     let mut matches = Vec::new();
@@ -32,7 +33,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         let Some(cap) = BIT_RATE_PATTERN.captures(&input[search_start..]) else {
             break;
         };
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present in a regex match");
         let abs_start = search_start + full.start();
         let abs_end = search_start + full.end();
 
@@ -42,8 +43,8 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             continue;
         }
 
-        let num = cap.name("num").unwrap().as_str();
-        let unit = cap.name("unit").unwrap().as_str();
+        let num = cap.name("num").expect("num group always present in BIT_RATE").as_str();
+        let unit = cap.name("unit").expect("unit group always present in BIT_RATE").as_str();
 
         // Normalize unit casing: "kbps" → "Kbps", "mbps" → "Mbps".
         let normalized_unit = match unit.to_ascii_lowercase().as_str() {

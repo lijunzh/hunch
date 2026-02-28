@@ -9,7 +9,7 @@ use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
 static SIZE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?P<size>[0-9]+(?:\.[0-9]+)?\s*(?:GB|MB|TB|GiB|MiB|TiB))").unwrap()
+    Regex::new(r"(?i)(?P<size>[0-9]+(?:\.[0-9]+)?\s*(?:GB|MB|TB|GiB|MiB|TiB))").expect("SIZE regex is valid")
 });
 
 static SIZE_BOUNDARY: BoundarySpec = BoundarySpec {
@@ -17,6 +17,7 @@ static SIZE_BOUNDARY: BoundarySpec = BoundarySpec {
     right: Some(CharClass::Alpha),     // (?i)(?![a-z])
 };
 
+/// Scan for file size patterns (e.g., `1.4 GB`, `700 MB`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let bytes = input.as_bytes();
     let mut matches = Vec::new();

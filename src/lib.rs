@@ -1,21 +1,11 @@
 //! # Hunch
 //!
-//! A Rust library for extracting media metadata from filenames,
-//! inspired by Python's [guessit](https://github.com/guessit-io/guessit).
+//! A fast, offline Rust library for extracting structured media metadata
+//! from filenames, inspired by Python's [guessit](https://github.com/guessit-io/guessit).
 //!
 //! Hunch parses messy media filenames and release names into structured
 //! metadata: title, year, season, episode, video codec, audio codec,
-//! resolution, and 40+ other properties.
-//!
-//! ## Architecture
-//!
-//! Hunch uses a span-based architecture with plain function pointers
-//! (no trait objects):
-//!
-//! 1. **29 matcher functions** scan the input and produce `MatchSpan`s
-//! 2. **Conflict resolution** keeps higher-priority / longer matches
-//! 3. **Title extraction** claims the unclaimed leading region
-//! 4. **Computed properties** (media type, proper count) are set directly
+//! resolution, and **49 properties** in total.
 //!
 //! ## Quick Start
 //!
@@ -31,6 +21,105 @@
 //! assert_eq!(result.release_group(), Some("GROUP"));
 //! assert_eq!(result.container(), Some("mkv"));
 //! ```
+//!
+//! ## Parsing with Options
+//!
+//! Use [`hunch_with`] when you need to hint the media type or disable
+//! path handling:
+//!
+//! ```rust
+//! use hunch::{Options, hunch_with};
+//!
+//! let result = hunch_with(
+//!     "Show.S01E01.720p.HDTV.x264-LOL.mkv",
+//!     Options::new().with_type("episode"),
+//! );
+//! assert_eq!(result.title(), Some("Show"));
+//! assert_eq!(result.season(), Some(1));
+//! assert_eq!(result.episode(), Some(1));
+//! ```
+//!
+//! ## Accessing Properties
+//!
+//! [`HunchResult`] provides typed convenience accessors for common
+//! properties, plus generic [`first`](HunchResult::first) and
+//! [`all`](HunchResult::all) methods for any [`Property`](matcher::span::Property):
+//!
+//! ```rust
+//! use hunch::hunch;
+//! use hunch::matcher::span::Property;
+//!
+//! let r = hunch("Movie.2024.FRENCH.1080p.BluRay.DTS.x264-GROUP.mkv");
+//!
+//! // Typed accessors (return the first value):
+//! assert_eq!(r.title(), Some("Movie"));
+//! assert_eq!(r.year(), Some(2024));
+//!
+//! // Generic accessor for any property:
+//! assert_eq!(r.first(Property::Language), Some("French"));
+//! ```
+//!
+//! ## Multi-Valued Properties
+//!
+//! Some properties (languages, episodes, "other" flags) can have multiple
+//! values. Use [`all`](HunchResult::all) to retrieve them:
+//!
+//! ```rust
+//! use hunch::hunch;
+//!
+//! let r = hunch("Movie.2024.2160p.UHD.BluRay.Remux.HDR.HEVC.DTS-HD.MA-GROUP.mkv");
+//! let flags = r.other();
+//! assert!(flags.contains(&"HDR10"));
+//! assert!(flags.contains(&"Remux"));
+//! ```
+//!
+//! ## JSON Output
+//!
+//! Convert results to a JSON-friendly map with [`to_flat_map`](HunchResult::to_flat_map):
+//!
+//! ```rust
+//! use hunch::hunch;
+//!
+//! let r = hunch("Movie.2024.1080p.BluRay.x264-GROUP.mkv");
+//! let map = r.to_flat_map();
+//! assert_eq!(map["title"], "Movie");
+//! assert_eq!(map["year"], 2024);
+//! ```
+//!
+//! ## Logging / Debugging
+//!
+//! Hunch uses the [`log`] crate for diagnostic output. Enable it to
+//! see how each pipeline stage processes a filename:
+//!
+//! ```bash
+//! # CLI: use --verbose for debug, RUST_LOG for trace
+//! hunch -v "Movie.2024.1080p.mkv"
+//! RUST_LOG=hunch=trace hunch "Movie.2024.1080p.mkv"
+//! ```
+//!
+//! In library usage, attach any [`log`]-compatible subscriber
+//! (e.g., `env_logger`, `tracing-log`).
+//!
+//! ## Architecture
+//!
+//! Hunch uses a span-based, two-pass architecture with plain function
+//! pointers (no trait objects, no `unsafe`):
+//!
+//! 1. **Tokenize** — split on separators, extract extension, detect brackets
+//! 2. **Zone map** — detect anchors (SxxExx, 720p, x264) to establish
+//!    title-zone vs tech-zone boundaries
+//! 3. **Pass 1: Match & Resolve** — 20 TOML rule files + algorithmic
+//!    matchers produce [`MatchSpan`](matcher::span::MatchSpan)s; conflict
+//!    resolution keeps higher-priority / longer matches
+//! 4. **Pass 2: Extract** — release group, title, episode title run with
+//!    access to resolved match positions from Pass 1
+//! 5. **Result** — [`HunchResult`] with 49 typed property accessors
+//!
+//! All regex patterns use the [`regex`] crate only (linear-time, ReDoS-immune).
+//! TOML rule files are embedded at compile time via `include_str!` — no
+//! runtime file I/O.
+
+#![warn(missing_docs)]
 
 pub mod matcher;
 pub mod properties;
@@ -47,18 +136,50 @@ pub use pipeline::Pipeline;
 
 /// Parse a media filename and return structured metadata.
 ///
-/// This is the main entry point for the library.
+/// This is the main entry point for the library. It creates a default
+/// [`Pipeline`] and runs it against the input string.
+///
+/// # Example
 ///
 /// ```rust
 /// let result = hunch::hunch("Movie.2024.1080p.BluRay.x264-GROUP.mkv");
 /// assert_eq!(result.title(), Some("Movie"));
 /// assert_eq!(result.year(), Some(2024));
+/// assert_eq!(result.source(), Some("Blu-ray"));
+/// assert_eq!(result.video_codec(), Some("H.264"));
+/// assert_eq!(result.container(), Some("mkv"));
 /// ```
+///
+/// For customized parsing, see [`hunch_with`].
 pub fn hunch(input: &str) -> HunchResult {
     Pipeline::default().run(input)
 }
 
-/// Parse a media filename with custom options.
+/// Parse a media filename with custom [`Options`].
+///
+/// Use this when you need to hint the media type, disable path handling,
+/// or supply expected titles.
+///
+/// # Example
+///
+/// ```rust
+/// use hunch::{Options, hunch_with};
+///
+/// // Hint that the input is an episode:
+/// let result = hunch_with(
+///     "Show.S01E01.720p.HDTV.x264-LOL.mkv",
+///     Options::new().with_type("episode"),
+/// );
+/// assert_eq!(result.title(), Some("Show"));
+/// assert_eq!(result.season(), Some(1));
+///
+/// // Parse a bare release name (no path separators):
+/// let result = hunch_with(
+///     "Movie.2024.1080p.BluRay.x264-GROUP",
+///     Options::new().name_only(),
+/// );
+/// assert_eq!(result.title(), Some("Movie"));
+/// ```
 pub fn hunch_with(input: &str, options: Options) -> HunchResult {
     Pipeline::new(options).run(input)
 }

@@ -10,13 +10,14 @@ use std::sync::LazyLock;
 /// Standard UUID: 8-4-4-4-12 hex chars
 static UUID_STANDARD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(?P<uuid>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})")
-        .unwrap()
+        .expect("UUID regex is valid")
 });
 
 /// Non-standard UUID: 32 hex chars without dashes (common in obfuscated releases)
 static UUID_NODASH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:^|/)(?P<uuid>[0-9a-f]{32})(?:[/.]|$)").unwrap());
+    LazyLock::new(|| Regex::new(r"(?i)(?:^|/)(?P<uuid>[0-9a-f]{32})(?:[/.]|$)").expect("UUID_BARE regex is valid"));
 
+/// Scan for UUID patterns (hyphenated and bare 32-hex-char forms) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 

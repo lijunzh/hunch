@@ -117,6 +117,7 @@ fn split_languages(s: &str) -> Vec<&str> {
         .collect()
 }
 
+/// Scan for subtitle language markers (e.g., `SRT`, `VOSTFR`, `EngSub`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let bytes = input.as_bytes();
     let b = &ALPHA_BOUNDARY;

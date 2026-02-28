@@ -29,7 +29,7 @@ fn three_digit_trailing_ok(input: &str, end: usize) -> bool {
 /// Match a simple season+episode pair from a regex with named groups `season` and `episode`.
 fn match_season_episode(re: &Regex, input: &str, priority: i32, matches: &mut Vec<MatchSpan>) {
     for cap in re.captures_iter(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let season = parse_num(&cap, "season");
         let episode = parse_num(&cap, "episode");
         matches.push(
@@ -46,7 +46,7 @@ fn match_season_episode(re: &Regex, input: &str, priority: i32, matches: &mut Ve
 /// Match a season-only value from a regex with named group `season`.
 fn match_season(re: &Regex, input: &str, priority: i32, matches: &mut Vec<MatchSpan>) {
     for cap in re.captures_iter(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let season = parse_num(&cap, "season");
         matches.push(
             MatchSpan::new(full.start(), full.end(), Property::Season, season)
@@ -58,7 +58,7 @@ fn match_season(re: &Regex, input: &str, priority: i32, matches: &mut Vec<MatchS
 /// Match an episode-only value from a regex with named group `episode`.
 fn match_episode(re: &Regex, input: &str, priority: i32, matches: &mut Vec<MatchSpan>) {
     for cap in re.captures_iter(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let episode = parse_num(&cap, "episode");
         matches.push(
             MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
@@ -166,6 +166,7 @@ fn roman_to_int(s: &str) -> Option<u32> {
 
 // ── Main orchestrator ──────────────────────────────────────────────────
 
+/// Scan for season/episode patterns (e.g., `S01E02`, `1x03`, `Ep 5`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
 
@@ -193,7 +194,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 
     // Week detection
     for cap in WEEK.captures_iter(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let week = parse_num(&cap, "week");
         matches
             .push(MatchSpan::new(full.start(), full.end(), Property::Week, week).with_priority(1));
@@ -208,7 +209,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
     // S01E01-S01E21 full range (must come before SxxExx to win).
     for cap in SXXEXX_TO_SXXEXX.captures_iter(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
         let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
         let e1: u32 = parse_num(&cap, "e1").parse().unwrap_or(0);
@@ -224,9 +225,9 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
 
     // S01E02 (highest priority, with multi-episode support).
     for cap in SXXEXX.captures_iter(input) {
-        let full = cap.get(0).unwrap();
-        let season: u32 = cap.name("season").unwrap().as_str().parse().unwrap_or(0);
-        let ep_start: u32 = cap.name("ep_start").unwrap().as_str().parse().unwrap_or(0);
+        let full = cap.get(0).expect("group 0 always present");
+        let season: u32 = cap.name("season").expect("season group always present").as_str().parse().unwrap_or(0);
+        let ep_start: u32 = cap.name("ep_start").expect("ep_start group always present").as_str().parse().unwrap_or(0);
 
         matches.push(
             MatchSpan::new(
@@ -278,9 +279,9 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
 /// 1x03, 5x44x45, 4x05-06.
 fn try_nxn(input: &str, matches: &mut Vec<MatchSpan>) {
     for cap in NXN.captures_iter(input) {
-        let full = cap.get(0).unwrap();
-        let season: u32 = cap.name("season").unwrap().as_str().parse().unwrap_or(0);
-        let ep_start: u32 = cap.name("ep_start").unwrap().as_str().parse().unwrap_or(0);
+        let full = cap.get(0).expect("group 0 always present");
+        let season: u32 = cap.name("season").expect("season group always present").as_str().parse().unwrap_or(0);
+        let ep_start: u32 = cap.name("ep_start").expect("ep_start group always present").as_str().parse().unwrap_or(0);
 
         matches.push(
             MatchSpan::new(
@@ -344,7 +345,7 @@ fn try_season_patterns(input: &str, matches: &mut Vec<MatchSpan>) {
     // Season from path directory.
     if !has_property(matches, Property::Season) {
         for cap in SEASON_DIR.captures_iter(input) {
-            let full = cap.get(0).unwrap();
+            let full = cap.get(0).expect("group 0 always present");
             let season = parse_num(&cap, "season");
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, season)
@@ -357,7 +358,7 @@ fn try_season_patterns(input: &str, matches: &mut Vec<MatchSpan>) {
     // S01-only (without episode).
     if !has_property(matches, Property::Season) {
         for cap in S_ONLY.captures_iter(input) {
-            let full = cap.get(0).unwrap();
+            let full = cap.get(0).expect("group 0 always present");
             let rest = &input[full.end()..];
             let next_char = rest.as_bytes().first().copied();
             if matches!(next_char, Some(b'0'..=b'9')) {
@@ -382,7 +383,7 @@ fn try_season_patterns(input: &str, matches: &mut Vec<MatchSpan>) {
 fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
     // S01-S10 range.
     if let Some(cap) = S_RANGE.captures(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
         let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
         for s in s1..=s2 {
@@ -396,7 +397,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
 
     // S01.to.S04 range.
     if let Some(cap) = S_TO_S.captures(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
         let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
         for s in s1..=s2 {
@@ -412,7 +413,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
     static S_NUM_RE: LazyLock<regex::Regex> =
         LazyLock::new(|| regex::Regex::new(r"(?i)S(\d{1,3})").unwrap());
     if let Some(cap) = S_CONCAT.captures(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let text = &input[full.start()..full.end()];
         for num_cap in S_NUM_RE.find_iter(text) {
             let num_str = &num_cap.as_str()[1..];
@@ -428,7 +429,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
 
     // S01-02-03 (S prefix + dash/space separated numbers).
     if let Some(cap) = S_MULTI_NUM.captures(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let seasons_str = cap.name("seasons").unwrap().as_str();
         let nums: Vec<u32> = seasons_str
             .split(|c: char| !c.is_ascii_digit())
@@ -448,7 +449,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
 fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
     // Season 1 to 3, Saison 1~3 (word-based range).
     if let Some(cap) = SEASON_RANGE_WORD.captures(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let s1: u32 = parse_num(&cap, "s1").parse().unwrap_or(0);
         let s2: u32 = parse_num(&cap, "s2").parse().unwrap_or(0);
         if s2 > s1 {
@@ -464,7 +465,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
 
     // Season 1.3 and 5, Season 1.3&5.
     if let Some(cap) = SEASON_LIST_AND.captures(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let nums_str = cap.name("nums").unwrap().as_str();
         let last: u32 = parse_num(&cap, "last").parse().unwrap_or(0);
         let mut nums: Vec<u32> = nums_str
@@ -484,7 +485,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
 
     // Season 1.2.3~5 (discrete prefix + range end).
     if let Some(cap) = SEASON_MULTI_RANGE.captures(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let prefix_str = cap.name("prefix").unwrap().as_str();
         let end: u32 = parse_num(&cap, "end").parse().unwrap_or(0);
         let prefix_nums: Vec<u32> = prefix_str
@@ -511,7 +512,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
 
     // Season 1-3, Season 1&3, Season 1.3.4 (generic multi-season).
     if let Some(cap) = SEASON_MULTI.captures(input) {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let seasons_str = cap.name("seasons").unwrap().as_str();
         let nums: Vec<u32> = seasons_str
             .split(|c: char| !c.is_ascii_digit())
@@ -559,8 +560,8 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
 
     // Roman numeral: Season VII.
     for cap in SEASON_ROMAN.captures_iter(input) {
-        let full = cap.get(0).unwrap();
-        let roman_str = cap.name("season").unwrap().as_str();
+        let full = cap.get(0).expect("group 0 always present");
+        let roman_str = cap.name("season").expect("season group always present").as_str();
         if let Some(num) = roman_to_int(roman_str) {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, num.to_string())
@@ -577,7 +578,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
     // E01, Ep01, E02-E03.
     if !has_property(matches, Property::Episode) {
         for cap in EP_ONLY.captures_iter(input) {
-            let full = cap.get(0).unwrap();
+            let full = cap.get(0).expect("group 0 always present");
             let ep_start: u32 = parse_num(&cap, "ep_start").parse().unwrap_or(0);
             let ep_rest = cap.name("ep_rest").map(|m| m.as_str()).unwrap_or("");
 
@@ -652,7 +653,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
     // "Episode 1" / "Episodes 1-12".
     if !has_property(matches, Property::Episode) {
         for cap in EPISODE_WORD.captures_iter(input) {
-            let full = cap.get(0).unwrap();
+            let full = cap.get(0).expect("group 0 always present");
             let ep_start: u32 = parse_num(&cap, "episode").parse().unwrap_or(0);
             let ep_end = cap
                 .name("ep_end")
@@ -684,7 +685,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
     if !has_property(matches, Property::Episode)
         && let Some(cap) = BARE_EPISODE.captures(input)
     {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let episode = parse_num(&cap, "episode");
         matches.push(
             MatchSpan::new(full.start(), full.end(), Property::Episode, episode).with_priority(-1),
@@ -695,7 +696,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
     if !has_property(matches, Property::Episode)
         && let Some(cap) = VERSIONED_EPISODE.captures(input)
     {
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present");
         let episode = parse_num(&cap, "episode");
         matches.push(
             MatchSpan::new(full.start(), full.end(), Property::Episode, episode).with_priority(1),
@@ -725,7 +726,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
     // Spanish Cap.NNN: [Cap.102] → S1E02.
     if !has_property(matches, Property::Episode) {
         for cap in CAP_PATTERN.captures_iter(input) {
-            let full = cap.get(0).unwrap();
+            let full = cap.get(0).expect("group 0 always present");
             let num1: u32 = cap.name("num1").unwrap().as_str().parse().unwrap_or(0);
             if num1 == 0 {
                 continue;

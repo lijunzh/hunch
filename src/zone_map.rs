@@ -13,6 +13,8 @@
 use std::ops::Range;
 use std::sync::LazyLock;
 
+use log::debug;
+
 use crate::tokenizer::TokenStream;
 
 /// Structural zone map for a single filename segment.
@@ -72,8 +74,11 @@ pub struct YearInfo {
 /// A year-like number that was classified as title content.
 #[derive(Debug, Clone)]
 pub struct TitleYear {
+    /// The 4-digit year number (e.g., `2001`).
     pub value: u32,
+    /// Byte offset start in the original input.
     pub start: usize,
+    /// Byte offset end (exclusive) in the original input.
     pub end: usize,
 }
 
@@ -84,17 +89,17 @@ pub struct TitleYear {
 // the boundary char, so we offset +1 when extracting position.
 
 static SXXEXX_ANCHOR: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?i)(?:^|[^a-zA-Z0-9])S\d{1,3}[. ]?E\d{1,4}").unwrap());
+    LazyLock::new(|| regex::Regex::new(r"(?i)(?:^|[^a-zA-Z0-9])S\d{1,3}[. ]?E\d{1,4}").expect("SXXEXX_ANCHOR regex is valid"));
 
 static NXN_ANCHOR: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"(?:^|[^a-zA-Z0-9])\d{1,2}[xX]\d{1,4}(?:$|[^a-zA-Z0-9])").unwrap()
+    regex::Regex::new(r"(?:^|[^a-zA-Z0-9])\d{1,2}[xX]\d{1,4}(?:$|[^a-zA-Z0-9])").expect("NXN_ANCHOR regex is valid")
 });
 
 static SUFFIXED_RESOLUTION: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(
         r"(?i)(?:^|[^a-zA-Z0-9])(?:480|576|720|1080|1440|2160|4320)[pi](?:$|[^a-zA-Z0-9])",
     )
-    .unwrap()
+    .expect("SUFFIXED_RESOLUTION regex is valid")
 });
 
 // ── Tier 2: Unambiguous tech vocabulary ──────────────────────────────────
@@ -126,7 +131,7 @@ pub fn is_tier2_token(text: &str) -> bool {
 // ── Tier 3: Year candidates ─────────────────────────────────────────────
 
 static YEAR_CANDIDATE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?P<year>(?:19|20)\d{2})").unwrap());
+    LazyLock::new(|| regex::Regex::new(r"(?P<year>(?:19|20)\d{2})").expect("YEAR_CANDIDATE regex is valid"));
 
 /// Check that a year candidate has non-digit boundaries.
 fn year_has_boundaries(input: &[u8], start: usize, end: usize) -> bool {
@@ -136,7 +141,7 @@ fn year_has_boundaries(input: &[u8], start: usize, end: usize) -> bool {
 }
 
 static PAREN_YEAR: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"\((?P<year>(?:19|20)\d{2})\)").unwrap());
+    LazyLock::new(|| regex::Regex::new(r"\((?P<year>(?:19|20)\d{2})\)").expect("PAREN_YEAR regex is valid"));
 
 /// A raw year candidate before disambiguation.
 #[derive(Debug, Clone)]
@@ -224,6 +229,12 @@ pub fn build_zone_map(input: &str, token_stream: &TokenStream) -> ZoneMap {
     // Build per-directory zone maps.
     let dir_zones = build_dir_zones(input, token_stream);
 
+    debug!(
+        "zone map built: title={}..{}, tech={}..{}, anchors={}, year={:?}, dir_zones={}",
+        fn_start, tech_zone_start, tech_zone_start, fn_end,
+        has_anchors, year_info.as_ref().map(|y| y.value), dir_zones.len()
+    );
+
     ZoneMap {
         title_zone: fn_start..tech_zone_start,
         tech_zone: tech_zone_start..fn_end,
@@ -270,7 +281,7 @@ fn build_dir_zones(input: &str, token_stream: &TokenStream) -> Vec<SegmentZone> 
         // but not matched by SXXEXX_ANCHOR (which requires S##E##).
         static DIR_SEASON_ANCHOR: LazyLock<regex::Regex> = LazyLock::new(|| {
             regex::Regex::new(r"(?i)(?:^|[^a-zA-Z0-9])(?:S\d{1,3}|Season\s*\d+)(?:$|[^a-zA-Z0-9])")
-                .unwrap()
+                .expect("DIR_SEASON_ANCHOR regex is valid")
         });
         if let Some(m) = DIR_SEASON_ANCHOR.find(seg_text) {
             let offset = if m.start() == 0 { 0 } else { 1 };
@@ -315,9 +326,9 @@ fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> 
 
     // Parenthesized years first (highest confidence).
     for cap in PAREN_YEAR.captures_iter(filename) {
-        let year_match = cap.name("year").unwrap();
+        let year_match = cap.name("year").expect("year group always present in PAREN_YEAR");
         let value: u32 = year_match.as_str().parse().unwrap_or(0);
-        let full = cap.get(0).unwrap();
+        let full = cap.get(0).expect("group 0 always present in a regex match");
         candidates.push(YearCandidate {
             value,
             start: fn_start + full.start(),
@@ -329,7 +340,7 @@ fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> 
     // Bare year candidates (boundary-validated).
     let bytes = input.as_bytes();
     for cap in YEAR_CANDIDATE.captures_iter(filename) {
-        let year_match = cap.name("year").unwrap();
+        let year_match = cap.name("year").expect("year group always present in YEAR_CANDIDATE");
         let value: u32 = year_match.as_str().parse().unwrap_or(0);
         let abs_start = fn_start + year_match.start();
         let abs_end = fn_start + year_match.end();
@@ -409,7 +420,8 @@ fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> 
     }
 
     // No parenthesized: last candidate is the year, earlier ones are title.
-    let last = candidates.last().unwrap();
+    // Safety: we return early above when candidates.is_empty() or len() == 1.
+    let last = candidates.last().expect("candidates is non-empty after earlier checks");
     let title_years: Vec<TitleYear> = candidates[..candidates.len() - 1]
         .iter()
         .map(|c| TitleYear {

@@ -5,7 +5,7 @@ This document tracks how closely hunch reproduces guessit's behavior, measured
 by running hunch against guessit's own test suite (1,309 test cases across 22
 YAML files).
 
-> **Last updated:** 2026-02-28 (v1.0.1)
+> **Last updated:** 2026-02-28 (v1.1.0)
 
 ---
 

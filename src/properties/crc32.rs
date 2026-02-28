@@ -9,8 +9,9 @@ use std::sync::LazyLock;
 
 /// Matches 8-char hex CRC32 in square brackets: [ABCD1234]
 static CRC32_BRACKET: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\[(?P<crc>[0-9A-Fa-f]{8})\]").unwrap());
+    LazyLock::new(|| Regex::new(r"\[(?P<crc>[0-9A-Fa-f]{8})\]").expect("CRC32 regex is valid"));
 
+/// Scan for CRC32 checksums in brackets (e.g., `[ABCD1234]`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
     for cap in CRC32_BRACKET.captures_iter(input) {

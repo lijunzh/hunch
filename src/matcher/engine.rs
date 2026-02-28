@@ -1,9 +1,14 @@
 //! Conflict resolution for overlapping match spans.
 
+use log::trace;
+
 use super::span::{MatchSpan, Property};
 
 /// Resolve conflicts: when two matches overlap, keep the one with higher
 /// priority; if tied, keep the longer (more specific) match.
+///
+/// NOTE: O(n²) — fine for typical filenames (≤50 matches). Consider an
+/// interval-tree approach if batch-processing very long inputs at scale.
 pub fn resolve_conflicts(matches: &mut Vec<MatchSpan>) {
     if matches.len() < 2 {
         return;
@@ -50,9 +55,19 @@ pub fn resolve_conflicts(matches: &mut Vec<MatchSpan>) {
             if matches[i].overlaps(&matches[j]) {
                 // Higher priority wins; if tied, longer match wins.
                 if matches[j].priority > matches[i].priority {
+                    trace!(
+                        "conflict: dropping {:?}={} (pri={}) in favour of {:?}={} (pri={})",
+                        matches[i].property, matches[i].value, matches[i].priority,
+                        matches[j].property, matches[j].value, matches[j].priority
+                    );
                     keep[i] = false;
                     break;
                 }
+                trace!(
+                    "conflict: dropping {:?}={} (pri={}) in favour of {:?}={} (pri={})",
+                    matches[j].property, matches[j].value, matches[j].priority,
+                    matches[i].property, matches[i].value, matches[i].priority
+                );
                 keep[j] = false;
             }
         }

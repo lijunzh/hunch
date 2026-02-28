@@ -1,5 +1,11 @@
 //! Property matchers and TOML integration tests.
 //!
+//! > **Stability note:** These modules are implementation details of the
+//! > parsing pipeline. They are `pub` to enable advanced use cases
+//! > (custom pipelines, individual property extraction) but their APIs
+//! > may change between minor versions. Prefer [`hunch`](crate::hunch)
+//! > for stable usage.
+//!
 //! Modules fall into three categories:
 //! - **Algorithmic matchers**: export `find_matches(input) -> Vec<MatchSpan>`
 //!   (episodes, title, release_group, date, year, etc.)
