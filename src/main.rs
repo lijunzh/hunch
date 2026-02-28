@@ -6,7 +6,7 @@ use hunch::{Options, hunch, hunch_with};
 #[derive(Parser)]
 #[command(
     name = "hunch",
-    about = "Media filename parser — spiritual descendant of guessit"
+    about = "Fast, offline media filename parser — extract title, year, codec, and 40+ properties"
 )]
 #[command(version)]
 struct Cli {

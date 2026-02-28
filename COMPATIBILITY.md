@@ -118,7 +118,7 @@ property, across all test cases that assert it.
 | part | 16 | 3 | 84.2% |
 | episode_details | 13 | 3 | 81.2% |
 
-### ⚠️ Developing (50–80%)
+### 50–80%
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|

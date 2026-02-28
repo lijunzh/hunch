@@ -40,8 +40,8 @@ zone-scope filtering, and two-pass pipeline (tech resolution → positional extr
 | ✅ 95–99% | video_codec (98.6%), screen_size (98.4%), audio_codec (97.8%), source (97.5%), year (96.5%), crc32 (96.0%) |
 | ✅ 90–94% | audio_channels (94.9%), container (94.7%), season (93.7%), type (93.3%), title (91.6%), website (90.9%), streaming_service (90.3%), episode (90.3%), release_group (90.2%) |
 | 🟡 80–89% | film_title (87.5%), uuid (87.5%), video_profile (85.7%), audio_profile (85.3%), other (84.8%), language (84.5%), part (84.2%), episode_details (81.2%) |
-| ⚠️ 60–80% | subtitle_language (76.5%), episode_title (74.1%), country (69.2%), bonus_title (61.5%), absolute_episode (60.0%), cd (60.0%) |
-| ⚠️ <60% | cd_count (50.0%), alternative_title (43.8%) |
+| 🟡 60–80% | subtitle_language (76.5%), episode_title (74.1%), country (69.2%), bonus_title (61.5%), absolute_episode (60.0%), cd (60.0%) |
+| 🟡 <60% | cd_count (50.0%), alternative_title (43.8%) |
 
 Properties: 49/49 implemented (3 intentionally diverged — see COMPATIBILITY.md).
 
@@ -467,7 +467,7 @@ zone detection (future work) to avoid title-word false positives in dirs.
 |-----------|:-:|---|
 | TOML rule_loader | ❌ | Already clean |
 | BoundedRegex (episodes, date) | ❌ | Strips lookarounds → standard `regex` |
-| ValuePattern (source, language, other) | ⚠️ Fallback | Blocked by legacy matchers |
+| ValuePattern (source, language, other) | ✅ Migrated | Standard `regex` only |
 
 `fancy_regex` lives ONLY in `ValuePattern` (regex_utils.rs). Once legacy
 matchers are removed, `regex_utils.rs` (380 lines), `ValuePattern`, and
@@ -523,7 +523,7 @@ Retire one legacy matcher at a time, in order of coverage:
    year, crc32, uuid, website, size, part, bonus, version, aspect_ratio,
    bit_rate, episode_count
 
-### Phase C: Accuracy improvements (in progress)
+### Phase C: Accuracy improvements ✅
 1. ✅ Tier 2 anchor expansion (dvd, dvdr, bd, pal, ntsc, secam)
 2. ✅ TOML fixes: bd→source, scr→other, ultra→other, ld/hq→unrestricted
 3. ✅ Audio profile HQ fix (require AAC prefix for standalone HQ)
@@ -545,12 +545,12 @@ Retire one legacy matcher at a time, in order of coverage:
 19. Episode title improvements (70.1% → 80%+)
 20. Release group edge cases (89.1%)
 
-### Phase D: Polish
-- Bump version to 0.2.1
-- Update COMPATIBILITY.md, README, CHANGELOG
-- `cargo clippy` clean, no warnings
+### Phase D: Polish ✅
+- ✅ Version bumped to 1.0.0
+- ✅ Updated COMPATIBILITY.md, README, CHANGELOG
+- ✅ `cargo clippy` clean, no warnings
 - Benchmark comparison with guessit (Python)
-- Consider crates.io publish
+- crates.io published
 
 ### Phase E: v0.3.x — Architectural improvements ✉️ DONE
 
@@ -591,7 +591,7 @@ replaced by:
 
 ### D001: Data-driven patterns (TOML) over hardcoded Rust
 
-**Status**: In progress (v0.2)
+**Status**: Stable (v1.0)
 
 Move simple property patterns into TOML rule files, embedded at compile time
 via `include_str!()`. Keep complex algorithmic logic (title, episodes,
@@ -605,7 +605,7 @@ release_group, date) in Rust.
 
 ### D002: `regex` crate only — drop `fancy_regex`
 
-**Status**: In progress (blocked by legacy matchers)
+**Status**: Stable
 
 The tokenizer eliminates the need for lookaround because patterns match
 against isolated tokens, not substrings of the full input:
@@ -634,7 +634,7 @@ These three are interdependent:
 
 ### D006: Zone map for disambiguation (anchors first, zones second, matching third)
 
-**Status**: In progress (v0.2.1)
+**Status**: Stable (v1.0)
 
 The v0.2 pipeline matches all tokens against all rules, then prunes
 mistakes via post-hoc zone rules. This loses information (a pruned match

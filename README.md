@@ -95,10 +95,11 @@ fn main() {
 ## guessit Compatibility
 
 Hunch validates against guessit's own 1,309-case YAML test suite.
+All 49 guessit properties are implemented (3 intentionally diverged).
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% | **80.0%** (1,047 / 1,309) |
+| Overall pass rate | 100% | **79.1%** (1,036 / 1,309) |
 | Properties implemented | 49 | 49 (3 intentionally diverged) |
 | Properties at 95%+ | 49 | 22 |
 | Properties at 100% | 49 | 16 |
@@ -109,9 +110,6 @@ aspect_ratio, size, version, date, proper_count, and more.
 
 **90%+ accurate:** title, release_group, episode, season, audio_channels,
 type, website, film_title.
-
-**Developing:** episode_title (74%), subtitle_language (77%),
-alternative_title (44%).
 
 For per-property breakdowns see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
 
