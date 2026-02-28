@@ -356,6 +356,8 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[0.3.1]: https://github.com/lijunzh/hunch/releases/tag/v0.3.1
+[0.3.0]: https://github.com/lijunzh/hunch/releases/tag/v0.3.0
 [0.2.2]: https://github.com/lijunzh/hunch/releases/tag/v0.2.2
 [0.2.1]: https://github.com/lijunzh/hunch/releases/tag/v0.2.1
 [0.2.0]: https://github.com/lijunzh/hunch/releases/tag/v0.2.0

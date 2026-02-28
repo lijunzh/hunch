@@ -1,55 +1,44 @@
 # 🔍 Hunch
 
-> 🤖 **This repository is entirely AI-generated with human guidance.** All code,
-> tests, and documentation were produced by AI under the direction of a human
-> collaborator.
+**A fast, offline media filename parser for Rust — extract title, year, season,
+episode, codec, language, and 40+ other properties from messy filenames.**
 
-**A Rust port of Python's [guessit](https://github.com/guessit-io/guessit)
-for extracting media metadata from filenames.**
+Hunch is a Rust rewrite of Python's [guessit](https://github.com/guessit-io/guessit).
+All 49 guessit properties are implemented. The engine uses a tokenizer-first,
+two-pass, TOML-driven architecture with linear-time regex only (ReDoS-immune).
 
-> ⚠️ **Work in progress.** Hunch currently passes **80.0%** of guessit's own
-> 1,309-case test suite (1,047 / 1,309). All 49 guessit properties are
-> implemented (3 intentionally diverged). Core properties like video codec,
-> screen size, source, audio codec, edition, and year are 96–100% accurate.
-> Title (92%), release group (90%), episode (90%), and 40+ other properties
-> are steadily improving. Uses a two-pass pipeline with post-resolution
-> extraction. All regex is linear-time via the `regex` crate (ReDoS-immune).
-> See [COMPATIBILITY.md](COMPATIBILITY.md) for the full breakdown.
+## Install
 
-Hunch extracts title, year, season, episode, resolution, codec, language,
-and 40+ other properties from messy media filenames — the same job guessit
-does, rewritten from scratch for Rust.
+### Homebrew (macOS / Linux)
 
-## Quick Start
+```bash
+brew install lijunzh/hunch/hunch
+```
+
+### Cargo (from source)
+
+```bash
+cargo install hunch
+```
+
+### Pre-built binaries
+
+Download from [GitHub Releases](https://github.com/lijunzh/hunch/releases).
+Also supports [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall):
+
+```bash
+cargo binstall hunch
+```
+
+### As a library
 
 ```bash
 cargo add hunch
 ```
 
-### As a library
+## Usage
 
-```rust
-use hunch::hunch;
-
-fn main() {
-    let result = hunch("The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv");
-    println!("{:#?}", result);
-    // GuessResult {
-    //   title: Some("The Walking Dead"),
-    //   season: Some(5),
-    //   episode: Some(3),
-    //   screen_size: Some("720p"),
-    //   source: Some("Blu-ray"),
-    //   video_codec: Some("H.264"),
-    //   release_group: Some("DEMAND"),
-    //   container: Some("mkv"),
-    //   media_type: Episode,
-    //   ...
-    // }
-}
-```
-
-### As a CLI tool
+### CLI
 
 ```bash
 $ hunch "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
@@ -66,70 +55,87 @@ $ hunch "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
 }
 ```
 
+Multiple files at once:
+
+```bash
+hunch "Movie.2024.1080p.mkv" "Show.S01E01.mkv"
+```
+
+Options:
+
+```
+-t, --type <TYPE>    Hint media type: "movie" or "episode"
+-n, --name-only      Treat input as name only (no path separators)
+-j, --json           Output compact JSON (default is pretty-printed)
+```
+
+### Library
+
+```rust
+use hunch::hunch;
+
+fn main() {
+    let result = hunch("The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv");
+    println!("{:#?}", result);
+    // HunchResult {
+    //   title: Some("The Walking Dead"),
+    //   season: Some(5),
+    //   episode: Some(3),
+    //   screen_size: Some("720p"),
+    //   source: Some("Blu-ray"),
+    //   video_codec: Some("H.264"),
+    //   release_group: Some("DEMAND"),
+    //   container: Some("mkv"),
+    //   media_type: Episode,
+    //   ...
+    // }
+}
+```
+
 ## guessit Compatibility
 
-Hunch is a port of guessit. All 49 of guessit's properties are
-implemented (3 intentionally diverged — see COMPATIBILITY.md). We validate
-against guessit's own YAML test suite:
+Hunch validates against guessit's own 1,309-case YAML test suite.
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% (by definition) | **80.0%** (1,047 / 1,309) |
-| Properties implemented | 49 | 49 (3 diverged) |
-| Properties at 90%+ | 49 | 31 |
+| Overall pass rate | 100% | **80.0%** (1,047 / 1,309) |
+| Properties implemented | 49 | 49 (3 intentionally diverged) |
+| Properties at 95%+ | 49 | 22 |
 | Properties at 100% | 49 | 16 |
 
-**Where hunch matches guessit** (96–100% accuracy):
-year, video_codec, container, source, screen_size, audio_codec, crc32,
-color_depth, streaming_service, bonus, film, aspect_ratio, size, edition,
-episode_details, version, frame_rate, episode_count, season_count,
-proper_count, date, disc, episode_format, week, video_api.
+**96–100% accurate:** year, video_codec, container, source, screen_size,
+audio_codec, crc32, color_depth, streaming_service, edition, frame_rate,
+aspect_ratio, size, version, date, proper_count, and more.
 
-**Where hunch is developing** (70–95%):
-title (92%), release_group (90%), episode (90%), season (94%),
-audio_channels (95%), language (85%), other (85%),
-episode_title (74%), subtitle_language (77%),
-audio_profile (85%).
+**90%+ accurate:** title, release_group, episode, season, audio_channels,
+type, website, film_title.
 
-For per-property breakdowns, per-file results, and known gaps,
-see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
+**Developing:** episode_title (74%), subtitle_language (77%),
+alternative_title (44%).
+
+For per-property breakdowns see **[COMPATIBILITY.md](COMPATIBILITY.md)**.
+
+### Intentional divergences
+
+| Property | Reason |
+|---|---|
+| `audio_bit_rate` / `video_bit_rate` | Hunch uses a single `bit_rate` |
+| `mimetype` | Trivially derived from `container`; redundant |
 
 ## Design
 
-Hunch does **not** port guessit's `rebulk` engine. Instead it uses a
-**tokenizer-first, two-pass, TOML-driven architecture**:
+Hunch does **not** port guessit's `rebulk` engine. Instead:
 
-1. **Tokenize** — Split input on separators (. - _ space), extract
-   extension, detect bracket groups, handle path segments.
-2. **Zone map** — Detect structural anchors (SxxExx, 720p, x264) to
-   establish title zone vs tech zone boundaries, per directory and filename.
-3. **Pass 1: Match & Resolve** — TOML rule files (20 files, embedded at
-   compile time) match tokens via exact lookup, regex, and templates.
-   Algorithmic matchers handle complex patterns (episodes, dates).
-   Conflicts resolved by priority, then length. Zone disambiguation.
-4. **Pass 2: Extract** — Release group, title, and episode title run
+1. **Tokenize** — split on separators, extract extension, detect brackets
+2. **Zone map** — detect anchors (SxxExx, 720p, x264) to establish
+   title zone vs tech zone boundaries
+3. **Pass 1: Match & Resolve** — 20 TOML rule files (embedded at compile
+   time) + algorithmic matchers. Conflict resolution by priority then length.
+4. **Pass 2: Extract** — release group, title, and episode title run
    with access to resolved match positions from Pass 1.
-5. **Result** — HunchResult with 49 typed property accessors.
+5. **Result** — `HunchResult` with 49 typed property accessors
 
-```
-Input: "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
-  │
-  ├─ 1. Tokenize → TokenStream (segments, tokens, brackets, extension)
-  ├─ 2. Zone map → title zone, tech zone, year disambiguation
-  │
-  ═══ Pass 1: Tech Resolution ═════════════════════════════════
-  ├─ 3. TOML rules + legacy matchers → Vec<MatchSpan>
-  ├─ 4. Conflict resolution (priority, then length)
-  ├─ 5. Zone disambiguation → resolved_tech_matches
-  │
-  ═══ Pass 2: Positional Extraction ═══════════════════════════
-  ├─ 6. Release group (sees resolved positions)
-  ├─ 7. Title, episode title, alternative title
-  └─ 8. Build HunchResult
-```
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design, decision log,
-and module map.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design and decision log.
 
 ## Project Structure
 
@@ -139,37 +145,24 @@ src/
 ├── main.rs             # CLI binary (clap)
 ├── hunch_result.rs     # HunchResult type + JSON serialization
 ├── options.rs          # Configuration
-├── zone_map.rs         # ZoneMap: structural zone analysis (filename + per-dir)
-├── tokenizer.rs        # Input → TokenStream (segments, brackets, extension)
+├── zone_map.rs         # Structural zone analysis
+├── tokenizer.rs        # Input → TokenStream
 ├── pipeline/           # Two-pass orchestration
-│   ├─ mod.rs          # Pipeline: Pass 1 (tech) → Pass 2 (positional)
-│   ├─ zone_rules.rs   # Zone disambiguation (pre-RG + post-RG rules)
-│   └─ proper_count.rs # PROPER/REPACK count computation
-├── matcher/
-│   ├── span.rs         # MatchSpan + Property enum (55 variants)
-│   ├── engine.rs       # Conflict resolution
-│   ├── regex_utils.rs  # BoundedRegex + boundary checking
-│   └── rule_loader.rs  # TOML rule engine: exact + regex + templates + zone_scope
+├── matcher/            # Conflict resolution + TOML rule engine
 └── properties/         # 31 property matcher modules
-    ├── title/          # Title extraction (mod.rs + clean.rs + secondary.rs)
-    ├── episodes/       # Season/episode (mod.rs + patterns.rs + tests.rs)
-    ├── release_group/  # Post-resolution release group extraction (Pass 2)
-    │   ├── mod.rs       # Regex patterns + matching logic
-    │   └── known_tokens.rs # Position-based validation + helpers
-    └── ...             # year, date, source, language, etc.
 
 rules/                  # 20 TOML data files (compile-time embedded)
-├── source.toml         # Source patterns with Rip/Screener side_effects
-├── other.toml          # Other flags (unambiguous)
-├── other_positional.toml # Position-dependent Other (zone_scope=tech_only)
-└── ...                 # video_codec, audio_codec, language, edition, etc.
+tests/                  # Integration tests + guessit regression suite
 ```
-tests/
-├── integration.rs      # 32 hand-written end-to-end tests
-├── guessit_regression.rs # 22 regression suites + compatibility report
-└── fixtures/           # Copied from guessit (self-contained)
+
+## Contributing
+
+```bash
+cargo test              # Run all tests
+cargo test -- --ignored # Run guessit compatibility report
+cargo bench             # Run benchmarks
 ```
 
 ## License
 
-MIT
+[MIT](LICENSE)
