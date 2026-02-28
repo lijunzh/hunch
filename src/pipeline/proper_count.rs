@@ -8,8 +8,9 @@ use crate::tokenizer;
 static REAL_RE: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"(?i)^REAL$").expect("REAL_RE regex is valid"));
 
-static REPACK_RE: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").expect("REPACK_RE regex is valid"));
+static REPACK_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(?i)^(?:REPACK|RERIP)(\d+)?$").expect("REPACK_RE regex is valid")
+});
 
 pub fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);

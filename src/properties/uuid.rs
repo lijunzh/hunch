@@ -14,8 +14,9 @@ static UUID_STANDARD: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Non-standard UUID: 32 hex chars without dashes (common in obfuscated releases)
-static UUID_NODASH: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)(?:^|/)(?P<uuid>[0-9a-f]{32})(?:[/.]|$)").expect("UUID_BARE regex is valid"));
+static UUID_NODASH: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:^|/)(?P<uuid>[0-9a-f]{32})(?:[/.]|$)").expect("UUID_BARE regex is valid")
+});
 
 /// Scan for UUID patterns (hyphenated and bare 32-hex-char forms) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {

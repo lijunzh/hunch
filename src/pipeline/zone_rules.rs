@@ -115,7 +115,11 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
         }
     }
 
-    trace!("zone rules: {} match(es) after language filtering (was {})", matches.len(), initial_count);
+    trace!(
+        "zone rules: {} match(es) after language filtering (was {})",
+        matches.len(),
+        initial_count
+    );
 
     // ── Rule 2: Duplicate source in title zone → title word ─────────
     let source_anchor_pos = matches
