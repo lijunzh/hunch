@@ -1,51 +1,48 @@
-# Hunch v0.3.1 — Language/Subtitle Fixes & Detection Improvements
+# Hunch v1.0.0 — Stable Release
 
-A **patch release** focused on language and subtitle_language detection
-accuracy, plus a batch of parser fixes accumulated since v0.3.0.
+The first **stable release** of Hunch — a fast, offline media filename parser
+for Rust. All 49 guessit properties are implemented. The engine uses a
+tokenizer-first, two-pass, TOML-driven architecture with linear-time regex
+only (ReDoS-immune).
 
 ## Highlights
 
-- **language.yml pass rate: 66.7% → 100%** — All language fixture tests
-  now pass, up from 6/9 to 9/9.
-- **Zone Rule 8** — New disambiguation rule: Language matches contained
-  within SubtitleLanguage spans are automatically suppressed. This fixes
-  false positives where tokens like `FR` in `FR Sub` were detected as
-  both an audio language and a subtitle indicator.
-- **Tighter bracket subtitle parsing** — `St{Fr-Eng}` patterns now
-  correctly extract both languages instead of greedily matching past
-  the closing bracket.
+- **81.7% compatibility** with guessit's 1,309-case YAML test suite
+  (1,069 / 1,309 cases pass)
+- **22 properties at 95%+ accuracy**, 16 at 100%
+- **All 49 properties implemented** (3 intentionally diverged)
+- Zero-dependency on network, databases, or ML
+- Single binary, TOML rules embedded at compile time
 
-## Key Fixes
+## Accuracy Summary
 
-| Fix | Before | After |
-|-----|--------|-------|
-| `ENG.-.FR Sub` language | `[en, fr]` | `en` |
-| `ENG.-.SWE Sub` language | `[en, sv]` | `en` |
-| `St{Fr-Eng}` subtitle_language | `fr` | `[fr, en]` |
-| language.yml pass rate | 66.7% | **100%** |
+| Tier | Properties |
+|------|------------|
+| 100% | 16 properties (edition, date, proper_count, …) |
+| 95–99% | video_codec (98.6%), screen_size (98.4%), audio_codec (97.8%), source (97.5%), year (96.5%), crc32 (96.0%) |
+| 90–94% | season (93.9%), type (93.6%), title (91.7%), release_group (91.1%), episode (90.6%), … |
+| 80–89% | other (87.7%), language (87.3%), subtitle_language (82.7%), … |
 
-## Other Improvements Since v0.3.0
+## What Changed Since v0.3.1
 
-- Enable Language TOML rules in directory segments
-- Add LC-AAC audio profile pattern
-- Detect space-separated zero-padded episode numbers
-- Recognize `Temp` as Spanish season keyword (Temporada)
-- Bonus without film/year implies episode type
-- Add `pt` ISO 639-1 code for Portuguese
-- Merge multi-dot release group names (e.g., `YTS.LT`)
-- Detect release groups in mid-filename bracket groups
-- Don't truncate episode title at parentheses with digit content
-- Per-directory Other rules with zone filtering
-- Compound bracket group tokenizer improvements
+- Version bumped to 1.0.0 (stable)
+- Removed "in progress" / "developing" warnings from all documentation
+- Updated all compatibility numbers to match current test results
+- CLI description updated
 
 ## Install
 
 ```bash
+# Homebrew
+brew install lijunzh/hunch/hunch
+
+# Cargo
 cargo install hunch
-# or
+
+# As a library
 cargo add hunch
 ```
 
 ## Full Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for the complete list of changes.
+See [CHANGELOG.md](CHANGELOG.md) for the complete history.

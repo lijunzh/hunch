@@ -38,15 +38,15 @@ zone-scope filtering, and two-pass pipeline (tech resolution → positional extr
 |------|------------|
 | ✅ 100% | video_api, season_count, disc, aspect_ratio, proper_count, version, bonus, film, size, frame_rate, date, episode_count, episode_format, week, edition, color_depth |
 | ✅ 95–99% | video_codec (98.6%), screen_size (98.4%), audio_codec (97.8%), source (97.5%), year (96.5%), crc32 (96.0%) |
-| ✅ 90–94% | audio_channels (94.9%), container (94.7%), season (93.7%), type (93.3%), title (91.6%), website (90.9%), streaming_service (90.3%), episode (90.3%), release_group (90.2%) |
-| 🟡 80–89% | film_title (87.5%), uuid (87.5%), video_profile (85.7%), audio_profile (85.3%), other (84.8%), language (84.5%), part (84.2%), episode_details (81.2%) |
-| 🟡 60–80% | subtitle_language (76.5%), episode_title (74.1%), country (69.2%), bonus_title (61.5%), absolute_episode (60.0%), cd (60.0%) |
+| ✅ 90–94% | audio_channels (94.9%), container (94.7%), season (93.9%), type (93.6%), title (91.7%), release_group (91.1%), website (90.9%), episode (90.6%), streaming_service (90.3%) |
+| 🟡 80–89% | other (87.7%), film_title (87.5%), uuid (87.5%), language (87.3%), video_profile (85.7%), audio_profile (85.3%), part (84.2%), subtitle_language (82.7%), episode_details (81.2%) |
+| 🟡 60–80% | episode_title (73.6%), country (69.2%), bonus_title (61.5%), absolute_episode (60.0%), cd (60.0%) |
 | 🟡 <60% | cd_count (50.0%), alternative_title (43.8%) |
 
 Properties: 49/49 implemented (3 intentionally diverged — see COMPATIBILITY.md).
 
-Highest-ROI targets: episode_title (52 fails), release_group (53),
-title (89 fails), other (53).
+Highest-ROI targets: episode_title (53 fails), episode (52),
+release_group (48), title (88 fails), other (43).
 
 ---
 

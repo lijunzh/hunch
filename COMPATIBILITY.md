@@ -5,7 +5,7 @@ This document tracks how closely hunch reproduces guessit's behavior, measured
 by running hunch against guessit's own test suite (1,309 test cases across 22
 YAML files).
 
-> **Last updated:** 2026-02-27 (v0.3.1)
+> **Last updated:** 2026-02-28 (v1.0.0)
 
 ---
 
@@ -14,14 +14,14 @@ YAML files).
 | Metric | Value |
 |---|---|
 | Total test cases | 1,309 |
-| Passed (all props correct) | 1,036 |
-| Failed (any prop wrong) | 273 |
-| **Pass rate** | **79.1%** |
+| Passed (all props correct) | 1,069 |
+| Failed (any prop wrong) | 240 |
+| **Pass rate** | **81.7%** |
 | Properties implemented | 49 / 49 |
 | Properties intentionally diverged | 3 |
 
 guessit passes 100% of its own tests by definition. Hunch currently
-reproduces 79.1% of those results identically.
+reproduces 81.7% of those results identically.
 
 ---
 
@@ -37,18 +37,18 @@ reproduces 79.1% of those results identically.
 | rules/size.yml | 3 | 3 | **100%** |
 | rules/source.yml | 23 | 23 | **100%** |
 | rules/video_codec.yml | 45 | 45 | **100%** |
-| rules/common_words.yml | 154 | 156 | **99%** |
-| rules/episodes.yml | 75 | 79 | 95% |
+| rules/common_words.yml | 155 | 156 | **99%** |
+| rules/episodes.yml | 77 | 79 | 97% |
 | rules/date.yml | 7 | 8 | 88% |
-| rules/release_group.yml | 15 | 19 | 79% |
-| rules/language.yml | 7 | 9 | 78% |
+| rules/release_group.yml | 19 | 19 | **100%** |
+| rules/language.yml | 9 | 9 | **100%** |
 | rules/title.yml | 14 | 18 | 78% |
-| movies.yml | 149 | 199 | 75% |
-| various.yml | 86 | 124 | 69% |
+| movies.yml | 153 | 199 | 77% |
+| various.yml | 89 | 124 | 72% |
 | rules/bonus.yml | 2 | 3 | 67% |
 | rules/country.yml | 2 | 3 | 67% |
 | rules/film.yml | 2 | 3 | 67% |
-| episodes.yml | 325 | 488 | 67% |
+| episodes.yml | 342 | 488 | 70% |
 | rules/cd.yml | 1 | 2 | 50% |
 | rules/website.yml | 1 | 2 | 50% |
 
@@ -97,33 +97,33 @@ property, across all test cases that assert it.
 |---|---|---|---|
 | audio_channels | 112 | 6 | 94.9% |
 | container | 143 | 8 | 94.7% |
-| season | 444 | 30 | 93.7% |
-| type | 767 | 55 | 93.3% |
-| title | 959 | 97 | 90.8% |
+| season | 445 | 29 | 93.9% |
+| type | 769 | 53 | 93.6% |
+| title | 968 | 88 | 91.7% |
+| release_group | 491 | 48 | 91.1% |
 | website | 20 | 2 | 90.9% |
+| episode | 503 | 52 | 90.6% |
 | streaming_service | 28 | 3 | 90.3% |
-| episode | 501 | 54 | 90.3% |
 
 ### 🟡 Solid (80–90%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| release_group | 480 | 59 | 89.1% |
+| other | 306 | 43 | 87.7% |
 | film_title | 7 | 1 | 87.5% |
 | uuid | 7 | 1 | 87.5% |
+| language | 124 | 18 | 87.3% |
 | video_profile | 12 | 2 | 85.7% |
 | audio_profile | 29 | 5 | 85.3% |
-| other | 295 | 54 | 84.5% |
-| language | 120 | 22 | 84.5% |
 | part | 16 | 3 | 84.2% |
+| subtitle_language | 67 | 14 | 82.7% |
 | episode_details | 13 | 3 | 81.2% |
 
 ### 50–80%
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| subtitle_language | 62 | 19 | 76.5% |
-| episode_title | 145 | 56 | 72.1% |
+| episode_title | 148 | 53 | 73.6% |
 | country | 9 | 4 | 69.2% |
 | bonus_title | 8 | 5 | 61.5% |
 | absolute_episode | 6 | 4 | 60.0% |
@@ -159,7 +159,7 @@ Redundant for a filename parser. Users can derive it if needed.
 
 ## Architecture Notes
 
-### v0.2.2 Pipeline
+### v1.0 Pipeline
 
 ```
 Input → Tokenize → ZoneMap → TOML Rules + Legacy Matchers
