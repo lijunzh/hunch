@@ -8,54 +8,15 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Gate: verify this commit already passed CI on main.
-  # A 2-second API call instead of re-running the full test suite.
-  verify-ci:
-    name: Verify CI passed
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check commit CI status
-        run: |
-          echo "Checking CI status for ${{ github.sha }}..."
-
-          # GitHub Actions reports via the check-runs API
-          RESULT=$(gh api repos/${{ github.repository }}/commits/${{ github.sha }}/check-suites \
-            --jq '[
-              .check_suites[]
-              | select(.app.slug == "github-actions" and .head_branch == "main")
-            ] | if length == 0 then "none"
-                elif all(.conclusion == "success") then "success"
-                elif any(.conclusion == "failure") then "failure"
-                else "pending" end')
-
-          echo "CI result: $RESULT"
-
-          case "$RESULT" in
-            success)
-              echo "✅ CI passed — proceeding with release build"
-              ;;
-            pending|none)
-              echo "❌ CI hasn't completed yet for this commit."
-              echo "Wait for CI to pass on main before tagging."
-              echo ""
-              echo "Quick fix: wait a minute, delete the tag, and re-push:"
-              echo "  git tag -d v... && git push origin :refs/tags/v..."
-              echo "  # wait for CI to pass"
-              echo "  git tag -a v... -m '...' && git push --tags"
-              exit 1
-              ;;
-            *)
-              echo "❌ CI failed for this commit (result: $RESULT)"
-              echo "Fix CI on main before tagging a release."
-              exit 1
-              ;;
-          esac
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # Gate: run the full CI suite before building release artifacts.
+  # Reuses the CI workflow so we don't duplicate check/fmt/clippy/test/doc.
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
 
   build:
     name: Build ${{ matrix.target }}
-    needs: verify-ci
+    needs: ci
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
