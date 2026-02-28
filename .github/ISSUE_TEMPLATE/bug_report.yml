@@ -1,0 +1,40 @@
+name: "🐛 Bug Report"
+description: Report a crash, panic, or unexpected behavior (not a parse failure)
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For incorrect parse results, please use the **Failed Parse Report** template instead.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What happened? What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the bug.
+      placeholder: |
+        1. Run `hunch "..."`
+        2. See error...
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, hunch version, install method.
+      placeholder: |
+        - OS: macOS 15.3
+        - Hunch: 1.0.1
+        - Install: cargo install
+    validations:
+      required: false

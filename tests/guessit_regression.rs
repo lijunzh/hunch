@@ -317,12 +317,56 @@ guessit_test_file!(movies, "tests/fixtures/movies.yml");
 guessit_test_file!(episodes, "tests/fixtures/episodes.yml");
 guessit_test_file!(various, "tests/fixtures/various.yml");
 
+// Community-reported cases (beyond guessit's test suite).
+// Gracefully skips when no cases are present yet.
+mod community {
+    use super::*;
+
+    #[test]
+    fn passing() {
+        let cases = load_test_cases("tests/fixtures/community.yml");
+        if cases.is_empty() {
+            eprintln!("[community.yml] No test cases yet — skipping");
+            return;
+        }
+
+        let mut passed = 0;
+        let mut failed_cases: Vec<(&str, Vec<String>)> = Vec::new();
+
+        for tc in &cases {
+            let (_prop_results, failures) = check(tc);
+            if failures.is_empty() {
+                passed += 1;
+            } else {
+                failed_cases.push((&tc.filename, failures));
+            }
+        }
+
+        let total = cases.len();
+        let rate = (passed as f64 / total as f64) * 100.0;
+        eprintln!("[community.yml] {passed}/{total} passed ({rate:.1}%)");
+
+        // Community cases are our targets — all must pass.
+        assert!(
+            failed_cases.is_empty(),
+            "{} community test case(s) failed:\n{}",
+            failed_cases.len(),
+            failed_cases
+                .iter()
+                .map(|(name, fails)| format!("  {}\n    {}", name, fails.join("\n    ")))
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+}
+
 // ── Full compatibility report ───────────────────────────────────────
 
 const ALL_FIXTURES: &[(&str, &str)] = &[
     ("movies.yml", "tests/fixtures/movies.yml"),
     ("episodes.yml", "tests/fixtures/episodes.yml"),
     ("various.yml", "tests/fixtures/various.yml"),
+    ("community.yml", "tests/fixtures/community.yml"),
     (
         "rules/audio_codec.yml",
         "tests/fixtures/rules/audio_codec.yml",

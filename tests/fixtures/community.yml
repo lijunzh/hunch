@@ -1,0 +1,23 @@
+# Community-reported test cases
+#
+# Format: same as guessit's YAML fixtures.
+#   ? filename
+#   : property: value
+#
+# To add a case: open an issue with the "Failed Parse Report" template,
+# or submit a PR adding entries here.
+#
+# These cases go beyond guessit's test suite — real-world filenames
+# reported by hunch users.
+
+# --- Movies ---
+
+# (add community-reported movie cases here)
+
+# --- Episodes ---
+
+# (add community-reported episode cases here)
+
+# --- Edge Cases ---
+
+# (add community-reported edge cases here)

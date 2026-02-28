@@ -1,0 +1,22 @@
+name: "✨ Feature Request"
+description: Suggest a new property, option, or improvement
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like?
+      description: Describe the feature and why it would be useful.
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example filenames
+      description: |
+        If this involves parsing, show example filenames and expected output.
+      render: yaml
+    validations:
+      required: false

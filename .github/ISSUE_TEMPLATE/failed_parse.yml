@@ -1,0 +1,84 @@
+name: "🎬 Failed Parse Report"
+description: Report a filename that hunch parses incorrectly
+title: "[parse] "
+labels: ["parse-failure", "community-test"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve hunch! 🔍
+
+        Please provide the filename and what you expected hunch to produce.
+        We'll add your case to our community test suite.
+
+  - type: input
+    id: filename
+    attributes:
+      label: Filename
+      description: The full filename (or path) that hunch gets wrong.
+      placeholder: "Movie.Title.2024.1080p.BluRay.x264-GROUP.mkv"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: media_type
+    attributes:
+      label: Media type
+      options:
+        - movie
+        - episode
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected properties
+      description: |
+        What should hunch produce? Use YAML format (same as our test fixtures).
+        Only include properties you care about — no need to list every field.
+      placeholder: |
+        title: Movie Title
+        year: 2024
+        screen_size: 1080p
+        source: Blu-ray
+        video_codec: H.264
+        release_group: GROUP
+        container: mkv
+      render: yaml
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+      description: |
+        Paste the JSON output from `hunch "your filename"` here.
+        This helps us see exactly what went wrong.
+      placeholder: |
+        {
+          "title": "Movie Title 2024",
+          ...
+        }
+      render: json
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Hunch version
+      description: "Output of `hunch --version`"
+      placeholder: "hunch 1.0.1"
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Any extra info — e.g., guessit gets it right, edge case details, etc.
+    validations:
+      required: false
