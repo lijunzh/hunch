@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] - 2026-02-28
+
+### Fixed
+
+- **docs.rs build** — added `rust-version = "1.85"` and
+  `[package.metadata.docs.rs]` to `Cargo.toml`. Edition 2024 requires
+  Rust 1.85+; docs.rs needs this hint to select a compatible toolchain.
+  Versions 1.0.0–1.1.1 failed to build on docs.rs for this reason.
+
 ## [1.1.1] - 2026-02-28
 
 ### Fixed
@@ -437,6 +446,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.2]: https://github.com/lijunzh/hunch/releases/tag/v1.1.2
 [1.1.1]: https://github.com/lijunzh/hunch/releases/tag/v1.1.1
 [1.1.0]: https://github.com/lijunzh/hunch/releases/tag/v1.1.0
 [1.0.1]: https://github.com/lijunzh/hunch/releases/tag/v1.0.1
