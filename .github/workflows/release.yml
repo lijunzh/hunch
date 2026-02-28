@@ -117,3 +117,92 @@ jobs:
           generate_release_notes: ${{ steps.notes.outputs.generate == 'true' }}
           body_path: ${{ steps.notes.outputs.generate != 'true' && 'release_notes.md' || '' }}
           files: artifacts/*.tar.gz
+
+  homebrew:
+    name: Update Homebrew Tap
+    needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for release assets to be available
+        run: sleep 10
+
+      - name: Download release tarballs and compute SHA256
+        id: sha
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          BASE="https://github.com/lijunzh/hunch/releases/download/v${VERSION}"
+
+          for target in aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu; do
+            curl -fsSL -o "${target}.tar.gz" "${BASE}/hunch-${target}.tar.gz"
+            sha=$(sha256sum "${target}.tar.gz" | awk '{print $1}')
+            # Convert target to env-friendly name: aarch64-apple-darwin -> aarch64_apple_darwin
+            key=$(echo "$target" | tr '-' '_')
+            echo "${key}=${sha}" >> $GITHUB_OUTPUT
+            echo "  ${target}: ${sha}"
+          done
+
+      - name: Update formula
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          VERSION="${{ steps.sha.outputs.version }}"
+          git clone https://x-access-token:${GH_TOKEN}@github.com/lijunzh/homebrew-hunch.git
+          cd homebrew-hunch
+
+          cat > Formula/hunch.rb << 'FORMULA'
+          class Hunch < Formula
+            desc "Fast, offline media filename parser — extract metadata from messy filenames"
+            homepage "https://github.com/lijunzh/hunch"
+            version "__VERSION__"
+            license "MIT"
+
+            on_macos do
+              if Hardware::CPU.arm?
+                url "https://github.com/lijunzh/hunch/releases/download/v#{version}/hunch-aarch64-apple-darwin.tar.gz"
+                sha256 "__SHA_ARM64_MACOS__"
+              else
+                url "https://github.com/lijunzh/hunch/releases/download/v#{version}/hunch-x86_64-apple-darwin.tar.gz"
+                sha256 "__SHA_X86_64_MACOS__"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.arm?
+                url "https://github.com/lijunzh/hunch/releases/download/v#{version}/hunch-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "__SHA_ARM64_LINUX__"
+              else
+                url "https://github.com/lijunzh/hunch/releases/download/v#{version}/hunch-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "__SHA_X86_64_LINUX__"
+              end
+            end
+
+            def install
+              bin.install Dir["**/hunch"].first
+            end
+
+            test do
+              output = shell_output("#{bin}/hunch 'The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv'")
+              assert_match '"title": "The Matrix"', output
+              assert_match '"year": 1999', output
+            end
+          end
+          FORMULA
+
+          # Strip leading whitespace from heredoc
+          sed -i 's/^          //' Formula/hunch.rb
+
+          # Substitute placeholders
+          sed -i "s/__VERSION__/${VERSION}/" Formula/hunch.rb
+          sed -i "s/__SHA_ARM64_MACOS__/${{ steps.sha.outputs.aarch64_apple_darwin }}/" Formula/hunch.rb
+          sed -i "s/__SHA_X86_64_MACOS__/${{ steps.sha.outputs.x86_64_apple_darwin }}/" Formula/hunch.rb
+          sed -i "s/__SHA_ARM64_LINUX__/${{ steps.sha.outputs.aarch64_unknown_linux_gnu }}/" Formula/hunch.rb
+          sed -i "s/__SHA_X86_64_LINUX__/${{ steps.sha.outputs.x86_64_unknown_linux_gnu }}/" Formula/hunch.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/hunch.rb
+          git commit -m "hunch v${VERSION}"
+          git push
