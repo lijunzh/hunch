@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-02-28
+
+### Fixed
+
+- **Documentation patch** — v1.0.0 shipped with incorrect compatibility
+  numbers in README. This release corrects all documentation to match
+  actual test results (81.7%, 1,069 / 1,309).
+- Updated COMPATIBILITY.md version reference to v1.0.1.
+- Added missing CHANGELOG entries for v1.0.0 and v1.0.1.
+
+## [1.0.0] - 2026-02-28
+
+### Changed
+
+- **Stable release** — first non-pre-release version.
+- Removed "in progress" / "developing" warnings from all documentation.
+- Updated all compatibility numbers to match current test results.
+- CLI description updated.
+
+### Summary
+
+- **81.7% compatibility** with guessit's 1,309-case YAML test suite.
+- **22 properties at 95%+ accuracy**, 16 at 100%.
+- **All 49 properties implemented** (3 intentionally diverged).
+- Zero-dependency on network, databases, or ML.
+- Single binary, TOML rules embedded at compile time.
+
 ## [0.3.1] - 2026-02-27
 
 ### Fixed
@@ -356,6 +383,8 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.0.1]: https://github.com/lijunzh/hunch/releases/tag/v1.0.1
+[1.0.0]: https://github.com/lijunzh/hunch/releases/tag/v1.0.0
 [0.3.1]: https://github.com/lijunzh/hunch/releases/tag/v0.3.1
 [0.3.0]: https://github.com/lijunzh/hunch/releases/tag/v0.3.0
 [0.2.2]: https://github.com/lijunzh/hunch/releases/tag/v0.2.2
