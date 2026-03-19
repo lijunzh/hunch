@@ -5,6 +5,7 @@
 //! replaces v0.1 prune_* heuristics.
 
 mod proper_count;
+pub(crate) mod token_context;
 mod zone_rules;
 
 use crate::hunch_result::HunchResult;
@@ -382,7 +383,7 @@ impl Pipeline {
 
         // Step 4: Zone-based disambiguation.
         let pre_zone_count = all_matches.len();
-        zone_rules::apply_zone_rules(input, &zone_map, &mut all_matches);
+        zone_rules::apply_zone_rules(input, &zone_map, &token_stream, &mut all_matches);
         debug!(
             "step 4: zone disambiguation — {} → {} match(es)",
             pre_zone_count,

@@ -1,116 +1,62 @@
 //! Zone-based disambiguation rules.
 //!
-//! Post-matching disambiguation that handles cross-property semantics
-//! not expressible as TOML zone_scope or requires_context declarations.
+//! Post-matching disambiguation that handles cross-property semantics.
+//! Rules 1 and 2 use neighbor-based context analysis (token_context module)
+//! instead of fragile positional heuristics.
 //!
 //! ## Rule inventory (7 active)
 //!
-//! | # | Name | Purpose |
-//! |---|------|---------|
-//! | 1 | Language in title zone | Drop language in first half of title zone |
-//! | 2 | Duplicate source | Drop early source when late source exists |
-//! | 3 | UHD Blu-ray (atomic) | Promote Blu-ray + drop redundant Ultra HD |
-//! | 5 | Ambiguous Other ↔ ReleaseGroup | Drop HQ/FanSub near release groups |
-//! | 6 | Source subsumption | Drop generic source when specific exists |
-//! | 7 | Language inside tech span | Drop lang contained in source/codec spans |
-//! | 8 | Language inside subtitle span | Drop lang contained in subtitle_language spans |
+//! | # | Name | Context signal |
+//! |---|------|----------------|
+//! | 1 | Language disambiguation | Neighbor roles + duplicate detection |
+//! | 2 | Source disambiguation | Neighbor roles (title words vs tech) |
+//! | 3 | UHD Blu-ray (atomic) | Co-occurrence (semantic) |
+//! | 5 | Other ↔ ReleaseGroup | Adjacency to release group |
+//! | 6 | Source subsumption | Subsumption table (semantic) |
+//! | 7 | Language inside tech span | Byte-range containment |
+//! | 8 | Language inside subtitle span | Byte-range containment |
 
 use log::trace;
 
 use crate::matcher::span::{MatchSpan, Property};
+use crate::tokenizer::TokenStream;
 use crate::zone_map::ZoneMap;
 
-/// Zone-based disambiguation using the pre-computed ZoneMap.
+use super::token_context;
+
+/// Structure-aware disambiguation using neighbor context.
 ///
-/// v0.2.1: Uses ZoneMap boundaries directly instead of re-deriving zones
-/// from match positions. Rules handled by TOML zone_scope filtering
-/// (EpisodeDetails) have been retired.
-///
-/// Remaining rules handle cross-property semantics:
-///   - Language in title zone (needs unmatched-byte heuristic for anchor-less cases)
-///   - Duplicate source across zones
-///   - UHD Blu-ray promotion + redundant tag cleanup (atomic)
-///   - Language nested inside tech spans
-pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<MatchSpan>) {
+/// Rules 1 and 2 use the `token_context` module to classify ambiguous
+/// matches based on their neighbors' roles (title word vs tech token),
+/// replacing the old positional heuristics ("first half of title zone",
+/// "before the anchor").
+pub fn apply_zone_rules(
+    input: &str,
+    _zone_map: &ZoneMap,
+    token_stream: &TokenStream,
+    matches: &mut Vec<MatchSpan>,
+) {
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let initial_count = matches.len();
 
-    // ── Rule 1: Language in title zone → likely a title word ─────────
-
-    // 1a: Filter directory language matches using per-directory zone maps.
-    // Directories WITHOUT tech anchors: drop all language matches (title words).
-    // Directories WITH tech anchors: drop language in the title zone.
-    if fn_start > 0 {
-        matches.retain(|m| {
-            if m.property != Property::Language || m.start >= fn_start {
-                return true;
-            }
-            // Find the directory zone this match belongs to.
-            if let Some(dz) = zone_map.dir_zones.iter().find(|dz| {
-                dz.title_zone.start <= m.start && m.end <= dz.tech_zone.end.max(dz.title_zone.end)
-            }) {
-                if !dz.has_anchors {
-                    return false; // No anchors → likely title word
-                }
-                if dz.title_zone.contains(&m.start) {
-                    return false; // In title zone → title word
-                }
-            }
-            true
-        });
-    }
-
-    // 1b: Filename language filtering.
-    if zone_map.has_anchors {
-        let title_zone_mid =
-            zone_map.title_zone.start + (zone_map.title_zone.end - zone_map.title_zone.start) / 2;
-
-        // Collect language values that appear in the tech zone.
-        let tech_langs: Vec<String> = matches
+    // ── Rule 1: Language disambiguation (context-aware) ────────────────
+    // Instead of positional heuristics ("first half of title zone"),
+    // check each language match's actual context:
+    //   - Is it surrounded by title words? → drop (it's a title word)
+    //   - Is it surrounded by tech tokens? → keep (it's a language label)
+    //   - Does a duplicate exist in tech context? → drop (redundant)
+    //   - Is it after a " - " separator or in brackets? → keep (metadata slot)
+    {
+        let drop_positions: Vec<usize> = matches
             .iter()
-            .filter(|m| m.property == Property::Language && m.start >= zone_map.tech_zone.start)
-            .map(|m| m.value.to_lowercase())
+            .filter(|m| m.property == Property::Language)
+            .filter(|m| {
+                token_context::is_in_title_context(m, matches, token_stream)
+                    || token_context::has_duplicate_in_tech_context(m, matches, token_stream)
+            })
+            .map(|m| m.start)
             .collect();
-
-        matches.retain(|m| {
-            if m.property != Property::Language || m.start < fn_start {
-                return true;
-            }
-            // Always drop language in the first half of title zone.
-            if m.start < title_zone_mid {
-                return false;
-            }
-            // Drop language in the second half of title zone when the
-            // same language appears again in the tech zone (duplicate
-            // = the title-zone one is a title word, e.g., "Immersion.French").
-            if m.start < zone_map.title_zone.end && tech_langs.contains(&m.value.to_lowercase()) {
-                return false;
-            }
-            true
-        });
-    } else {
-        // No anchors → prune language when substantial unmatched content exists.
-        let lang_matches: Vec<&MatchSpan> = matches
-            .iter()
-            .filter(|m| m.start >= fn_start && m.property == Property::Language)
-            .collect();
-
-        if !lang_matches.is_empty() {
-            let fn_end = input.len();
-            let matched_bytes: usize = matches
-                .iter()
-                .filter(|m| m.start >= fn_start)
-                .map(|m| m.end.saturating_sub(m.start))
-                .sum();
-            let unmatched = (fn_end - fn_start).saturating_sub(matched_bytes);
-            let lang_bytes: usize = lang_matches
-                .iter()
-                .map(|m| m.end.saturating_sub(m.start))
-                .sum();
-            if unmatched > lang_bytes {
-                matches.retain(|m| !(m.property == Property::Language && m.start >= fn_start));
-            }
-        }
+        matches.retain(|m| m.property != Property::Language || !drop_positions.contains(&m.start));
     }
 
     trace!(
@@ -119,32 +65,21 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
         initial_count
     );
 
-    // ── Rule 2: Duplicate source in title zone → title word ─────────
-    let source_anchor_pos = matches
+    // ── Rule 2: Source in title context → title word ──────────────────
+    // When multiple sources exist, drop the one(s) surrounded by title words.
+    // This replaces the fragile "before anchor = title word" heuristic.
+    let source_count = matches
         .iter()
-        .filter(|m| {
-            m.start >= fn_start
-                && matches!(
-                    m.property,
-                    Property::Year | Property::Season | Property::Episode
-                )
-        })
-        .map(|m| m.start)
-        .min();
-
-    if let Some(anchor) = source_anchor_pos {
-        let has_early_source = matches
+        .filter(|m| m.property == Property::Source && m.start >= fn_start)
+        .count();
+    if source_count > 1 {
+        let drop_positions: Vec<usize> = matches
             .iter()
-            .any(|m| m.property == Property::Source && m.start >= fn_start && m.start < anchor);
-        let has_late_source = matches
-            .iter()
-            .any(|m| m.property == Property::Source && m.start >= anchor);
-
-        if has_early_source && has_late_source {
-            matches.retain(|m| {
-                !(m.property == Property::Source && m.start >= fn_start && m.start < anchor)
-            });
-        }
+            .filter(|m| m.property == Property::Source && m.start >= fn_start)
+            .filter(|m| token_context::is_in_title_context(m, matches, token_stream))
+            .map(|m| m.start)
+            .collect();
+        matches.retain(|m| m.property != Property::Source || !drop_positions.contains(&m.start));
     }
 
     // ── Rule 3+4: UHD Blu-ray promotion + redundant Ultra HD cleanup ──
