@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    tags: ["v*"]        # Release gate needs CI on the tagged commit
   pull_request:
     branches: [main]
   workflow_call:
