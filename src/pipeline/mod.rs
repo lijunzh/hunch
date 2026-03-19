@@ -424,6 +424,8 @@ impl Pipeline {
                 "step 5b: title extracted — \"{}\" at {}..{}",
                 title_match.value, title_match.start, title_match.end
             );
+            // Remove reclaimable matches absorbed into the title.
+            title::absorb_reclaimable(&title_match, &mut all_matches);
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
@@ -644,10 +646,27 @@ impl Pipeline {
                     }
 
                     // ── Primary match ───────────────────────────────
-                    matches.push(
-                        MatchSpan::new(win_start, win_end, ctx.property, token_match.value)
-                            .with_priority(ctx.priority),
-                    );
+                    // Determine reclaimability: explicitly marked, or
+                    // auto-reclaimable when requires_nearby isn't satisfied.
+                    let mut reclaimable = token_match.reclaimable;
+                    if let Some(ref nearby) = token_match.requires_nearby {
+                        let nearby_found = ctx
+                            .tokens
+                            .iter()
+                            .any(|t| nearby.iter().any(|n| n == &t.text.to_lowercase()));
+                        if !nearby_found {
+                            reclaimable = true;
+                        }
+                    }
+
+                    let span = MatchSpan::new(win_start, win_end, ctx.property, token_match.value)
+                        .with_priority(ctx.priority);
+                    let span = if reclaimable {
+                        span.as_reclaimable()
+                    } else {
+                        span
+                    };
+                    matches.push(span);
                     matched_ranges.push((win_start, win_end));
 
                     // ── Side effects ────────────────────────────────

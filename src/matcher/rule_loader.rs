@@ -43,6 +43,13 @@ pub struct TokenMatch<'a> {
     /// If true, the match is only valid when the filename has recognized tech context
     /// (Tier 1/2 anchors). Prevents false positives on standalone inputs.
     pub requires_context: bool,
+    /// If true, the title extractor may absorb this match when it
+    /// appears to be title content rather than metadata.
+    pub reclaimable: bool,
+    /// If set, the match is only confident when at least one of these
+    /// tokens appears nearby. When no nearby token is found, the match
+    /// is still emitted but marked reclaimable.
+    pub requires_nearby: Option<Vec<String>>,
 }
 
 /// An additional property:value pair emitted as a side effect of a pattern match.
@@ -74,6 +81,10 @@ struct PatternRule {
     requires_before: Option<Vec<String>>,
     /// Reject unless filename has tech context (Tier 1/2 anchors).
     requires_context: bool,
+    /// Match can be reclaimed as title content.
+    reclaimable: bool,
+    /// Match is only confident near these tokens; otherwise auto-reclaimable.
+    requires_nearby: Option<Vec<String>>,
 }
 
 /// How a TOML rule set interacts with the ZoneMap.
@@ -140,6 +151,10 @@ struct RawPattern {
     requires_before: Option<Vec<String>>,
     #[serde(default)]
     requires_context: bool,
+    #[serde(default)]
+    reclaimable: bool,
+    #[serde(default)]
+    requires_nearby: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -203,6 +218,8 @@ impl RuleSet {
                     requires_after: p.requires_after,
                     requires_before: p.requires_before,
                     requires_context: p.requires_context,
+                    reclaimable: p.reclaimable,
+                    requires_nearby: p.requires_nearby,
                 }
             })
             .collect();
@@ -279,6 +296,8 @@ impl<'a> TokenMatch<'a> {
             requires_after: None,
             requires_before: None,
             requires_context: false,
+            reclaimable: false,
+            requires_nearby: None,
         }
     }
 
@@ -292,6 +311,8 @@ impl<'a> TokenMatch<'a> {
             requires_after: rule.requires_after.clone(),
             requires_before: rule.requires_before.clone(),
             requires_context: rule.requires_context,
+            reclaimable: rule.reclaimable,
+            requires_nearby: rule.requires_nearby.clone(),
         }
     }
 }
