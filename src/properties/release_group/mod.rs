@@ -18,19 +18,17 @@
 //!
 //! ## Module structure
 //! - `mod.rs` — regex patterns + find_matches (matching logic)
-//! - `known_tokens.rs` — position-based validation + helpers
+//! - `validation.rs` — position-based validation + helpers
 
-mod known_tokens;
+mod validation;
 
 use regex::Regex;
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::TokenStream;
 use crate::zone_map::ZoneMap;
-use known_tokens::{
-    expand_group_backwards, is_hex_crc, is_rejected_group, strip_trailing_metadata,
-};
 use std::sync::LazyLock;
+use validation::{expand_group_backwards, is_hex_crc, is_rejected_group, strip_trailing_metadata};
 
 // ── Regex patterns ────────────────────────────────────────────────────────
 
