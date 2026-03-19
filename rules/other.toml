@@ -5,8 +5,9 @@
 # The legacy other.rs matcher has been retired.
 #
 # Zone: unrestricted — these tokens are almost never title words.
-# Truly ambiguous tokens (HD, DV, Proof, 3D) live in other_positional.toml
-# with zone_scope = "tech_only".
+# Truly ambiguous tokens (HD, DV, Proof) live in other_positional.toml
+# with zone_scope = "tech_only". 3D uses requires_nearby (below) for
+# context-aware disambiguation.
 property = "other"
 
 # Single-token exact matches (case-insensitive).
@@ -243,3 +244,11 @@ requires_before = ["season", "saison", "temporada", "staffel", "serie", "series"
 match = '(?i)^dubbed$'
 value = "Dubbed"
 not_after = ["english", "french", "spanish", "german", "italian", "portuguese", "russian", "japanese", "chinese", "korean", "arabic", "hindi", "dutch", "swedish", "norwegian", "danish", "finnish", "polish", "czech", "turkish", "greek", "hungarian", "romanian", "thai", "vietnamese", "catalan", "croatian", "serbian", "bulgarian", "ukrainian", "hebrew", "deutsch", "italiano", "castellano", "eng", "fre", "ger", "spa", "ita", "jpn", "rus", "kor", "dut", "por", "ara", "hin"]
+
+[[patterns]]
+# 3D — ambiguous: "Pacific Rim 3D" (metadata) vs "Harold & Kumar 3D Christmas" (title).
+# Confident when tech tokens (BluRay, 1080p, etc.) appear nearby;
+# reclaimable (title may absorb) when no tech context exists.
+match = '(?i)^3d$'
+value = "3D"
+requires_nearby = ["bluray", "bdrip", "brrip", "remux", "1080p", "720p", "2160p", "4k", "uhd", "hdr", "hdr10", "web", "webrip", "webdl", "dvdrip", "hdtv", "x264", "x265", "h264", "h265", "hevc", "avc", "dts", "atmos", "truehd"]

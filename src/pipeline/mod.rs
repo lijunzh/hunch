@@ -424,6 +424,8 @@ impl Pipeline {
                 "step 5b: title extracted — \"{}\" at {}..{}",
                 title_match.value, title_match.start, title_match.end
             );
+            // Remove reclaimable matches absorbed into the title.
+            title::absorb_reclaimable(&title_match, &mut all_matches);
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
