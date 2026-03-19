@@ -561,12 +561,11 @@ impl Pipeline {
 
                 // ── Zone scope filtering ─────────────────────────────
                 // Use per-directory zone when available, otherwise filename zone.
-                let (effective_has_anchors, effective_title_zone) =
-                    if let Some(dz) = ctx.dir_zone {
-                        (dz.has_anchors, &dz.title_zone)
-                    } else {
-                        (ctx.zone_map.has_anchors, &ctx.zone_map.title_zone)
-                    };
+                let (effective_has_anchors, effective_title_zone) = if let Some(dz) = ctx.dir_zone {
+                    (dz.has_anchors, &dz.title_zone)
+                } else {
+                    (ctx.zone_map.has_anchors, &ctx.zone_map.title_zone)
+                };
 
                 if effective_has_anchors {
                     let in_title_zone = effective_title_zone.contains(&win_start);
