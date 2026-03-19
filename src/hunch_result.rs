@@ -217,26 +217,34 @@ impl HunchResult {
     }
 
     /// Convert to a flat map (first value per property), useful for JSON output.
+    ///
+    /// Only semantically numeric properties (year, season, episode, etc.) are
+    /// coerced to JSON numbers. Name-like properties (title, release_group,
+    /// episode_title, etc.) always serialize as strings, even if the value
+    /// happens to be all digits (e.g., the movie "2001").
     pub fn to_flat_map(&self) -> BTreeMap<String, serde_json::Value> {
         let mut map = BTreeMap::new();
         for (k, v) in &self.props {
             let key = k.to_string();
+            let numeric = k.is_numeric();
             if v.len() == 1 {
-                // Try to parse as number for year/season/episode
-                if let Ok(n) = v[0].parse::<i64>() {
-                    map.insert(key, serde_json::Value::Number(n.into()));
-                } else {
-                    map.insert(key, serde_json::Value::String(v[0].clone()));
+                if numeric {
+                    if let Ok(n) = v[0].parse::<i64>() {
+                        map.insert(key, serde_json::Value::Number(n.into()));
+                        continue;
+                    }
                 }
+                map.insert(key, serde_json::Value::String(v[0].clone()));
             } else {
                 let arr: Vec<serde_json::Value> = v
                     .iter()
                     .map(|s| {
-                        if let Ok(n) = s.parse::<i64>() {
-                            serde_json::Value::Number(n.into())
-                        } else {
-                            serde_json::Value::String(s.clone())
+                        if numeric {
+                            if let Ok(n) = s.parse::<i64>() {
+                                return serde_json::Value::Number(n.into());
+                            }
                         }
+                        serde_json::Value::String(s.clone())
                     })
                     .collect();
                 map.insert(key, serde_json::Value::Array(arr));

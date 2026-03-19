@@ -340,4 +340,30 @@ impl Property {
             _ => None,
         }
     }
+
+    /// Whether this property is semantically numeric and should be coerced
+    /// to a JSON number in [`HunchResult::to_flat_map`](crate::HunchResult::to_flat_map).
+    ///
+    /// Name-like properties (`Title`, `ReleaseGroup`, `EpisodeTitle`, etc.)
+    /// always serialize as strings, even when the value is all digits.
+    pub fn is_numeric(&self) -> bool {
+        matches!(
+            self,
+            Self::Year
+                | Self::Season
+                | Self::Episode
+                | Self::AbsoluteEpisode
+                | Self::Part
+                | Self::Bonus
+                | Self::Film
+                | Self::Cd
+                | Self::CdCount
+                | Self::Disc
+                | Self::Week
+                | Self::EpisodeCount
+                | Self::SeasonCount
+                | Self::ProperCount
+                | Self::Version
+        )
+    }
 }
