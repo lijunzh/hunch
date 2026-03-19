@@ -5,42 +5,78 @@ use super::find_title_boundary;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::TokenStream;
 
-/// Extract episode title: the text between the last episode/season marker
-/// and the next technical property in the filename portion.
+/// Extract episode title: structure-aware extraction from whichever path
+/// segment contains the episode/season anchor.
 ///
-/// Uses resolved matches for suspicious match detection (v0.3):
-/// if an `Other` match is surrounded by non-tech words, it's likely
-/// title content (e.g., "Proper" in "Proper Pigs"), not metadata.
+/// Instead of assuming the leaf filename always has the episode title,
+/// we find the segment where the episode anchor lives and extract from
+/// there. This handles organized libraries where episode metadata lives
+/// in a parent directory:
+///
+/// ```text
+/// Bones.S12E02.The.Brain.In.The.Bot.1080p-R2D2/161219_06.mkv
+///   anchor segment: parent dir ──────────────┘
+///   episode_title: "The Brain In The Bot" (from parent dir)
+/// ```
 pub fn extract_episode_title(
     input: &str,
     matches: &[MatchSpan],
-    _token_stream: &TokenStream,
+    token_stream: &TokenStream,
 ) -> Option<MatchSpan> {
-    let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
-    let filename = &input[filename_start..];
-    let filename_end = filename_start + filename.len();
+    // Build segment boundaries from the token stream.
+    let segments: Vec<(usize, usize)> = token_stream
+        .segments
+        .iter()
+        .map(|s| (s.start, s.end))
+        .collect();
 
-    let has_anchor = matches.iter().any(|m| {
-        m.start >= filename_start
-            && matches!(
-                m.property,
-                Property::Episode | Property::Season | Property::Date
-            )
-    });
-    if !has_anchor {
-        return None;
+    // Find which segment(s) contain episode/season/date anchors.
+    // Try each anchor segment, deepest first (prefer filename over parent dir).
+    let mut anchor_segments: Vec<(usize, usize)> = segments
+        .iter()
+        .filter(|(seg_start, seg_end)| {
+            matches.iter().any(|m| {
+                m.start >= *seg_start
+                    && m.end <= *seg_end
+                    && matches!(
+                        m.property,
+                        Property::Episode | Property::Season | Property::Date
+                    )
+            })
+        })
+        .copied()
+        .collect();
+
+    // Deepest first: prefer closer-to-leaf segments.
+    anchor_segments.sort_by(|a, b| b.0.cmp(&a.0));
+
+    for (seg_start, seg_end) in &anchor_segments {
+        if let Some(result) = extract_episode_title_in_segment(input, matches, *seg_start, *seg_end)
+        {
+            return Some(result);
+        }
     }
 
-    // Find the last episode/season marker (preferred) or date marker.
-    // When both Episode/Season and Date markers exist, prefer Episode/Season
-    // as the title extraction anchor — the Date is metadata that should
-    // stop the episode title, not start it.
-    // Include EpisodeCount and SeasonCount so "14.of.21.Title" starts
-    // the episode title after "21", not after "14".
+    None
+}
+
+/// Core episode title extraction within a specific segment boundary.
+///
+/// Finds the last episode/season anchor in `[seg_start, seg_end)`, then
+/// extracts the text between that anchor and the next technical property.
+fn extract_episode_title_in_segment(
+    input: &str,
+    matches: &[MatchSpan],
+    seg_start: usize,
+    seg_end: usize,
+) -> Option<MatchSpan> {
+    // Find the last episode/season marker (preferred) or date marker
+    // within this segment.
     let last_ep_season = matches
         .iter()
         .filter(|m| {
-            m.start >= filename_start
+            m.start >= seg_start
+                && m.end <= seg_end
                 && matches!(
                     m.property,
                     Property::Episode
@@ -53,16 +89,14 @@ pub fn extract_episode_title(
 
     let last_date = matches
         .iter()
-        .filter(|m| m.start >= filename_start && m.property == Property::Date)
+        .filter(|m| m.start >= seg_start && m.end <= seg_end && m.property == Property::Date)
         .max_by_key(|m| m.end);
 
     // Prefer Episode/Season markers over Date when both exist.
     let last_ep_match = last_ep_season.or(last_date)?;
-
     let ep_title_start = last_ep_match.end;
 
-    // Properties that should stop episode title extraction.
-    // Part is intentionally excluded — episode titles often contain "Part N".
+    // Properties that stop episode title extraction.
     let technical_props = [
         Property::VideoCodec,
         Property::AudioCodec,
@@ -79,50 +113,44 @@ pub fn extract_episode_title(
         Property::FrameRate,
         Property::ColorDepth,
         Property::VideoProfile,
-        // NOTE: Property::Other is handled below with suspicious match detection.
     ];
 
-    // Find Other matches in the episode title zone and check if they're suspicious.
-    // An Other match is "suspicious" (likely title content) if the word after it
-    // is NOT a tech token. E.g., "Proper.Pigs" → "Proper" is title, not Other.
-    let _other_matches_in_zone: Vec<&MatchSpan> = matches
-        .iter()
-        .filter(|m| {
-            m.property == Property::Other && m.start >= ep_title_start && m.start < filename_end
-        })
-        .collect();
-
-    // Find first stopping tech property (including non-suspicious Other matches).
+    // Find first stopping tech property (including non-suspicious Other).
     let next_tech = matches
         .iter()
         .filter(|m| {
             m.start >= ep_title_start
-                && m.start < filename_end
+                && m.start < seg_end
                 && (technical_props.contains(&m.property)
                     || (m.property == Property::Other && !is_suspicious_other(m, input, matches)))
         })
         .min_by_key(|m| m.start);
 
+    let segment_text = &input[seg_start..seg_end];
     let ep_title_end = match next_tech {
         Some(m) => m.start,
         None => {
+            // For segments with a trailing path separator or extension,
+            // trim at the last dot (extension) or use the segment end.
             let has_container = matches
                 .iter()
-                .any(|m| m.property == Property::Container && m.start >= filename_start);
+                .any(|m| m.property == Property::Container && m.start >= seg_start);
             if has_container {
-                filename
+                segment_text
                     .rfind('.')
-                    .map(|pos| filename_start + pos)
-                    .unwrap_or(filename_end)
+                    .map(|pos| seg_start + pos)
+                    .unwrap_or(seg_end)
             } else {
-                filename_end
+                seg_end
             }
         }
     };
 
     // Trim at opening brackets/parens (metadata, not title content).
-    // But skip parens whose content starts with digits (date references like "(14-01...").
     let ep_title_end = {
+        if ep_title_end <= ep_title_start {
+            return None;
+        }
         let region = &input[ep_title_start..ep_title_end];
         let bracket_pos = region.find('[').or_else(|| {
             region.find('(').filter(|&pos| {
@@ -143,7 +171,6 @@ pub fn extract_episode_title(
     let raw = &input[ep_title_start..ep_title_end];
 
     // Split at " - " separator when the text before it matches the show title.
-    // Handles: "2x05 - Pure Laine - Je Me Souviens" → ep_title = "Je Me Souviens"
     let raw = split_ep_title_at_show_repeat(raw, matches);
 
     let cleaned = clean_episode_title(raw);
@@ -152,8 +179,6 @@ pub fn extract_episode_title(
     }
 
     // Strip trailing "Part N" from episode titles.
-    // Part in the MIDDLE of a title is kept ("Harry Potter Part 2 The Quest"),
-    // but trailing Part is always a separate metadata property.
     let re_trailing_part =
         regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)\s*$").unwrap();
     let cleaned = re_trailing_part.replace(&cleaned, "").trim().to_string();
@@ -173,6 +198,8 @@ pub fn extract_episode_title(
     {
         return None;
     }
+    // Check for episode/season markers inside the gap (would mean this
+    // is not actually episode title content).
     let has_ep_in_gap = matches.iter().any(|m| {
         m.start >= ep_title_start
             && m.end <= ep_title_end

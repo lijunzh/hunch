@@ -773,6 +773,29 @@ mod tests {
     }
 
     #[test]
+    fn test_episode_title_from_parent_dir() {
+        let pipeline = Pipeline::default();
+        let result = pipeline
+            .run("Bones.S12E02.The.Brain.In.The.Bot.1080p.WEB-DL.DD5.1.H.264-R2D2/161219_06.mkv");
+        assert_eq!(result.title(), Some("Bones"));
+        assert_eq!(result.season(), Some(12));
+        assert_eq!(result.episode(), Some(2));
+        assert_eq!(result.episode_title(), Some("The Brain In The Bot"));
+    }
+
+    #[test]
+    fn test_episode_title_parent_dir_with_redundant_leaf() {
+        let pipeline = Pipeline::default();
+        let result = pipeline.run(
+            "Scrubs/SEASON-06/Scrubs.S06E09.My.Perspective.DVDRip.XviD-WAT/scrubs.s06e09.dvdrip.xvid-wat.avi",
+        );
+        assert_eq!(result.title(), Some("Scrubs"));
+        assert_eq!(result.season(), Some(6));
+        assert_eq!(result.episode(), Some(9));
+        assert_eq!(result.episode_title(), Some("My Perspective"));
+    }
+
+    #[test]
     fn test_toml_rules_load() {
         // Smoke test: all TOML rule sets parse and have entries.
         assert!(VIDEO_CODEC_RULES.exact_count() >= 10);
