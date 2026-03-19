@@ -441,10 +441,9 @@ impl Pipeline {
             all_matches.push(ep_title);
         }
 
-        // Step 5d: Alternative title.
-        if let Some(alt_title) =
-            title::extract_alternative_title(input, &all_matches, &token_stream)
-        {
+        // Step 5d: Alternative title(s).
+        let alt_titles = title::extract_alternative_titles(input, &all_matches, &token_stream);
+        for alt_title in alt_titles {
             all_matches.push(alt_title);
         }
 
