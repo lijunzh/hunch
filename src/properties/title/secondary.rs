@@ -31,10 +31,13 @@ pub fn extract_episode_title(
         return None;
     }
 
-    // Find the last episode/season/date/episode_count marker.
+    // Find the last episode/season marker (preferred) or date marker.
+    // When both Episode/Season and Date markers exist, prefer Episode/Season
+    // as the title extraction anchor — the Date is metadata that should
+    // stop the episode title, not start it.
     // Include EpisodeCount and SeasonCount so "14.of.21.Title" starts
     // the episode title after "21", not after "14".
-    let last_ep_match = matches
+    let last_ep_season = matches
         .iter()
         .filter(|m| {
             m.start >= filename_start
@@ -42,12 +45,19 @@ pub fn extract_episode_title(
                     m.property,
                     Property::Episode
                         | Property::Season
-                        | Property::Date
                         | Property::EpisodeCount
                         | Property::SeasonCount
                 )
         })
-        .max_by_key(|m| m.end)?;
+        .max_by_key(|m| m.end);
+
+    let last_date = matches
+        .iter()
+        .filter(|m| m.start >= filename_start && m.property == Property::Date)
+        .max_by_key(|m| m.end);
+
+    // Prefer Episode/Season markers over Date when both exist.
+    let last_ep_match = last_ep_season.or(last_date)?;
 
     let ep_title_start = last_ep_match.end;
 
@@ -60,10 +70,12 @@ pub fn extract_episode_title(
         Property::ScreenSize,
         Property::Edition,
         Property::Language,
+        Property::SubtitleLanguage,
         Property::AudioChannels,
         Property::Container,
         Property::StreamingService,
         Property::Year,
+        Property::Date,
         Property::FrameRate,
         Property::ColorDepth,
         Property::VideoProfile,
@@ -418,13 +430,16 @@ fn is_suspicious_other(other_match: &MatchSpan, input: &str, _matches: &[MatchSp
     }
 
     // Check the original token text in the input. Release tags like REPACK,
-    // READNFO, REAL, PROPER produce Other:Proper via side effects but the
+    // READNFO, REAL produce Other:Proper via side effects but the
     // original text is obviously metadata, not a title word.
+    // Note: "proper" is intentionally NOT in this list — we want the
+    // next-word heuristic below to decide if standalone "Proper" is title
+    // content (e.g., "Proper.Pigs") or metadata (e.g., "Proper.720p").
     if other_match.end > other_match.start && other_match.end <= input.len() {
         let original_text = input[other_match.start..other_match.end].to_lowercase();
         if matches!(
             original_text.as_str(),
-            "repack" | "readnfo" | "real" | "proper" | "rerip" | "internal"
+            "repack" | "readnfo" | "real" | "rerip" | "internal"
         ) {
             return false;
         }
@@ -484,11 +499,20 @@ fn split_ep_title_at_show_repeat<'a>(raw: &'a str, matches: &[MatchSpan]) -> &'a
         while let Some(pos) = raw[search_start..].find(sep) {
             let abs_pos = search_start + pos;
             let before = raw[..abs_pos].trim();
-            let before_clean = before.replace(['.', '_'], " ").trim().to_lowercase();
+            let before_clean = before
+                .replace(['.', '_'], " ")
+                .trim()
+                .trim_start_matches(['-', ' '])
+                .trim()
+                .to_lowercase();
 
             // If the text before this separator matches the show title,
             // the episode title starts after it.
-            if before_clean == show_title || show_title.contains(&before_clean) {
+            // Guard: skip empty before_clean — an empty string is trivially
+            // "contained" in every string, producing false positives.
+            if !before_clean.is_empty()
+                && (before_clean == show_title || show_title.contains(&before_clean))
+            {
                 let after = &raw[abs_pos + sep.len()..];
                 // Look for another " - " after this one (nested separators).
                 if let Some(next_pos) = after.find(sep) {
