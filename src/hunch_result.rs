@@ -1,7 +1,7 @@
 //! The [`HunchResult`] type — a structured bag of extracted metadata.
 //!
 //! This is the return type of [`hunch`](crate::hunch) and
-//! [`hunch_with`](crate::hunch_with). It holds all properties extracted
+//! [`hunch`](crate::hunch). It holds all properties extracted
 //! from a media filename, with typed accessors for common fields and
 //! generic [`first`](HunchResult::first) / [`all`](HunchResult::all)
 //! methods for the full 49-property set.

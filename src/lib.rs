@@ -22,23 +22,6 @@
 //! assert_eq!(result.container(), Some("mkv"));
 //! ```
 //!
-//! ## Parsing with Options
-//!
-//! Use [`hunch_with`] when you need to hint the media type or disable
-//! path handling:
-//!
-//! ```rust
-//! use hunch::{Options, hunch_with};
-//!
-//! let result = hunch_with(
-//!     "Show.S01E01.720p.HDTV.x264-LOL.mkv",
-//!     Options::new().with_type("episode"),
-//! );
-//! assert_eq!(result.title(), Some("Show"));
-//! assert_eq!(result.season(), Some(1));
-//! assert_eq!(result.episode(), Some(1));
-//! ```
-//!
 //! ## Accessing Properties
 //!
 //! [`HunchResult`] provides typed convenience accessors for common
@@ -127,11 +110,9 @@ pub mod tokenizer;
 pub mod zone_map;
 
 mod hunch_result;
-mod options;
 mod pipeline;
 
 pub use hunch_result::{HunchResult, MediaType};
-pub use options::Options;
 pub use pipeline::Pipeline;
 
 /// Parse a media filename and return structured metadata.
@@ -149,37 +130,6 @@ pub use pipeline::Pipeline;
 /// assert_eq!(result.video_codec(), Some("H.264"));
 /// assert_eq!(result.container(), Some("mkv"));
 /// ```
-///
-/// For customized parsing, see [`hunch_with`].
 pub fn hunch(input: &str) -> HunchResult {
     Pipeline::default().run(input)
-}
-
-/// Parse a media filename with custom [`Options`].
-///
-/// Use this when you need to hint the media type, disable path handling,
-/// or supply expected titles.
-///
-/// # Example
-///
-/// ```rust
-/// use hunch::{Options, hunch_with};
-///
-/// // Hint that the input is an episode:
-/// let result = hunch_with(
-///     "Show.S01E01.720p.HDTV.x264-LOL.mkv",
-///     Options::new().with_type("episode"),
-/// );
-/// assert_eq!(result.title(), Some("Show"));
-/// assert_eq!(result.season(), Some(1));
-///
-/// // Parse a bare release name (no path separators):
-/// let result = hunch_with(
-///     "Movie.2024.1080p.BluRay.x264-GROUP",
-///     Options::new().name_only(),
-/// );
-/// assert_eq!(result.title(), Some("Movie"));
-/// ```
-pub fn hunch_with(input: &str, options: Options) -> HunchResult {
-    Pipeline::new(options).run(input)
 }

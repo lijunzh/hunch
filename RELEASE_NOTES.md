@@ -1,60 +1,43 @@
-# Hunch v1.1.0 — Logging & Documentation
+# Hunch v2.0.0 — Remove dead Options API
 
-This release adds structured logging for debugging misparses and brings
-Rustdoc coverage from 0% to 100% (zero `missing_docs` warnings).
+## Breaking Changes
 
-No parsing behavior changes — all 1,069 guessit compatibility cases
-still pass.
+The `Options` struct, `hunch_with()` function, and `--type`/`--name-only` CLI
+flags have been removed. These were shipped in v1.0.0 but **never wired into
+the parsing pipeline** — every field was silently ignored. A user passing
+`--name-only` or `--type movie` received identical behavior to a plain
+`hunch()` call.
 
-## What's New
+Rather than retroactively change behavior that people may have relied on
+(even if that reliance was based on a misunderstanding), we're being honest:
+this was dead code from day one. When media-type hinting or name-only mode
+are actually implemented, they'll return as a properly tested API.
 
-### 🔍 Structured Logging
+### Migration guide
 
-The full pipeline is now instrumented with `log` crate diagnostics.
-See exactly how each filename is tokenized, matched, and resolved:
+```rust
+// Before (v1.x):
+use hunch::{Options, hunch_with};
+let r = hunch_with("file.mkv", Options::new().with_type("movie"));
 
-```bash
-# Debug level — stage summaries
-hunch -v "Movie.2024.1080p.BluRay.x264-GROUP.mkv"
-
-# Trace level — every match span and conflict decision
-RUST_LOG=hunch=trace hunch "Movie.2024.1080p.mkv"
+// After (v2.0):
+use hunch::hunch;
+let r = hunch("file.mkv");  // identical behavior — Options was always ignored
 ```
 
-Zero runtime cost when logging is disabled (the default).
-
-### 📖 Comprehensive Rustdoc
-
-- All 49 `Property` variants documented with example values
-- `HunchResult`, `Options`, `Pipeline`, `MatchSpan` enriched with
-  examples and cross-links
-- `hunch_with()` fully documented with worked examples
-- Crate-level docs expanded: 7 sections covering all usage patterns
-- 15 doc-tests compiled and run as part of `cargo test`
-- `#![warn(missing_docs)]` prevents future regressions
-
-### 🛡️ Robustness
-
-- ~30 bare `.unwrap()` → descriptive `.expect()` messages
-- CLI JSON errors now reported to stderr (was silently swallowed)
+CLI users: remove `--type` and `--name-only` flags. They had no effect.
 
 ## Compatibility (unchanged)
 
 - **81.7%** guessit compatibility (1,069 / 1,309)
-- **22 properties at 95%+**, 16 at 100%
-- **295 tests** (225 unit + 23 regression + 32 integration + 15 doc-tests)
+- **295 tests** passing
 
 ## Install / Upgrade
 
 ```bash
-# Homebrew
 brew upgrade hunch
-
-# Cargo
 cargo install hunch
-
-# As a library
-cargo add hunch@1.1.0
+cargo add hunch@2.0.0
 ```
 
 ## Full Changelog

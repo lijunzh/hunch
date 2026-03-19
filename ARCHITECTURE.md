@@ -678,7 +678,6 @@ src/
 ├── lib.rs                  # Public API: parse()
 ├── main.rs                 # CLI binary (clap)
 ├── hunch_result.rs         # HunchResult type + typed accessors + JSON
-├── options.rs              # Options / configuration
 ├── pipeline.rs             # v0.2 pipeline orchestration
 ├── tokenizer.rs            # Input → TokenStream (separators, brackets, extension)
 ├── zone_map.rs             # (v0.2.1) Anchor detection + zone boundary computation
