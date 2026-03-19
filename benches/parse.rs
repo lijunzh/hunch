@@ -3,8 +3,8 @@
 //! Run with: `cargo bench`
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use std::hint::black_box;
 use hunch::hunch;
+use std::hint::black_box;
 
 fn bench_movie(c: &mut Criterion) {
     c.bench_function("movie_basic", |b| {
