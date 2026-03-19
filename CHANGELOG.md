@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2026-03-19
+
+### Breaking Changes
+
+- **Removed `Options` struct, `hunch_with()` function, and `--type`/`--name-only` CLI flags.**
+  These were shipped in v1.0.0 but never wired into the pipeline — every field
+  was silently ignored. Users who passed `--name-only` or `--type movie` received
+  no different behavior than a plain `hunch()` call. Rather than ship a fix that
+  changes behavior people may have (incorrectly) relied on, we're being honest:
+  this was dead code from day one and is now removed. When media-type hinting or
+  name-only mode are actually implemented, they'll return as a properly tested API.
+- **Removed `Pipeline::new(options)`.** Use `Pipeline::new()` (no args) or
+  `Pipeline::default()` instead.
+
+### Removed
+
+- `src/options.rs` — entire module deleted.
+- `hunch_with()` public function.
+- `Options` re-export from crate root.
+- CLI `--type` / `-t` flag.
+- CLI `--name-only` / `-n` flag.
+
 ## [1.1.2] - 2026-02-28
 
 ### Fixed

@@ -64,8 +64,6 @@ hunch "Movie.2024.1080p.mkv" "Show.S01E01.mkv"
 Options:
 
 ```
--t, --type <TYPE>    Hint media type: "movie" or "episode"
--n, --name-only      Treat input as name only (no path separators)
 -j, --json           Output compact JSON (default is pretty-printed)
 -v, --verbose        Enable debug logging (see Logging below)
 ```
@@ -85,24 +83,6 @@ fn main() {
     assert_eq!(result.release_group(), Some("DEMAND"));
     assert_eq!(result.container(), Some("mkv"));
 }
-```
-
-### Parsing with Options
-
-```rust
-use hunch::{Options, hunch_with};
-
-// Hint the media type:
-let result = hunch_with(
-    "Show.S01E01.720p.HDTV.x264-LOL.mkv",
-    Options::new().with_type("episode"),
-);
-
-// Parse a bare release name (no path handling):
-let result = hunch_with(
-    "Movie.2024.1080p.BluRay.x264-GROUP",
-    Options::new().name_only(),
-);
 ```
 
 ## Logging
@@ -184,7 +164,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design and decision log.
 
 ```
 src/
-├── lib.rs              # Public API: hunch(), hunch_with()
+├── lib.rs              # Public API: hunch()
 ├── main.rs             # CLI binary (clap)
 ├── hunch_result.rs     # HunchResult type + JSON serialization
 ├── options.rs          # Configuration
