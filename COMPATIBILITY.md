@@ -5,7 +5,7 @@ This document tracks how closely hunch reproduces guessit's behavior, measured
 by running hunch against guessit's own test suite (1,309 test cases across 22
 YAML files).
 
-> **Last updated:** 2026-02-28 (v1.1.0)
+> **Last updated:** 2026-03-19 (v1.1.3)
 
 ---
 
@@ -14,14 +14,14 @@ YAML files).
 | Metric | Value |
 |---|---|
 | Total test cases | 1,309 |
-| Passed (all props correct) | 1,069 |
-| Failed (any prop wrong) | 240 |
-| **Pass rate** | **81.7%** |
+| Passed (all props correct) | 1,076 |
+| Failed (any prop wrong) | 233 |
+| **Pass rate** | **82.2%** |
 | Properties implemented | 49 / 49 |
 | Properties intentionally diverged | 3 |
 
 guessit passes 100% of its own tests by definition. Hunch currently
-reproduces 81.7% of those results identically.
+reproduces 82.2% of those results identically.
 
 ---
 
@@ -31,24 +31,24 @@ reproduces 81.7% of those results identically.
 |---|---|---|---|
 | rules/audio_codec.yml | 17 | 17 | **100%** |
 | rules/edition.yml | 44 | 44 | **100%** |
+| rules/language.yml | 9 | 9 | **100%** |
 | rules/other.yml | 46 | 46 | **100%** |
 | rules/part.yml | 9 | 9 | **100%** |
+| rules/release_group.yml | 19 | 19 | **100%** |
 | rules/screen_size.yml | 9 | 9 | **100%** |
 | rules/size.yml | 3 | 3 | **100%** |
 | rules/source.yml | 23 | 23 | **100%** |
 | rules/video_codec.yml | 45 | 45 | **100%** |
 | rules/common_words.yml | 155 | 156 | **99%** |
-| rules/episodes.yml | 77 | 79 | 97% |
+| rules/episodes.yml | 77 | 79 | 98% |
 | rules/date.yml | 7 | 8 | 88% |
-| rules/release_group.yml | 19 | 19 | **100%** |
-| rules/language.yml | 9 | 9 | **100%** |
+| movies.yml | 161 | 199 | 81% |
 | rules/title.yml | 14 | 18 | 78% |
-| movies.yml | 153 | 199 | 77% |
 | various.yml | 89 | 124 | 72% |
+| episodes.yml | 341 | 488 | 70% |
 | rules/bonus.yml | 2 | 3 | 67% |
 | rules/country.yml | 2 | 3 | 67% |
 | rules/film.yml | 2 | 3 | 67% |
-| episodes.yml | 342 | 488 | 70% |
 | rules/cd.yml | 1 | 2 | 50% |
 | rules/website.yml | 1 | 2 | 50% |
 
@@ -86,8 +86,8 @@ property, across all test cases that assert it.
 |---|---|---|---|
 | video_codec | 497 | 7 | 98.6% |
 | screen_size | 421 | 7 | 98.4% |
+| source | 550 | 10 | 98.2% |
 | audio_codec | 221 | 5 | 97.8% |
-| source | 546 | 14 | 97.5% |
 | year | 222 | 8 | 96.5% |
 | crc32 | 24 | 1 | 96.0% |
 
@@ -99,8 +99,8 @@ property, across all test cases that assert it.
 | container | 143 | 8 | 94.7% |
 | season | 445 | 29 | 93.9% |
 | type | 769 | 53 | 93.6% |
-| title | 968 | 88 | 91.7% |
-| release_group | 491 | 48 | 91.1% |
+| title | 972 | 84 | 92.0% |
+| release_group | 490 | 49 | 90.9% |
 | website | 20 | 2 | 90.9% |
 | episode | 503 | 52 | 90.6% |
 | streaming_service | 28 | 3 | 90.3% |
@@ -109,27 +109,27 @@ property, across all test cases that assert it.
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| other | 306 | 43 | 87.7% |
-| film_title | 7 | 1 | 87.5% |
+| other | 311 | 38 | 89.1% |
 | uuid | 7 | 1 | 87.5% |
-| language | 124 | 18 | 87.3% |
+| film_title | 7 | 1 | 87.5% |
 | video_profile | 12 | 2 | 85.7% |
 | audio_profile | 29 | 5 | 85.3% |
 | part | 16 | 3 | 84.2% |
 | subtitle_language | 67 | 14 | 82.7% |
 | episode_details | 13 | 3 | 81.2% |
+| language | 115 | 27 | 81.0% |
 
-### 50–80%
+### ⚠️ Needs Work (50–80%)
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| episode_title | 148 | 53 | 73.6% |
+| episode_title | 153 | 48 | 76.1% |
 | country | 9 | 4 | 69.2% |
 | bonus_title | 8 | 5 | 61.5% |
 | absolute_episode | 6 | 4 | 60.0% |
 | cd | 3 | 2 | 60.0% |
+| alternative_title | 9 | 7 | 56.2% |
 | cd_count | 2 | 2 | 50.0% |
-| alternative_title | 7 | 9 | 43.8% |
 
 ### ❌ Intentionally diverged
 
@@ -137,39 +137,42 @@ property, across all test cases that assert it.
 |---|---|
 | audio_bit_rate | Hunch uses single `bit_rate` (see below) |
 | video_bit_rate | Hunch uses single `bit_rate` (see below) |
-| mimetype | Derived from `container`; redundant |
+| mimetype | Trivially derived from `container`; not implemented |
+
+---
+
+## Known Gaps & Future Work
+
+See GitHub issues for tracked improvements:
+
+- [#29](https://github.com/lijunzh/hunch/issues/29) — Density-based metadata cluster detection
+- [#30](https://github.com/lijunzh/hunch/issues/30) — Confidence scoring for ambiguous parses
+- [#31](https://github.com/lijunzh/hunch/issues/31) — Title database / embedding lookup
 
 ---
 
 ## Intentional Divergences
 
-### `bit_rate` (single property)
+### 1. `bit_rate` (combined)
 
-Hunch emits a single `bit_rate` property instead of guessit's split
-`audio_bit_rate` / `video_bit_rate`. Users already have codec properties
-for stream context. The split adds complexity without value for the
-primary use case (file organization).
+guessit splits bit rate into `audio_bit_rate` and `video_bit_rate`.
+Hunch emits a single `bit_rate` because the filename alone rarely
+contains enough context to disambiguate audio vs video bit rate.
 
-### `mimetype`
+### 2. `mimetype`
 
-Trivially derived from `container` (`mkv` → `video/x-matroska`).
-Redundant for a filename parser. Users can derive it if needed.
+guessit derives MIME type from container extension (e.g., `mkv` →
+`video/x-matroska`). This is a trivial lookup that belongs in the
+consumer, not the parser.
 
 ---
 
-## Architecture Notes
+## How to Reproduce
 
-### v1.0 Pipeline
+```bash
+# Run the full compatibility report:
+cargo test compatibility_report -- --ignored --nocapture
 
+# Dump individual failures:
+HUNCH_DUMP_FAILURES=50 cargo test compatibility_report -- --ignored --nocapture
 ```
-Input → Tokenize → ZoneMap → TOML Rules + Legacy Matchers
-     → Conflict Resolution → Zone Disambiguation → Title Extraction → Result
-```
-
-- **TOML-driven**: 20 rule files for vocabulary-based properties
-- **Algorithmic**: Rust code for episodes, title, release_group, dates
-- **Zone-aware**: ZoneMap provides structural boundaries for disambiguation
-- **No dual-pipeline**: All TOML/legacy overlap eliminated in v0.2.1
-- **regex-only**: No `fancy_regex`, linear-time, ReDoS-immune
-
-See ARCHITECTURE.md for full design documentation.

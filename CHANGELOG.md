@@ -5,27 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [2.0.0] - 2026-03-19
+## [1.1.3] - 2026-03-19
 
-### Breaking Changes
+### Changed
 
-- **Removed `Options` struct, `hunch_with()` function, and `--type`/`--name-only` CLI flags.**
-  These were shipped in v1.0.0 but never wired into the pipeline — every field
-  was silently ignored. Users who passed `--name-only` or `--type movie` received
-  no different behavior than a plain `hunch()` call. Rather than ship a fix that
-  changes behavior people may have (incorrectly) relied on, we're being honest:
-  this was dead code from day one and is now removed. When media-type hinting or
-  name-only mode are actually implemented, they'll return as a properly tested API.
-- **Removed `Pipeline::new(options)`.** Use `Pipeline::new()` (no args) or
-  `Pipeline::default()` instead.
+- **Overall pass rate: 81.7% → 82.2%** (1,069 → 1,076 / 1,309).
+- **Structure-aware neighbor-context disambiguation** — replaced fragile
+  positional heuristics ("first half of title zone", "before the anchor",
+  "unmatched bytes ratio") with principled structural reasoning based on
+  what actually surrounds each token. New `token_context` module provides:
+  - **Neighbor roles**: Score adjacent tokens as title words vs tech tokens.
+  - **Peer reinforcement**: Adjacent tokens of the same property type
+    (e.g., FRENCH next to ENGLISH) signal a metadata cluster.
+  - **Structural separators**: Tokens after " - " or in brackets are
+    metadata, not title content.
+  - **Structural fallback**: Edge-of-segment tokens use position relative
+    to first tech anchor as tiebreaker.
+  - **Duplicate detection**: Same value in firm tech context elsewhere
+    drops the title-zone instance.
+- **Structure-aware episode title extraction** — episode title is now
+  extracted from whichever path segment contains the episode anchor,
+  not hardcoded to the leaf filename.
+- **TOML-driven disambiguation** — new `requires_nearby` and
+  `reclaimable` fields in TOML rules reduce Rust-side special-casing.
+
+### Improved
+
+- **language: 80.3% → 81.0%** — neighbor context + peer reinforcement.
+- **title: 91.8% → 92.0%** — better language filtering.
+- **episode_title: 73.6% → 76.1%** — parent-dir extraction, boundary fixes.
+- **other: 88.8% → 89.1%** — TOML-driven `requires_nearby` for "Proper".
+
+### Fixed
+
+- Episode title extraction from parent directories when the leaf filename
+  contains only a numeric code (e.g., `Bones.S12E02.The.Brain.In.The.Bot
+  .1080p.WEB-DL/161219_06.mkv` → episode_title: "The Brain In The Bot").
+- Language "FR" after " - " separator no longer dropped
+  (`Love Gourou (Mike Myers) - FR` → language: French).
+- Adjacent language tokens now reinforce each other as metadata
+  (`QC.FRENCH.ENGLISH.NTSC` → both languages detected).
+- JSON numeric coercion limited to semantically numeric properties.
+- Added BDMux/BRMux/BDRipMux/BRRipMux source patterns.
+- Multi-segment alternative_title with earliest-boundary fix.
+
+### Refactored
+
+- `Property` enum uses `define_properties!` macro (DRY).
+- 8 positional args replaced with `MatchContext` struct.
+- `known_tokens.rs` renamed to `validation.rs`.
 
 ### Removed
 
-- `src/options.rs` — entire module deleted.
-- `hunch_with()` public function.
-- `Options` re-export from crate root.
-- CLI `--type` / `-t` flag.
-- CLI `--name-only` / `-n` flag.
+- `Options` struct, `hunch_with()`, `--type`/`--name-only` CLI flags.
+  These were dead code from v1.0.0 (never wired into the pipeline).
+- `src/options.rs` module deleted.
 
 ## [1.1.2] - 2026-02-28
 
@@ -468,6 +502,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.3]: https://github.com/lijunzh/hunch/releases/tag/v1.1.3
 [1.1.2]: https://github.com/lijunzh/hunch/releases/tag/v1.1.2
 [1.1.1]: https://github.com/lijunzh/hunch/releases/tag/v1.1.1
 [1.1.0]: https://github.com/lijunzh/hunch/releases/tag/v1.1.0
