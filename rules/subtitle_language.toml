@@ -77,6 +77,13 @@ ptsubs    = "Portuguese"
 brsub     = "Portuguese"
 brsubs    = "Portuguese"
 
+# ── CJK encoding / subtitle markers ──────────────────────────────────────
+big5      = "Traditional Chinese"
+cht       = "Traditional Chinese"
+tc        = "Traditional Chinese"
+chs       = "Simplified Chinese"
+sc        = "Simplified Chinese"
+
 # ── Generic subtitle markers (language = undetermined) ───────────────────
 esub        = "und"
 esubs       = "und"
@@ -121,6 +128,11 @@ value = "und"
 # SUB.FR / Sub-FR / Sub.EN (2-token: language code after sub marker)
 match = '(?i)^subs?[-. ]?(fr|en|es|de|it|nl|sv|no|da|fi|pl|cs|hu|ro|hr|sr|bg|uk|he|ar|ru|hi|zh|ja|ko|pt|br|ca)$'
 value = "{1}"
+
+[[patterns]]
+# CHS_CHT_ENG / CHS_CHT (underscore-separated CJK subtitle language codes)
+match = '(?i)^(?:CHS|CHT|ENG)(?:_(?:CHS|CHT|ENG))+$'
+value = "Chinese"
 
 [[patterns]]
 # FR-SUB / EN-SUB (language code before sub marker)

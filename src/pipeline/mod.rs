@@ -453,6 +453,10 @@ impl Pipeline {
         let media_type = title::infer_media_type(&all_matches);
         let proper_count = proper_count::compute_proper_count(input, &all_matches);
 
+        // Step 5e: Strip video/audio tech properties from subtitle containers.
+        // Files like .ass, .srt, .sub should not carry video_codec, color_depth, etc.
+        strip_tech_from_subtitle_containers(&mut all_matches);
+
         // Step 6: Build result.
         debug!(
             "step 6: building result from {} final match(es), media_type={}",
@@ -682,6 +686,38 @@ impl Pipeline {
                 }
             }
         }
+    }
+}
+
+/// Subtitle container extensions.
+const SUBTITLE_CONTAINERS: &[&str] = &["srt", "sub", "ass", "ssa", "idx", "sup", "vtt", "smi"];
+
+/// Properties that are meaningless for subtitle files.
+const SUBTITLE_STRIP_PROPERTIES: &[Property] = &[
+    Property::VideoCodec,
+    Property::ColorDepth,
+    Property::VideoProfile,
+    Property::Source,
+    Property::AudioCodec,
+    Property::AudioChannels,
+    Property::AudioProfile,
+    Property::FrameRate,
+];
+
+/// Strip video/audio tech properties from subtitle containers.
+///
+/// When the detected container is a subtitle format (.ass, .srt, etc.),
+/// properties like video_codec, color_depth, and source are meaningless
+/// and should be removed.
+fn strip_tech_from_subtitle_containers(matches: &mut Vec<MatchSpan>) {
+    let is_subtitle = matches.iter().any(|m| {
+        m.property == Property::Container
+            && SUBTITLE_CONTAINERS
+                .iter()
+                .any(|ext| m.value.eq_ignore_ascii_case(ext))
+    });
+    if is_subtitle {
+        matches.retain(|m| !SUBTITLE_STRIP_PROPERTIES.contains(&m.property));
     }
 }
 

@@ -334,3 +334,249 @@ fn week_in_episode_context() {
     assert_eq!(r.season(), Some(32));
     assert_eq!(r.episode(), Some(6478));
 }
+
+// ─── CJK Fansub (Issue #34) ────────────────────────────────────────────────
+// Regression tests for CJK fansub bracket format:
+//   [Group][Title][Episode][Resolution][Codec]...
+
+use hunch::matcher::span::Property;
+
+#[test]
+fn cjk_yamada_full_path() {
+    let r = hunch(
+        "[Comicat&KissSub] Yamada-kun to Lv999 no Koi wo Suru \
+         (01-13Fin WEBRip 1080p AVC AAC TC)/\
+         [Comicat&KissSub][Yamada-kun to Lv999 no Koi wo Suru]\
+         [01][1080P][BIG5][MP4].mp4",
+    );
+    assert_eq!(r.title(), Some("Yamada-kun to Lv999 no Koi wo Suru"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.release_group(), Some("Comicat&KissSub"));
+    assert_eq!(r.screen_size(), Some("1080p"));
+    assert_eq!(r.source(), Some("Web"));
+    assert_eq!(r.audio_codec(), Some("AAC"));
+    assert_eq!(r.video_codec(), Some("H.264"));
+    assert_eq!(r.container(), Some("mp4"));
+    assert_eq!(
+        r.first(Property::SubtitleLanguage),
+        Some("Traditional Chinese")
+    );
+    // TC in parent dir must NOT be parsed as Telecine.
+    let sources: Vec<_> = r.all(Property::Source);
+    assert!(
+        !sources.contains(&"Telecine"),
+        "TC should not match as Telecine when subtitle language is present"
+    );
+}
+
+#[test]
+fn cjk_saki_zenkoku_mkv() {
+    let r = hunch(
+        "[DBD-Raws][天才麻将少女 全国篇][01-13TV全集+特典映像]\
+         [1080P][BDRip][HEVC-10bit][简繁外挂][FLAC][MKV]/\
+         [DBD-Raws][Saki Zenkoku Hen][01][1080P][BDRip]\
+         [HEVC-10bit][FLACx2].mkv",
+    );
+    assert_eq!(r.title(), Some("Saki Zenkoku Hen"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.release_group(), Some("DBD-Raws"));
+    assert_eq!(r.audio_codec(), Some("FLAC"));
+    assert_eq!(r.video_codec(), Some("H.265"));
+    assert_eq!(r.source(), Some("Blu-ray"));
+    assert_eq!(r.first(Property::ColorDepth), Some("10-bit"));
+}
+
+#[test]
+fn cjk_saki_zenkoku_sc_ass() {
+    let r = hunch(
+        "[DBD-Raws][Saki Zenkoku Hen][01][1080P][BDRip]\
+         [HEVC-10bit][FLACx2].sc.ass",
+    );
+    assert_eq!(r.title(), Some("Saki Zenkoku Hen"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.release_group(), Some("DBD-Raws"));
+    assert_eq!(r.container(), Some("ass"));
+    assert_eq!(
+        r.first(Property::SubtitleLanguage),
+        Some("Simplified Chinese")
+    );
+    // Subtitle containers must NOT carry video/audio tech.
+    assert_eq!(r.video_codec(), None);
+    assert_eq!(r.audio_codec(), None);
+    assert_eq!(r.first(Property::ColorDepth), None);
+    assert_eq!(r.source(), None);
+}
+
+#[test]
+fn cjk_saki_zenkoku_tc_ass() {
+    let r = hunch(
+        "[DBD-Raws][Saki Zenkoku Hen][01][1080P][BDRip]\
+         [HEVC-10bit][FLACx2].tc.ass",
+    );
+    assert_eq!(
+        r.first(Property::SubtitleLanguage),
+        Some("Traditional Chinese")
+    );
+    assert_eq!(r.container(), Some("ass"));
+}
+
+#[test]
+fn cjk_saki_rev_sc_ass() {
+    let r = hunch(
+        "[Rev][DBD-Raws][天才麻将少女][01-25TV全集+SP][1080P][BDRip]\
+         [HEVC-10bit][简繁外挂][FLAC][MKV]/\
+         [DBD-Raws][Saki][01][1080P][BDRip][HEVC-10bit][FLAC][Rev].sc.ass",
+    );
+    assert_eq!(r.title(), Some("Saki"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.release_group(), Some("DBD-Raws"));
+    assert_eq!(r.container(), Some("ass"));
+    assert_eq!(
+        r.first(Property::SubtitleLanguage),
+        Some("Simplified Chinese")
+    );
+    let others: Vec<_> = r.all(Property::Other);
+    assert!(
+        others.contains(&"Revised"),
+        "[Rev] should be parsed as Revised"
+    );
+}
+
+#[test]
+fn cjk_natsume_scjp_ass() {
+    let r = hunch(
+        "[DBD-Raws][夏目友人帐 柒][01-12TV全集+SP+特典映像]\
+         [1080P][BDRip][HEVC-10bit][简繁日双语外挂][FLAC][MKV]/\
+         [DBD-Raws][Natsume Yuujinchou Shichi][01][1080P][BDRip]\
+         [HEVC-10bit][FLAC].scjp.ass",
+    );
+    assert_eq!(r.title(), Some("Natsume Yuujinchou Shichi"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.release_group(), Some("DBD-Raws"));
+    assert_eq!(r.container(), Some("ass"));
+    assert_eq!(
+        r.first(Property::SubtitleLanguage),
+        Some("Simplified Chinese")
+    );
+    // .scjp.ass = subtitle container → no video tech.
+    assert_eq!(r.video_codec(), None);
+    assert_eq!(r.source(), None);
+}
+
+#[test]
+fn cjk_natsume_tcjp_ass() {
+    let r = hunch(
+        "[DBD-Raws][Natsume Yuujinchou Shichi][01][1080P][BDRip]\
+         [HEVC-10bit][FLAC].tcjp.ass",
+    );
+    assert_eq!(
+        r.first(Property::SubtitleLanguage),
+        Some("Traditional Chinese")
+    );
+}
+
+#[test]
+fn cjk_natsume_sp_episode() {
+    let r = hunch(
+        "[DBD-Raws][Natsume Yuujinchou Shichi][13(SP)][1080P]\
+         [BDRip][HEVC-10bit][FLAC].mkv",
+    );
+    assert_eq!(r.title(), Some("Natsume Yuujinchou Shichi"));
+    assert_eq!(r.episode(), Some(13));
+    assert_eq!(r.container(), Some("mkv"));
+}
+
+#[test]
+fn cjk_saki_achiga_flacx2() {
+    let r = hunch(
+        "[DBD-Raws][Saki Achiga Hen Episode of Side-A][01][1080P]\
+         [BDRip][HEVC-10bit][FLACx2].mkv",
+    );
+    assert_eq!(r.title(), Some("Saki Achiga Hen Episode of Side-A"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.audio_codec(), Some("FLAC"));
+}
+
+#[test]
+fn cjk_saki_achiga_nc_ver() {
+    let r = hunch(
+        "[DBD-Raws][Saki Achiga Hen Episode of Side-A][14][NC.Ver]\
+         [1080P][BDRip][HEVC-10bit][FLAC].mkv",
+    );
+    assert_eq!(r.episode(), Some(14));
+}
+
+#[test]
+fn cjk_solo_leveling_sxxexx_in_bracket_dir() {
+    let r = hunch("[H-Enc] Solo Leveling Season 2 (BDRip 1080p HEVC FLAC)/S01E13.mkv");
+    assert_eq!(r.title(), Some("Solo Leveling"));
+    assert_eq!(r.season(), Some(1));
+    assert_eq!(r.episode(), Some(13));
+    assert_eq!(r.source(), Some("Blu-ray"));
+    assert_eq!(r.video_codec(), Some("H.265"));
+    assert_eq!(r.audio_codec(), Some("FLAC"));
+}
+
+#[test]
+fn cjk_lolihouse_dash_episode() {
+    let r = hunch(
+        "[LoliHouse] Kage no Jitsuryokusha ni Naritakute! [01-20]\
+         [WebRip 1080p HEVC-10bit AAC]/\
+         [LoliHouse] Kage no Jitsuryokusha ni Naritakute! - 01 \
+         [WebRip 1080p HEVC-10bit AAC SRTx2].mkv",
+    );
+    assert_eq!(r.title(), Some("Kage no Jitsuryokusha ni Naritakute!"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.release_group(), Some("LoliHouse"));
+    assert_eq!(r.source(), Some("Web"));
+    assert_eq!(r.audio_codec(), Some("AAC"));
+}
+
+#[test]
+fn cjk_lolihouse_season2() {
+    let r = hunch(
+        "[LoliHouse] Kage no Jitsuryokusha ni Naritakute! S2 - 03 \
+         [WebRip 1080p HEVC-10bit AAC SRTx2].mkv",
+    );
+    assert_eq!(r.title(), Some("Kage no Jitsuryokusha ni Naritakute!"));
+    assert_eq!(r.episode(), Some(3));
+    assert_eq!(r.season(), Some(2));
+}
+
+#[test]
+fn cjk_cowboy_bebop_from_parent() {
+    let r = hunch("Cowboy_Bebop[BDrip][1080p]/Cowboy.Bebop.E01.mkv");
+    assert_eq!(r.title(), Some("Cowboy Bebop"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.source(), Some("Blu-ray"));
+    assert_eq!(r.screen_size(), Some("1080p"));
+}
+
+#[test]
+fn cjk_frieren_with_episode_title() {
+    let r = hunch(
+        "Frieren - Beyond Journey's End S01 1080p Dual Audio BDRip \
+         10 bits DD+ x265-EMBER/\
+         S01E01-The Journey's End [18D1CE8D].mkv",
+    );
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.season(), Some(1));
+    assert_eq!(r.episode_title(), Some("The Journey's End"));
+    assert_eq!(r.release_group(), Some("EMBER"));
+    assert_eq!(r.first(Property::Crc), Some("18D1CE8D"));
+}
+
+#[test]
+fn cjk_prejudice_studio_mixed_title() {
+    let r = hunch(
+        "[Prejudice-Studio] 我独自升级 Ore dake Level Up na Ken - 01 \
+         [Bilibili WEB-DL 1080P AVC 8bit AAC MP4][简日内嵌].mp4",
+    );
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.screen_size(), Some("1080p"));
+    assert_eq!(r.source(), Some("Web"));
+    assert_eq!(r.container(), Some("mp4"));
+    // TODO(issue #34): release_group should be "Prejudice-Studio" but the
+    // compound bracket merger picks up "Bilibili 简日内嵌" instead.
+    // assert_eq!(r.release_group(), Some("Prejudice-Studio"));
+}
