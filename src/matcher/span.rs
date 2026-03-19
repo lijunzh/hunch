@@ -199,6 +199,9 @@ pub struct MatchSpan {
     pub is_path_based: bool,
     /// Priority for conflict resolution (higher wins).
     pub priority: i32,
+    /// If true, the title extractor may absorb this match when it
+    /// appears to be title content rather than metadata.
+    pub reclaimable: bool,
 }
 
 impl MatchSpan {
@@ -212,6 +215,7 @@ impl MatchSpan {
             is_extension: false,
             is_path_based: false,
             priority: 0,
+            reclaimable: false,
         }
     }
 
@@ -239,6 +243,13 @@ impl MatchSpan {
     #[must_use]
     pub fn with_priority(mut self, priority: i32) -> Self {
         self.priority = priority;
+        self
+    }
+
+    /// Mark this match as reclaimable by the title extractor.
+    #[must_use]
+    pub fn as_reclaimable(mut self) -> Self {
+        self.reclaimable = true;
         self
     }
 

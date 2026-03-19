@@ -3,14 +3,13 @@
 //! Post-matching disambiguation that handles cross-property semantics
 //! not expressible as TOML zone_scope or requires_context declarations.
 //!
-//! ## Rule inventory (8 active)
+//! ## Rule inventory (7 active)
 //!
 //! | # | Name | Purpose |
 //! |---|------|---------|
 //! | 1 | Language in title zone | Drop language in first half of title zone |
 //! | 2 | Duplicate source | Drop early source when late source exists |
-//! | 3 | UHD Blu-ray promotion | Promote Blu-ray → Ultra HD Blu-ray |
-//! | 4 | Redundant UHD Other | Drop Other:Ultra HD when source has UHD |
+//! | 3 | UHD Blu-ray (atomic) | Promote Blu-ray + drop redundant Ultra HD |
 //! | 5 | Ambiguous Other ↔ ReleaseGroup | Drop HQ/FanSub near release groups |
 //! | 6 | Source subsumption | Drop generic source when specific exists |
 //! | 7 | Language inside tech span | Drop lang contained in source/codec spans |
@@ -30,8 +29,7 @@ use crate::zone_map::ZoneMap;
 /// Remaining rules handle cross-property semantics:
 ///   - Language in title zone (needs unmatched-byte heuristic for anchor-less cases)
 ///   - Duplicate source across zones
-///   - Redundant UHD tags
-///   - Ambiguous Other overlapping ReleaseGroup
+///   - UHD Blu-ray promotion + redundant tag cleanup (atomic)
 ///   - Language nested inside tech spans
 pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<MatchSpan>) {
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
@@ -149,11 +147,10 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
         }
     }
 
-    // ── Rule 3: Promote Blu-ray → Ultra HD Blu-ray when UHD signals exist ──
-    // When UHD/4K/2160p appears in the filename alongside a Blu-ray source,
-    // the source should be "Ultra HD Blu-ray". This handles cases where the
-    // UHD marker and Blu-ray marker are too far apart for TOML's 3-token
-    // window (e.g., "UHD.10bit.HDR.Bluray").
+    // ── Rule 3+4: UHD Blu-ray promotion + redundant Ultra HD cleanup ──
+    // When UHD/4K/2160p appears alongside Blu-ray, promote the source
+    // to "Ultra HD Blu-ray" and drop the redundant Other:"Ultra HD".
+    // Combined into a single atomic rule (no ordering dependency).
     let has_uhd_signal = matches.iter().any(|m| {
         m.start >= fn_start
             && ((m.property == Property::Other && m.value == "Ultra HD")
@@ -166,9 +163,8 @@ pub fn apply_zone_rules(input: &str, zone_map: &ZoneMap, matches: &mut Vec<Match
             }
         }
     }
-
-    // ── Rule 4: Redundant HD tags when source has UHD ────────────────
-    // Must run AFTER Rule 3 (promotion) so the promoted source is detected.
+    // Drop redundant Ultra HD Other when the source already carries UHD
+    // (either via promotion above or from a direct TOML pattern match).
     let source_has_uhd = matches
         .iter()
         .any(|m| m.property == Property::Source && m.value.contains("Ultra HD"));

@@ -10,7 +10,6 @@ zone_scope = "tech_only"
 [exact]
 proof       = "Proof"
 sample      = "Sample"
-3d          = "3D"
 
 [exact_sensitive]
 LiNE  = "Line Audio"

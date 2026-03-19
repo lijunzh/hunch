@@ -49,6 +49,10 @@ fn is_tech_property(p: Property) -> bool {
 ///
 /// The `zone_map` is used for year-as-title disambiguation (e.g., "2001" in
 /// "2001.A.Space.Odyssey.1968" is a title word, not the release year).
+///
+/// Reclaimable matches (marked by TOML `requires_nearby`) are transparent
+/// to the title boundary: they don't stop the title, and if absorbed into
+/// the title span they are removed from `matches`.
 pub fn extract_title(
     input: &str,
     matches: &[MatchSpan],
@@ -59,9 +63,17 @@ pub fn extract_title(
     let filename = &input[filename_start..];
 
     // Title boundary: first non-extension match in the filename.
+    // Reclaimable matches are skipped ONLY if there's title content before
+    // them (e.g., "Pacific.Rim.3D" → skip 3D, absorb into title).
+    // If a reclaimable match starts at the filename beginning, it's treated
+    // normally (e.g., "3D.2019" → 3D is Other, not title content).
     let first_match_in_filename = matches
         .iter()
-        .filter(|m| m.start >= filename_start && !m.is_extension)
+        .filter(|m| {
+            m.start >= filename_start
+                && !m.is_extension
+                && (!m.reclaimable || m.start == filename_start)
+        })
         .min_by_key(|m| m.start);
 
     let title_end_abs = match first_match_in_filename {
@@ -140,6 +152,20 @@ pub fn extract_title(
         Property::Title,
         cleaned,
     ))
+}
+
+/// Remove reclaimable matches that fall within the title span.
+///
+/// Called after title extraction. Any reclaimable match whose byte range
+/// overlaps with the title is considered absorbed into the title.
+pub fn absorb_reclaimable(title: &MatchSpan, matches: &mut Vec<MatchSpan>) {
+    matches.retain(|m| {
+        if !m.reclaimable {
+            return true;
+        }
+        // Drop if this match falls within the title span.
+        !(m.start >= title.start && m.end <= title.end)
+    });
 }
 
 /// Handle the case where title_end_abs <= filename_start (empty title zone).
@@ -459,6 +485,33 @@ mod tests {
             MatchSpan::new(5, 10, Property::Episode, "3"),
         ];
         assert_eq!(infer_media_type(&matches), "episode");
+    }
+
+    #[test]
+    fn test_reclaimable_absorbed_into_title() {
+        let input = "Harold.And.Kumar.3D.Christmas.mkv";
+        let reclaimable_3d = MatchSpan::new(17, 19, Property::Other, "3D").as_reclaimable();
+        let mut matches = vec![reclaimable_3d];
+        let zm = test_zone_map(input);
+        let ts = test_ts(input);
+        let title = extract_title(input, &matches, &zm, &ts).unwrap();
+        assert_eq!(title.value, "Harold And Kumar 3D Christmas");
+        // Absorb should remove the reclaimable match.
+        absorb_reclaimable(&title, &mut matches);
+        assert!(matches.is_empty(), "reclaimable 3D should be absorbed");
+    }
+
+    #[test]
+    fn test_confident_3d_stops_title() {
+        // When 3D is NOT reclaimable (confident), it sets the title boundary.
+        let input = "Pacific.Rim.3D.2013.BluRay.mkv";
+        let confident_3d = MatchSpan::new(12, 14, Property::Other, "3D");
+        let year = MatchSpan::new(15, 19, Property::Year, "2013");
+        let matches = vec![confident_3d, year];
+        let zm = test_zone_map(input);
+        let ts = test_ts(input);
+        let title = extract_title(input, &matches, &zm, &ts).unwrap();
+        assert_eq!(title.value, "Pacific Rim");
     }
 
     #[test]
