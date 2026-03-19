@@ -7,42 +7,66 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  contents: write
+
 jobs:
-  # Gate: run the full CI suite before building release artifacts.
-  # Reuses the CI workflow so we don't duplicate check/fmt/clippy/test/doc.
-  ci:
-    name: CI
-    uses: ./.github/workflows/ci.yml
+  # Verify that the git tag matches Cargo.toml version.
+  verify-version:
+    name: Verify Version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check tag matches Cargo.toml version
+        run: |
+          TAG="${GITHUB_REF#refs/tags/v}"
+          CRATE_VER=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          if [ "$TAG" != "$CRATE_VER" ]; then
+            echo "::error::Tag v$TAG does not match Cargo.toml version $CRATE_VER"
+            exit 1
+          fi
+          echo "✅ Tag v$TAG matches Cargo.toml ($CRATE_VER)"
+
+  # Cross-platform tests before shipping binaries.
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
 
   build:
     name: Build ${{ matrix.target }}
-    needs: ci
+    needs: [verify-version, test]
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
           - target: x86_64-apple-darwin
             os: macos-latest
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-14
           - target: x86_64-pc-windows-msvc
             os: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-
-      - name: Install cross-compilation tools
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: release-${{ matrix.target }}
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
@@ -62,20 +86,24 @@ jobs:
           mkdir hunch-${{ matrix.target }}
           cp target/${{ matrix.target }}/release/hunch.exe hunch-${{ matrix.target }}/
           cp README.md LICENSE hunch-${{ matrix.target }}/
-          tar czf hunch-${{ matrix.target }}.tar.gz hunch-${{ matrix.target }}
+          7z a hunch-${{ matrix.target }}.zip hunch-${{ matrix.target }}/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: hunch-${{ matrix.target }}
-          path: hunch-${{ matrix.target }}.tar.gz
+          path: |
+            hunch-${{ matrix.target }}.tar.gz
+            hunch-${{ matrix.target }}.zip
+          if-no-files-found: ignore
 
   publish:
     name: Publish to crates.io
     needs: build
     runs-on: ubuntu-latest
     environment: crates-io
+    continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo publish
         env:
@@ -85,12 +113,10 @@ jobs:
     name: GitHub Release
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           path: artifacts
           merge-multiple: true
@@ -112,70 +138,68 @@ jobs:
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.6.1
         with:
           generate_release_notes: ${{ steps.notes.outputs.generate == 'true' }}
           body_path: ${{ steps.notes.outputs.generate != 'true' && 'release_notes.md' || '' }}
-          files: artifacts/*.tar.gz
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
 
   homebrew:
     name: Update Homebrew Tap
     needs: github-release
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for release assets to be available
-        run: sleep 10
+      - uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          merge-multiple: true
 
-      - name: Download release tarballs and compute SHA256
+      - name: Compute SHA256 checksums
         id: sha
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          BASE="https://github.com/lijunzh/hunch/releases/download/v${VERSION}"
+          echo "aarch64_mac=$(sha256sum artifacts/hunch-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "x86_64_mac=$(sha256sum artifacts/hunch-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "aarch64_linux=$(sha256sum artifacts/hunch-aarch64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
+          echo "x86_64_linux=$(sha256sum artifacts/hunch-x86_64-unknown-linux-gnu.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
 
-          for target in aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu; do
-            curl -fsSL -o "${target}.tar.gz" "${BASE}/hunch-${target}.tar.gz"
-            sha=$(sha256sum "${target}.tar.gz" | awk '{print $1}')
-            # Convert target to env-friendly name: aarch64-apple-darwin -> aarch64_apple_darwin
-            key=$(echo "$target" | tr '-' '_')
-            echo "${key}=${sha}" >> $GITHUB_OUTPUT
-            echo "  ${target}: ${sha}"
-          done
+      - name: Checkout Homebrew tap
+        uses: actions/checkout@v6
+        with:
+          repository: lijunzh/homebrew-hunch
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-hunch
 
-      - name: Update formula
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Write updated formula
         run: |
           VERSION="${{ steps.sha.outputs.version }}"
-          git clone https://x-access-token:${GH_TOKEN}@github.com/lijunzh/homebrew-hunch.git
-          cd homebrew-hunch
-
-          cat > Formula/hunch.rb << 'FORMULA'
+          cat > homebrew-hunch/Formula/hunch.rb << 'FORMULA'
           class Hunch < Formula
             desc "Fast, offline media filename parser — extract metadata from messy filenames"
             homepage "https://github.com/lijunzh/hunch"
-            version "__VERSION__"
+            version "VERSION_PLACEHOLDER"
             license "MIT"
 
             on_macos do
               if Hardware::CPU.arm?
-                url "https://github.com/lijunzh/hunch/releases/download/v#{version}/hunch-aarch64-apple-darwin.tar.gz"
-                sha256 "__SHA_ARM64_MACOS__"
+                url "https://github.com/lijunzh/hunch/releases/download/vVERSION_PLACEHOLDER/hunch-aarch64-apple-darwin.tar.gz"
+                sha256 "SHA_AARCH64_MAC"
               else
-                url "https://github.com/lijunzh/hunch/releases/download/v#{version}/hunch-x86_64-apple-darwin.tar.gz"
-                sha256 "__SHA_X86_64_MACOS__"
+                url "https://github.com/lijunzh/hunch/releases/download/vVERSION_PLACEHOLDER/hunch-x86_64-apple-darwin.tar.gz"
+                sha256 "SHA_X86_64_MAC"
               end
             end
 
             on_linux do
               if Hardware::CPU.arm?
-                url "https://github.com/lijunzh/hunch/releases/download/v#{version}/hunch-aarch64-unknown-linux-gnu.tar.gz"
-                sha256 "__SHA_ARM64_LINUX__"
+                url "https://github.com/lijunzh/hunch/releases/download/vVERSION_PLACEHOLDER/hunch-aarch64-unknown-linux-gnu.tar.gz"
+                sha256 "SHA_AARCH64_LINUX"
               else
-                url "https://github.com/lijunzh/hunch/releases/download/v#{version}/hunch-x86_64-unknown-linux-gnu.tar.gz"
-                sha256 "__SHA_X86_64_LINUX__"
+                url "https://github.com/lijunzh/hunch/releases/download/vVERSION_PLACEHOLDER/hunch-x86_64-unknown-linux-gnu.tar.gz"
+                sha256 "SHA_X86_64_LINUX"
               end
             end
 
@@ -192,17 +216,20 @@ jobs:
           FORMULA
 
           # Strip leading whitespace from heredoc
-          sed -i 's/^          //' Formula/hunch.rb
+          sed -i 's/^          //' homebrew-hunch/Formula/hunch.rb
 
           # Substitute placeholders
-          sed -i "s/__VERSION__/${VERSION}/" Formula/hunch.rb
-          sed -i "s/__SHA_ARM64_MACOS__/${{ steps.sha.outputs.aarch64_apple_darwin }}/" Formula/hunch.rb
-          sed -i "s/__SHA_X86_64_MACOS__/${{ steps.sha.outputs.x86_64_apple_darwin }}/" Formula/hunch.rb
-          sed -i "s/__SHA_ARM64_LINUX__/${{ steps.sha.outputs.aarch64_unknown_linux_gnu }}/" Formula/hunch.rb
-          sed -i "s/__SHA_X86_64_LINUX__/${{ steps.sha.outputs.x86_64_unknown_linux_gnu }}/" Formula/hunch.rb
+          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/g" homebrew-hunch/Formula/hunch.rb
+          sed -i "s/SHA_AARCH64_MAC/${{ steps.sha.outputs.aarch64_mac }}/g" homebrew-hunch/Formula/hunch.rb
+          sed -i "s/SHA_X86_64_MAC/${{ steps.sha.outputs.x86_64_mac }}/g" homebrew-hunch/Formula/hunch.rb
+          sed -i "s/SHA_AARCH64_LINUX/${{ steps.sha.outputs.aarch64_linux }}/g" homebrew-hunch/Formula/hunch.rb
+          sed -i "s/SHA_X86_64_LINUX/${{ steps.sha.outputs.x86_64_linux }}/g" homebrew-hunch/Formula/hunch.rb
 
+      - name: Push formula update
+        run: |
+          cd homebrew-hunch
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add Formula/hunch.rb
-          git commit -m "hunch v${VERSION}"
+          git commit -m "hunch v${{ steps.sha.outputs.version }}"
           git push
