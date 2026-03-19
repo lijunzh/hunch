@@ -8,11 +8,8 @@
 
 use std::fmt;
 
-/// A named property that can be extracted from a media filename.
-///
-/// Each variant corresponds to one metadata field in the final
-/// [`HunchResult`](crate::HunchResult). Use [`Property::from_name`] to parse
-/// from a string, or [`fmt::Display`] to convert back.
+/// Declares the [`Property`] enum, its `Display` impl, and `from_name`
+/// constructor from a single source of truth.
 ///
 /// # Example values
 ///
@@ -24,161 +21,149 @@ use std::fmt;
 /// assert_eq!(r.first(Property::Title), Some("The Matrix"));
 /// assert_eq!(r.first(Property::Source), Some("Blu-ray"));
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum Property {
-    /// Movie name or series name (e.g., `"The Matrix"`, `"Breaking Bad"`).
-    Title,
-    /// Secondary title after a structural separator like `" - "` (e.g., `"Rogue Nation"`).
-    AlternativeTitle,
-    /// Release year as a 4-digit number (e.g., `"1999"`, `"2024"`).
-    Year,
-    /// Season number (e.g., `"1"` from `S01E02`).
-    Season,
-    /// Episode number (e.g., `"2"` from `S01E02`). Multi-episode spans produce multiple values.
-    Episode,
-    /// Absolute episode number without season context (e.g., `"147"` in anime releases).
-    AbsoluteEpisode,
-    /// Episode title — the subtitle after the SxxExx marker (e.g., `"Ozymandias"`).
-    EpisodeTitle,
-    /// Video codec (e.g., `"H.264"`, `"H.265"`, `"Xvid"`, `"AV1"`).
-    VideoCodec,
-    /// Video encoding profile (e.g., `"High"`, `"High 10"`, `"AVCHD"`).
-    VideoProfile,
-    /// Audio codec (e.g., `"AAC"`, `"DTS"`, `"TrueHD"`, `"Atmos"`, `"FLAC"`).
-    AudioCodec,
-    /// Audio codec profile (e.g., `"HD"`, `"HD MA"`, `"HE"`).
-    AudioProfile,
-    /// Audio channel layout (e.g., `"5.1"`, `"7.1"`, `"2.0"`).
-    AudioChannels,
-    /// Media source (e.g., `"Blu-ray"`, `"Web"`, `"HDTV"`, `"DVD"`, `"Ultra HD Blu-ray"`).
-    Source,
-    /// Resolution / screen size (e.g., `"1080p"`, `"720p"`, `"2160p"`, `"480i"`).
-    ScreenSize,
-    /// Video frame rate (e.g., `"24fps"`, `"60fps"`, `"25fps"`).
-    FrameRate,
-    /// Color bit depth (e.g., `"10-bit"`, `"8-bit"`).
-    ColorDepth,
-    /// File container / extension (e.g., `"mkv"`, `"mp4"`, `"avi"`).
-    Container,
-    /// Scene release group (e.g., `"GROUP"`, `"SPARKS"`, `"YIFY"`).
-    ReleaseGroup,
-    /// Streaming service origin (e.g., `"Netflix"`, `"Amazon Prime"`, `"Disney+"`).
-    StreamingService,
-    /// Audio language (e.g., `"English"`, `"French"`, `"Japanese"`). May have multiple values.
-    Language,
-    /// Subtitle language (e.g., `"English"`, `"French"`). May have multiple values.
-    SubtitleLanguage,
-    /// Country of origin (e.g., `"US"`, `"UK"`, `"FR"`).
-    Country,
-    /// Special edition label (e.g., `"Director's Cut"`, `"Extended"`, `"Remastered"`, `"IMAX"`).
-    Edition,
-    /// Release or air date (e.g., `"2024-01-15"`).
-    Date,
-    /// Catch-all flags (e.g., `"HDR10"`, `"Remux"`, `"Proper"`, `"Dual Audio"`, `"Widescreen"`).
-    /// A single filename can produce multiple `Other` values.
-    Other,
-    /// File size (e.g., `"1.4 GB"`, `"700 MB"`).
-    Size,
-    /// Audio or video bit rate (e.g., `"320Kbps"`, `"1.5Mbps"`).
-    BitRate,
-    /// CD / disc number within a multi-disc set (e.g., `"1"` from `CD1`).
-    Cd,
-    /// Bonus content number (e.g., `"2"` from `-x02`).
-    Bonus,
-    /// Title of a bonus feature.
-    BonusTitle,
-    /// Film number in a franchise set (e.g., `"3"` from `-f03`).
-    Film,
-    /// Title associated with a film number marker.
-    FilmTitle,
-    /// Part number (e.g., `"2"` from `Part 2` or `Pt.II`).
-    Part,
-    /// CRC32 checksum in brackets (e.g., `"ABCD1234"` from `[ABCD1234]`).
-    Crc,
-    /// UUID identifier (e.g., `"12345678-1234-1234-1234-123456789abc"`).
-    Uuid,
-    /// Total number of CDs / discs (e.g., `"3"` from `3CDs`).
-    CdCount,
-    /// Disc number in multi-disc releases (e.g., `"1"` from `Disc 1`).
-    Disc,
-    /// Website / distribution site embedded in the filename (e.g., `"example.com"`).
-    Website,
-    /// Episode detail tag (e.g., `"Special"`, `"Pilot"`, `"Unaired"`).
-    EpisodeDetails,
-    /// Episode format (e.g., `"Minisode"`).
-    EpisodeFormat,
-    /// Calendar week number (e.g., `"52"` from `Week 52`).
-    Week,
-    /// Display aspect ratio (e.g., `"16:9"`, `"4:3"`, `"2.35:1"`).
-    AspectRatio,
-    /// Number of PROPER / REPACK re-releases (e.g., `"1"`, `"2"`).
-    ProperCount,
-    /// Inferred media type: `"movie"` or `"episode"`.
-    MediaType,
-    /// Release version number (e.g., `"2"` from `v2`).
-    Version,
-    /// Total episode count in a batch (e.g., `"24"` from `1 of 24`).
-    EpisodeCount,
-    /// Total season count in a batch (e.g., `"5"` from `2 of 5 Seasons`).
-    SeasonCount,
-    /// Video API / framework (e.g., `"DXVA"`).
-    VideoApi,
+macro_rules! define_properties {
+    ($( $(#[$meta:meta])* $variant:ident => $name:expr ),* $(,)?) => {
+        /// A named property that can be extracted from a media filename.
+        ///
+        /// Each variant corresponds to one metadata field in the final
+        /// [`HunchResult`](crate::HunchResult). Use [`Property::from_name`] to parse
+        /// from a string, or [`fmt::Display`] to convert back.
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        pub enum Property {
+            $( $(#[$meta])* $variant ),*
+        }
+
+        impl Property {
+            /// Parse a property name string into a `Property`.
+            ///
+            /// Accepts the same snake_case names used in JSON output and TOML
+            /// `side_effects` declarations. Returns `None` for unrecognized names.
+            ///
+            /// # Example
+            ///
+            /// ```rust
+            /// use hunch::matcher::span::Property;
+            ///
+            /// assert_eq!(Property::from_name("video_codec"), Some(Property::VideoCodec));
+            /// assert_eq!(Property::from_name("unknown"), None);
+            /// ```
+            pub fn from_name(name: &str) -> Option<Self> {
+                match name {
+                    $( $name => Some(Self::$variant), )*
+                    _ => None,
+                }
+            }
+        }
+
+        impl fmt::Display for Property {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let s = match self {
+                    $( Self::$variant => $name, )*
+                };
+                write!(f, "{s}")
+            }
+        }
+    }
 }
 
-impl fmt::Display for Property {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::Title => "title",
-            Self::AlternativeTitle => "alternative_title",
-            Self::Year => "year",
-            Self::Season => "season",
-            Self::Episode => "episode",
-            Self::AbsoluteEpisode => "absolute_episode",
-            Self::EpisodeTitle => "episode_title",
-            Self::VideoCodec => "video_codec",
-            Self::VideoProfile => "video_profile",
-            Self::AudioCodec => "audio_codec",
-            Self::AudioProfile => "audio_profile",
-            Self::AudioChannels => "audio_channels",
-            Self::Source => "source",
-            Self::ScreenSize => "screen_size",
-            Self::FrameRate => "frame_rate",
-            Self::ColorDepth => "color_depth",
-            Self::Container => "container",
-            Self::ReleaseGroup => "release_group",
-            Self::StreamingService => "streaming_service",
-            Self::Language => "language",
-            Self::SubtitleLanguage => "subtitle_language",
-            Self::Country => "country",
-            Self::Edition => "edition",
-            Self::Date => "date",
-            Self::Other => "other",
-            Self::Size => "size",
-            Self::BitRate => "bit_rate",
-            Self::Cd => "cd",
-            Self::Bonus => "bonus",
-            Self::BonusTitle => "bonus_title",
-            Self::Film => "film",
-            Self::FilmTitle => "film_title",
-            Self::Part => "part",
-            Self::Crc => "crc32",
-            Self::Uuid => "uuid",
-            Self::CdCount => "cd_count",
-            Self::Disc => "disc",
-            Self::Website => "website",
-            Self::EpisodeDetails => "episode_details",
-            Self::EpisodeFormat => "episode_format",
-            Self::Week => "week",
-            Self::AspectRatio => "aspect_ratio",
-            Self::ProperCount => "proper_count",
-            Self::MediaType => "type",
-            Self::Version => "version",
-            Self::EpisodeCount => "episode_count",
-            Self::SeasonCount => "season_count",
-            Self::VideoApi => "video_api",
-        };
-        write!(f, "{s}")
-    }
+define_properties! {
+    /// Movie name or series name (e.g., `"The Matrix"`, `"Breaking Bad"`).
+    Title => "title",
+    /// Secondary title after a structural separator like `" - "` (e.g., `"Rogue Nation"`).
+    AlternativeTitle => "alternative_title",
+    /// Release year as a 4-digit number (e.g., `"1999"`, `"2024"`).
+    Year => "year",
+    /// Season number (e.g., `"1"` from `S01E02`).
+    Season => "season",
+    /// Episode number (e.g., `"2"` from `S01E02`). Multi-episode spans produce multiple values.
+    Episode => "episode",
+    /// Absolute episode number without season context (e.g., `"147"` in anime releases).
+    AbsoluteEpisode => "absolute_episode",
+    /// Episode title — the subtitle after the SxxExx marker (e.g., `"Ozymandias"`).
+    EpisodeTitle => "episode_title",
+    /// Video codec (e.g., `"H.264"`, `"H.265"`, `"Xvid"`, `"AV1"`).
+    VideoCodec => "video_codec",
+    /// Video encoding profile (e.g., `"High"`, `"High 10"`, `"AVCHD"`).
+    VideoProfile => "video_profile",
+    /// Audio codec (e.g., `"AAC"`, `"DTS"`, `"TrueHD"`, `"Atmos"`, `"FLAC"`).
+    AudioCodec => "audio_codec",
+    /// Audio codec profile (e.g., `"HD"`, `"HD MA"`, `"HE"`).
+    AudioProfile => "audio_profile",
+    /// Audio channel layout (e.g., `"5.1"`, `"7.1"`, `"2.0"`).
+    AudioChannels => "audio_channels",
+    /// Media source (e.g., `"Blu-ray"`, `"Web"`, `"HDTV"`, `"DVD"`, `"Ultra HD Blu-ray"`).
+    Source => "source",
+    /// Resolution / screen size (e.g., `"1080p"`, `"720p"`, `"2160p"`, `"480i"`).
+    ScreenSize => "screen_size",
+    /// Video frame rate (e.g., `"24fps"`, `"60fps"`, `"25fps"`).
+    FrameRate => "frame_rate",
+    /// Color bit depth (e.g., `"10-bit"`, `"8-bit"`).
+    ColorDepth => "color_depth",
+    /// File container / extension (e.g., `"mkv"`, `"mp4"`, `"avi"`).
+    Container => "container",
+    /// Scene release group (e.g., `"GROUP"`, `"SPARKS"`, `"YIFY"`).
+    ReleaseGroup => "release_group",
+    /// Streaming service origin (e.g., `"Netflix"`, `"Amazon Prime"`, `"Disney+"`).
+    StreamingService => "streaming_service",
+    /// Audio language (e.g., `"English"`, `"French"`, `"Japanese"`). May have multiple values.
+    Language => "language",
+    /// Subtitle language (e.g., `"English"`, `"French"`). May have multiple values.
+    SubtitleLanguage => "subtitle_language",
+    /// Country of origin (e.g., `"US"`, `"UK"`, `"FR"`).
+    Country => "country",
+    /// Special edition label (e.g., `"Director's Cut"`, `"Extended"`, `"Remastered"`, `"IMAX"`).
+    Edition => "edition",
+    /// Release or air date (e.g., `"2024-01-15"`).
+    Date => "date",
+    /// Catch-all flags (e.g., `"HDR10"`, `"Remux"`, `"Proper"`, `"Dual Audio"`, `"Widescreen"`).
+    /// A single filename can produce multiple `Other` values.
+    Other => "other",
+    /// File size (e.g., `"1.4 GB"`, `"700 MB"`).
+    Size => "size",
+    /// Audio or video bit rate (e.g., `"320Kbps"`, `"1.5Mbps"`).
+    BitRate => "bit_rate",
+    /// CD / disc number within a multi-disc set (e.g., `"1"` from `CD1`).
+    Cd => "cd",
+    /// Bonus content number (e.g., `"2"` from `-x02`).
+    Bonus => "bonus",
+    /// Title of a bonus feature.
+    BonusTitle => "bonus_title",
+    /// Film number in a franchise set (e.g., `"3"` from `-f03`).
+    Film => "film",
+    /// Title associated with a film number marker.
+    FilmTitle => "film_title",
+    /// Part number (e.g., `"2"` from `Part 2` or `Pt.II`).
+    Part => "part",
+    /// CRC32 checksum in brackets (e.g., `"ABCD1234"` from `[ABCD1234]`).
+    Crc => "crc32",
+    /// UUID identifier (e.g., `"12345678-1234-1234-1234-123456789abc"`).
+    Uuid => "uuid",
+    /// Total number of CDs / discs (e.g., `"3"` from `3CDs`).
+    CdCount => "cd_count",
+    /// Disc number in multi-disc releases (e.g., `"1"` from `Disc 1`).
+    Disc => "disc",
+    /// Website / distribution site embedded in the filename (e.g., `"example.com"`).
+    Website => "website",
+    /// Episode detail tag (e.g., `"Special"`, `"Pilot"`, `"Unaired"`).
+    EpisodeDetails => "episode_details",
+    /// Episode format (e.g., `"Minisode"`).
+    EpisodeFormat => "episode_format",
+    /// Calendar week number (e.g., `"52"` from `Week 52`).
+    Week => "week",
+    /// Display aspect ratio (e.g., `"16:9"`, `"4:3"`, `"2.35:1"`).
+    AspectRatio => "aspect_ratio",
+    /// Number of PROPER / REPACK re-releases (e.g., `"1"`, `"2"`).
+    ProperCount => "proper_count",
+    /// Inferred media type: `"movie"` or `"episode"`.
+    MediaType => "type",
+    /// Release version number (e.g., `"2"` from `v2`).
+    Version => "version",
+    /// Total episode count in a batch (e.g., `"24"` from `1 of 24`).
+    EpisodeCount => "episode_count",
+    /// Total season count in a batch (e.g., `"5"` from `2 of 5 Seasons`).
+    SeasonCount => "season_count",
+    /// Video API / framework (e.g., `"DXVA"`).
+    VideoApi => "video_api",
 }
 
 /// A single match found in the input string.
@@ -274,73 +259,6 @@ impl MatchSpan {
 }
 
 impl Property {
-    /// Parse a property name string into a `Property`.
-    ///
-    /// Accepts the same snake_case names used in JSON output and TOML
-    /// `side_effects` declarations. Returns `None` for unrecognized names.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use hunch::matcher::span::Property;
-    ///
-    /// assert_eq!(Property::from_name("video_codec"), Some(Property::VideoCodec));
-    /// assert_eq!(Property::from_name("unknown"), None);
-    /// ```
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name {
-            "title" => Some(Self::Title),
-            "alternative_title" => Some(Self::AlternativeTitle),
-            "year" => Some(Self::Year),
-            "season" => Some(Self::Season),
-            "episode" => Some(Self::Episode),
-            "absolute_episode" => Some(Self::AbsoluteEpisode),
-            "episode_title" => Some(Self::EpisodeTitle),
-            "video_codec" => Some(Self::VideoCodec),
-            "video_profile" => Some(Self::VideoProfile),
-            "audio_codec" => Some(Self::AudioCodec),
-            "audio_profile" => Some(Self::AudioProfile),
-            "audio_channels" => Some(Self::AudioChannels),
-            "source" => Some(Self::Source),
-            "screen_size" => Some(Self::ScreenSize),
-            "frame_rate" => Some(Self::FrameRate),
-            "color_depth" => Some(Self::ColorDepth),
-            "container" => Some(Self::Container),
-            "release_group" => Some(Self::ReleaseGroup),
-            "streaming_service" => Some(Self::StreamingService),
-            "language" => Some(Self::Language),
-            "subtitle_language" => Some(Self::SubtitleLanguage),
-            "country" => Some(Self::Country),
-            "edition" => Some(Self::Edition),
-            "date" => Some(Self::Date),
-            "other" => Some(Self::Other),
-            "size" => Some(Self::Size),
-            "bit_rate" => Some(Self::BitRate),
-            "cd" => Some(Self::Cd),
-            "bonus" => Some(Self::Bonus),
-            "bonus_title" => Some(Self::BonusTitle),
-            "film" => Some(Self::Film),
-            "film_title" => Some(Self::FilmTitle),
-            "part" => Some(Self::Part),
-            "crc32" => Some(Self::Crc),
-            "uuid" => Some(Self::Uuid),
-            "cd_count" => Some(Self::CdCount),
-            "disc" => Some(Self::Disc),
-            "website" => Some(Self::Website),
-            "episode_details" => Some(Self::EpisodeDetails),
-            "episode_format" => Some(Self::EpisodeFormat),
-            "week" => Some(Self::Week),
-            "aspect_ratio" => Some(Self::AspectRatio),
-            "proper_count" => Some(Self::ProperCount),
-            "type" => Some(Self::MediaType),
-            "version" => Some(Self::Version),
-            "episode_count" => Some(Self::EpisodeCount),
-            "season_count" => Some(Self::SeasonCount),
-            "video_api" => Some(Self::VideoApi),
-            _ => None,
-        }
-    }
-
     /// Whether this property is semantically numeric and should be coerced
     /// to a JSON number in [`HunchResult::to_flat_map`](crate::HunchResult::to_flat_map).
     ///
