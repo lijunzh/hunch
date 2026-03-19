@@ -124,7 +124,7 @@ All 49 guessit properties are implemented (3 intentionally diverged).
 
 | | guessit (Python) | hunch (Rust) |
 |---|---|---|
-| Overall pass rate | 100% | **81.7%** (1,069 / 1,309) |
+| Overall pass rate | 100% | **82.2%** (1,076 / 1,309) |
 | Properties implemented | 49 | 49 (3 intentionally diverged) |
 | Properties at 95%+ | 49 | 22 |
 | Properties at 100% | 49 | 16 |
