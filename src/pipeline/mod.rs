@@ -14,6 +14,28 @@ use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::{self, TokenStream};
 use crate::zone_map::{self, ZoneMap};
 
+/// Context for matching tokens in a single segment against a TOML rule set.
+///
+/// Bundles the segment data, rule set, and zone context that
+/// `match_tokens_in_segment` needs, replacing 7 positional arguments
+/// with a single struct.
+struct MatchContext<'a> {
+    /// The full input string (for extracting compound token text).
+    input: &'a str,
+    /// Tokens within this segment.
+    tokens: &'a [tokenizer::Token],
+    /// The TOML rule set to match against.
+    rule_set: &'a RuleSet,
+    /// Which property this rule set targets.
+    property: Property,
+    /// Priority for emitted matches (directory segments get a penalty).
+    priority: i32,
+    /// Filename-level zone map (anchors, title zone, tech zone).
+    zone_map: &'a ZoneMap,
+    /// Per-directory zone map, if this is a directory segment.
+    dir_zone: Option<&'a zone_map::SegmentZone>,
+}
+
 use log::{debug, trace};
 use std::sync::LazyLock;
 
@@ -484,13 +506,15 @@ impl Pipeline {
 
                 let tokens = &segment.tokens;
                 self.match_tokens_in_segment(
-                    input,
-                    tokens,
-                    rule_set,
-                    *property,
-                    effective_priority,
-                    zone_map,
-                    dir_zone,
+                    &MatchContext {
+                        input,
+                        tokens,
+                        rule_set,
+                        property: *property,
+                        priority: effective_priority,
+                        zone_map,
+                        dir_zone,
+                    },
                     &mut matches,
                 );
             }
@@ -521,42 +545,31 @@ impl Pipeline {
     /// Uses a sliding window of 1–3 tokens (longest first) to handle compound
     /// patterns like "WEB-DL" or "HD-DVD". Emits primary matches and any
     /// side-effect spans declared in the TOML pattern.
-    #[allow(clippy::too_many_arguments)]
-    fn match_tokens_in_segment(
-        &self,
-        input: &str,
-        tokens: &[tokenizer::Token],
-        rule_set: &RuleSet,
-        property: Property,
-        priority: i32,
-        zone_map: &ZoneMap,
-        dir_zone: Option<&zone_map::SegmentZone>,
-        matches: &mut Vec<MatchSpan>,
-    ) {
+    fn match_tokens_in_segment(&self, ctx: &MatchContext, matches: &mut Vec<MatchSpan>) {
         use crate::matcher::rule_loader::ZoneScope;
 
         let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
 
         for window_size in (1..=3).rev() {
-            for i in 0..tokens.len() {
-                if i + window_size > tokens.len() {
+            for i in 0..ctx.tokens.len() {
+                if i + window_size > ctx.tokens.len() {
                     break;
                 }
 
-                let win_start = tokens[i].start;
-                let win_end = tokens[i + window_size - 1].end;
+                let win_start = ctx.tokens[i].start;
+                let win_end = ctx.tokens[i + window_size - 1].end;
 
                 // ── Zone scope filtering ─────────────────────────────
                 // Use per-directory zone when available, otherwise filename zone.
-                let (effective_has_anchors, effective_title_zone) = if let Some(dz) = dir_zone {
+                let (effective_has_anchors, effective_title_zone) = if let Some(dz) = ctx.dir_zone {
                     (dz.has_anchors, &dz.title_zone)
                 } else {
-                    (zone_map.has_anchors, &zone_map.title_zone)
+                    (ctx.zone_map.has_anchors, &ctx.zone_map.title_zone)
                 };
 
                 if effective_has_anchors {
                     let in_title_zone = effective_title_zone.contains(&win_start);
-                    match rule_set.zone_scope {
+                    match ctx.rule_set.zone_scope {
                         ZoneScope::TechOnly if in_title_zone => continue,
                         ZoneScope::AfterAnchor if in_title_zone => continue,
                         _ => {}
@@ -570,19 +583,19 @@ impl Pipeline {
                 }
 
                 let compound = if window_size == 1 {
-                    tokens[i].text.clone()
+                    ctx.tokens[i].text.clone()
                 } else {
-                    input[win_start..win_end].to_string()
+                    ctx.input[win_start..win_end].to_string()
                 };
 
-                if let Some(token_match) = rule_set.match_token(&compound) {
+                if let Some(token_match) = ctx.rule_set.match_token(&compound) {
                     // ── Neighbor constraint checks ──────────────────
                     let last_idx = i + window_size - 1;
                     if let Some(ref blocked) = token_match.not_before
-                        && last_idx + 1 < tokens.len()
+                        && last_idx + 1 < ctx.tokens.len()
                         && blocked
                             .iter()
-                            .any(|b| b == &tokens[last_idx + 1].text.to_lowercase())
+                            .any(|b| b == &ctx.tokens[last_idx + 1].text.to_lowercase())
                     {
                         continue;
                     }
@@ -590,28 +603,28 @@ impl Pipeline {
                         && i > 0
                         && blocked
                             .iter()
-                            .any(|b| b == &tokens[i - 1].text.to_lowercase())
+                            .any(|b| b == &ctx.tokens[i - 1].text.to_lowercase())
                     {
                         continue;
                     }
                     if let Some(ref required) = token_match.requires_after {
-                        let ok = last_idx + 1 < tokens.len()
+                        let ok = last_idx + 1 < ctx.tokens.len()
                             && required
                                 .iter()
-                                .any(|r| r == &tokens[last_idx + 1].text.to_lowercase());
+                                .any(|r| r == &ctx.tokens[last_idx + 1].text.to_lowercase());
                         if !ok {
                             continue;
                         }
                     }
                     // requires_context: only match when tech anchors exist
                     // OR when requires_before matches (fallback for context words).
-                    if token_match.requires_context && !zone_map.has_anchors {
+                    if token_match.requires_context && !ctx.zone_map.has_anchors {
                         // If requires_before is also set, use it as fallback.
                         if let Some(ref required) = token_match.requires_before {
                             let ok = i > 0
                                 && required
                                     .iter()
-                                    .any(|r| r == &tokens[i - 1].text.to_lowercase());
+                                    .any(|r| r == &ctx.tokens[i - 1].text.to_lowercase());
                             if !ok {
                                 continue;
                             }
@@ -624,7 +637,7 @@ impl Pipeline {
                             let ok = i > 0
                                 && required
                                     .iter()
-                                    .any(|r| r == &tokens[i - 1].text.to_lowercase());
+                                    .any(|r| r == &ctx.tokens[i - 1].text.to_lowercase());
                             if !ok {
                                 continue;
                             }
@@ -633,8 +646,8 @@ impl Pipeline {
 
                     // ── Primary match ───────────────────────────────
                     matches.push(
-                        MatchSpan::new(win_start, win_end, property, token_match.value)
-                            .with_priority(priority),
+                        MatchSpan::new(win_start, win_end, ctx.property, token_match.value)
+                            .with_priority(ctx.priority),
                     );
                     matched_ranges.push((win_start, win_end));
 
@@ -643,7 +656,7 @@ impl Pipeline {
                         if let Some(se_prop) = Property::from_name(&se.property) {
                             matches.push(
                                 MatchSpan::new(win_start, win_end, se_prop, &se.value)
-                                    .with_priority(priority),
+                                    .with_priority(ctx.priority),
                             );
                         }
                     }
