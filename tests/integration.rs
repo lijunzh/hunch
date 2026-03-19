@@ -508,9 +508,7 @@ fn cjk_saki_achiga_nc_ver() {
 
 #[test]
 fn cjk_solo_leveling_sxxexx_in_bracket_dir() {
-    let r = hunch(
-        "[H-Enc] Solo Leveling Season 2 (BDRip 1080p HEVC FLAC)/S01E13.mkv",
-    );
+    let r = hunch("[H-Enc] Solo Leveling Season 2 (BDRip 1080p HEVC FLAC)/S01E13.mkv");
     assert_eq!(r.title(), Some("Solo Leveling"));
     assert_eq!(r.season(), Some(1));
     assert_eq!(r.episode(), Some(13));

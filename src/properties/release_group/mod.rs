@@ -398,9 +398,8 @@ pub fn find_matches(
                     break;
                 }
                 let merged = format!("{} [{}]", rg.value, bracket_content);
-                matches[0] =
-                    MatchSpan::new(rg.start, bg.close + 1, Property::ReleaseGroup, merged)
-                        .with_priority(rg.priority);
+                matches[0] = MatchSpan::new(rg.start, bg.close + 1, Property::ReleaseGroup, merged)
+                    .with_priority(rg.priority);
                 break;
             }
         }
