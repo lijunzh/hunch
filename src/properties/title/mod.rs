@@ -8,7 +8,7 @@ mod clean;
 mod secondary;
 
 pub use secondary::{
-    extract_alternative_title, extract_episode_title, extract_film_title, infer_media_type,
+    extract_alternative_titles, extract_episode_title, extract_film_title, infer_media_type,
 };
 
 use crate::matcher::span::{MatchSpan, Property};
@@ -388,29 +388,13 @@ fn has_parent_dir(input: &str) -> bool {
 fn find_title_boundary(raw: &str) -> Option<usize> {
     let min_title_len = 3;
 
-    for sep in [" (", "_(", ".("] {
-        if let Some(pos) = raw.find(sep)
-            && pos >= min_title_len
-        {
-            return Some(pos);
-        }
-    }
+    // Find the earliest structural separator across all types.
+    let separators: &[&str] = &[" (", "_(", ".(", " - ", "_-_", ".-.", "--"];
 
-    for sep in [" - ", "_-_", ".-."] {
-        if let Some(pos) = raw.find(sep)
-            && pos >= min_title_len
-        {
-            return Some(pos);
-        }
-    }
-
-    if let Some(pos) = raw.find("--")
-        && pos >= min_title_len
-    {
-        return Some(pos);
-    }
-
-    None
+    separators
+        .iter()
+        .filter_map(|sep| raw.find(sep).filter(|&pos| pos >= min_title_len))
+        .min()
 }
 
 #[cfg(test)]

@@ -245,12 +245,17 @@ pub fn extract_film_title(
     ))
 }
 
-/// Extract alternative_title from content after the title boundary.
-pub fn extract_alternative_title(
+/// Extract alternative titles from content after the title boundary.
+///
+/// When a title zone contains multiple `" - "` separated segments,
+/// each segment after the first becomes a separate `AlternativeTitle` value.
+/// E.g., `"Echec et Mort - Hard to Kill - Steven Seagal"` →
+///   title: "Echec et Mort", alt_titles: ["Hard to Kill", "Steven Seagal"]
+pub fn extract_alternative_titles(
     input: &str,
     matches: &[MatchSpan],
     _token_stream: &TokenStream,
-) -> Option<MatchSpan> {
+) -> Vec<MatchSpan> {
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
 
     let first_match = matches
@@ -278,11 +283,14 @@ pub fn extract_alternative_title(
     };
 
     if title_end_abs <= filename_start {
-        return None;
+        return Vec::new();
     }
 
     let raw_title = &input[filename_start..title_end_abs];
-    let boundary_offset = find_title_boundary(raw_title)?;
+    let boundary_offset = match find_title_boundary(raw_title) {
+        Some(offset) => offset,
+        None => return Vec::new(),
+    };
 
     let after = &raw_title[boundary_offset..];
     let sep_len =
@@ -300,21 +308,71 @@ pub fn extract_alternative_title(
     let sep_end = boundary_offset + sep_len;
 
     if sep_end >= raw_title.len() {
-        return None;
+        return Vec::new();
     }
 
     let alt_raw = &raw_title[sep_end..];
-    let alt_cleaned = clean_title(alt_raw);
-    if alt_cleaned.is_empty() {
-        return None;
+
+    // Split on " - ", "_-_", ".-." to produce multiple alternative titles.
+    let separators = [" - ", "_-_", ".-."];
+    let segments = split_on_separators(alt_raw, &separators);
+
+    let mut results = Vec::new();
+    let mut offset = sep_end;
+    for segment in &segments {
+        let cleaned = clean_title(segment);
+        if !cleaned.is_empty() {
+            results.push(MatchSpan::new(
+                filename_start + offset,
+                filename_start + offset + segment.len(),
+                Property::AlternativeTitle,
+                cleaned,
+            ));
+        }
+        // Advance past this segment and the next separator.
+        offset += segment.len();
+        // Skip the separator (find which one is next).
+        let remaining = &raw_title[offset..];
+        for sep in &separators {
+            if remaining.starts_with(sep) {
+                offset += sep.len();
+                break;
+            }
+        }
     }
 
-    Some(MatchSpan::new(
-        filename_start + sep_end,
-        title_end_abs,
-        Property::AlternativeTitle,
-        alt_cleaned,
-    ))
+    results
+}
+
+/// Split a string on any of the given separators, preserving order.
+fn split_on_separators<'a>(s: &'a str, separators: &[&str]) -> Vec<&'a str> {
+    let mut result = Vec::new();
+    let mut remaining = s;
+
+    loop {
+        // Find the earliest separator.
+        let earliest = separators
+            .iter()
+            .filter_map(|sep| remaining.find(sep).map(|pos| (pos, *sep)))
+            .min_by_key(|(pos, _)| *pos);
+
+        match earliest {
+            Some((pos, sep)) => {
+                if pos > 0 {
+                    result.push(&remaining[..pos]);
+                }
+                remaining = &remaining[pos + sep.len()..];
+            }
+            None => {
+                if !remaining.is_empty() {
+                    result.push(remaining);
+                }
+                break;
+            }
+        }
+    }
+
+    result
 }
 
 /// Infer media type from the set of matched properties.
