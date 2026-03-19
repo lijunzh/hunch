@@ -62,10 +62,18 @@ pub fn extract_title(
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let filename = &input[filename_start..];
 
-    // Title boundary: first non-extension, non-reclaimable match in the filename.
+    // Title boundary: first non-extension match in the filename.
+    // Reclaimable matches are skipped ONLY if there's title content before
+    // them (e.g., "Pacific.Rim.3D" → skip 3D, absorb into title).
+    // If a reclaimable match starts at the filename beginning, it's treated
+    // normally (e.g., "3D.2019" → 3D is Other, not title content).
     let first_match_in_filename = matches
         .iter()
-        .filter(|m| m.start >= filename_start && !m.is_extension && !m.reclaimable)
+        .filter(|m| {
+            m.start >= filename_start
+                && !m.is_extension
+                && (!m.reclaimable || m.start == filename_start)
+        })
         .min_by_key(|m| m.start);
 
     let title_end_abs = match first_match_in_filename {
