@@ -364,7 +364,7 @@ fn cjk_yamada_full_path() {
     // TC in parent dir must NOT be parsed as Telecine.
     let sources: Vec<_> = r.all(Property::Source);
     assert!(
-        !sources.iter().any(|s| *s == "Telecine"),
+        !sources.contains(&"Telecine"),
         "TC should not match as Telecine when subtitle language is present"
     );
 }
@@ -437,7 +437,7 @@ fn cjk_saki_rev_sc_ass() {
     );
     let others: Vec<_> = r.all(Property::Other);
     assert!(
-        others.iter().any(|o| *o == "Revised"),
+        others.contains(&"Revised"),
         "[Rev] should be parsed as Revised"
     );
 }
