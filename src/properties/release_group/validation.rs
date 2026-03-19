@@ -1,13 +1,21 @@
-//! Release group validation helpers.
+//! Release group validation: position-based overlap detection and token filtering.
 //!
-//! v0.3: Position-based overlap detection replaces the old 130+ token
-//! exclusion list. Release group now runs AFTER conflict resolution, so
-//! we can check whether a candidate span is already claimed by a resolved
-//! tech match (VideoCodec, Source, etc.).
+//! # Architecture
 //!
-//! A small curated list of non-tech tokens that should never be release
-//! groups (subtitle markers, metadata tags) is retained for tokens not
-//! covered by TOML rules.
+//! v0.3 replaced the old 130+ token exclusion list with position-based
+//! overlap detection (`is_position_claimed`). Release group extraction now
+//! runs AFTER conflict resolution, so we check whether a candidate span is
+//! already claimed by a resolved tech match (VideoCodec, Source, etc.).
+//!
+//! A small curated list of non-tech tokens (`is_non_group_token`) is retained
+//! for tokens not covered by TOML rules:
+//!
+//! - **Container extensions** (mkv, mp4, etc.): These exist in `container.toml`
+//!   but container detection uses the extension path (PATH A), not token
+//!   matching. So `is_position_claimed()` won't catch them mid-filename.
+//!
+//! - **Subtitle/metadata markers** (fansub, dublado, etc.): Not covered by
+//!   any TOML rule — they're purely release-group-exclusion tokens.
 
 use crate::matcher::span::{MatchSpan, Property};
 use crate::zone_map;
