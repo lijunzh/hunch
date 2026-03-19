@@ -11,7 +11,6 @@ use crate::hunch_result::HunchResult;
 use crate::matcher::engine;
 use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
-use crate::options::Options;
 use crate::tokenizer::{self, TokenStream};
 use crate::zone_map::{self, ZoneMap};
 
@@ -79,7 +78,7 @@ type LegacyMatcherFn = fn(&str) -> Vec<MatchSpan>;
 /// → release group / title extraction → result assembly.
 ///
 /// Most users should use [`hunch`](crate::hunch) or
-/// [`hunch_with`](crate::hunch_with) instead of constructing a `Pipeline`
+/// [`hunch`](crate::hunch) instead of constructing a `Pipeline`
 /// directly.
 /// Whether a TOML rule set should match tokens from directory segments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,12 +100,8 @@ const DIR_PRIORITY_PENALTY: i32 = -5;
 /// The two-pass parsing pipeline.
 ///
 /// See [`Pipeline::run`] for the main entry point, or use
-/// [`hunch`](crate::hunch) / [`hunch_with`](crate::hunch_with) for
-/// convenience.
+/// [`hunch`](crate::hunch) for convenience.
 pub struct Pipeline {
-    // TODO: wire up media_type hint and expected_title options in the pipeline.
-    #[allow(dead_code)]
-    options: Options,
     /// TOML-driven rule sets: (rules, property, priority, segment_scope).
     toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)>,
     /// Legacy matchers that run against raw input (to be migrated).
@@ -115,17 +110,17 @@ pub struct Pipeline {
 
 impl Default for Pipeline {
     fn default() -> Self {
-        Self::new(Options::default())
+        Self::new()
     }
 }
 
 impl Pipeline {
-    /// Create a new pipeline with the given [`Options`].
+    /// Create a new pipeline.
     ///
-    /// Prefer [`hunch_with`](crate::hunch_with) for one-shot parsing.
+    /// Prefer [`hunch`](crate::hunch) for one-shot parsing.
     /// Construct a `Pipeline` directly when you want to reuse the same
     /// configuration across many inputs.
-    pub fn new(options: Options) -> Self {
+    pub fn new() -> Self {
         let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)> = vec![
             // Tech properties: unambiguous tokens safe for all segments.
             // These were previously scanned across full paths by legacy matchers.
@@ -283,7 +278,6 @@ impl Pipeline {
         ];
 
         Self {
-            options,
             toml_rules,
             legacy_matchers,
         }
