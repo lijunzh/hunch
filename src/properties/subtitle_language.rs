@@ -19,9 +19,9 @@ static ALPHA_BOUNDARY: BoundarySpec = BoundarySpec {
     right: Some(CharClass::Alpha),
 };
 
-/// Subtitle file with language code: movie.eng.srt, movie.fr.sub
+/// Subtitle file with language code: movie.eng.srt, movie.fr.sub, movie.scjp.ass
 static SUB_LANG_EXT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\.(?P<lang>[a-z]{2,3})\.(srt|sub|ass|ssa|idx|smi|vtt|sup)$").unwrap()
+    Regex::new(r"(?i)\.(?P<lang>[a-z]{2,4})\.(srt|sub|ass|ssa|idx|smi|vtt|sup)$").unwrap()
 });
 
 /// SubForced / SUBFORCED
@@ -73,6 +73,10 @@ fn normalize_language(code: &str) -> Option<&'static str> {
         "ja" | "jpn" | "japanese" => Some("ja"),
         "ko" | "kor" | "korean" => Some("ko"),
         "zh" | "chi" | "zho" | "chinese" => Some("zh"),
+        "sc" | "chs" => Some("Simplified Chinese"),
+        "tc" | "cht" | "big5" => Some("Traditional Chinese"),
+        "scjp" => Some("Simplified Chinese"),
+        "tcjp" => Some("Traditional Chinese"),
         "ru" | "rus" | "russian" => Some("ru"),
         "ar" | "ara" | "arabic" => Some("ar"),
         "hi" | "hin" | "hindi" => Some("hi"),

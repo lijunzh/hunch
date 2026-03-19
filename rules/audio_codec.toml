@@ -141,6 +141,11 @@ value = "AAC"
 side_effects = [{ property = "audio_channels", value = "5.1" }]
 
 [[patterns]]
+# FLACx2 / FLACx3 (FLAC with multiple audio tracks — treat as FLAC codec)
+match = '(?i)^flac[x]\d{1,2}$'
+value = "FLAC"
+
+[[patterns]]
 # FLAC2.0
 match = '(?i)^flac[-.]?2[. _]?0$'
 value = "FLAC"

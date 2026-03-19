@@ -374,17 +374,34 @@ pub fn find_matches(
             // Adjacent if bracket starts within 3 bytes of group end.
             if bg.open > rg.end && bg.open <= rg.end + 3 {
                 let bracket_content = &bg.content;
-                if !bracket_content.is_empty()
-                    && !bracket_content.contains('.')
-                    && !is_rejected_group(bracket_content, bg.open + 1, bg.close, resolved)
-                    && !is_hex_crc(bracket_content)
+                // Skip multi-word content — that's likely a title, not a suffix.
+                // E.g., `[Saki Zenkoku Hen]` is a title, `[GloDLS]` is a suffix.
+                if bracket_content.is_empty()
+                    || bracket_content.contains('.')
+                    || bracket_content.contains(' ')
+                    || is_rejected_group(bracket_content, bg.open + 1, bg.close, resolved)
+                    || is_hex_crc(bracket_content)
                 {
-                    let merged = format!("{} [{}]", rg.value, bracket_content);
-                    matches[0] =
-                        MatchSpan::new(rg.start, bg.close + 1, Property::ReleaseGroup, merged)
-                            .with_priority(rg.priority);
+                    continue;
+                }
+                // CJK fansub guard: if the very next bracket after this candidate
+                // contains a claimed match (e.g., an episode), this candidate is
+                // a title — not a release-group suffix.
+                let next_bg_is_claimed = fn_bracket_groups.iter().any(|nbg| {
+                    nbg.open > bg.close
+                        && nbg.open <= bg.close + 1
+                        && resolved
+                            .iter()
+                            .any(|m| m.start >= nbg.open && m.end <= nbg.close + 1)
+                });
+                if next_bg_is_claimed {
                     break;
                 }
+                let merged = format!("{} [{}]", rg.value, bracket_content);
+                matches[0] =
+                    MatchSpan::new(rg.start, bg.close + 1, Property::ReleaseGroup, merged)
+                        .with_priority(rg.priority);
+                break;
             }
         }
     }
