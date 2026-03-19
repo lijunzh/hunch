@@ -83,6 +83,37 @@ side_effects = [
     { property = "other", value = "Reencoded" },
 ]
 
+# Mux variants (single token)
+[[patterns]]
+match = '(?i)^bdmux$'
+value = "Blu-ray"
+side_effects = [{ property = "other", value = "Mux" }]
+
+[[patterns]]
+match = '(?i)^brmux$'
+value = "Blu-ray"
+side_effects = [
+    { property = "other", value = "Mux" },
+    { property = "other", value = "Reencoded" },
+]
+
+[[patterns]]
+match = '(?i)^bdripmux$'
+value = "Blu-ray"
+side_effects = [
+    { property = "other", value = "Mux" },
+    { property = "other", value = "Rip" },
+]
+
+[[patterns]]
+match = '(?i)^brripmux$'
+value = "Blu-ray"
+side_effects = [
+    { property = "other", value = "Mux" },
+    { property = "other", value = "Reencoded" },
+    { property = "other", value = "Rip" },
+]
+
 [[patterns]]
 match = '(?i)^webrip$'
 value = "Web"
@@ -147,6 +178,28 @@ value = "Blu-ray"
 side_effects = [
     { property = "other", value = "Rip" },
     { property = "other", value = "Reencoded" },
+]
+
+# Blu-ray compounds (with Mux)
+[[patterns]]
+match = '(?i)^bd[-. ]?mux$'
+value = "Blu-ray"
+side_effects = [{ property = "other", value = "Mux" }]
+
+[[patterns]]
+match = '(?i)^br[-. ]?mux$'
+value = "Blu-ray"
+side_effects = [
+    { property = "other", value = "Mux" },
+    { property = "other", value = "Reencoded" },
+]
+
+[[patterns]]
+match = '(?i)^bd[-. ]?rip[-. ]?mux$'
+value = "Blu-ray"
+side_effects = [
+    { property = "other", value = "Mux" },
+    { property = "other", value = "Rip" },
 ]
 
 # Blu-ray compounds (with Screener)
