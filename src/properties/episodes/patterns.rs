@@ -153,6 +153,16 @@ pub(super) static THREE_DIGIT: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"[.\-_ ](?P<num>\d{3,4})").expect("episode pattern regex is valid")
 });
 
+// ── CJK fansub bracket episode ──
+
+/// CJK fansub bracket episode: `][01][` or `][13][` or `][13(SP)][`
+/// — bare 1-3 digit number inside brackets sandwiched between other bracket groups,
+/// optionally followed by parenthetical markers like `(SP)` or `(NC.Ver)`.
+pub(super) static CJK_BRACKET_EPISODE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"\]\[(?P<episode>\d{1,3})(?:\([^)]*\))?\](?:\[|$|\.)")
+        .expect("CJK_BRACKET_EPISODE regex is valid")
+});
+
 // ── Week pattern ──
 
 /// Week 45, Week.12, etc.

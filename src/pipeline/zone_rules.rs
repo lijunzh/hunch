@@ -111,6 +111,37 @@ pub fn apply_zone_rules(
     // HQ/HR/FanSub adjacency check depends on release group positions,
     // which are now extracted in Pass 2 (post-resolution).
 
+    // ── Rule 7a: Same-position SubtitleLanguage vs Source conflict ──────
+    // When SubtitleLanguage and Source occupy the exact same span (e.g., `tc`
+    // matching both Telecine and Traditional Chinese), keep the higher-priority
+    // SubtitleLanguage and drop the Source.
+    // Also: "TC" for Telecine is extremely rare and almost always a CJK subtitle
+    // indicator. If SubtitleLanguage is already detected (e.g., from BIG5 or
+    // .tc.ass), drop any Source=Telecine match regardless of position.
+    {
+        let has_sub_lang = matches
+            .iter()
+            .any(|m| m.property == Property::SubtitleLanguage);
+        let sub_spans: Vec<(usize, usize, i32)> = matches
+            .iter()
+            .filter(|m| m.property == Property::SubtitleLanguage)
+            .map(|m| (m.start, m.end, m.priority))
+            .collect();
+        matches.retain(|m| {
+            if m.property != Property::Source {
+                return true;
+            }
+            // Drop Telecine when subtitle language is already known.
+            if m.value == "Telecine" && has_sub_lang {
+                return false;
+            }
+            // Drop Source when SubtitleLanguage occupies the exact same span.
+            !sub_spans
+                .iter()
+                .any(|(ss, se, sp)| m.start == *ss && m.end == *se && *sp >= m.priority)
+        });
+    }
+
     // ── Rule 7: Language/SubtitleLanguage contained within a tech span ───
 
     // ── Rule 8: Language contained within a SubtitleLanguage span ────────

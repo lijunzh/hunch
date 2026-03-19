@@ -184,6 +184,11 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     // Episode standalone: E01, "Episode 1", anime, versioned, Cap.NNN
     try_episode_standalone(input, &mut matches);
 
+    // CJK fansub bracket episode: [Group][Title][01][1080P]...
+    if !has_property(&matches, Property::Episode) {
+        try_cjk_bracket_episode(input, &mut matches);
+    }
+
     // Low confidence: digit decomposition (only if nothing found)
     if !has_property(&matches, Property::Season) && !has_property(&matches, Property::Episode) {
         try_digit_decomposition(input, &mut matches);
@@ -782,6 +787,38 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                 );
             }
         }
+    }
+}
+
+// ── Group 4b: CJK fansub bracket episode ────────────────────────────
+
+/// CJK fansub: `[Group][Title][01][1080P]...
+/// Detects bare 1-3 digit numbers in brackets between other brackets.
+fn try_cjk_bracket_episode(input: &str, matches: &mut Vec<MatchSpan>) {
+    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let filename = &input[fn_start..];
+
+    // Only apply to filenames starting with `[` (CJK fansub style).
+    if !filename.starts_with('[') {
+        return;
+    }
+
+    for cap in CJK_BRACKET_EPISODE.captures_iter(filename) {
+        let ep_match = cap.name("episode").unwrap();
+        let ep_num: u32 = match ep_match.as_str().parse() {
+            Ok(n) if n > 0 && n < 1000 => n,
+            _ => continue,
+        };
+        // Skip values that look like resolutions (720, 1080, 480, 2160).
+        if matches!(ep_num, 480 | 720 | 1080 | 2160) {
+            continue;
+        }
+        let abs_start = fn_start + ep_match.start();
+        let abs_end = fn_start + ep_match.end();
+        matches.push(
+            MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
+                .with_priority(1),
+        );
     }
 }
 
