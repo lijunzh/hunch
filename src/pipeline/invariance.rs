@@ -22,7 +22,6 @@ use super::context::{find_invariant_text, find_unclaimed_gaps, strip_extension_p
 /// Produced by [`analyze_invariance`] from a target file + siblings.
 /// Each field is independently optional — partial results are fine.
 #[derive(Debug, Clone, Default)]
-#[allow(dead_code)] // Consumed in Phase 2.
 pub(crate) struct InvarianceReport {
     /// Invariant title text (existing functionality from `find_invariant_text`).
     pub title: Option<String>,
@@ -34,7 +33,6 @@ pub(crate) struct InvarianceReport {
 
 /// A year-like number classified by cross-file analysis.
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // Fields consumed in Phase 2-4 (pipeline threading).
 pub(crate) struct YearSignal {
     /// Byte offset in the target file.
     pub start: usize,
@@ -49,7 +47,6 @@ pub(crate) struct YearSignal {
 
 /// A bare number classified by cross-file analysis.
 #[derive(Debug, Clone)]
-#[allow(dead_code)] // Fields consumed in Phase 2-4 (pipeline threading).
 pub(crate) struct EpisodeSignal {
     /// Byte offset in the target file.
     pub start: usize,
@@ -81,7 +78,6 @@ struct NumberInGap {
 }
 
 /// Input bundle for a single file's Pass 1 results.
-#[allow(dead_code)] // Consumed in Phase 2.
 pub(crate) struct FileAnalysis<'a> {
     /// The raw input string.
     pub input: &'a str,
@@ -101,7 +97,6 @@ static GAP_NUMBER: LazyLock<regex::Regex> =
 /// - Episode signals (sequential variant numbers)
 ///
 /// Falls back gracefully: if no siblings, returns an empty report.
-#[allow(dead_code)] // Consumed in Phase 2.
 pub(crate) fn analyze_invariance(
     target: &FileAnalysis<'_>,
     siblings: &[FileAnalysis<'_>],

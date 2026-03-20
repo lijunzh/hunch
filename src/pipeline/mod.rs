@@ -7,11 +7,12 @@
 pub(crate) mod context;
 mod invariance;
 mod matching;
+mod pass2_helpers;
 mod proper_count;
 pub(crate) mod token_context;
 mod zone_rules;
 
-use crate::hunch_result::{Confidence, HunchResult};
+use crate::hunch_result::HunchResult;
 use crate::matcher::engine;
 use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
@@ -297,7 +298,7 @@ impl Pipeline {
     /// Title, episode_title, alternative_title use all resolved matches.
     pub fn run(&self, input: &str) -> HunchResult {
         let (mut matches, token_stream, zone_map) = self.pass1(input);
-        self.pass2(input, &mut matches, &zone_map, &token_stream, None)
+        self.pass2(input, &mut matches, &zone_map, &token_stream, None, None)
     }
 
     /// Parse a filename using sibling filenames for cross-file title detection.
@@ -306,9 +307,10 @@ impl Pipeline {
     /// can dramatically improve title extraction for CJK and non-standard
     /// formats.
     ///
-    /// The **invariant text** across all files (the text that doesn't change
-    /// between episodes) is identified as the title. Falls back to standard
-    /// `run()` behavior when invariance detection produces no result.
+    /// Cross-file analysis produces an [`InvarianceReport`] that informs:
+    /// - **Title**: invariant text across files
+    /// - **Year signals**: year-like numbers classified as title vs metadata
+    /// - **Episode signals**: sequential variant numbers as episode evidence
     ///
     /// # Example
     ///
@@ -331,33 +333,52 @@ impl Pipeline {
         let (target_matches, target_ts, target_zm) = self.pass1(input);
         let sibling_results: Vec<_> = siblings.iter().map(|s| self.pass1(s)).collect();
 
-        // 2. Find unclaimed gaps in each.
-        let target_gaps = context::find_unclaimed_gaps(input, &target_matches);
-        let sibling_gaps: Vec<_> = siblings
+        // 2. Unified invariance analysis (title + year + episode signals).
+        let sibling_analyses: Vec<_> = siblings
             .iter()
             .zip(&sibling_results)
-            .map(|(s, (matches, _, _))| context::find_unclaimed_gaps(s, matches))
+            .map(|(s, (matches, _, _))| invariance::FileAnalysis {
+                input: s,
+                matches: matches.as_slice(),
+            })
             .collect();
-
-        // 3. Find invariant text (title candidate).
-        let mut all_gaps = vec![target_gaps];
-        all_gaps.extend(sibling_gaps);
-        let title_override = context::find_invariant_text(&all_gaps);
-
-        debug!(
-            "cross-file context: {} sibling(s), title_override={:?}",
-            siblings.len(),
-            title_override
+        let report = invariance::analyze_invariance(
+            &invariance::FileAnalysis {
+                input,
+                matches: &target_matches,
+            },
+            &sibling_analyses,
         );
 
-        // 4. Run Pass 2 with title override.
+        debug!(
+            "cross-file context: {} sibling(s), title={:?}, {} year signal(s), {} episode signal(s)",
+            siblings.len(),
+            report.title,
+            report.year_signals.len(),
+            report.episode_signals.len(),
+        );
+        for ys in &report.year_signals {
+            trace!(
+                "  [YEAR] {} at {}..{} invariant={}",
+                ys.value, ys.start, ys.end, ys.is_invariant
+            );
+        }
+        for es in &report.episode_signals {
+            trace!(
+                "  [EPISODE] {} at {}..{} sequential={} digits={}",
+                es.value, es.start, es.end, es.is_sequential, es.digit_count
+            );
+        }
+
+        // 3. Run Pass 2 with invariance report.
         let mut matches = target_matches;
         self.pass2(
             input,
             &mut matches,
             &target_zm,
             &target_ts,
-            title_override.as_deref(),
+            report.title.as_deref(),
+            Some(&report),
         )
     }
 
@@ -449,6 +470,10 @@ impl Pipeline {
     /// When `title_override` is `Some(...)`, the provided title is used directly
     /// instead of running the standard positional title extractor. This is the
     /// hook for cross-file invariance detection (`run_with_context`).
+    ///
+    /// When `report` is `Some(...)`, year and episode signals from cross-file
+    /// analysis are applied to disambiguate year-in-title numbers and confirm
+    /// episode evidence.
     fn pass2(
         &self,
         input: &str,
@@ -456,6 +481,7 @@ impl Pipeline {
         zone_map: &ZoneMap,
         token_stream: &TokenStream,
         title_override: Option<&str>,
+        report: Option<&invariance::InvarianceReport>,
     ) -> HunchResult {
         // Step 5a: Release group (post-resolution — can see claimed positions).
         let rg_matches = release_group::find_matches(input, all_matches, zone_map, token_stream);
@@ -472,6 +498,14 @@ impl Pipeline {
 
         // Step 5a.1: Zone rules that depend on release group positions.
         zone_rules::apply_post_release_group_rules(all_matches);
+
+        // Step 5a.2: Cross-file year/episode disambiguation.
+        // When an InvarianceReport is available, use its signals to:
+        //   - Suppress Year matches for invariant year-like numbers (they're title content)
+        //   - Inject episode matches for sequential variant numbers
+        if let Some(report) = report {
+            pass2_helpers::apply_invariance_signals(input, all_matches, report);
+        }
 
         // Step 5b: Title extraction.
         if let Some(override_title) = title_override {
@@ -549,7 +583,7 @@ impl Pipeline {
 
         // Step 5e: Strip video/audio tech properties from subtitle containers.
         // Files like .ass, .srt, .sub should not carry video_codec, color_depth, etc.
-        strip_tech_from_subtitle_containers(all_matches);
+        pass2_helpers::strip_tech_from_subtitle_containers(all_matches);
 
         // Step 6: Build result.
         debug!(
@@ -564,7 +598,7 @@ impl Pipeline {
         }
 
         // Step 7: Compute confidence.
-        let confidence = compute_confidence(&result, title_override.is_some());
+        let confidence = pass2_helpers::compute_confidence(&result, title_override.is_some());
         result.set_confidence(confidence);
         debug!("step 7: confidence = {:?}", confidence);
 
@@ -644,79 +678,6 @@ impl Pipeline {
         }
 
         matches
-    }
-}
-
-/// Compute confidence level based on structural signals.
-fn compute_confidence(result: &HunchResult, used_cross_file: bool) -> Confidence {
-    // Count tech anchors (strong signals that we parsed correctly).
-    let tech_properties = [
-        Property::VideoCodec,
-        Property::AudioCodec,
-        Property::ScreenSize,
-        Property::Source,
-        Property::Season,
-        Property::Episode,
-    ];
-    let anchor_count = tech_properties
-        .iter()
-        .filter(|p| result.first(**p).is_some())
-        .count();
-
-    let has_title = result.title().is_some();
-    let title_len = result.title().map(|t| t.chars().count()).unwrap_or(0);
-
-    // High: cross-file context succeeded, or ≥3 anchors with a reasonable title.
-    if used_cross_file && has_title {
-        return Confidence::High;
-    }
-    if anchor_count >= 3 && has_title && title_len >= 2 {
-        return Confidence::High;
-    }
-
-    // Low: no title, or title is suspiciously short.
-    if !has_title || title_len <= 1 {
-        return Confidence::Low;
-    }
-
-    // Medium: everything else (some anchors but not many, or title
-    // might be questionable).
-    if anchor_count >= 1 {
-        Confidence::Medium
-    } else {
-        Confidence::Low
-    }
-}
-
-/// Subtitle container extensions.
-const SUBTITLE_CONTAINERS: &[&str] = &["srt", "sub", "ass", "ssa", "idx", "sup", "vtt", "smi"];
-
-/// Properties that are meaningless for subtitle files.
-const SUBTITLE_STRIP_PROPERTIES: &[Property] = &[
-    Property::VideoCodec,
-    Property::ColorDepth,
-    Property::VideoProfile,
-    Property::Source,
-    Property::AudioCodec,
-    Property::AudioChannels,
-    Property::AudioProfile,
-    Property::FrameRate,
-];
-
-/// Strip video/audio tech properties from subtitle containers.
-///
-/// When the detected container is a subtitle format (.ass, .srt, etc.),
-/// properties like video_codec, color_depth, and source are meaningless
-/// and should be removed.
-fn strip_tech_from_subtitle_containers(matches: &mut Vec<MatchSpan>) {
-    let is_subtitle = matches.iter().any(|m| {
-        m.property == Property::Container
-            && SUBTITLE_CONTAINERS
-                .iter()
-                .any(|ext| m.value.eq_ignore_ascii_case(ext))
-    });
-    if is_subtitle {
-        matches.retain(|m| !SUBTITLE_STRIP_PROPERTIES.contains(&m.property));
     }
 }
 
