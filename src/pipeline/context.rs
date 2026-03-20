@@ -182,17 +182,16 @@ const CJK_ORDINAL_CHARS: &[char] = &[
 
 /// Trim trailing separators and CJK ordinal markers from a title prefix.
 fn trim_title_suffix(text: &str) -> String {
-    let mut result = text.trim_end_matches(SEPS).trim().to_string();
-    // Repeatedly trim CJK ordinals + separators from the end.
+    let mut s = text.trim_end_matches(SEPS).trim();
     loop {
-        let before = result.clone();
-        result = result.trim_end_matches(CJK_ORDINAL_CHARS).to_string();
-        result = result.trim_end_matches(SEPS).trim().to_string();
-        if result == before {
+        let trimmed = s.trim_end_matches(CJK_ORDINAL_CHARS);
+        let trimmed = trimmed.trim_end_matches(SEPS).trim();
+        if trimmed.len() == s.len() {
             break;
         }
+        s = trimmed;
     }
-    result
+    s.to_string()
 }
 
 /// Normalize gap text: replace separators with spaces, strip bracket-enclosed

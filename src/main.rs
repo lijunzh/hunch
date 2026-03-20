@@ -1,6 +1,6 @@
 //! Hunch CLI — parse media filenames from the command line.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use hunch::{Confidence, Pipeline};
@@ -19,6 +19,7 @@ const MEDIA_EXTENSIONS: &[&str] = &[
 #[command(version)]
 struct Cli {
     /// Filename or release name to parse.
+    #[arg(conflicts_with = "batch_dir")]
     filename: Vec<String>,
 
     /// Directory of sibling files to use as context for title detection.
@@ -26,7 +27,7 @@ struct Cli {
     context_dir: Option<PathBuf>,
 
     /// Parse all media files in a directory (siblings used as mutual context).
-    #[arg(long = "batch", value_name = "DIR", conflicts_with = "context_dir")]
+    #[arg(long = "batch", value_name = "DIR", conflicts_with_all = ["context_dir", "filename"])]
     batch_dir: Option<PathBuf>,
 
     /// Output raw JSON (default is pretty-printed).
@@ -142,7 +143,7 @@ fn print_result(filename: &str, result: &hunch::HunchResult, json: bool) {
 }
 
 /// List all media files in a directory (non-recursive).
-fn list_media_files(dir: &PathBuf) -> Vec<PathBuf> {
+fn list_media_files(dir: &Path) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         eprintln!("Error: cannot read directory {}", dir.display());
         std::process::exit(1);

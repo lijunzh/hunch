@@ -75,15 +75,6 @@ use crate::properties::{
 /// A legacy matcher function: takes raw input, returns property matches.
 type LegacyMatcherFn = fn(&str) -> Vec<MatchSpan>;
 
-/// The parsing pipeline.
-///
-/// Orchestrates the full two-pass parsing flow: tokenization → zone mapping
-/// → TOML + legacy matching → conflict resolution → zone disambiguation
-/// → release group / title extraction → result assembly.
-///
-/// Most users should use [`hunch`](crate::hunch) or
-/// [`hunch`](crate::hunch) instead of constructing a `Pipeline`
-/// directly.
 /// Whether a TOML rule set should match tokens from directory segments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SegmentScope {
@@ -103,8 +94,13 @@ const DIR_PRIORITY_PENALTY: i32 = -5;
 
 /// The two-pass parsing pipeline.
 ///
+/// Orchestrates the full parsing flow: tokenization → zone mapping
+/// → TOML + legacy matching → conflict resolution → zone disambiguation
+/// → release group / title extraction → result assembly.
+///
 /// See [`Pipeline::run`] for the main entry point, or use
-/// [`hunch`](crate::hunch) for convenience.
+/// [`hunch`](crate::hunch) / [`hunch_with_context`](crate::hunch_with_context)
+/// for convenience.
 pub struct Pipeline {
     /// TOML-driven rule sets: (rules, property, priority, segment_scope).
     toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)>,
