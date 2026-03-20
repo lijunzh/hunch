@@ -4,6 +4,7 @@
 //! tokens against TOML rules and legacy matchers. Zone-aware disambiguation
 //! replaces v0.1 prune_* heuristics.
 
+pub(crate) mod context;
 mod proper_count;
 pub(crate) mod token_context;
 mod zone_rules;
@@ -320,6 +321,67 @@ impl Pipeline {
     pub fn run(&self, input: &str) -> HunchResult {
         let (mut matches, token_stream, zone_map) = self.pass1(input);
         self.pass2(input, &mut matches, &zone_map, &token_stream, None)
+    }
+
+    /// Parse a filename using sibling filenames for cross-file title detection.
+    ///
+    /// Siblings should be raw filenames (no directory paths). Even 1–2 siblings
+    /// can dramatically improve title extraction for CJK and non-standard
+    /// formats.
+    ///
+    /// The **invariant text** across all files (the text that doesn't change
+    /// between episodes) is identified as the title. Falls back to standard
+    /// `run()` behavior when invariance detection produces no result.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use hunch::Pipeline;
+    ///
+    /// let pipeline = Pipeline::new();
+    /// let result = pipeline.run_with_context(
+    ///     "Show.S01E03.720p.mkv",
+    ///     &["Show.S01E01.720p.mkv", "Show.S01E02.720p.mkv"],
+    /// );
+    /// assert_eq!(result.title(), Some("Show"));
+    /// ```
+    pub fn run_with_context(&self, input: &str, siblings: &[&str]) -> HunchResult {
+        if siblings.is_empty() {
+            return self.run(input);
+        }
+
+        // 1. Run Pass 1 on target + all siblings.
+        let (target_matches, target_ts, target_zm) = self.pass1(input);
+        let sibling_results: Vec<_> = siblings.iter().map(|s| self.pass1(s)).collect();
+
+        // 2. Find unclaimed gaps in each.
+        let target_gaps = context::find_unclaimed_gaps(input, &target_matches);
+        let sibling_gaps: Vec<_> = siblings
+            .iter()
+            .zip(&sibling_results)
+            .map(|(s, (matches, _, _))| context::find_unclaimed_gaps(s, matches))
+            .collect();
+
+        // 3. Find invariant text (title candidate).
+        let mut all_gaps = vec![target_gaps];
+        all_gaps.extend(sibling_gaps);
+        let title_override = context::find_invariant_text(&all_gaps);
+
+        debug!(
+            "cross-file context: {} sibling(s), title_override={:?}",
+            siblings.len(),
+            title_override
+        );
+
+        // 4. Run Pass 2 with title override.
+        let mut matches = target_matches;
+        self.pass2(
+            input,
+            &mut matches,
+            &target_zm,
+            &target_ts,
+            title_override.as_deref(),
+        )
     }
 
     /// Run Pass 1: tokenize → zone map → match → conflict resolve → zone disambiguate.
