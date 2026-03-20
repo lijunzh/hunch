@@ -64,8 +64,20 @@ hunch "Movie.2024.1080p.mkv" "Show.S01E01.mkv"
 Options:
 
 ```
--j, --json           Output compact JSON (default is pretty-printed)
--v, --verbose        Enable debug logging (see Logging below)
+      --context <DIR>  Use sibling files from directory for better title detection
+      --batch <DIR>    Parse all media files in a directory (mutual context)
+  -j, --json           Output compact JSON (default is pretty-printed)
+  -v, --verbose        Enable debug logging (see Logging below)
+```
+
+Cross-file context for CJK and tricky filenames:
+
+```bash
+# Single file with context directory
+hunch --context ./Season1/ "(BD)十二国記 第13話「月の影 影の海　終章」(1440x1080 x264-10bpp flac).mkv"
+
+# Batch mode: parse all files in a directory
+hunch --batch ./Season1/ --json
 ```
 
 ### Library
@@ -82,6 +94,24 @@ fn main() {
     assert_eq!(result.video_codec(), Some("H.264"));
     assert_eq!(result.release_group(), Some("DEMAND"));
     assert_eq!(result.container(), Some("mkv"));
+}
+```
+
+Cross-file context for improved title detection:
+
+```rust
+use hunch::hunch_with_context;
+
+fn main() {
+    // When sibling files are available, use them for better title detection
+    let result = hunch_with_context(
+        "(BD)十二国記 第13話「月の影 影の海　終章」(1440x1080 x264-10bpp flac).mkv",
+        &[
+            "(BD)十二国記 第01話「月の影 影の海　一章」(1440x1080 x264-10bpp flac).mkv",
+            "(BD)十二国記 第02話「月の影 影の海　二章」(1440x1080 x264-10bpp flac).mkv",
+        ],
+    );
+    assert_eq!(result.title(), Some("十二国記"));
 }
 ```
 

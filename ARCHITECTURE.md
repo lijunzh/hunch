@@ -80,6 +80,65 @@ network, no database, no ML. Layers 2–3 belong in downstream consumers.
 
 ---
 
+## Cross-File Context (v1.2)
+
+### Design Principle
+
+The title is the **invariant text** across sibling files. When hunch processes
+a single file in isolation, it relies on positional heuristics that can break
+for CJK filenames, bilingual directories, and leading episode numbers.
+Cross-file context solves this by finding the common prefix of unclaimed text
+across multiple files.
+
+```
+(BD)十二国記 第01話「月の影 影の海　一章」(1440x1080 x264-10bpp flac).mkv
+(BD)十二国記 第02話「月の影 影の海　二章」(1440x1080 x264-10bpp flac).mkv
+(BD)十二国記 第13話「月の影 影の海　終章」(1440x1080 x264-10bpp flac).mkv
+     ^^^^^^^^ invariant = title (十二国記)
+              ^^^^  variant = episode
+                    ^^^^^^^^^^^^^^^^ variant = episode title
+```
+
+### API Surface
+
+| Mode | API | I/O |
+|------|-----|-----|
+| **Library** | `Pipeline::run_with_context(input, siblings)` | None — caller provides data |
+| **Library** | `hunch_with_context(input, siblings)` | None |
+| **CLI** | `hunch --context <dir> file.mkv` | CLI reads directory |
+| **CLI** | `hunch --batch <dir>` | CLI reads directory |
+
+### Confidence Scoring
+
+`HunchResult::confidence()` returns `High | Medium | Low`:
+
+| Signal | Confidence |
+|--------|------------|
+| Cross-file context used + title found | High |
+| ≥3 tech anchors + title ≥2 chars | High |
+| Some tech anchors, reasonable title | Medium |
+| No title or title ≤1 char | Low |
+
+### Hard Boundary (unchanged)
+
+The library remains a **pure, offline, deterministic** function. Cross-file
+context is caller-provided data, not filesystem access. The CLI is the only
+component that reads the filesystem (via `--context` and `--batch` flags).
+
+### Algorithm
+
+1. Run Pass 1 (tokenize + match + resolve) on target and each sibling
+2. Find unclaimed text gaps (regions between resolved matches)
+3. Compute the **common prefix** of corresponding gaps across all files
+4. Trim trailing separators → that’s the title
+5. Run Pass 2 (release group, episode title, etc.) with the resolved title
+
+Common prefix (not longest common substring) is used because titles are
+always at the start of unclaimed regions — episode-specific text diverges
+after the title.
+
+---
+
 ## v0.2 Pipeline
 
 ```
