@@ -7,8 +7,8 @@ use hunch::{Confidence, Pipeline};
 
 /// Media file extensions recognized for batch/context scanning.
 const MEDIA_EXTENSIONS: &[&str] = &[
-    "mkv", "mp4", "avi", "wmv", "flv", "ts", "m4v", "webm", "ogv", "mov", "mpg", "mpeg",
-    "m2ts", "iso", "img", "rmvb", "rm",
+    "mkv", "mp4", "avi", "wmv", "flv", "ts", "m4v", "webm", "ogv", "mov", "mpg", "mpeg", "m2ts",
+    "iso", "img", "rmvb", "rm",
 ];
 
 #[derive(Parser)]
@@ -115,9 +115,7 @@ fn main() {
             && cli.context_dir.is_none()
             && cli.batch_dir.is_none()
         {
-            eprintln!(
-                "\u{26a0} Low confidence result. Try: hunch --context . \"{filename}\""
-            );
+            eprintln!("\u{26a0} Low confidence result. Try: hunch --context . \"{filename}\"");
             eprintln!("  (sibling files can improve title detection)");
         }
     }
