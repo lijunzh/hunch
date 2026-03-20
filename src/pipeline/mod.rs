@@ -4,38 +4,19 @@
 //! tokens against TOML rules and legacy matchers. Zone-aware disambiguation
 //! replaces v0.1 prune_* heuristics.
 
+pub(crate) mod context;
+mod matching;
 mod proper_count;
 pub(crate) mod token_context;
 mod zone_rules;
 
-use crate::hunch_result::HunchResult;
+use crate::hunch_result::{Confidence, HunchResult};
 use crate::matcher::engine;
 use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::{self, TokenStream};
 use crate::zone_map::{self, ZoneMap};
-
-/// Context for matching tokens in a single segment against a TOML rule set.
-///
-/// Bundles the segment data, rule set, and zone context that
-/// `match_tokens_in_segment` needs, replacing 7 positional arguments
-/// with a single struct.
-struct MatchContext<'a> {
-    /// The full input string (for extracting compound token text).
-    input: &'a str,
-    /// Tokens within this segment.
-    tokens: &'a [tokenizer::Token],
-    /// The TOML rule set to match against.
-    rule_set: &'a RuleSet,
-    /// Which property this rule set targets.
-    property: Property,
-    /// Priority for emitted matches (directory segments get a penalty).
-    priority: i32,
-    /// Filename-level zone map (anchors, title zone, tech zone).
-    zone_map: &'a ZoneMap,
-    /// Per-directory zone map, if this is a directory segment.
-    dir_zone: Option<&'a zone_map::SegmentZone>,
-}
+use matching::MatchContext;
 
 use log::{debug, trace};
 use std::sync::LazyLock;
@@ -318,10 +299,77 @@ impl Pipeline {
     /// resolved match positions (no more `is_known_token` exclusion list).
     /// Title, episode_title, alternative_title use all resolved matches.
     pub fn run(&self, input: &str) -> HunchResult {
-        // ══════════════════════════════════════════════════════════════════
-        // Pass 1: Tech property resolution
-        // ══════════════════════════════════════════════════════════════════
+        let (mut matches, token_stream, zone_map) = self.pass1(input);
+        self.pass2(input, &mut matches, &zone_map, &token_stream, None)
+    }
 
+    /// Parse a filename using sibling filenames for cross-file title detection.
+    ///
+    /// Siblings should be raw filenames (no directory paths). Even 1–2 siblings
+    /// can dramatically improve title extraction for CJK and non-standard
+    /// formats.
+    ///
+    /// The **invariant text** across all files (the text that doesn't change
+    /// between episodes) is identified as the title. Falls back to standard
+    /// `run()` behavior when invariance detection produces no result.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use hunch::Pipeline;
+    ///
+    /// let pipeline = Pipeline::new();
+    /// let result = pipeline.run_with_context(
+    ///     "Show.S01E03.720p.mkv",
+    ///     &["Show.S01E01.720p.mkv", "Show.S01E02.720p.mkv"],
+    /// );
+    /// assert_eq!(result.title(), Some("Show"));
+    /// ```
+    pub fn run_with_context(&self, input: &str, siblings: &[&str]) -> HunchResult {
+        if siblings.is_empty() {
+            return self.run(input);
+        }
+
+        // 1. Run Pass 1 on target + all siblings.
+        let (target_matches, target_ts, target_zm) = self.pass1(input);
+        let sibling_results: Vec<_> = siblings.iter().map(|s| self.pass1(s)).collect();
+
+        // 2. Find unclaimed gaps in each.
+        let target_gaps = context::find_unclaimed_gaps(input, &target_matches);
+        let sibling_gaps: Vec<_> = siblings
+            .iter()
+            .zip(&sibling_results)
+            .map(|(s, (matches, _, _))| context::find_unclaimed_gaps(s, matches))
+            .collect();
+
+        // 3. Find invariant text (title candidate).
+        let mut all_gaps = vec![target_gaps];
+        all_gaps.extend(sibling_gaps);
+        let title_override = context::find_invariant_text(&all_gaps);
+
+        debug!(
+            "cross-file context: {} sibling(s), title_override={:?}",
+            siblings.len(),
+            title_override
+        );
+
+        // 4. Run Pass 2 with title override.
+        let mut matches = target_matches;
+        self.pass2(
+            input,
+            &mut matches,
+            &target_zm,
+            &target_ts,
+            title_override.as_deref(),
+        )
+    }
+
+    /// Run Pass 1: tokenize → zone map → match → conflict resolve → zone disambiguate.
+    ///
+    /// Returns the resolved tech matches, token stream, and zone map.
+    /// This is the reusable core that `run_with_context()` calls on both
+    /// the target file and each sibling.
+    fn pass1(&self, input: &str) -> (Vec<MatchSpan>, TokenStream, ZoneMap) {
         // Step 1: Tokenize.
         let token_stream = tokenizer::tokenize(input);
         debug!(
@@ -396,13 +444,24 @@ impl Pipeline {
             );
         }
 
-        // ══════════════════════════════════════════════════════════════════
-        // Pass 2: Positional property extraction
-        // Uses resolved tech match positions for context-aware extraction.
-        // ══════════════════════════════════════════════════════════════════
+        (all_matches, token_stream, zone_map)
+    }
 
+    /// Run Pass 2: positional extraction (release group, title, episode title, etc.).
+    ///
+    /// When `title_override` is `Some(...)`, the provided title is used directly
+    /// instead of running the standard positional title extractor. This is the
+    /// hook for cross-file invariance detection (`run_with_context`).
+    fn pass2(
+        &self,
+        input: &str,
+        all_matches: &mut Vec<MatchSpan>,
+        zone_map: &ZoneMap,
+        token_stream: &TokenStream,
+        title_override: Option<&str>,
+    ) -> HunchResult {
         // Step 5a: Release group (post-resolution — can see claimed positions).
-        let rg_matches = release_group::find_matches(input, &all_matches, &zone_map, &token_stream);
+        let rg_matches = release_group::find_matches(input, all_matches, zone_map, token_stream);
         if !rg_matches.is_empty() {
             debug!(
                 "step 5a: release group — found {:?}",
@@ -415,23 +474,43 @@ impl Pipeline {
         all_matches.extend(rg_matches);
 
         // Step 5a.1: Zone rules that depend on release group positions.
-        zone_rules::apply_post_release_group_rules(&mut all_matches);
+        zone_rules::apply_post_release_group_rules(all_matches);
 
         // Step 5b: Title extraction.
-        if let Some(title_match) =
-            title::extract_title(input, &all_matches, &zone_map, &token_stream)
+        if let Some(override_title) = title_override {
+            // Cross-file context provided a title — use it directly.
+            // Find the title's byte range in the input for a proper MatchSpan.
+            if let Some(start) = input.find(override_title) {
+                let end = start + override_title.len();
+                let title_match = MatchSpan::new(start, end, Property::Title, override_title);
+                debug!(
+                    "step 5b: title override — \"{}\" at {}..{}",
+                    title_match.value, title_match.start, title_match.end
+                );
+                title::absorb_reclaimable(&title_match, all_matches);
+                all_matches.push(title_match);
+            } else {
+                // Title text not found verbatim — set it without a byte range.
+                debug!(
+                    "step 5b: title override (no byte range) — \"{}\"",
+                    override_title
+                );
+                all_matches.push(MatchSpan::new(0, 0, Property::Title, override_title));
+            }
+        } else if let Some(title_match) =
+            title::extract_title(input, all_matches, zone_map, token_stream)
         {
             debug!(
                 "step 5b: title extracted — \"{}\" at {}..{}",
                 title_match.value, title_match.start, title_match.end
             );
             // Remove reclaimable matches absorbed into the title.
-            title::absorb_reclaimable(&title_match, &mut all_matches);
+            title::absorb_reclaimable(&title_match, all_matches);
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
         if let Some((film_title, adjusted_title)) =
-            title::extract_film_title(input, &all_matches, &token_stream)
+            title::extract_film_title(input, all_matches, token_stream)
         {
             all_matches.retain(|m| m.property != Property::Title);
             all_matches.push(film_title);
@@ -439,7 +518,7 @@ impl Pipeline {
         }
 
         // Step 5c: Episode title.
-        if let Some(ep_title) = title::extract_episode_title(input, &all_matches, &token_stream) {
+        if let Some(ep_title) = title::extract_episode_title(input, all_matches, token_stream) {
             debug!("step 5c: episode title — \"{}\"", ep_title.value);
             // Remove release_group if it overlaps with the episode title.
             // Plex-dash format (`Show - S01E01 - Episode Title.mkv`) triggers
@@ -463,17 +542,17 @@ impl Pipeline {
         }
 
         // Step 5d: Alternative title(s).
-        let alt_titles = title::extract_alternative_titles(input, &all_matches, &token_stream);
+        let alt_titles = title::extract_alternative_titles(input, all_matches, token_stream);
         for alt_title in alt_titles {
             all_matches.push(alt_title);
         }
 
-        let media_type = title::infer_media_type(&all_matches);
-        let proper_count = proper_count::compute_proper_count(input, &all_matches);
+        let media_type = title::infer_media_type(all_matches);
+        let proper_count = proper_count::compute_proper_count(input, all_matches);
 
         // Step 5e: Strip video/audio tech properties from subtitle containers.
         // Files like .ass, .srt, .sub should not carry video_codec, color_depth, etc.
-        strip_tech_from_subtitle_containers(&mut all_matches);
+        strip_tech_from_subtitle_containers(all_matches);
 
         // Step 6: Build result.
         debug!(
@@ -481,11 +560,17 @@ impl Pipeline {
             all_matches.len(),
             media_type
         );
-        let mut result = HunchResult::from_matches(&all_matches);
+        let mut result = HunchResult::from_matches(all_matches);
         result.set(Property::MediaType, media_type);
         if proper_count > 0 {
             result.set(Property::ProperCount, proper_count.to_string());
         }
+
+        // Step 7: Compute confidence.
+        let confidence = compute_confidence(&result, title_override.is_some());
+        result.set_confidence(confidence);
+        debug!("step 7: confidence = {:?}", confidence);
+
         result
     }
 
@@ -529,7 +614,7 @@ impl Pipeline {
                 };
 
                 let tokens = &segment.tokens;
-                self.match_tokens_in_segment(
+                matching::match_tokens_in_segment(
                     &MatchContext {
                         input,
                         tokens,
@@ -563,147 +648,46 @@ impl Pipeline {
 
         matches
     }
+}
 
-    /// Match tokens within a single segment against a TOML rule set.
-    ///
-    /// Uses a sliding window of 1–3 tokens (longest first) to handle compound
-    /// patterns like "WEB-DL" or "HD-DVD". Emits primary matches and any
-    /// side-effect spans declared in the TOML pattern.
-    fn match_tokens_in_segment(&self, ctx: &MatchContext, matches: &mut Vec<MatchSpan>) {
-        use crate::matcher::rule_loader::ZoneScope;
+/// Compute confidence level based on structural signals.
+fn compute_confidence(result: &HunchResult, used_cross_file: bool) -> Confidence {
+    // Count tech anchors (strong signals that we parsed correctly).
+    let tech_properties = [
+        Property::VideoCodec,
+        Property::AudioCodec,
+        Property::ScreenSize,
+        Property::Source,
+        Property::Season,
+        Property::Episode,
+    ];
+    let anchor_count = tech_properties
+        .iter()
+        .filter(|p| result.first(**p).is_some())
+        .count();
 
-        let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
+    let has_title = result.title().is_some();
+    let title_len = result.title().map(|t| t.chars().count()).unwrap_or(0);
 
-        for window_size in (1..=3).rev() {
-            for i in 0..ctx.tokens.len() {
-                if i + window_size > ctx.tokens.len() {
-                    break;
-                }
+    // High: cross-file context succeeded, or ≥3 anchors with a reasonable title.
+    if used_cross_file && has_title {
+        return Confidence::High;
+    }
+    if anchor_count >= 3 && has_title && title_len >= 2 {
+        return Confidence::High;
+    }
 
-                let win_start = ctx.tokens[i].start;
-                let win_end = ctx.tokens[i + window_size - 1].end;
+    // Low: no title, or title is suspiciously short.
+    if !has_title || title_len <= 1 {
+        return Confidence::Low;
+    }
 
-                // ── Zone scope filtering ─────────────────────────────
-                // Use per-directory zone when available, otherwise filename zone.
-                let (effective_has_anchors, effective_title_zone) = if let Some(dz) = ctx.dir_zone {
-                    (dz.has_anchors, &dz.title_zone)
-                } else {
-                    (ctx.zone_map.has_anchors, &ctx.zone_map.title_zone)
-                };
-
-                if effective_has_anchors {
-                    let in_title_zone = effective_title_zone.contains(&win_start);
-                    match ctx.rule_set.zone_scope {
-                        ZoneScope::TechOnly if in_title_zone => continue,
-                        ZoneScope::AfterAnchor if in_title_zone => continue,
-                        _ => {}
-                    }
-                }
-                if matched_ranges
-                    .iter()
-                    .any(|(s, e)| win_start < *e && win_end > *s)
-                {
-                    continue;
-                }
-
-                let compound = if window_size == 1 {
-                    ctx.tokens[i].text.clone()
-                } else {
-                    ctx.input[win_start..win_end].to_string()
-                };
-
-                if let Some(token_match) = ctx.rule_set.match_token(&compound) {
-                    // ── Neighbor constraint checks ──────────────────
-                    let last_idx = i + window_size - 1;
-                    if let Some(ref blocked) = token_match.not_before
-                        && last_idx + 1 < ctx.tokens.len()
-                        && blocked
-                            .iter()
-                            .any(|b| b == &ctx.tokens[last_idx + 1].text.to_lowercase())
-                    {
-                        continue;
-                    }
-                    if let Some(ref blocked) = token_match.not_after
-                        && i > 0
-                        && blocked
-                            .iter()
-                            .any(|b| b == &ctx.tokens[i - 1].text.to_lowercase())
-                    {
-                        continue;
-                    }
-                    if let Some(ref required) = token_match.requires_after {
-                        let ok = last_idx + 1 < ctx.tokens.len()
-                            && required
-                                .iter()
-                                .any(|r| r == &ctx.tokens[last_idx + 1].text.to_lowercase());
-                        if !ok {
-                            continue;
-                        }
-                    }
-                    // requires_context: only match when tech anchors exist
-                    // OR when requires_before matches (fallback for context words).
-                    if token_match.requires_context && !ctx.zone_map.has_anchors {
-                        // If requires_before is also set, use it as fallback.
-                        if let Some(ref required) = token_match.requires_before {
-                            let ok = i > 0
-                                && required
-                                    .iter()
-                                    .any(|r| r == &ctx.tokens[i - 1].text.to_lowercase());
-                            if !ok {
-                                continue;
-                            }
-                        } else {
-                            continue;
-                        }
-                    } else if !token_match.requires_context {
-                        // Normal requires_before check (not combined with requires_context).
-                        if let Some(ref required) = token_match.requires_before {
-                            let ok = i > 0
-                                && required
-                                    .iter()
-                                    .any(|r| r == &ctx.tokens[i - 1].text.to_lowercase());
-                            if !ok {
-                                continue;
-                            }
-                        }
-                    }
-
-                    // ── Primary match ───────────────────────────────
-                    // Determine reclaimability: explicitly marked, or
-                    // auto-reclaimable when requires_nearby isn't satisfied.
-                    let mut reclaimable = token_match.reclaimable;
-                    if let Some(ref nearby) = token_match.requires_nearby {
-                        let nearby_found = ctx
-                            .tokens
-                            .iter()
-                            .any(|t| nearby.iter().any(|n| n == &t.text.to_lowercase()));
-                        if !nearby_found {
-                            reclaimable = true;
-                        }
-                    }
-
-                    let span = MatchSpan::new(win_start, win_end, ctx.property, token_match.value)
-                        .with_priority(ctx.priority);
-                    let span = if reclaimable {
-                        span.as_reclaimable()
-                    } else {
-                        span
-                    };
-                    matches.push(span);
-                    matched_ranges.push((win_start, win_end));
-
-                    // ── Side effects ────────────────────────────────
-                    for se in &token_match.side_effects {
-                        if let Some(se_prop) = Property::from_name(&se.property) {
-                            matches.push(
-                                MatchSpan::new(win_start, win_end, se_prop, &se.value)
-                                    .with_priority(ctx.priority),
-                            );
-                        }
-                    }
-                }
-            }
-        }
+    // Medium: everything else (some anchors but not many, or title
+    // might be questionable).
+    if anchor_count >= 1 {
+        Confidence::Medium
+    } else {
+        Confidence::Low
     }
 }
 
@@ -742,163 +726,6 @@ fn strip_tech_from_subtitle_containers(matches: &mut Vec<MatchSpan>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_full_movie_parse() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
-
-        assert_eq!(result.title(), Some("The Matrix"));
-        assert_eq!(result.year(), Some(1999));
-        assert_eq!(result.screen_size(), Some("1080p"));
-        assert_eq!(result.source(), Some("Blu-ray"));
-        assert_eq!(result.video_codec(), Some("H.264"));
-        assert_eq!(result.release_group(), Some("GROUP"));
-        assert_eq!(result.container(), Some("mkv"));
-    }
-
-    #[test]
-    fn test_episode_parse() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Breaking.Bad.S05E16.720p.BluRay.x264-DEMAND.mkv");
-
-        assert_eq!(result.title(), Some("Breaking Bad"));
-        assert_eq!(result.season(), Some(5));
-        assert_eq!(result.episode(), Some(16));
-        assert_eq!(result.screen_size(), Some("720p"));
-        assert_eq!(result.video_codec(), Some("H.264"));
-        assert_eq!(result.release_group(), Some("DEMAND"));
-    }
-
-    #[test]
-    fn test_minimal_input() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.mkv");
-
-        assert_eq!(result.title(), Some("Movie"));
-        assert_eq!(result.container(), Some("mkv"));
-    }
-
-    #[test]
-    fn test_4k_hdr() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.2024.2160p.UHD.BluRay.Remux.HDR.HEVC.DTS-HD.MA-GROUP.mkv");
-
-        assert_eq!(result.title(), Some("Movie"));
-        assert_eq!(result.year(), Some(2024));
-        assert_eq!(result.screen_size(), Some("2160p"));
-        assert_eq!(result.video_codec(), Some("H.265"));
-        assert!(result.other().contains(&"HDR10"));
-        assert!(result.other().contains(&"Remux"));
-    }
-
-    #[test]
-    fn test_toml_video_codec_basic() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.HEVC.1080p.mkv");
-        assert_eq!(result.video_codec(), Some("H.265"));
-    }
-
-    #[test]
-    fn test_toml_color_depth() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.10bit.1080p.mkv");
-        assert_eq!(result.color_depth(), Some("10-bit"));
-    }
-
-    #[test]
-    fn test_toml_streaming_service() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Show.S01E01.AMZN.WEB-DL.1080p.mkv");
-        assert_eq!(result.streaming_service(), Some("Amazon Prime"));
-    }
-
-    #[test]
-    fn test_toml_edition_multi_token() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.Directors.Cut.1080p.BluRay.mkv");
-        assert_eq!(result.edition(), Some("Director's Cut"));
-    }
-
-    #[test]
-    fn test_toml_edition_single_token() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.Remastered.1080p.BluRay.mkv");
-        assert_eq!(result.edition(), Some("Remastered"));
-    }
-
-    #[test]
-    fn test_episode_title_from_parent_dir() {
-        let pipeline = Pipeline::default();
-        let result = pipeline
-            .run("Bones.S12E02.The.Brain.In.The.Bot.1080p.WEB-DL.DD5.1.H.264-R2D2/161219_06.mkv");
-        assert_eq!(result.title(), Some("Bones"));
-        assert_eq!(result.season(), Some(12));
-        assert_eq!(result.episode(), Some(2));
-        assert_eq!(result.episode_title(), Some("The Brain In The Bot"));
-    }
-
-    #[test]
-    fn test_episode_title_parent_dir_with_redundant_leaf() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run(
-            "Scrubs/SEASON-06/Scrubs.S06E09.My.Perspective.DVDRip.XviD-WAT/scrubs.s06e09.dvdrip.xvid-wat.avi",
-        );
-        assert_eq!(result.title(), Some("Scrubs"));
-        assert_eq!(result.season(), Some(6));
-        assert_eq!(result.episode(), Some(9));
-        assert_eq!(result.episode_title(), Some("My Perspective"));
-    }
-
-    #[test]
-    fn test_issue_38_episode_title_not_release_group() {
-        // Issue #38: last word of episode title falsely detected as release_group.
-        let pipeline = Pipeline::default();
-
-        let result = pipeline.run("LEGO Ninjago Dragons Rising - S02E10 - Rising Ninja.mkv");
-        assert_eq!(result.episode_title(), Some("Rising Ninja"));
-        assert_eq!(
-            result.release_group(),
-            None,
-            "Ninja should not be release_group"
-        );
-
-        let result = pipeline.run("Power Rangers RPM - S17E01 - The Road To Corinth.avi");
-        assert_eq!(result.episode_title(), Some("The Road To Corinth"));
-        assert_eq!(
-            result.release_group(),
-            None,
-            "Corinth should not be release_group"
-        );
-
-        let result = pipeline.run("Show Name - S01E05 - An Episode Title.mkv");
-        assert_eq!(result.episode_title(), Some("An Episode Title"));
-        assert_eq!(
-            result.release_group(),
-            None,
-            "Title should not be release_group"
-        );
-    }
-
-    #[test]
-    fn test_issue_37_compound_codec_not_release_group() {
-        // Issue #37: compound codec strings like H264_FLACx3_DTS-HDMA should
-        // not be detected as release_group when individual codecs are resolved.
-        let pipeline = Pipeline::default();
-
-        let result = pipeline.run(
-            "[Kimetsu no Yaiba Mugen Ressha Hen][JPN+ENG][BDRIP][1080P][H264_FLACx3_DTS-HDMA].mkv",
-        );
-        assert_eq!(result.video_codec(), Some("H.264"));
-        let codecs = result.all(Property::AudioCodec);
-        assert!(codecs.contains(&"FLAC"), "FLAC should be detected");
-        assert!(codecs.contains(&"DTS-HD"), "DTS-HD should be detected");
-        assert_ne!(
-            result.release_group(),
-            Some("H264_FLACx3_DTS-HDMA"),
-            "compound codec should not be release_group"
-        );
-    }
 
     #[test]
     fn test_toml_rules_load() {

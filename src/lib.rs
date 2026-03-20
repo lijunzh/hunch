@@ -112,7 +112,7 @@ pub mod zone_map;
 mod hunch_result;
 mod pipeline;
 
-pub use hunch_result::{HunchResult, MediaType};
+pub use hunch_result::{Confidence, HunchResult, MediaType};
 pub use pipeline::Pipeline;
 
 /// Parse a media filename and return structured metadata.
@@ -132,4 +132,26 @@ pub use pipeline::Pipeline;
 /// ```
 pub fn hunch(input: &str) -> HunchResult {
     Pipeline::default().run(input)
+}
+
+/// Parse a media filename using sibling filenames for improved title detection.
+///
+/// When you have sibling files from the same directory, pass them here to
+/// enable cross-file invariance detection. The **invariant text** across all
+/// files is identified as the title — no language translation needed.
+///
+/// Falls back to standard [`hunch`] behavior when no invariant is found
+/// or when `siblings` is empty.
+///
+/// # Example
+///
+/// ```rust
+/// let result = hunch::hunch_with_context(
+///     "Show.S01E03.720p.mkv",
+///     &["Show.S01E01.720p.mkv", "Show.S01E02.720p.mkv"],
+/// );
+/// assert_eq!(result.title(), Some("Show"));
+/// ```
+pub fn hunch_with_context(input: &str, siblings: &[&str]) -> HunchResult {
+    Pipeline::default().run_with_context(input, siblings)
 }
