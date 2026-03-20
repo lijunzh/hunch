@@ -461,8 +461,7 @@ impl Pipeline {
         title_override: Option<&str>,
     ) -> HunchResult {
         // Step 5a: Release group (post-resolution — can see claimed positions).
-        let rg_matches =
-            release_group::find_matches(input, all_matches, zone_map, token_stream);
+        let rg_matches = release_group::find_matches(input, all_matches, zone_map, token_stream);
         if !rg_matches.is_empty() {
             debug!(
                 "step 5a: release group — found {:?}",
@@ -483,8 +482,7 @@ impl Pipeline {
             // Find the title's byte range in the input for a proper MatchSpan.
             if let Some(start) = input.find(override_title) {
                 let end = start + override_title.len();
-                let title_match =
-                    MatchSpan::new(start, end, Property::Title, override_title);
+                let title_match = MatchSpan::new(start, end, Property::Title, override_title);
                 debug!(
                     "step 5b: title override — \"{}\" at {}..{}",
                     title_match.value, title_match.start, title_match.end
@@ -520,9 +518,7 @@ impl Pipeline {
         }
 
         // Step 5c: Episode title.
-        if let Some(ep_title) =
-            title::extract_episode_title(input, all_matches, token_stream)
-        {
+        if let Some(ep_title) = title::extract_episode_title(input, all_matches, token_stream) {
             debug!("step 5c: episode title — \"{}\"", ep_title.value);
             // Remove release_group if it overlaps with the episode title.
             // Plex-dash format (`Show - S01E01 - Episode Title.mkv`) triggers
@@ -546,8 +542,7 @@ impl Pipeline {
         }
 
         // Step 5d: Alternative title(s).
-        let alt_titles =
-            title::extract_alternative_titles(input, all_matches, token_stream);
+        let alt_titles = title::extract_alternative_titles(input, all_matches, token_stream);
         for alt_title in alt_titles {
             all_matches.push(alt_title);
         }

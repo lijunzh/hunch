@@ -3,7 +3,7 @@
 //! Tests the invariance detection algorithm: the title is the text that
 //! doesn't change across sibling files.
 
-use hunch::{hunch_with_context, Confidence, Pipeline};
+use hunch::{Confidence, Pipeline, hunch_with_context};
 
 // ── Western filenames ───────────────────────────────────────────────────────
 
@@ -39,8 +39,7 @@ fn western_one_sibling() {
 
 #[test]
 fn cjk_fansub_cross_file_title() {
-    let target =
-        "(BD)\u{5341}\u{4e8c}\u{56fd}\u{8a18} \u{7b2c}13\u{8a71}\u{300c}\u{6708}\u{306e}\u{5f71} \u{5f71}\u{306e}\u{6d77}\u{3000}\u{7d42}\u{7ae0}\u{300d}(1440x1080 x264-10bpp flac).mkv";
+    let target = "(BD)\u{5341}\u{4e8c}\u{56fd}\u{8a18} \u{7b2c}13\u{8a71}\u{300c}\u{6708}\u{306e}\u{5f71} \u{5f71}\u{306e}\u{6d77}\u{3000}\u{7d42}\u{7ae0}\u{300d}(1440x1080 x264-10bpp flac).mkv";
     let siblings = &[
         "(BD)\u{5341}\u{4e8c}\u{56fd}\u{8a18} \u{7b2c}01\u{8a71}\u{300c}\u{6708}\u{306e}\u{5f71} \u{5f71}\u{306e}\u{6d77}\u{3000}\u{4e00}\u{7ae0}\u{300d}(1440x1080 x264-10bpp flac).mkv",
         "(BD)\u{5341}\u{4e8c}\u{56fd}\u{8a18} \u{7b2c}02\u{8a71}\u{300c}\u{6708}\u{306e}\u{5f71} \u{5f71}\u{306e}\u{6d77}\u{3000}\u{4e8c}\u{7ae0}\u{300d}(1440x1080 x264-10bpp flac).mkv",

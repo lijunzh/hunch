@@ -221,9 +221,18 @@ fn strip_bracket_regions(text: &str) -> String {
             '(' => depth[0] += 1,
             '[' => depth[1] += 1,
             '{' => depth[2] += 1,
-            ')' if depth[0] > 0 => { depth[0] -= 1; continue; }
-            ']' if depth[1] > 0 => { depth[1] -= 1; continue; }
-            '}' if depth[2] > 0 => { depth[2] -= 1; continue; }
+            ')' if depth[0] > 0 => {
+                depth[0] -= 1;
+                continue;
+            }
+            ']' if depth[1] > 0 => {
+                depth[1] -= 1;
+                continue;
+            }
+            '}' if depth[2] > 0 => {
+                depth[2] -= 1;
+                continue;
+            }
             _ => {}
         }
         if depth.iter().all(|&d| d == 0) {
