@@ -577,6 +577,83 @@ fn cjk_prejudice_studio_mixed_title() {
     assert_eq!(r.source(), Some("Web"));
     assert_eq!(r.container(), Some("mp4"));
     // TODO(issue #34): release_group should be "Prejudice-Studio" but the
-    // compound bracket merger picks up "Bilibili 简日内嵌" instead.
+    // compound bracket merger picks up "Bilingual 简日内嵌" instead.
     // assert_eq!(r.release_group(), Some("Prejudice-Studio"));
+}
+
+// ── Issue #38 regression: episode title last word ≠ release_group ─────────
+
+#[test]
+fn issue_38_plex_dash_long_episode_title() {
+    let r = hunch("LEGO Ninjago Dragons Rising - S02E03 - The Temple of the Dragon Cores.mkv");
+    assert_eq!(r.title(), Some("LEGO Ninjago Dragons Rising"));
+    assert_eq!(r.season(), Some(2));
+    assert_eq!(r.episode(), Some(3));
+    assert_eq!(r.episode_title(), Some("The Temple of the Dragon Cores"));
+    assert_eq!(r.release_group(), None);
+}
+
+#[test]
+fn issue_38_plex_dash_simple_episode_title() {
+    let r = hunch("Bluey - S02E01 - Dance Mode.mkv");
+    assert_eq!(r.title(), Some("Bluey"));
+    assert_eq!(r.season(), Some(2));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.episode_title(), Some("Dance Mode"));
+    assert_eq!(r.release_group(), None);
+}
+
+// ── Issue #39 regression: CJK bracket episode detection ───────────────────
+
+#[test]
+fn issue_39_cjk_bracket_big5() {
+    let r = hunch(
+        "[Comicat&KissSub][Yamada-kun to Lv999 no Koi wo Suru]\
+         [01][1080P][BIG5][MP4].mp4",
+    );
+    assert_eq!(r.title(), Some("Yamada-kun to Lv999 no Koi wo Suru"));
+    assert_eq!(r.episode(), Some(1));
+    assert_eq!(r.release_group(), Some("Comicat&KissSub"));
+    assert_eq!(r.screen_size(), Some("1080p"));
+    assert_eq!(
+        r.first(Property::SubtitleLanguage),
+        Some("Traditional Chinese")
+    );
+}
+
+#[test]
+fn issue_39_cjk_bracket_sp_prefix() {
+    let r = hunch("[DBD-Raws][Saki][SP][01][1080P][BDRip][HEVC-10bit][FLAC].mkv");
+    assert_eq!(r.title(), Some("Saki"));
+    // SP + 01 — episode should be detected.
+    assert!(r.episode().is_some(), "episode should be detected");
+    // TODO(v1.1.4): release_group should be "DBD-Raws" but the bracket
+    // merger currently absorbs [Saki] into the group name. Format-aware
+    // extraction in v1.1.4 will fix this.
+}
+
+#[test]
+fn issue_39_cjk_cowboy_bebop_sp02() {
+    let r = hunch(
+        "[TxxZ&POPGO&MGRT][Cowboy_Bebop][BDrip]\
+         [BDBOX_SP02][CM][1920x1080_x264Hi10P_flac][31C5B7B3].mkv",
+    );
+    assert_eq!(r.release_group(), Some("TxxZ&POPGO&MGRT"));
+    assert_eq!(r.source(), Some("Blu-ray"));
+    assert_eq!(r.first(Property::Crc), Some("31C5B7B3"));
+}
+
+// ── Issue #35 regression: subtitle containers strip video tech ────────────
+
+#[test]
+fn issue_35_western_srt_no_video_props() {
+    let r = hunch("Arcane.S01E01.1080p.NF.WEB-DL.DDP5.1.H.265-npuer.srt");
+    assert_eq!(r.container(), Some("srt"));
+    assert_eq!(r.title(), Some("Arcane"));
+    assert_eq!(r.season(), Some(1));
+    assert_eq!(r.episode(), Some(1));
+    // Subtitle file → no video/audio tech.
+    assert_eq!(r.video_codec(), None);
+    assert_eq!(r.audio_codec(), None);
+    assert_eq!(r.source(), None);
 }
