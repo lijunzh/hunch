@@ -26,12 +26,33 @@ pub struct Token {
     pub separator: Separator,
     /// Whether this token is inside brackets `[...]` or parentheses `(...)`.
     pub in_brackets: bool,
+    /// Cached lowercase text (computed once, used many times during matching).
+    lower: String,
 }
 
 impl Token {
-    /// Case-insensitive text for matching.
-    pub fn lower(&self) -> String {
-        self.text.to_lowercase()
+    /// Create a new token (computes and caches the lowercase form).
+    pub(crate) fn new(
+        text: String,
+        start: usize,
+        end: usize,
+        separator: Separator,
+        in_brackets: bool,
+    ) -> Self {
+        let lower = text.to_lowercase();
+        Self {
+            text,
+            start,
+            end,
+            separator,
+            in_brackets,
+            lower,
+        }
+    }
+
+    /// Case-insensitive text for matching (cached, zero-cost after first call).
+    pub fn lower(&self) -> &str {
+        &self.lower
     }
 
     /// Byte length of the token text.
@@ -417,13 +438,13 @@ fn split_into_tokens_inner(
     // Guard against pathological nesting.
     if depth > 3 {
         if !name.is_empty() {
-            return vec![Token {
-                text: name.to_string(),
-                start: base_offset,
-                end: base_offset + name.len(),
-                separator: Separator::None,
-                in_brackets: true,
-            }];
+            return vec![Token::new(
+                name.to_string(),
+                base_offset,
+                base_offset + name.len(),
+                Separator::None,
+                true,
+            )];
         }
         return Vec::new();
     }
@@ -502,13 +523,13 @@ fn split_into_tokens_inner(
 
         let text = &name[token_start..i];
         if !text.is_empty() {
-            tokens.push(Token {
-                text: text.to_string(),
-                start: base_offset + token_start,
-                end: base_offset + i,
-                separator: current_sep,
-                in_brackets: bracket_depth > 0,
-            });
+            tokens.push(Token::new(
+                text.to_string(),
+                base_offset + token_start,
+                base_offset + i,
+                current_sep,
+                bracket_depth > 0,
+            ));
             current_sep = Separator::None;
         }
     }

@@ -84,7 +84,7 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
                     && last_idx + 1 < ctx.tokens.len()
                     && blocked
                         .iter()
-                        .any(|b| b == &ctx.tokens[last_idx + 1].text.to_lowercase())
+                        .any(|b| b.as_str() == ctx.tokens[last_idx + 1].lower())
                 {
                     continue;
                 }
@@ -92,7 +92,7 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
                     && i > 0
                     && blocked
                         .iter()
-                        .any(|b| b == &ctx.tokens[i - 1].text.to_lowercase())
+                        .any(|b| b.as_str() == ctx.tokens[i - 1].lower())
                 {
                     continue;
                 }
@@ -100,7 +100,7 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
                     let ok = last_idx + 1 < ctx.tokens.len()
                         && required
                             .iter()
-                            .any(|r| r == &ctx.tokens[last_idx + 1].text.to_lowercase());
+                            .any(|r| r.as_str() == ctx.tokens[last_idx + 1].lower());
                     if !ok {
                         continue;
                     }
@@ -112,7 +112,7 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
                         let ok = i > 0
                             && required
                                 .iter()
-                                .any(|r| r == &ctx.tokens[i - 1].text.to_lowercase());
+                                .any(|r| r.as_str() == ctx.tokens[i - 1].lower());
                         if !ok {
                             continue;
                         }
@@ -124,7 +124,7 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
                         let ok = i > 0
                             && required
                                 .iter()
-                                .any(|r| r == &ctx.tokens[i - 1].text.to_lowercase());
+                                .any(|r| r.as_str() == ctx.tokens[i - 1].lower());
                         if !ok {
                             continue;
                         }
@@ -137,7 +137,7 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
                     let nearby_found = ctx
                         .tokens
                         .iter()
-                        .any(|t| nearby.iter().any(|n| n == &t.text.to_lowercase()));
+                        .any(|t| nearby.iter().any(|n| n.as_str() == t.lower()));
                     if !nearby_found {
                         reclaimable = true;
                     }
