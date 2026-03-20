@@ -318,10 +318,16 @@ impl Pipeline {
     /// resolved match positions (no more `is_known_token` exclusion list).
     /// Title, episode_title, alternative_title use all resolved matches.
     pub fn run(&self, input: &str) -> HunchResult {
-        // ══════════════════════════════════════════════════════════════════
-        // Pass 1: Tech property resolution
-        // ══════════════════════════════════════════════════════════════════
+        let (mut matches, token_stream, zone_map) = self.pass1(input);
+        self.pass2(input, &mut matches, &zone_map, &token_stream, None)
+    }
 
+    /// Run Pass 1: tokenize → zone map → match → conflict resolve → zone disambiguate.
+    ///
+    /// Returns the resolved tech matches, token stream, and zone map.
+    /// This is the reusable core that `run_with_context()` calls on both
+    /// the target file and each sibling.
+    fn pass1(&self, input: &str) -> (Vec<MatchSpan>, TokenStream, ZoneMap) {
         // Step 1: Tokenize.
         let token_stream = tokenizer::tokenize(input);
         debug!(
@@ -396,13 +402,25 @@ impl Pipeline {
             );
         }
 
-        // ══════════════════════════════════════════════════════════════════
-        // Pass 2: Positional property extraction
-        // Uses resolved tech match positions for context-aware extraction.
-        // ══════════════════════════════════════════════════════════════════
+        (all_matches, token_stream, zone_map)
+    }
 
+    /// Run Pass 2: positional extraction (release group, title, episode title, etc.).
+    ///
+    /// When `title_override` is `Some(...)`, the provided title is used directly
+    /// instead of running the standard positional title extractor. This is the
+    /// hook for cross-file invariance detection (`run_with_context`).
+    fn pass2(
+        &self,
+        input: &str,
+        all_matches: &mut Vec<MatchSpan>,
+        zone_map: &ZoneMap,
+        token_stream: &TokenStream,
+        title_override: Option<&str>,
+    ) -> HunchResult {
         // Step 5a: Release group (post-resolution — can see claimed positions).
-        let rg_matches = release_group::find_matches(input, &all_matches, &zone_map, &token_stream);
+        let rg_matches =
+            release_group::find_matches(input, all_matches, zone_map, token_stream);
         if !rg_matches.is_empty() {
             debug!(
                 "step 5a: release group — found {:?}",
@@ -415,23 +433,44 @@ impl Pipeline {
         all_matches.extend(rg_matches);
 
         // Step 5a.1: Zone rules that depend on release group positions.
-        zone_rules::apply_post_release_group_rules(&mut all_matches);
+        zone_rules::apply_post_release_group_rules(all_matches);
 
         // Step 5b: Title extraction.
-        if let Some(title_match) =
-            title::extract_title(input, &all_matches, &zone_map, &token_stream)
+        if let Some(override_title) = title_override {
+            // Cross-file context provided a title — use it directly.
+            // Find the title's byte range in the input for a proper MatchSpan.
+            if let Some(start) = input.find(override_title) {
+                let end = start + override_title.len();
+                let title_match =
+                    MatchSpan::new(start, end, Property::Title, override_title);
+                debug!(
+                    "step 5b: title override — \"{}\" at {}..{}",
+                    title_match.value, title_match.start, title_match.end
+                );
+                title::absorb_reclaimable(&title_match, all_matches);
+                all_matches.push(title_match);
+            } else {
+                // Title text not found verbatim — set it without a byte range.
+                debug!(
+                    "step 5b: title override (no byte range) — \"{}\"",
+                    override_title
+                );
+                all_matches.push(MatchSpan::new(0, 0, Property::Title, override_title));
+            }
+        } else if let Some(title_match) =
+            title::extract_title(input, all_matches, zone_map, token_stream)
         {
             debug!(
                 "step 5b: title extracted — \"{}\" at {}..{}",
                 title_match.value, title_match.start, title_match.end
             );
             // Remove reclaimable matches absorbed into the title.
-            title::absorb_reclaimable(&title_match, &mut all_matches);
+            title::absorb_reclaimable(&title_match, all_matches);
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
         if let Some((film_title, adjusted_title)) =
-            title::extract_film_title(input, &all_matches, &token_stream)
+            title::extract_film_title(input, all_matches, token_stream)
         {
             all_matches.retain(|m| m.property != Property::Title);
             all_matches.push(film_title);
@@ -439,7 +478,9 @@ impl Pipeline {
         }
 
         // Step 5c: Episode title.
-        if let Some(ep_title) = title::extract_episode_title(input, &all_matches, &token_stream) {
+        if let Some(ep_title) =
+            title::extract_episode_title(input, all_matches, token_stream)
+        {
             debug!("step 5c: episode title — \"{}\"", ep_title.value);
             // Remove release_group if it overlaps with the episode title.
             // Plex-dash format (`Show - S01E01 - Episode Title.mkv`) triggers
@@ -463,17 +504,18 @@ impl Pipeline {
         }
 
         // Step 5d: Alternative title(s).
-        let alt_titles = title::extract_alternative_titles(input, &all_matches, &token_stream);
+        let alt_titles =
+            title::extract_alternative_titles(input, all_matches, token_stream);
         for alt_title in alt_titles {
             all_matches.push(alt_title);
         }
 
-        let media_type = title::infer_media_type(&all_matches);
-        let proper_count = proper_count::compute_proper_count(input, &all_matches);
+        let media_type = title::infer_media_type(all_matches);
+        let proper_count = proper_count::compute_proper_count(input, all_matches);
 
         // Step 5e: Strip video/audio tech properties from subtitle containers.
         // Files like .ass, .srt, .sub should not carry video_codec, color_depth, etc.
-        strip_tech_from_subtitle_containers(&mut all_matches);
+        strip_tech_from_subtitle_containers(all_matches);
 
         // Step 6: Build result.
         debug!(
@@ -481,7 +523,7 @@ impl Pipeline {
             all_matches.len(),
             media_type
         );
-        let mut result = HunchResult::from_matches(&all_matches);
+        let mut result = HunchResult::from_matches(all_matches);
         result.set(Property::MediaType, media_type);
         if proper_count > 0 {
             result.set(Property::ProperCount, proper_count.to_string());
