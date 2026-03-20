@@ -551,7 +551,7 @@ mod tests {
             MatchSpan::new(0, 5, Property::Season, "1"),
             MatchSpan::new(5, 10, Property::Episode, "3"),
         ];
-        assert_eq!(infer_media_type(&matches), "episode");
+        assert_eq!(infer_media_type("Show.S01E03.mkv", &matches), "episode");
     }
 
     #[test]
@@ -584,6 +584,6 @@ mod tests {
     #[test]
     fn test_infer_movie() {
         let matches = vec![MatchSpan::new(0, 4, Property::Year, "2024")];
-        assert_eq!(infer_media_type(&matches), "movie");
+        assert_eq!(infer_media_type("Movie.2024.mkv", &matches), "movie");
     }
 }
