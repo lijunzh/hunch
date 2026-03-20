@@ -441,6 +441,24 @@ impl Pipeline {
         // Step 5c: Episode title.
         if let Some(ep_title) = title::extract_episode_title(input, &all_matches, &token_stream) {
             debug!("step 5c: episode title — \"{}\"", ep_title.value);
+            // Remove release_group if it overlaps with the episode title.
+            // Plex-dash format (`Show - S01E01 - Episode Title.mkv`) triggers
+            // last-word fallback release_group extraction on the final word of
+            // the episode title (e.g., "Ninja" from "Rising Ninja"). Fixes #38.
+            let ep_start = ep_title.start;
+            let ep_end = ep_title.end;
+            all_matches.retain(|m| {
+                if m.property != Property::ReleaseGroup {
+                    return true;
+                }
+                // Drop RG if it's fully inside or substantially overlaps the episode title.
+                let overlap_start = m.start.max(ep_start);
+                let overlap_end = m.end.min(ep_end);
+                let overlap = overlap_end.saturating_sub(overlap_start);
+                let rg_len = m.end.saturating_sub(m.start).max(1);
+                // If ≥50% of the release_group span is inside the episode title, drop it.
+                overlap * 2 < rg_len
+            });
             all_matches.push(ep_title);
         }
 
@@ -830,6 +848,36 @@ mod tests {
         assert_eq!(result.season(), Some(6));
         assert_eq!(result.episode(), Some(9));
         assert_eq!(result.episode_title(), Some("My Perspective"));
+    }
+
+    #[test]
+    fn test_issue_38_episode_title_not_release_group() {
+        // Issue #38: last word of episode title falsely detected as release_group.
+        let pipeline = Pipeline::default();
+
+        let result = pipeline.run("LEGO Ninjago Dragons Rising - S02E10 - Rising Ninja.mkv");
+        assert_eq!(result.episode_title(), Some("Rising Ninja"));
+        assert_eq!(
+            result.release_group(),
+            None,
+            "Ninja should not be release_group"
+        );
+
+        let result = pipeline.run("Power Rangers RPM - S17E01 - The Road To Corinth.avi");
+        assert_eq!(result.episode_title(), Some("The Road To Corinth"));
+        assert_eq!(
+            result.release_group(),
+            None,
+            "Corinth should not be release_group"
+        );
+
+        let result = pipeline.run("Show Name - S01E05 - An Episode Title.mkv");
+        assert_eq!(result.episode_title(), Some("An Episode Title"));
+        assert_eq!(
+            result.release_group(),
+            None,
+            "Title should not be release_group"
+        );
     }
 
     #[test]
