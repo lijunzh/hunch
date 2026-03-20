@@ -18,6 +18,21 @@ use serde::Serialize;
 
 use crate::matcher::span::{MatchSpan, Property};
 
+/// How confident hunch is in the extracted result.
+///
+/// Computed from structural signals like the number of tech anchors found,
+/// whether a title was extracted, and whether cross-file context was used.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Confidence {
+    /// Few or no properties extracted; title may be wrong.
+    Low,
+    /// Reasonable extraction but some ambiguity remains.
+    Medium,
+    /// Strong anchors found; high certainty in title and properties.
+    High,
+}
+
 /// The type of media detected.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -53,6 +68,8 @@ pub enum MediaType {
 pub struct HunchResult {
     /// All properties extracted, keyed by property.
     props: BTreeMap<Property, Vec<String>>,
+    /// Confidence level of the extraction.
+    confidence: Confidence,
 }
 
 impl HunchResult {
@@ -74,7 +91,10 @@ impl HunchResult {
                 values.push(m.value.clone());
             }
         }
-        Self { props }
+        Self {
+            props,
+            confidence: Confidence::Medium, // default; pipeline sets the real value
+        }
     }
 
     /// Set a computed property value directly (not from a match span).
@@ -86,7 +106,20 @@ impl HunchResult {
         }
     }
 
+    /// Set the confidence level.
+    pub(crate) fn set_confidence(&mut self, confidence: Confidence) {
+        self.confidence = confidence;
+    }
+
     // ── Typed accessors (return first value) ──
+
+    /// How confident hunch is in this result.
+    ///
+    /// Based on structural signals: number of tech anchors, title quality,
+    /// and whether cross-file context was used.
+    pub fn confidence(&self) -> Confidence {
+        self.confidence
+    }
 
     /// The main title (movie name or series name).
     pub fn title(&self) -> Option<&str> {

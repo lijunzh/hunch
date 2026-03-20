@@ -9,7 +9,7 @@ mod proper_count;
 pub(crate) mod token_context;
 mod zone_rules;
 
-use crate::hunch_result::HunchResult;
+use crate::hunch_result::{Confidence, HunchResult};
 use crate::matcher::engine;
 use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
@@ -590,6 +590,12 @@ impl Pipeline {
         if proper_count > 0 {
             result.set(Property::ProperCount, proper_count.to_string());
         }
+
+        // Step 7: Compute confidence.
+        let confidence = compute_confidence(&result, title_override.is_some());
+        result.set_confidence(confidence);
+        debug!("step 7: confidence = {:?}", confidence);
+
         result
     }
 
@@ -808,6 +814,47 @@ impl Pipeline {
                 }
             }
         }
+    }
+}
+
+/// Compute confidence level based on structural signals.
+fn compute_confidence(result: &HunchResult, used_cross_file: bool) -> Confidence {
+    // Count tech anchors (strong signals that we parsed correctly).
+    let tech_properties = [
+        Property::VideoCodec,
+        Property::AudioCodec,
+        Property::ScreenSize,
+        Property::Source,
+        Property::Season,
+        Property::Episode,
+    ];
+    let anchor_count = tech_properties
+        .iter()
+        .filter(|p| result.first(**p).is_some())
+        .count();
+
+    let has_title = result.title().is_some();
+    let title_len = result.title().map(|t| t.chars().count()).unwrap_or(0);
+
+    // High: cross-file context succeeded, or ≥3 anchors with a reasonable title.
+    if used_cross_file && has_title {
+        return Confidence::High;
+    }
+    if anchor_count >= 3 && has_title && title_len >= 2 {
+        return Confidence::High;
+    }
+
+    // Low: no title, or title is suspiciously short.
+    if !has_title || title_len <= 1 {
+        return Confidence::Low;
+    }
+
+    // Medium: everything else (some anchors but not many, or title
+    // might be questionable).
+    if anchor_count >= 1 {
+        Confidence::Medium
+    } else {
+        Confidence::Low
     }
 }
 
