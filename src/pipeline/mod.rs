@@ -5,6 +5,7 @@
 //! replaces v0.1 prune_* heuristics.
 
 pub(crate) mod context;
+mod invariance;
 mod matching;
 mod proper_count;
 pub(crate) mod token_context;
