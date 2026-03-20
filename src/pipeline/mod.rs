@@ -857,15 +857,27 @@ mod tests {
 
         let result = pipeline.run("LEGO Ninjago Dragons Rising - S02E10 - Rising Ninja.mkv");
         assert_eq!(result.episode_title(), Some("Rising Ninja"));
-        assert_eq!(result.release_group(), None, "Ninja should not be release_group");
+        assert_eq!(
+            result.release_group(),
+            None,
+            "Ninja should not be release_group"
+        );
 
         let result = pipeline.run("Power Rangers RPM - S17E01 - The Road To Corinth.avi");
         assert_eq!(result.episode_title(), Some("The Road To Corinth"));
-        assert_eq!(result.release_group(), None, "Corinth should not be release_group");
+        assert_eq!(
+            result.release_group(),
+            None,
+            "Corinth should not be release_group"
+        );
 
         let result = pipeline.run("Show Name - S01E05 - An Episode Title.mkv");
         assert_eq!(result.episode_title(), Some("An Episode Title"));
-        assert_eq!(result.release_group(), None, "Title should not be release_group");
+        assert_eq!(
+            result.release_group(),
+            None,
+            "Title should not be release_group"
+        );
     }
 
     #[test]
