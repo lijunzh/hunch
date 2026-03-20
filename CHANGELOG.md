@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Cross-file context for title extraction** (`run_with_context`, `hunch_with_context`) —
+  when sibling filenames are provided, hunch identifies the invariant text across
+  files as the title. Dramatically improves CJK and non-standard filename parsing. (#47)
+- **CLI `--context <dir>`** flag — use sibling files from a directory for
+  improved title detection.
+- **CLI `--batch <dir>`** flag — parse all media files in a directory with
+  mutual cross-file context.
+- **`Confidence` enum** on `HunchResult` — `High | Medium | Low` based on
+  structural signals (tech anchors, title quality, cross-file context).
+- Low-confidence CLI warning suggesting `--context` when results are uncertain.
+- Architecture documentation for cross-file context design decisions. (#48)
+
+### Changed
+
+- **Pipeline refactored** into `pass1()` / `pass2()` for reuse by cross-file
+  context. No behavior change for existing `run()` callers.
+
 ## [1.1.3] - 2026-03-19
 
 ### Changed
