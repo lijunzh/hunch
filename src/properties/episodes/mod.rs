@@ -8,8 +8,18 @@
 //! 2. NxN compact notation (1x03, 5x44x45)
 //! 3. Season patterns (word-based, ranges, roman numerals, paths)
 //! 4. Episode standalone (E01, "Episode 1", anime-style, versioned)
-//! 5. Digit decomposition (101→S1E01)
+//! 5. Digit decomposition (101→S1E01)  ⚠️ HEURISTIC — see note below
 //! 6. Post-processing (absolute episodes, week detection)
+//!
+//! ## Principle alignment (P3: Dumb engine, smart context)
+//!
+//! Groups 1–2 are **structural patterns** — unambiguous, context-free.
+//! Groups 3–4 are **vocabulary patterns** — keyword-driven, low risk.
+//! Group 5 (digit decomposition) and parts of Group 4 (anime detection
+//! via `filename.starts_with('[')`) are **fragile heuristics** that
+//! guess based on position and format conventions. These should be
+//! superseded by cross-file context when available (see docs/design.md
+//! D5). Until then, they run at low priority as last-resort fallbacks.
 
 mod patterns;
 #[cfg(test)]
@@ -822,12 +832,24 @@ fn try_cjk_bracket_episode(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 }
 
-// ── Group 5: Digit decomposition ──────────────────────────────────
+// ── Group 5: Digit decomposition (⚠️ HEURISTIC) ──────────────────
 
 /// 3/4-digit decomposition: 101→S1E01, 2401→S24E01.
+///
+/// ⚠️ **Fragile heuristic** (P3 violation) — this guesses season/episode
+/// from bare numbers using digit splitting. It's a last-resort fallback
+/// that only runs when no structural patterns (SxxExx, NxN) matched.
+///
+/// The `is_anime_style` check (`filename.starts_with('[')`) is also
+/// fragile — it assumes bracket-prefixed filenames are anime.
+///
+/// **Principled fix:** Use cross-file context (docs/design.md D5) to
+/// detect episode numbering patterns across siblings instead of guessing
+/// from digit positions in a single filename.
 fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
     let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let filename = &input[fn_start..];
+    // ⚠️ Fragile: assumes bracket-prefix = anime. Should use context instead.
     let is_anime_style = filename.starts_with('[') || filename.contains('_');
 
     for cap in THREE_DIGIT.captures_iter(input) {

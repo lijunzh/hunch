@@ -5,7 +5,7 @@ This document tracks how closely hunch reproduces guessit's behavior, measured
 by running hunch against guessit's own test suite (1,309 test cases across 22
 YAML files).
 
-> **Last updated:** 2026-03-19 (v1.1.3)
+> **Last updated:** 2026-03-20 (v1.1.4-dev)
 
 ---
 
@@ -14,9 +14,9 @@ YAML files).
 | Metric | Value |
 |---|---|
 | Total test cases | 1,309 |
-| Passed (all props correct) | 1,076 |
-| Failed (any prop wrong) | 233 |
-| **Pass rate** | **82.2%** |
+| Passed (all props correct) | 1,071 |
+| Failed (any prop wrong) | 238 |
+| **Pass rate** | **81.8%** |
 | Properties implemented | 49 / 49 |
 | Properties intentionally diverged | 3 |
 
@@ -42,10 +42,10 @@ reproduces 82.2% of those results identically.
 | rules/common_words.yml | 155 | 156 | **99%** |
 | rules/episodes.yml | 77 | 79 | 98% |
 | rules/date.yml | 7 | 8 | 88% |
-| movies.yml | 161 | 199 | 81% |
+| movies.yml | 160 | 199 | 80% |
 | rules/title.yml | 14 | 18 | 78% |
 | various.yml | 89 | 124 | 72% |
-| episodes.yml | 341 | 488 | 70% |
+| episodes.yml | 337 | 488 | 69% |
 | rules/bonus.yml | 2 | 3 | 67% |
 | rules/country.yml | 2 | 3 | 67% |
 | rules/film.yml | 2 | 3 | 67% |
@@ -84,11 +84,11 @@ property, across all test cases that assert it.
 
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
-| video_codec | 497 | 7 | 98.6% |
 | screen_size | 421 | 7 | 98.4% |
-| source | 550 | 10 | 98.2% |
-| audio_codec | 221 | 5 | 97.8% |
+| audio_codec | 220 | 6 | 97.3% |
+| video_codec | 488 | 16 | 96.8% |
 | year | 222 | 8 | 96.5% |
+| source | 538 | 22 | 96.1% |
 | crc32 | 24 | 1 | 96.0% |
 
 ### ✅ Good (90–95%)
@@ -100,9 +100,9 @@ property, across all test cases that assert it.
 | season | 445 | 29 | 93.9% |
 | type | 769 | 53 | 93.6% |
 | title | 972 | 84 | 92.0% |
-| release_group | 490 | 49 | 90.9% |
 | website | 20 | 2 | 90.9% |
 | episode | 503 | 52 | 90.6% |
+| release_group | 487 | 52 | 90.4% |
 | streaming_service | 28 | 3 | 90.3% |
 
 ### 🟡 Solid (80–90%)
@@ -110,14 +110,14 @@ property, across all test cases that assert it.
 | Property | Passed | Failed | Rate |
 |---|---|---|---|
 | other | 311 | 38 | 89.1% |
-| uuid | 7 | 1 | 87.5% |
 | film_title | 7 | 1 | 87.5% |
+| uuid | 7 | 1 | 87.5% |
 | video_profile | 12 | 2 | 85.7% |
 | audio_profile | 29 | 5 | 85.3% |
 | part | 16 | 3 | 84.2% |
-| subtitle_language | 67 | 14 | 82.7% |
 | episode_details | 13 | 3 | 81.2% |
 | language | 115 | 27 | 81.0% |
+| subtitle_language | 65 | 16 | 80.2% |
 
 ### ⚠️ Needs Work (50–80%)
 
@@ -143,11 +143,11 @@ property, across all test cases that assert it.
 
 ## Known Gaps & Future Work
 
-See GitHub issues for tracked improvements:
+See [GitHub Issues](https://github.com/lijunzh/hunch/issues) for tracked
+improvements. Key P3-aligned work:
 
-- [#29](https://github.com/lijunzh/hunch/issues/29) — Density-based metadata cluster detection
-- [#30](https://github.com/lijunzh/hunch/issues/30) — Confidence scoring for ambiguous parses
-- [#31](https://github.com/lijunzh/hunch/issues/31) — Title database / embedding lookup
+- [#52](https://github.com/lijunzh/hunch/issues/52) — Context-based episode detection (replace digit decomposition heuristic)
+- [#53](https://github.com/lijunzh/hunch/issues/53) — Context-based year disambiguation
 
 ---
 
