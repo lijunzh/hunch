@@ -116,3 +116,165 @@ fn cross_file_preserves_tech_properties() {
     assert_eq!(result.release_group(), Some("GROUP"));
     assert_eq!(result.container(), Some("mkv"));
 }
+
+// ── Phase 3: Year/Episode invariance signal tests ──────────────────────────
+
+// -- Year-in-title suppression --
+
+#[test]
+fn invariant_year_suppressed_2001() {
+    // "2001" appears in all siblings → invariant → title content, not Year.
+    let r = hunch_with_context(
+        "2001.A.Space.Odyssey.1080p.BluRay.mkv",
+        &["2001.A.Space.Odyssey.720p.BluRay.mkv"],
+    );
+    let title = r.title().expect("should have title");
+    assert!(
+        title.contains("2001"),
+        "title should contain '2001', got: {title}"
+    );
+    // Year should NOT be 2001 (it's title content).
+    assert_ne!(
+        r.year(),
+        Some(2001),
+        "2001 should not be extracted as year (it's part of the title)"
+    );
+}
+
+#[test]
+fn invariant_year_suppressed_1917() {
+    // "1917" is invariant (title) + "2019" is invariant (same release year across siblings).
+    let r = hunch_with_context(
+        "1917.2019.1080p.BluRay.mkv",
+        &["1917.2019.720p.BluRay.mkv"],
+    );
+    let title = r.title().expect("should have title");
+    assert!(
+        title.contains("1917"),
+        "title should contain '1917', got: {title}"
+    );
+}
+
+#[test]
+fn variant_year_preserved() {
+    // Different years across siblings → variant → kept as Year.
+    let r = hunch_with_context(
+        "Movie.Collection.2023.1080p.mkv",
+        &["Movie.Collection.2024.1080p.mkv"],
+    );
+    // The year should vary, so it should NOT be suppressed.
+    // Note: the exact year value depends on which file we're parsing.
+    assert!(
+        r.year().is_some(),
+        "variant year should be preserved as metadata"
+    );
+}
+
+// -- Bare episode injection --
+
+#[test]
+fn bare_episode_injected_sequential() {
+    // "03", "04", "05" are unclaimed sequential numbers → inject Episode.
+    let r = hunch_with_context(
+        "Show.Name.03.720p.mkv",
+        &["Show.Name.04.720p.mkv", "Show.Name.05.720p.mkv"],
+    );
+    assert_eq!(r.title(), Some("Show Name"));
+    assert_eq!(
+        r.episode(),
+        Some(3),
+        "sequential bare number should be injected as episode"
+    );
+}
+
+#[test]
+fn bare_episode_three_digit_absolute() {
+    // 501, 502, 503 → sequential → inject Episode.
+    let r = hunch_with_context(
+        "Naruto.Shippuden.501.720p.mkv",
+        &[
+            "Naruto.Shippuden.502.720p.mkv",
+            "Naruto.Shippuden.503.720p.mkv",
+        ],
+    );
+    assert_eq!(
+        r.episode(),
+        Some(501),
+        "3-digit sequential should be injected as episode"
+    );
+}
+
+#[test]
+fn invariant_number_not_injected_as_episode() {
+    // "42" is the same in all siblings → invariant → NOT an episode.
+    let r = hunch_with_context(
+        "Show.42.720p.mkv",
+        &["Show.42.1080p.mkv"],
+    );
+    // 42 is invariant so should NOT be injected as episode.
+    assert_ne!(
+        r.episode(),
+        Some(42),
+        "invariant number should not be injected as episode"
+    );
+}
+
+// -- SxxExx still wins when present --
+
+#[test]
+fn sxxexx_not_clobbered_by_invariance() {
+    // Standard SxxExx pattern should not be overridden by invariance signals.
+    let r = hunch_with_context(
+        "Show.S01E03.720p.mkv",
+        &["Show.S01E01.720p.mkv", "Show.S01E02.720p.mkv"],
+    );
+    assert_eq!(r.season(), Some(1));
+    assert_eq!(r.episode(), Some(3));
+    assert_eq!(r.title(), Some("Show"));
+}
+
+// -- Mixed: year + episode signals --
+
+#[test]
+fn year_and_episode_both_detected() {
+    // "Show.2024.03.720p.mkv" — year is invariant, episode varies.
+    let r = hunch_with_context(
+        "Show.2024.03.720p.mkv",
+        &["Show.2024.04.720p.mkv", "Show.2024.05.720p.mkv"],
+    );
+    let title = r.title().expect("should have title");
+    assert!(
+        title.contains("Show"),
+        "title should contain 'Show', got: {title}"
+    );
+    assert_eq!(
+        r.episode(),
+        Some(3),
+        "bare episode should be injected"
+    );
+}
+
+// -- Edge: no siblings → standard fallback --
+
+#[test]
+fn no_siblings_no_invariance_signals() {
+    // Zero siblings → standard run, no invariance signals.
+    let r = hunch_with_context("Show.03.720p.mkv", &[]);
+    // Without context, "03" might or might not be episode. Just verify no crash.
+    assert!(r.title().is_some());
+}
+
+// -- Edge: non-sequential variant numbers not injected --
+
+#[test]
+fn non_sequential_variant_not_injected() {
+    // "03" and "17" vary but aren't sequential → not injected as episode.
+    let r = hunch_with_context(
+        "Show.03.720p.mkv",
+        &["Show.17.720p.mkv"],
+    );
+    // The bare number varies but isn't sequential, so episode injection
+    // should not occur. (Standard heuristics may still claim it though.)
+    // Just verify the title is correct and there's no crash.
+    assert_eq!(r.title(), Some("Show"));
+}

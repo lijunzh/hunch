@@ -126,8 +126,27 @@ pub(crate) fn analyze_invariance(
         .collect();
 
     // 4. Classify numbers by cross-file comparison.
-    let year_signals = classify_year_signals(&target_numbers, &sibling_numbers);
-    let episode_signals = classify_episode_signals(&target_numbers, &sibling_numbers);
+    let mut year_signals = classify_year_signals(&target_numbers, &sibling_numbers);
+    let mut episode_signals = classify_episode_signals(&target_numbers, &sibling_numbers);
+
+    // 5. Also check Year matches claimed by Pass 1 — they're not in unclaimed
+    //    gaps, so classify_year_signals misses them. If a Year match has the
+    //    same value across all siblings, it's invariant (title content).
+    let claimed_year_signals = classify_claimed_year_signals(target, siblings);
+    year_signals.extend(claimed_year_signals);
+
+    // 5b. Also check Season+Episode from digit decomposition.
+    //     Pass 1 may decompose "501" → S5E01, claiming the span.
+    //     If raw values (501, 502, 503) form a sequence across siblings,
+    //     create an episode signal with the raw (undecomposed) value.
+    let claimed_ep_signals = classify_claimed_decomposed_episodes(target, siblings);
+    episode_signals.extend(claimed_ep_signals);
+
+    // 6. Expand title to include adjacent invariant years.
+    //    E.g., "2001.A.Space.Odyssey" → title="A Space Odyssey", but "2001" is
+    //    an invariant year at position 0..4. If it's immediately before the
+    //    title position in the input, prepend it.
+    let title = expand_title_with_invariant_years(target.input, title, &year_signals);
 
     InvarianceReport {
         title,
@@ -136,6 +155,61 @@ pub(crate) fn analyze_invariance(
     }
 }
 
+/// Expand the title to include adjacent invariant year-like numbers.
+///
+/// When a year like "2001" is invariant (title content), it may have been
+/// claimed by Pass 1's year matcher and thus excluded from unclaimed gaps.
+/// This function checks if any invariant year is immediately before or after
+/// the title text in the input, and expands the title to include it.
+fn expand_title_with_invariant_years(
+    input: &str,
+    title: Option<String>,
+    year_signals: &[YearSignal],
+) -> Option<String> {
+    let title_text = title.as_deref()?;
+
+    // Find the title's position in the input.
+    let title_start = input.find(title_text)?;
+    let title_end = title_start + title_text.len();
+
+    let mut expanded_start = title_start;
+    let mut expanded_end = title_end;
+
+    for ys in year_signals {
+        if !ys.is_invariant {
+            continue;
+        }
+
+        // Check if this invariant year is immediately before the title
+        // (separated only by separators/whitespace).
+        if ys.end <= expanded_start {
+            let between = &input[ys.end..expanded_start];
+            if between.chars().all(|c| SEPS.contains(&c)) {
+                expanded_start = ys.start;
+            }
+        }
+
+        // Check if this invariant year is immediately after the title.
+        if ys.start >= expanded_end {
+            let between = &input[expanded_end..ys.start];
+            if between.chars().all(|c| SEPS.contains(&c)) {
+                expanded_end = ys.end;
+            }
+        }
+    }
+
+    if expanded_start == title_start && expanded_end == title_end {
+        return Some(title_text.to_string());
+    }
+
+    // Rebuild the title from the expanded range, normalizing separators.
+    let raw = &input[expanded_start..expanded_end];
+    let normalized: String = raw
+        .chars()
+        .map(|c| if SEPS.contains(&c) { ' ' } else { c })
+        .collect();
+    Some(normalized.trim().to_string())
+}
 /// Extract bare numbers from unclaimed gaps in an input string.
 fn extract_numbers_from_gaps(input: &str, gaps: &[UnclaimedGap]) -> Vec<NumberInGap> {
     let mut numbers = Vec::new();
@@ -229,6 +303,167 @@ fn classify_year_signals(
                 end: tn.end,
                 value: tn.value,
                 is_invariant: all_same,
+            });
+        }
+    }
+
+    signals
+}
+
+/// Classify Year matches from Pass 1 that are invariant across siblings.
+///
+/// This catches year-like numbers that Pass 1 already claimed (e.g., "2001"
+/// matched as Year by the year matcher). If every sibling has a Year match
+/// with the same value, this year is title content, not release metadata.
+fn classify_claimed_year_signals(
+    target: &FileAnalysis<'_>,
+    siblings: &[FileAnalysis<'_>],
+) -> Vec<YearSignal> {
+    use crate::matcher::span::Property;
+
+    let mut signals = Vec::new();
+
+    // Find all Year matches in the target.
+    for tm in target.matches {
+        if tm.property != Property::Year {
+            continue;
+        }
+        let target_value: u32 = match tm.value.parse() {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        // Check if every sibling has a Year match with the same value.
+        let mut all_same = true;
+        let mut found_in_all = true;
+
+        for sib in siblings {
+            let sib_year = sib.matches.iter().find(|m| m.property == Property::Year);
+            match sib_year {
+                Some(sy) => {
+                    if let Ok(sv) = sy.value.parse::<u32>() {
+                        if sv != target_value {
+                            all_same = false;
+                        }
+                    } else {
+                        found_in_all = false;
+                        break;
+                    }
+                }
+                None => {
+                    found_in_all = false;
+                    break;
+                }
+            }
+        }
+
+        if found_in_all {
+            signals.push(YearSignal {
+                start: tm.start,
+                end: tm.end,
+                value: target_value,
+                is_invariant: all_same,
+            });
+        }
+    }
+
+    signals
+}
+
+/// Detect 3-digit digit decomposition matches that should be absolute episodes.
+///
+/// Pass 1 decomposes "501" → Season=5+Episode=01 at the same span. If the raw
+/// numbers (501, 502, 503) form a sequence across siblings, this is really an
+/// absolute episode, not a season+episode decomposition.
+fn classify_claimed_decomposed_episodes(
+    target: &FileAnalysis<'_>,
+    siblings: &[FileAnalysis<'_>],
+) -> Vec<EpisodeSignal> {
+    use crate::matcher::span::Property;
+
+    let mut signals = Vec::new();
+
+    // Find Season+Episode pairs from decomposition (same span, priority ≤0).
+    for tm in target.matches {
+        if tm.property != Property::Season || tm.priority > 0 {
+            continue;
+        }
+        // Find the corresponding Episode match at the same span.
+        let ep_match = target.matches.iter().find(|m| {
+            m.property == Property::Episode
+                && m.start == tm.start
+                && m.end == tm.end
+                && m.priority <= 0
+        });
+        let ep_match = match ep_match {
+            Some(m) => m,
+            None => continue,
+        };
+
+        // Reconstruct the raw number: season * 100 + episode.
+        let season: u32 = match tm.value.parse() {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let episode: u32 = match ep_match.value.parse() {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let raw_value = season * 100 + episode;
+
+        // Collect raw values from siblings at similar decomposition positions.
+        let mut values: Vec<u32> = vec![raw_value];
+        let mut found_in_all = true;
+
+        for sib in siblings {
+            // Find a Season+Episode decomposition pair in the sibling.
+            let sib_season = sib.matches.iter().find(|m| {
+                m.property == Property::Season && m.priority <= 0
+            });
+            let sib_season = match sib_season {
+                Some(s) => s,
+                None => { found_in_all = false; break; }
+            };
+            let sib_ep = sib.matches.iter().find(|m| {
+                m.property == Property::Episode
+                    && m.start == sib_season.start
+                    && m.end == sib_season.end
+                    && m.priority <= 0
+            });
+            let sib_ep = match sib_ep {
+                Some(e) => e,
+                None => { found_in_all = false; break; }
+            };
+
+            let ss: u32 = match sib_season.value.parse() {
+                Ok(v) => v,
+                Err(_) => { found_in_all = false; break; }
+            };
+            let se: u32 = match sib_ep.value.parse() {
+                Ok(v) => v,
+                Err(_) => { found_in_all = false; break; }
+            };
+            values.push(ss * 100 + se);
+        }
+
+        if !found_in_all {
+            continue;
+        }
+
+        // Check if values vary and form a sequence.
+        let all_same = values.iter().all(|v| *v == values[0]);
+        if all_same {
+            continue;
+        }
+
+        let is_sequential = is_sequential_set(&values);
+        if is_sequential {
+            signals.push(EpisodeSignal {
+                start: tm.start,
+                end: tm.end,
+                value: raw_value,
+                is_sequential: true,
+                digit_count: 3,
             });
         }
     }
