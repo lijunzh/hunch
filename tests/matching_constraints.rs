@@ -60,7 +60,7 @@ fn requires_nearby_satisfied() {
     let r = hunch("Movie.DTS-HD.MA.1080p.BluRay.mkv");
     assert_eq!(r.audio_codec(), Some("DTS-HD"));
     let ap = r.first(hunch::matcher::Property::AudioProfile);
-    assert_eq!(ap.as_deref(), Some("Master Audio"));
+    assert_eq!(ap, Some("Master Audio"));
 }
 
 // ── Side effects ─────────────────────────────────────────────────────
@@ -91,7 +91,7 @@ fn compound_three_token_match() {
     let r = hunch("Movie.1080p.DTS-HD.MA.BluRay.x264-GROUP.mkv");
     assert_eq!(r.audio_codec(), Some("DTS-HD"));
     let ap = r.first(hunch::matcher::Property::AudioProfile);
-    assert_eq!(ap.as_deref(), Some("Master Audio"));
+    assert_eq!(ap, Some("Master Audio"));
 }
 
 // ── Zone scope filtering ─────────────────────────────────────────────
