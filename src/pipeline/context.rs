@@ -1,19 +1,23 @@
-//! Cross-file context: invariance detection for title extraction.
+//! Cross-file context: gap detection and invariant text for title extraction.
 //!
-//! When sibling filenames are available, the title is the **invariant text**
-//! across files — the text that doesn't change between episodes. Episode
-//! numbers, episode titles, and per-file metadata are the **variant** text.
+//! When sibling filenames are available, **invariant** text (identical across
+//! files) is title content, and **variant** numbers (changing across files)
+//! are metadata (episodes, years).
 //!
-//! This module finds unclaimed text gaps (regions not matched by Pass 1)
-//! and identifies the longest common text across all files.
+//! This module provides the foundation:
+//! 1. Finds unclaimed text gaps (regions not matched by Pass 1)
+//! 2. Identifies the longest invariant text as the title
+//!
+//! The `invariance` sibling module builds on these primitives to classify
+//! numbers for year and episode disambiguation.
 
 use crate::matcher::span::MatchSpan;
 
 /// Separators used in media filenames for normalization.
-const SEPS: &[char] = &['.', ' ', '_', '-', '+'];
+pub(crate) const SEPS: &[char] = &['.', ' ', '_', '-', '+'];
 
 /// Brackets to strip from gap boundaries.
-const TRIM_CHARS: &[char] = &[
+pub(crate) const TRIM_CHARS: &[char] = &[
     '(', ')', '[', ']', '{', '}', '.', ' ', '_', '-', '+', '\u{3000}',
 ];
 
@@ -147,6 +151,8 @@ pub(crate) fn find_invariant_text(all_gaps: &[Vec<UnclaimedGap>]) -> Option<Stri
     best.map(|(_, text)| text)
 }
 
+
+
 /// Compute the common prefix of two strings (by chars).
 fn common_prefix_chars(a: &str, b: &str) -> String {
     a.chars()
@@ -268,7 +274,7 @@ fn trim_orphaned_brackets(text: &str) -> &str {
 
 /// Find the byte position where the file extension starts (the last `.xxx`).
 /// Returns `input.len()` if no extension is found.
-fn strip_extension_pos(input: &str) -> usize {
+pub(crate) fn strip_extension_pos(input: &str) -> usize {
     // Only consider extensions ≤10 chars after the last dot.
     if let Some(dot_pos) = input.rfind('.') {
         let ext = &input[dot_pos + 1..];
@@ -409,4 +415,5 @@ mod tests {
         let result = find_invariant_text(&[gaps1, gaps2]);
         assert_eq!(result, Some("Show".to_string()));
     }
+
 }
