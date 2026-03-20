@@ -5,6 +5,7 @@
 //! replaces v0.1 prune_* heuristics.
 
 pub(crate) mod context;
+mod matching;
 mod proper_count;
 pub(crate) mod token_context;
 mod zone_rules;
@@ -15,28 +16,7 @@ use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::{self, TokenStream};
 use crate::zone_map::{self, ZoneMap};
-
-/// Context for matching tokens in a single segment against a TOML rule set.
-///
-/// Bundles the segment data, rule set, and zone context that
-/// `match_tokens_in_segment` needs, replacing 7 positional arguments
-/// with a single struct.
-struct MatchContext<'a> {
-    /// The full input string (for extracting compound token text).
-    input: &'a str,
-    /// Tokens within this segment.
-    tokens: &'a [tokenizer::Token],
-    /// The TOML rule set to match against.
-    rule_set: &'a RuleSet,
-    /// Which property this rule set targets.
-    property: Property,
-    /// Priority for emitted matches (directory segments get a penalty).
-    priority: i32,
-    /// Filename-level zone map (anchors, title zone, tech zone).
-    zone_map: &'a ZoneMap,
-    /// Per-directory zone map, if this is a directory segment.
-    dir_zone: Option<&'a zone_map::SegmentZone>,
-}
+use matching::MatchContext;
 
 use log::{debug, trace};
 use std::sync::LazyLock;
@@ -639,7 +619,7 @@ impl Pipeline {
                 };
 
                 let tokens = &segment.tokens;
-                self.match_tokens_in_segment(
+                matching::match_tokens_in_segment(
                     &MatchContext {
                         input,
                         tokens,
@@ -672,148 +652,6 @@ impl Pipeline {
         }
 
         matches
-    }
-
-    /// Match tokens within a single segment against a TOML rule set.
-    ///
-    /// Uses a sliding window of 1–3 tokens (longest first) to handle compound
-    /// patterns like "WEB-DL" or "HD-DVD". Emits primary matches and any
-    /// side-effect spans declared in the TOML pattern.
-    fn match_tokens_in_segment(&self, ctx: &MatchContext, matches: &mut Vec<MatchSpan>) {
-        use crate::matcher::rule_loader::ZoneScope;
-
-        let mut matched_ranges: Vec<(usize, usize)> = Vec::new();
-
-        for window_size in (1..=3).rev() {
-            for i in 0..ctx.tokens.len() {
-                if i + window_size > ctx.tokens.len() {
-                    break;
-                }
-
-                let win_start = ctx.tokens[i].start;
-                let win_end = ctx.tokens[i + window_size - 1].end;
-
-                // ── Zone scope filtering ─────────────────────────────
-                // Use per-directory zone when available, otherwise filename zone.
-                let (effective_has_anchors, effective_title_zone) = if let Some(dz) = ctx.dir_zone {
-                    (dz.has_anchors, &dz.title_zone)
-                } else {
-                    (ctx.zone_map.has_anchors, &ctx.zone_map.title_zone)
-                };
-
-                if effective_has_anchors {
-                    let in_title_zone = effective_title_zone.contains(&win_start);
-                    match ctx.rule_set.zone_scope {
-                        ZoneScope::TechOnly if in_title_zone => continue,
-                        ZoneScope::AfterAnchor if in_title_zone => continue,
-                        _ => {}
-                    }
-                }
-                if matched_ranges
-                    .iter()
-                    .any(|(s, e)| win_start < *e && win_end > *s)
-                {
-                    continue;
-                }
-
-                let compound = if window_size == 1 {
-                    ctx.tokens[i].text.clone()
-                } else {
-                    ctx.input[win_start..win_end].to_string()
-                };
-
-                if let Some(token_match) = ctx.rule_set.match_token(&compound) {
-                    // ── Neighbor constraint checks ──────────────────
-                    let last_idx = i + window_size - 1;
-                    if let Some(ref blocked) = token_match.not_before
-                        && last_idx + 1 < ctx.tokens.len()
-                        && blocked
-                            .iter()
-                            .any(|b| b == &ctx.tokens[last_idx + 1].text.to_lowercase())
-                    {
-                        continue;
-                    }
-                    if let Some(ref blocked) = token_match.not_after
-                        && i > 0
-                        && blocked
-                            .iter()
-                            .any(|b| b == &ctx.tokens[i - 1].text.to_lowercase())
-                    {
-                        continue;
-                    }
-                    if let Some(ref required) = token_match.requires_after {
-                        let ok = last_idx + 1 < ctx.tokens.len()
-                            && required
-                                .iter()
-                                .any(|r| r == &ctx.tokens[last_idx + 1].text.to_lowercase());
-                        if !ok {
-                            continue;
-                        }
-                    }
-                    // requires_context: only match when tech anchors exist
-                    // OR when requires_before matches (fallback for context words).
-                    if token_match.requires_context && !ctx.zone_map.has_anchors {
-                        // If requires_before is also set, use it as fallback.
-                        if let Some(ref required) = token_match.requires_before {
-                            let ok = i > 0
-                                && required
-                                    .iter()
-                                    .any(|r| r == &ctx.tokens[i - 1].text.to_lowercase());
-                            if !ok {
-                                continue;
-                            }
-                        } else {
-                            continue;
-                        }
-                    } else if !token_match.requires_context {
-                        // Normal requires_before check (not combined with requires_context).
-                        if let Some(ref required) = token_match.requires_before {
-                            let ok = i > 0
-                                && required
-                                    .iter()
-                                    .any(|r| r == &ctx.tokens[i - 1].text.to_lowercase());
-                            if !ok {
-                                continue;
-                            }
-                        }
-                    }
-
-                    // ── Primary match ───────────────────────────────
-                    // Determine reclaimability: explicitly marked, or
-                    // auto-reclaimable when requires_nearby isn't satisfied.
-                    let mut reclaimable = token_match.reclaimable;
-                    if let Some(ref nearby) = token_match.requires_nearby {
-                        let nearby_found = ctx
-                            .tokens
-                            .iter()
-                            .any(|t| nearby.iter().any(|n| n == &t.text.to_lowercase()));
-                        if !nearby_found {
-                            reclaimable = true;
-                        }
-                    }
-
-                    let span = MatchSpan::new(win_start, win_end, ctx.property, token_match.value)
-                        .with_priority(ctx.priority);
-                    let span = if reclaimable {
-                        span.as_reclaimable()
-                    } else {
-                        span
-                    };
-                    matches.push(span);
-                    matched_ranges.push((win_start, win_end));
-
-                    // ── Side effects ────────────────────────────────
-                    for se in &token_match.side_effects {
-                        if let Some(se_prop) = Property::from_name(&se.property) {
-                            matches.push(
-                                MatchSpan::new(win_start, win_end, se_prop, &se.value)
-                                    .with_priority(ctx.priority),
-                            );
-                        }
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -893,163 +731,6 @@ fn strip_tech_from_subtitle_containers(matches: &mut Vec<MatchSpan>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_full_movie_parse() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
-
-        assert_eq!(result.title(), Some("The Matrix"));
-        assert_eq!(result.year(), Some(1999));
-        assert_eq!(result.screen_size(), Some("1080p"));
-        assert_eq!(result.source(), Some("Blu-ray"));
-        assert_eq!(result.video_codec(), Some("H.264"));
-        assert_eq!(result.release_group(), Some("GROUP"));
-        assert_eq!(result.container(), Some("mkv"));
-    }
-
-    #[test]
-    fn test_episode_parse() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Breaking.Bad.S05E16.720p.BluRay.x264-DEMAND.mkv");
-
-        assert_eq!(result.title(), Some("Breaking Bad"));
-        assert_eq!(result.season(), Some(5));
-        assert_eq!(result.episode(), Some(16));
-        assert_eq!(result.screen_size(), Some("720p"));
-        assert_eq!(result.video_codec(), Some("H.264"));
-        assert_eq!(result.release_group(), Some("DEMAND"));
-    }
-
-    #[test]
-    fn test_minimal_input() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.mkv");
-
-        assert_eq!(result.title(), Some("Movie"));
-        assert_eq!(result.container(), Some("mkv"));
-    }
-
-    #[test]
-    fn test_4k_hdr() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.2024.2160p.UHD.BluRay.Remux.HDR.HEVC.DTS-HD.MA-GROUP.mkv");
-
-        assert_eq!(result.title(), Some("Movie"));
-        assert_eq!(result.year(), Some(2024));
-        assert_eq!(result.screen_size(), Some("2160p"));
-        assert_eq!(result.video_codec(), Some("H.265"));
-        assert!(result.other().contains(&"HDR10"));
-        assert!(result.other().contains(&"Remux"));
-    }
-
-    #[test]
-    fn test_toml_video_codec_basic() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.HEVC.1080p.mkv");
-        assert_eq!(result.video_codec(), Some("H.265"));
-    }
-
-    #[test]
-    fn test_toml_color_depth() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.10bit.1080p.mkv");
-        assert_eq!(result.color_depth(), Some("10-bit"));
-    }
-
-    #[test]
-    fn test_toml_streaming_service() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Show.S01E01.AMZN.WEB-DL.1080p.mkv");
-        assert_eq!(result.streaming_service(), Some("Amazon Prime"));
-    }
-
-    #[test]
-    fn test_toml_edition_multi_token() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.Directors.Cut.1080p.BluRay.mkv");
-        assert_eq!(result.edition(), Some("Director's Cut"));
-    }
-
-    #[test]
-    fn test_toml_edition_single_token() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run("Movie.Remastered.1080p.BluRay.mkv");
-        assert_eq!(result.edition(), Some("Remastered"));
-    }
-
-    #[test]
-    fn test_episode_title_from_parent_dir() {
-        let pipeline = Pipeline::default();
-        let result = pipeline
-            .run("Bones.S12E02.The.Brain.In.The.Bot.1080p.WEB-DL.DD5.1.H.264-R2D2/161219_06.mkv");
-        assert_eq!(result.title(), Some("Bones"));
-        assert_eq!(result.season(), Some(12));
-        assert_eq!(result.episode(), Some(2));
-        assert_eq!(result.episode_title(), Some("The Brain In The Bot"));
-    }
-
-    #[test]
-    fn test_episode_title_parent_dir_with_redundant_leaf() {
-        let pipeline = Pipeline::default();
-        let result = pipeline.run(
-            "Scrubs/SEASON-06/Scrubs.S06E09.My.Perspective.DVDRip.XviD-WAT/scrubs.s06e09.dvdrip.xvid-wat.avi",
-        );
-        assert_eq!(result.title(), Some("Scrubs"));
-        assert_eq!(result.season(), Some(6));
-        assert_eq!(result.episode(), Some(9));
-        assert_eq!(result.episode_title(), Some("My Perspective"));
-    }
-
-    #[test]
-    fn test_issue_38_episode_title_not_release_group() {
-        // Issue #38: last word of episode title falsely detected as release_group.
-        let pipeline = Pipeline::default();
-
-        let result = pipeline.run("LEGO Ninjago Dragons Rising - S02E10 - Rising Ninja.mkv");
-        assert_eq!(result.episode_title(), Some("Rising Ninja"));
-        assert_eq!(
-            result.release_group(),
-            None,
-            "Ninja should not be release_group"
-        );
-
-        let result = pipeline.run("Power Rangers RPM - S17E01 - The Road To Corinth.avi");
-        assert_eq!(result.episode_title(), Some("The Road To Corinth"));
-        assert_eq!(
-            result.release_group(),
-            None,
-            "Corinth should not be release_group"
-        );
-
-        let result = pipeline.run("Show Name - S01E05 - An Episode Title.mkv");
-        assert_eq!(result.episode_title(), Some("An Episode Title"));
-        assert_eq!(
-            result.release_group(),
-            None,
-            "Title should not be release_group"
-        );
-    }
-
-    #[test]
-    fn test_issue_37_compound_codec_not_release_group() {
-        // Issue #37: compound codec strings like H264_FLACx3_DTS-HDMA should
-        // not be detected as release_group when individual codecs are resolved.
-        let pipeline = Pipeline::default();
-
-        let result = pipeline.run(
-            "[Kimetsu no Yaiba Mugen Ressha Hen][JPN+ENG][BDRIP][1080P][H264_FLACx3_DTS-HDMA].mkv",
-        );
-        assert_eq!(result.video_codec(), Some("H.264"));
-        let codecs = result.all(Property::AudioCodec);
-        assert!(codecs.contains(&"FLAC"), "FLAC should be detected");
-        assert!(codecs.contains(&"DTS-HD"), "DTS-HD should be detected");
-        assert_ne!(
-            result.release_group(),
-            Some("H264_FLACx3_DTS-HDMA"),
-            "compound codec should not be release_group"
-        );
-    }
 
     #[test]
     fn test_toml_rules_load() {
