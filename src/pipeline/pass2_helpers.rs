@@ -5,7 +5,7 @@
 use log::{debug, trace};
 
 use crate::hunch_result::Confidence;
-use crate::matcher::span::{MatchSpan, Property};
+use crate::matcher::span::{MatchSpan, Property, Source};
 use crate::HunchResult;
 
 use super::invariance;
@@ -108,20 +108,27 @@ pub(super) fn apply_invariance_signals(
         }
 
         debug!(
-            "[INVARIANCE] injecting Episode={} at {}..{} (sequential, {}-digit)",
+            "[CONTEXT] injecting Episode={} at {}..{} (sequential, {}-digit)",
             es.value, es.start, es.end, es.digit_count
         );
-        matches.push(MatchSpan::new(
-            es.start,
-            es.end,
-            Property::Episode,
-            es.value.to_string(),
-        ));
+        matches.push(
+            MatchSpan::new(
+                es.start,
+                es.end,
+                Property::Episode,
+                es.value.to_string(),
+            )
+            .with_source(Source::Context),
+        );
     }
 }
 
-/// Compute confidence level based on structural signals.
-pub(super) fn compute_confidence(result: &HunchResult, used_cross_file: bool) -> Confidence {
+/// Compute confidence level based on structural signals and match sources.
+pub(super) fn compute_confidence(
+    result: &HunchResult,
+    used_cross_file: bool,
+    matches: &[MatchSpan],
+) -> Confidence {
     let tech_properties = [
         Property::VideoCodec,
         Property::AudioCodec,
@@ -138,11 +145,20 @@ pub(super) fn compute_confidence(result: &HunchResult, used_cross_file: bool) ->
     let has_title = result.title().is_some();
     let title_len = result.title().map(|t| t.chars().count()).unwrap_or(0);
 
+    // Check if any result property is backed only by heuristic sources
+    // with no context confirmation.
+    let has_heuristic_only = matches.iter().any(|m| m.source == Source::Heuristic)
+        && !matches.iter().any(|m| m.source == Source::Context);
+
     // High: cross-file context succeeded, or ≥3 anchors with a reasonable title.
     if used_cross_file && has_title {
         return Confidence::High;
     }
     if anchor_count >= 3 && has_title && title_len >= 2 {
+        // Cap at Medium if heuristic-only matches are present.
+        if has_heuristic_only {
+            return Confidence::Medium;
+        }
         return Confidence::High;
     }
 

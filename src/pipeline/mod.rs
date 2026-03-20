@@ -598,7 +598,8 @@ impl Pipeline {
         }
 
         // Step 7: Compute confidence.
-        let confidence = pass2_helpers::compute_confidence(&result, title_override.is_some());
+        let confidence =
+            pass2_helpers::compute_confidence(&result, title_override.is_some(), all_matches);
         result.set_confidence(confidence);
         debug!("step 7: confidence = {:?}", confidence);
 
