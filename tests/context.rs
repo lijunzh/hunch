@@ -233,6 +233,30 @@ fn sxxexx_not_clobbered_by_invariance() {
     assert_eq!(r.title(), Some("Show"));
 }
 
+// ── Phase 5: Source tagging / confidence with heuristics ────────────────
+
+#[test]
+fn heuristic_decomposition_caps_confidence() {
+    // "Movie.Title.501.720p.BluRay.x264-GROUP.mkv" with NO siblings →
+    // digit decomposition fires (heuristic) → confidence should not be High.
+    let r = hunch::hunch("Movie.Title.501.720p.BluRay.x264-GROUP.mkv");
+    assert!(
+        r.confidence() <= Confidence::Medium,
+        "heuristic-only decomposition should cap confidence at Medium, got {:?}",
+        r.confidence()
+    );
+}
+
+#[test]
+fn context_episode_gets_high_confidence() {
+    // With siblings providing sequential evidence, confidence should be High.
+    let r = hunch_with_context(
+        "Show.03.720p.BluRay.mkv",
+        &["Show.04.720p.BluRay.mkv", "Show.05.720p.BluRay.mkv"],
+    );
+    assert_eq!(r.confidence(), Confidence::High);
+}
+
 // -- Mixed: year + episode signals --
 
 #[test]

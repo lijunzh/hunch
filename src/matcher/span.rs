@@ -8,6 +8,34 @@
 
 use std::fmt;
 
+/// How a match was produced — structural, context-confirmed, or heuristic.
+///
+/// This tag is purely informational: it feeds logging (`[CONTEXT]`,
+/// `[HEURISTIC]` prefixes) and confidence scoring. It does **not** affect
+/// conflict resolution — priority is still the authority there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum Source {
+    /// Matched by a deterministic structural rule (SxxExx, parenthesized year,
+    /// codec keyword, etc.). This is the default and "happy path".
+    #[default]
+    Structural,
+    /// Confirmed or injected by cross-file invariance analysis.
+    Context,
+    /// Produced by a single-file heuristic (digit decomposition, positional
+    /// year guess). Valid but lower confidence than structural/context.
+    Heuristic,
+}
+
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Source::Structural => write!(f, "structural"),
+            Source::Context => write!(f, "context"),
+            Source::Heuristic => write!(f, "heuristic"),
+        }
+    }
+}
+
 /// Declares the [`Property`] enum, its `Display` impl, and `from_name`
 /// constructor from a single source of truth.
 ///
@@ -202,6 +230,8 @@ pub struct MatchSpan {
     /// If true, the title extractor may absorb this match when it
     /// appears to be title content rather than metadata.
     pub reclaimable: bool,
+    /// How this match was produced (structural, context, heuristic).
+    pub source: Source,
 }
 
 impl MatchSpan {
@@ -216,6 +246,7 @@ impl MatchSpan {
             is_path_based: false,
             priority: 0,
             reclaimable: false,
+            source: Source::default(),
         }
     }
 
@@ -250,6 +281,13 @@ impl MatchSpan {
     #[must_use]
     pub fn as_reclaimable(mut self) -> Self {
         self.reclaimable = true;
+        self
+    }
+
+    /// Tag this match with a [`Source`] classification.
+    #[must_use]
+    pub fn with_source(mut self, source: Source) -> Self {
+        self.source = source;
         self
     }
 
