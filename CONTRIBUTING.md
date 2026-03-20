@@ -67,8 +67,8 @@ cargo clippy -- -D warnings
 
 - `cargo fmt` before committing
 - `cargo clippy` with zero warnings
-- Keep files under 600 lines — split into modules if needed
-- Follow the existing TOML-first architecture (see ARCHITECTURE.md)
+- Follow the design principles in [docs/design.md](docs/design.md)
+- Prefer context over heuristics (Principle 3)
 
 ## License
 
