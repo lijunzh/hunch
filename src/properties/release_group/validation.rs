@@ -20,46 +20,53 @@
 use crate::matcher::span::{MatchSpan, Property};
 use crate::zone_map;
 
-/// Check if a byte range in the input is already claimed by a resolved match.
+/// Check if a byte range in the input is already claimed by resolved matches.
 ///
-/// Returns true if ANY resolved match overlaps with `[start, end)`.
-/// Only considers matches where the overlap is substantial (the candidate
-/// is mostly inside the resolved span), to avoid rejecting groups that
-/// barely touch an over-broad regex match.
+/// Returns true when resolved tech matches **collectively** cover ≥50% of
+/// the candidate span `[start, end)`. This catches both:
+/// - A single match covering most of the candidate (original behavior)
+/// - Multiple matches covering a compound string like `H264_FLACx3_DTS-HDMA`
+///   where three smaller matches together cover the full span (#37)
 pub fn is_position_claimed(start: usize, end: usize, resolved: &[MatchSpan]) -> bool {
     let candidate_len = end.saturating_sub(start);
     if candidate_len == 0 {
         return false;
     }
 
-    resolved.iter().any(|m| {
-        // Skip positional/aggregate properties — these claim broad text spans
-        // that may overlap with the release group. Only tech properties
-        // (codecs, sources, etc.) are reliable for overlap detection.
-        if matches!(
-            m.property,
-            Property::ReleaseGroup
-                | Property::Title
-                | Property::EpisodeTitle
-                | Property::FilmTitle
-                | Property::BonusTitle
-                | Property::AlternativeTitle
-        ) {
-            return false;
-        }
-        // Check overlap: two ranges overlap iff start < m.end AND end > m.start.
-        if start >= m.end || end <= m.start {
-            return false;
-        }
-        // Calculate how much of the candidate is inside this resolved match.
-        let overlap_start = start.max(m.start);
-        let overlap_end = end.min(m.end);
-        let overlap_len = overlap_end.saturating_sub(overlap_start);
-        // Require at least 50% of the candidate to be inside the resolved span.
-        // This prevents over-broad regex matches (like VideoCodec "hevc.+"
-        // spanning "HEVC.Atmos-EPSiLON") from blocking the release group.
-        overlap_len * 2 >= candidate_len
-    })
+    // Aggregate non-overlapping coverage from all tech matches.
+    let total_overlap: usize = resolved
+        .iter()
+        .filter(|m| {
+            // Skip positional/aggregate properties — these claim broad text
+            // spans that may overlap with the release group. Only tech
+            // properties (codecs, sources, etc.) are reliable.
+            !matches!(
+                m.property,
+                Property::ReleaseGroup
+                    | Property::Title
+                    | Property::EpisodeTitle
+                    | Property::FilmTitle
+                    | Property::BonusTitle
+                    | Property::AlternativeTitle
+            )
+        })
+        .filter_map(|m| {
+            // Only count overlapping ranges.
+            if start >= m.end || end <= m.start {
+                return None;
+            }
+            let overlap_start = start.max(m.start);
+            let overlap_end = end.min(m.end);
+            Some(overlap_end.saturating_sub(overlap_start))
+        })
+        .sum();
+
+    // Require at least 50% aggregate coverage.
+    // This prevents over-broad regex matches (like VideoCodec "hevc.+"
+    // spanning "HEVC.Atmos-EPSiLON") from blocking the release group,
+    // while still catching compound codec strings where multiple matches
+    // together cover the full span.
+    total_overlap * 2 >= candidate_len
 }
 
 /// Check if a candidate group name should be rejected.
