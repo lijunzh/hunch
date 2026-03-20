@@ -153,6 +153,16 @@ pub(super) static THREE_DIGIT: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"[.\-_ ](?P<num>\d{3,4})").expect("episode pattern regex is valid")
 });
 
+// ── CJK episode markers ──
+
+/// CJK ordinal episode markers: 第N話, 第N集, 第N话, 第N回.
+/// Matches both ASCII and full-width digits.
+/// Examples: `第13話`, `第1集`, `第０３話`.
+pub(super) static CJK_EPISODE_MARKER: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"第(?P<episode>[0-9０-９]+)[話集话回]")
+        .expect("CJK_EPISODE_MARKER regex is valid")
+});
+
 // ── CJK fansub bracket episode ──
 
 /// CJK fansub bracket episode: `][01][` or `][13][` or `][13(SP)][`

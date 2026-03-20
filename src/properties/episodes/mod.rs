@@ -200,6 +200,11 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         try_cjk_bracket_episode(input, &mut matches);
     }
 
+    // CJK ordinal episode markers: 第N話, 第N集, 第N话, 第N回
+    if !has_property(&matches, Property::Episode) {
+        try_cjk_episode_marker(input, &mut matches);
+    }
+
     // Low confidence: digit decomposition (only if nothing found)
     if !has_property(&matches, Property::Season) && !has_property(&matches, Property::Episode) {
         try_digit_decomposition(input, &mut matches);
@@ -833,7 +838,40 @@ fn try_cjk_bracket_episode(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 }
 
-// ── Group 5: Digit decomposition (⚠️ HEURISTIC) ──────────────────
+// ── Group 4c: CJK ordinal episode markers ─────────────────────────────
+
+/// CJK ordinal episode markers: 第N話 (Japanese), 第N集 (Chinese), 第N话, 第N回.
+///
+/// Examples:
+/// - `第13話` → Episode 13 (Japanese)
+/// - `第1集` → Episode 1 (Chinese)
+/// - `(BD)十二国記 第13話「月の影...」(...).mkv`
+fn try_cjk_episode_marker(input: &str, matches: &mut Vec<MatchSpan>) {
+    for cap in CJK_EPISODE_MARKER.captures_iter(input) {
+        let ep_match = cap.name("episode").unwrap();
+        // Normalize full-width digits (０-９) to ASCII (0-9).
+        let normalized: String = ep_match
+            .as_str()
+            .chars()
+            .map(|c| match c {
+                '\u{ff10}'..='\u{ff19}' => (b'0' + (c as u32 - 0xff10) as u8) as char,
+                _ => c,
+            })
+            .collect();
+        let ep_num: u32 = match normalized.parse() {
+            Ok(n) if n > 0 => n,
+            _ => continue,
+        };
+        let abs_start = ep_match.start();
+        let abs_end = ep_match.end();
+        matches.push(
+            MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
+                .with_priority(2),
+        );
+    }
+}
+
+// ── Group 5: Digit decomposition (⚠️ HEURISTIC) ────────────────────
 
 /// 3/4-digit decomposition: 101→S1E01, 2401→S24E01.
 ///

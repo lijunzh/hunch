@@ -415,21 +415,72 @@ fn split_on_separators<'a>(s: &'a str, separators: &[&str]) -> Vec<&'a str> {
 }
 
 /// Infer media type from the set of matched properties.
-pub fn infer_media_type(matches: &[MatchSpan]) -> &'static str {
+pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
+    // 1. Structural signals from matched properties.
     let has_episode = matches.iter().any(|m| m.property == Property::Episode);
     let has_season = matches.iter().any(|m| m.property == Property::Season);
     let has_date = matches.iter().any(|m| m.property == Property::Date);
+    let has_episode_details = matches
+        .iter()
+        .any(|m| m.property == Property::EpisodeDetails);
     // Bonus without Film or Year = TV series bonus (episode), not movie extra.
     // Movie extras typically have years: Moon_(2009)-x02-Making_Of
     let has_bonus_no_film = matches.iter().any(|m| m.property == Property::Bonus)
         && !matches.iter().any(|m| m.property == Property::Film)
         && !matches.iter().any(|m| m.property == Property::Year);
 
-    if has_episode || has_season || has_date || has_bonus_no_film {
-        "episode"
-    } else {
-        "movie"
+    if has_episode || has_season || has_date || has_episode_details || has_bonus_no_film {
+        return "episode";
     }
+
+    // 2. Path-based context: directory names are strong evidence.
+    //    "tv/", "TV Shows/", "Series/", "Anime/" → episode.
+    //    This is the architectural fix for WRONG_TYPE (#46) — instead of
+    //    adding keyword rules for every bonus marker (NCOP, PV, SP, etc.),
+    //    the directory structure tells us what the content is.
+    if path_hints_episode(input) {
+        return "episode";
+    }
+
+    "movie"
+}
+
+/// Check if the input path's directory components hint at TV/episode content.
+///
+/// Recognises common media library directory conventions:
+/// - `tv/`, `TV/`, `TV Shows/`, `Television/`
+/// - `Series/`, `Anime/`
+/// - Season directories: `Season 1/`, `S01/`
+///
+/// This is deliberately conservative — we only match well-known patterns
+/// that are unambiguous evidence of episodic content.
+fn path_hints_episode(input: &str) -> bool {
+    // Only look at directory components (before the last separator).
+    let dir_part = match input.rfind(['/', '\\']) {
+        Some(i) => &input[..i],
+        None => return false, // No path → no hints.
+    };
+
+    // Normalize to lowercase for case-insensitive matching.
+    let lower = dir_part.to_lowercase();
+
+    // Split into path components and check each.
+    lower.split(['/', '\\']).any(is_episode_directory)
+}
+
+/// Returns true if a single directory component indicates episodic content.
+fn is_episode_directory(component: &str) -> bool {
+    matches!(
+        component,
+        "tv" | "tv shows" | "television" | "series" | "anime" | "donghua"
+    ) || component.starts_with("season ")
+        || component.starts_with("saison ")
+        || component.starts_with("temporada ")
+        || component.starts_with("stagione ")
+        // S01, S02, etc. as directory names
+        || (component.starts_with('s')
+            && component.len() <= 4
+            && component[1..].chars().all(|c| c.is_ascii_digit()))
 }
 
 // ── Episode title helpers ────────────────────────────────────────────────

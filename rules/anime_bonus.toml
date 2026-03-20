@@ -1,0 +1,28 @@
+# Anime bonus content markers.
+# These tokens indicate non-episode bonus content (openings, endings,
+# previews, commercials) that should be classified as type: "episode"
+# rather than type: "movie" when found in a TV directory.
+#
+# Matched unrestricted because they commonly appear inside CJK bracket
+# filenames: [Group][Title][NCED1][1080P]...
+property = "episode_details"
+zone_scope = "unrestricted"
+
+[exact_sensitive]
+# Non-Credit Opening/Ending (anime BD extras)
+NCOP   = "NCOP"
+NCED   = "NCED"
+NCOP1  = "NCOP"
+NCOP2  = "NCOP"
+NCED1  = "NCED"
+NCED2  = "NCED"
+# Preview / Commercial / Menu
+PV     = "PV"
+CM     = "CM"
+
+[exact]
+# Tokuten (特典) — Japanese BD bonus/extras
+tokuten = "Tokuten"
+# SP as episode detail (Special episode, not Special Edition)
+# Note: SP is also in edition.toml as "Special Edition" — episode_details
+# wins when combined with episode/season markers or anime context.
