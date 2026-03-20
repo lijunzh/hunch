@@ -123,3 +123,122 @@ fn regular_episode_still_episode() {
     let r = hunch("Show.S01E03.720p.mkv");
     assert_eq!(r.media_type(), Some(MediaType::Episode));
 }
+
+// ── P0: CJK edge cases ─────────────────────────────────────────────────
+
+#[test]
+fn cjk_fullwidth_digits() {
+    // ０３ (full-width) should normalize to 3.
+    let r = hunch("(BD)Show \u{7b2c}\u{ff10}\u{ff13}\u{8a71}(1080p).mkv");
+    assert_eq!(
+        r.episode(),
+        Some(3),
+        "full-width 第０３話 should be episode 3"
+    );
+}
+
+#[test]
+fn cjk_simplified_hua() {
+    // 第5话 (simplified Chinese 话)
+    let r = hunch("Show \u{7b2c}5\u{8bdd}.mkv");
+    assert_eq!(r.episode(), Some(5), "第5话 should detect episode 5");
+}
+
+#[test]
+fn cjk_kai_episode() {
+    // 第12回 (回 = round/episode)
+    let r = hunch("Show \u{7b2c}12\u{56de}.mkv");
+    assert_eq!(r.episode(), Some(12), "第12回 should detect episode 12");
+}
+
+#[test]
+fn cjk_episode_zero_rejected() {
+    // 第0話 should NOT produce an episode (ep_num > 0 guard).
+    let r = hunch("Show \u{7b2c}0\u{8a71}.mkv");
+    assert_ne!(r.episode(), Some(0), "第0話 should not produce episode 0");
+}
+
+// ── P0: Panic safety ────────────────────────────────────────────────────
+
+#[test]
+fn empty_input_no_panic() {
+    let r = hunch("");
+    assert!(r.title().is_none());
+}
+
+#[test]
+fn extension_only_no_panic() {
+    let r = hunch(".mkv");
+    // Should not panic. Title may or may not be detected.
+    let _ = r.title();
+}
+
+// ── P0: Untested path directories ───────────────────────────────────────
+
+#[test]
+fn donghua_directory() {
+    let r = hunch("donghua/Chinese Animation/01.mp4");
+    assert_eq!(
+        r.media_type(),
+        Some(MediaType::Episode),
+        "donghua/ directory should force episode type"
+    );
+}
+
+#[test]
+fn s01_directory_shorthand() {
+    let r = hunch("Show/s1/episode.mkv");
+    assert_eq!(
+        r.media_type(),
+        Some(MediaType::Episode),
+        "s1/ directory shorthand should force episode type"
+    );
+}
+
+// ── P0: SP regression guard ─────────────────────────────────────────────
+
+#[test]
+fn sp_without_path_context_is_movie() {
+    // SP without tv/ path should not force episode type.
+    let r = hunch("Legal.High.SP.2013.BluRay.1080p.x265.mkv");
+    assert_eq!(
+        r.media_type(),
+        Some(MediaType::Movie),
+        "SP without episode context should remain movie"
+    );
+}
+
+// ── P1: False positive guards ───────────────────────────────────────────
+
+#[test]
+fn atv_not_matched_as_tv_directory() {
+    // "atv/" should NOT match — only exact "tv" component.
+    let r = hunch("atv/show.2024.1080p.mkv");
+    assert_eq!(
+        r.media_type(),
+        Some(MediaType::Movie),
+        "atv/ should not match tv directory pattern"
+    );
+}
+
+#[test]
+fn path_traversal_still_works() {
+    // ../../../tv/ should still detect the tv component.
+    let r = hunch("../../../tv/show.mkv");
+    assert_eq!(
+        r.media_type(),
+        Some(MediaType::Episode),
+        "tv/ in traversal path should still be detected"
+    );
+}
+
+#[test]
+fn backslash_path_tv_directory() {
+    // Windows-style path separators.
+    let r = hunch("tv\\Japanese\\show.S01E01.mkv");
+    assert_eq!(
+        r.media_type(),
+        Some(MediaType::Episode),
+        "tv\\ with backslash should be detected"
+    );
+}
