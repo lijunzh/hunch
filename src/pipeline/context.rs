@@ -129,8 +129,8 @@ pub(crate) fn find_invariant_text(all_gaps: &[Vec<UnclaimedGap>]) -> Option<Stri
             }
         }
 
-        // Trim trailing separators from the common prefix.
-        let trimmed = prefix.trim_end_matches(SEPS).trim().to_string();
+        // Trim trailing separators and CJK ordinal markers from the common prefix.
+        let trimmed = trim_title_suffix(&prefix);
         if trimmed.chars().count() < 2 {
             continue;
         }
@@ -164,13 +164,98 @@ fn common_prefix_len(a: &str, b: &str) -> usize {
         .count()
 }
 
-/// Normalize gap text: replace separators with spaces, trim brackets/whitespace.
+/// CJK ordinal/structural characters that commonly precede episode numbers.
+/// These should be trimmed from the end of a title when they're the last
+/// character of a common prefix (they belong to the episode identifier,
+/// not the title).
+const CJK_ORDINAL_CHARS: &[char] = &[
+    '第', // ordinal marker (di/dai) — 第01話
+    '巻', // volume (kan/maki)
+    '集', // episode/collection (shū)
+    '話', // episode (wa)
+    '回', // episode/round (kai)
+    '編', // arc/chapter (hen)
+    '章', // chapter (shō)
+    '期', // season/period (ki)
+    '部', // part (bu)
+];
+
+/// Trim trailing separators and CJK ordinal markers from a title prefix.
+fn trim_title_suffix(text: &str) -> String {
+    let mut result = text.trim_end_matches(SEPS).trim().to_string();
+    // Repeatedly trim CJK ordinals + separators from the end.
+    loop {
+        let before = result.clone();
+        result = result.trim_end_matches(CJK_ORDINAL_CHARS).to_string();
+        result = result.trim_end_matches(SEPS).trim().to_string();
+        if result == before {
+            break;
+        }
+    }
+    result
+}
+
+/// Normalize gap text: replace separators with spaces, strip bracket-enclosed
+/// regions (sub-group tags, CRC checksums, etc.), trim boundaries.
 fn normalize_gap(text: &str) -> String {
-    let normalized: String = text
+    // Step 1: strip bracket-enclosed regions [xxx], (xxx), {xxx}.
+    let stripped = strip_bracket_regions(text);
+    // Step 2: replace separators with spaces.
+    let normalized: String = stripped
         .chars()
         .map(|c| if SEPS.contains(&c) { ' ' } else { c })
         .collect();
-    normalized.trim_matches(TRIM_CHARS).to_string()
+    // Step 3: trim boundary chars and collapse whitespace.
+    let trimmed = normalized.trim_matches(TRIM_CHARS);
+    // Step 4: handle orphaned closing brackets from boundary splits.
+    let trimmed = trim_orphaned_brackets(trimmed);
+    trimmed.to_string()
+}
+
+/// Strip bracket-enclosed regions: `[...]`, `(...)`, `{...}`.
+fn strip_bracket_regions(text: &str) -> String {
+    let mut result = String::with_capacity(text.len());
+    let mut depth: [u32; 3] = [0; 3]; // [round, square, curly]
+    for c in text.chars() {
+        match c {
+            '(' => depth[0] += 1,
+            '[' => depth[1] += 1,
+            '{' => depth[2] += 1,
+            ')' if depth[0] > 0 => { depth[0] -= 1; continue; }
+            ']' if depth[1] > 0 => { depth[1] -= 1; continue; }
+            '}' if depth[2] > 0 => { depth[2] -= 1; continue; }
+            _ => {}
+        }
+        if depth.iter().all(|&d| d == 0) {
+            result.push(c);
+        }
+    }
+    result
+}
+
+/// Trim orphaned closing brackets left over from boundary splits.
+/// e.g. "SubGroup] Naruto" → "Naruto" when `[` was outside this gap.
+fn trim_orphaned_brackets(text: &str) -> &str {
+    const CLOSE_BRACKETS: &[char] = &[')', ']', '}'];
+    let mut s = text;
+    // If text starts with content then an orphaned `]`, `)`, or `}`,
+    // skip past it.
+    for close in CLOSE_BRACKETS {
+        if let Some(pos) = s.find(*close) {
+            // Only trim if the closing bracket has no matching opener before it.
+            let before = &s[..pos];
+            let opener = match close {
+                ')' => '(',
+                ']' => '[',
+                '}' => '{',
+                _ => unreachable!(),
+            };
+            if !before.contains(opener) {
+                s = s[pos + close.len_utf8()..].trim_start_matches(TRIM_CHARS);
+            }
+        }
+    }
+    s
 }
 
 /// Find the byte position where the file extension starts (the last `.xxx`).
