@@ -112,7 +112,7 @@ pub mod zone_map;
 mod hunch_result;
 mod pipeline;
 
-pub use hunch_result::{HunchResult, MediaType};
+pub use hunch_result::{Confidence, HunchResult, MediaType};
 pub use pipeline::Pipeline;
 
 /// Parse a media filename and return structured metadata.

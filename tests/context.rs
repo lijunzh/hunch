@@ -3,7 +3,7 @@
 //! Tests the invariance detection algorithm: the title is the text that
 //! doesn't change across sibling files.
 
-use hunch::{hunch_with_context, Pipeline};
+use hunch::{hunch_with_context, Confidence, Pipeline};
 
 // ── Western filenames ───────────────────────────────────────────────────────
 
@@ -72,7 +72,33 @@ fn pipeline_run_with_context_reuse() {
     assert_eq!(r2.title(), Some("Other Show"));
 }
 
-// ── Other properties still work ─────────────────────────────────────────────
+// ── Confidence scoring ─────────────────────────────────────────────────────
+
+#[test]
+fn confidence_high_with_anchors() {
+    let result = hunch::hunch("Movie.2024.1080p.BluRay.x264-GROUP.mkv");
+    assert_eq!(result.confidence(), Confidence::High);
+}
+
+#[test]
+fn confidence_high_with_cross_file() {
+    let target = "Show.S01E03.720p.mkv";
+    let siblings = &["Show.S01E01.720p.mkv", "Show.S01E02.720p.mkv"];
+    let result = hunch_with_context(target, siblings);
+    assert_eq!(result.confidence(), Confidence::High);
+}
+
+#[test]
+fn confidence_low_minimal_input() {
+    let result = hunch::hunch("x.mkv");
+    assert!(result.confidence() <= Confidence::Medium);
+}
+
+#[test]
+fn confidence_medium_some_anchors() {
+    let result = hunch::hunch("SomeShow.720p.mkv");
+    assert!(result.confidence() >= Confidence::Medium);
+}
 
 #[test]
 fn cross_file_preserves_tech_properties() {
