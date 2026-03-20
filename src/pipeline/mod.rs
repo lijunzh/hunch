@@ -881,6 +881,26 @@ mod tests {
     }
 
     #[test]
+    fn test_issue_37_compound_codec_not_release_group() {
+        // Issue #37: compound codec strings like H264_FLACx3_DTS-HDMA should
+        // not be detected as release_group when individual codecs are resolved.
+        let pipeline = Pipeline::default();
+
+        let result = pipeline.run(
+            "[Kimetsu no Yaiba Mugen Ressha Hen][JPN+ENG][BDRIP][1080P][H264_FLACx3_DTS-HDMA].mkv",
+        );
+        assert_eq!(result.video_codec(), Some("H.264"));
+        let codecs = result.all(Property::AudioCodec);
+        assert!(codecs.contains(&"FLAC"), "FLAC should be detected");
+        assert!(codecs.contains(&"DTS-HD"), "DTS-HD should be detected");
+        assert_ne!(
+            result.release_group(),
+            Some("H264_FLACx3_DTS-HDMA"),
+            "compound codec should not be release_group"
+        );
+    }
+
+    #[test]
     fn test_toml_rules_load() {
         // Smoke test: all TOML rule sets parse and have entries.
         assert!(VIDEO_CODEC_RULES.exact_count() >= 10);
