@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.1.4] - 2026-03-20
 
 ### Added
 
@@ -20,11 +20,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   structural signals (tech anchors, title quality, cross-file context).
 - Low-confidence CLI warning suggesting `--context` when results are uncertain.
 - Architecture documentation for cross-file context design decisions. (#48)
+- 10 matching constraint tests covering `not_before`, `not_after`,
+  `requires_context`, `requires_nearby`, side effects, compound windows,
+  zone scoping, and reclaimable matches.
 
 ### Changed
 
 - **Pipeline refactored** into `pass1()` / `pass2()` for reuse by cross-file
   context. No behavior change for existing `run()` callers.
+- **`Token::lower()` now cached** — lowercased text computed once at
+  tokenization, eliminating 6+ redundant allocations per token in matching.
+- **`trim_title_suffix` zero-alloc** — uses `&str` slices instead of cloning
+  in a loop.
+- **CLI deps feature-gated** — `clap` and `env_logger` now behind the `cli`
+  feature (enabled by default). Library consumers no longer pull in CLI
+  dependencies.
+- `--batch` now properly conflicts with positional filename args.
+- `list_media_files` signature: `&PathBuf` → `&Path` (idiomatic Rust).
+
+### Fixed
+
+- Stale doc-links pointing to `hunch` instead of `hunch_with_context`.
+- `Pipeline` doc comment merged with `SegmentScope` doc (missing blank line).
+- ARCHITECTURE.md pass rate updated to 81.8%.
+- README.md: removed deleted `options.rs`, updated test count to 333.
 
 ## [1.1.3] - 2026-03-19
 
@@ -523,6 +542,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.4]: https://github.com/lijunzh/hunch/releases/tag/v1.1.4
 [1.1.3]: https://github.com/lijunzh/hunch/releases/tag/v1.1.3
 [1.1.2]: https://github.com/lijunzh/hunch/releases/tag/v1.1.2
 [1.1.1]: https://github.com/lijunzh/hunch/releases/tag/v1.1.1
