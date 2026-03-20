@@ -151,8 +151,6 @@ pub(crate) fn find_invariant_text(all_gaps: &[Vec<UnclaimedGap>]) -> Option<Stri
     best.map(|(_, text)| text)
 }
 
-
-
 /// Compute the common prefix of two strings (by chars).
 fn common_prefix_chars(a: &str, b: &str) -> String {
     a.chars()
@@ -418,5 +416,4 @@ mod tests {
         let result = find_invariant_text(&[gaps1, gaps2]);
         assert_eq!(result, Some("Show".to_string()));
     }
-
 }

@@ -4,9 +4,9 @@
 
 use log::{debug, trace};
 
+use crate::HunchResult;
 use crate::hunch_result::Confidence;
 use crate::matcher::span::{MatchSpan, Property, Source};
-use crate::HunchResult;
 
 use super::invariance;
 
@@ -89,9 +89,7 @@ pub(super) fn apply_invariance_signals(
         });
 
         // Check for non-decomposition overlaps (e.g., codec, screen_size).
-        let overlaps_non_heuristic = matches.iter().any(|m| {
-            m.start < es.end && m.end > es.start
-        });
+        let overlaps_non_heuristic = matches.iter().any(|m| m.start < es.end && m.end > es.start);
         if overlaps_non_heuristic {
             // Restore evicted matches by re-running — but actually, we already
             // removed them. If a non-heuristic match exists, skip injection
@@ -112,13 +110,8 @@ pub(super) fn apply_invariance_signals(
             es.value, es.start, es.end, es.digit_count
         );
         matches.push(
-            MatchSpan::new(
-                es.start,
-                es.end,
-                Property::Episode,
-                es.value.to_string(),
-            )
-            .with_source(Source::Context),
+            MatchSpan::new(es.start, es.end, Property::Episode, es.value.to_string())
+                .with_source(Source::Context),
         );
     }
 }
