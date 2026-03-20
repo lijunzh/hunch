@@ -90,7 +90,7 @@ struct PatternRule {
 /// How a TOML rule set interacts with the ZoneMap.
 ///
 /// Controls whether matches are suppressed based on their position
-/// relative to the title zone boundary. See ARCHITECTURE.md D006.
+/// relative to the title zone boundary. See docs/design.md D4.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ZoneScope {
     /// Match in all zones (default, backwards-compatible).
