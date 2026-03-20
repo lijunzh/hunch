@@ -197,7 +197,6 @@ src/
 ├── lib.rs              # Public API: hunch()
 ├── main.rs             # CLI binary (clap)
 ├── hunch_result.rs     # HunchResult type + JSON serialization
-├── options.rs          # Configuration
 ├── zone_map.rs         # Structural zone analysis
 ├── tokenizer.rs        # Input → TokenStream
 ├── pipeline/           # Two-pass orchestration + logging
@@ -211,7 +210,7 @@ tests/                  # Integration tests + guessit regression suite
 ## Contributing
 
 ```bash
-cargo test              # Run all tests (295 tests)
+cargo test              # Run all tests (333 tests)
 cargo test -- --ignored # Run guessit compatibility report
 cargo bench             # Run benchmarks
 cargo doc --open        # Build and browse API docs locally
