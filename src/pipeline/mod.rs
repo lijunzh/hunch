@@ -37,6 +37,8 @@ static VIDEO_PROFILE_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_profile.toml")));
 static EPISODE_DETAILS_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/episode_details.toml")));
+static ANIME_BONUS_RULES: LazyLock<RuleSet> =
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/anime_bonus.toml")));
 static EDITION_RULES: LazyLock<RuleSet> =
     LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/edition.toml")));
 static AUDIO_CODEC_RULES: LazyLock<RuleSet> =
@@ -185,6 +187,12 @@ impl Pipeline {
             ),
             (
                 &EPISODE_DETAILS_RULES,
+                Property::EpisodeDetails,
+                -1,
+                SegmentScope::FilenameOnly,
+            ),
+            (
+                &ANIME_BONUS_RULES,
                 Property::EpisodeDetails,
                 -1,
                 SegmentScope::FilenameOnly,
@@ -578,7 +586,7 @@ impl Pipeline {
             all_matches.push(alt_title);
         }
 
-        let media_type = title::infer_media_type(all_matches);
+        let media_type = title::infer_media_type(input, all_matches);
         let proper_count = proper_count::compute_proper_count(input, all_matches);
 
         // Step 5e: Strip video/audio tech properties from subtitle containers.
