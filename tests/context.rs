@@ -144,10 +144,7 @@ fn invariant_year_suppressed_2001() {
 #[test]
 fn invariant_year_suppressed_1917() {
     // "1917" is invariant (title) + "2019" is invariant (same release year across siblings).
-    let r = hunch_with_context(
-        "1917.2019.1080p.BluRay.mkv",
-        &["1917.2019.720p.BluRay.mkv"],
-    );
+    let r = hunch_with_context("1917.2019.1080p.BluRay.mkv", &["1917.2019.720p.BluRay.mkv"]);
     let title = r.title().expect("should have title");
     assert!(
         title.contains("1917"),
@@ -207,10 +204,7 @@ fn bare_episode_three_digit_absolute() {
 #[test]
 fn invariant_number_not_injected_as_episode() {
     // "42" is the same in all siblings → invariant → NOT an episode.
-    let r = hunch_with_context(
-        "Show.42.720p.mkv",
-        &["Show.42.1080p.mkv"],
-    );
+    let r = hunch_with_context("Show.42.720p.mkv", &["Show.42.1080p.mkv"]);
     // 42 is invariant so should NOT be injected as episode.
     assert_ne!(
         r.episode(),
@@ -271,11 +265,7 @@ fn year_and_episode_both_detected() {
         title.contains("Show"),
         "title should contain 'Show', got: {title}"
     );
-    assert_eq!(
-        r.episode(),
-        Some(3),
-        "bare episode should be injected"
-    );
+    assert_eq!(r.episode(), Some(3), "bare episode should be injected");
 }
 
 // -- Edge: no siblings → standard fallback --
@@ -293,10 +283,7 @@ fn no_siblings_no_invariance_signals() {
 #[test]
 fn non_sequential_variant_not_injected() {
     // "03" and "17" vary but aren't sequential → not injected as episode.
-    let r = hunch_with_context(
-        "Show.03.720p.mkv",
-        &["Show.17.720p.mkv"],
-    );
+    let r = hunch_with_context("Show.03.720p.mkv", &["Show.17.720p.mkv"]);
     // The bare number varies but isn't sequential, so episode injection
     // should not occur. (Standard heuristics may still claim it though.)
     // Just verify the title is correct and there's no crash.

@@ -307,7 +307,7 @@ impl Pipeline {
     /// can dramatically improve title extraction for CJK and non-standard
     /// formats.
     ///
-    /// Cross-file analysis produces an [`InvarianceReport`] that informs:
+    /// Cross-file analysis produces an `InvarianceReport` that informs:
     /// - **Title**: invariant text across files
     /// - **Year signals**: year-like numbers classified as title vs metadata
     /// - **Episode signals**: sequential variant numbers as episode evidence

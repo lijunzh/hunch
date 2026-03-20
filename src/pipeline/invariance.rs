@@ -10,8 +10,10 @@
 
 use std::sync::LazyLock;
 
+use super::context::{
+    SEPS, TRIM_CHARS, UnclaimedGap, find_invariant_text, find_unclaimed_gaps, strip_extension_pos,
+};
 use crate::matcher::span::MatchSpan;
-use super::context::{find_invariant_text, find_unclaimed_gaps, strip_extension_pos, UnclaimedGap, SEPS, TRIM_CHARS};
 
 // ── InvarianceReport: unified cross-file analysis ─────────────────────────
 // Phase 1 of #52/#53: structs + analysis logic.
@@ -86,8 +88,7 @@ pub(crate) struct FileAnalysis<'a> {
 }
 
 /// Regex for finding bare numbers in gap text.
-static GAP_NUMBER: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"\d+").unwrap());
+static GAP_NUMBER: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"\d+").unwrap());
 
 /// Perform unified cross-file invariance analysis.
 ///
@@ -281,9 +282,9 @@ fn classify_year_signals(
         let mut found_in_all = true;
 
         for sib_nums in sibling_numbers {
-            let aligned = sib_nums.iter().find(|sn| {
-                sn.gap_idx == tn.gap_idx && sn.idx_within_gap == tn.idx_within_gap
-            });
+            let aligned = sib_nums
+                .iter()
+                .find(|sn| sn.gap_idx == tn.gap_idx && sn.idx_within_gap == tn.idx_within_gap);
             match aligned {
                 Some(sn) => {
                     if sn.value != tn.value {
@@ -417,12 +418,16 @@ fn classify_claimed_decomposed_episodes(
 
         for sib in siblings {
             // Find a Season+Episode decomposition pair in the sibling.
-            let sib_season = sib.matches.iter().find(|m| {
-                m.property == Property::Season && m.priority <= 0
-            });
+            let sib_season = sib
+                .matches
+                .iter()
+                .find(|m| m.property == Property::Season && m.priority <= 0);
             let sib_season = match sib_season {
                 Some(s) => s,
-                None => { found_in_all = false; break; }
+                None => {
+                    found_in_all = false;
+                    break;
+                }
             };
             let sib_ep = sib.matches.iter().find(|m| {
                 m.property == Property::Episode
@@ -432,16 +437,25 @@ fn classify_claimed_decomposed_episodes(
             });
             let sib_ep = match sib_ep {
                 Some(e) => e,
-                None => { found_in_all = false; break; }
+                None => {
+                    found_in_all = false;
+                    break;
+                }
             };
 
             let ss: u32 = match sib_season.value.parse() {
                 Ok(v) => v,
-                Err(_) => { found_in_all = false; break; }
+                Err(_) => {
+                    found_in_all = false;
+                    break;
+                }
             };
             let se: u32 = match sib_ep.value.parse() {
                 Ok(v) => v,
-                Err(_) => { found_in_all = false; break; }
+                Err(_) => {
+                    found_in_all = false;
+                    break;
+                }
             };
             values.push(ss * 100 + se);
         }
@@ -487,9 +501,9 @@ fn classify_episode_signals(
         let mut found_in_all = true;
 
         for sib_nums in sibling_numbers {
-            let aligned = sib_nums.iter().find(|sn| {
-                sn.gap_idx == tn.gap_idx && sn.idx_within_gap == tn.idx_within_gap
-            });
+            let aligned = sib_nums
+                .iter()
+                .find(|sn| sn.gap_idx == tn.gap_idx && sn.idx_within_gap == tn.idx_within_gap);
             match aligned {
                 Some(sn) => values.push(sn.value),
                 None => {
@@ -580,23 +594,30 @@ mod tests {
         let target_input = "2001.A.Space.Odyssey.1080p.mkv";
         let sib_input = "2001.A.Space.Odyssey.720p.mkv";
 
-        let target_matches = vec![
-            make_match_at(21, 26, Property::ScreenSize, "1080p"),
-        ];
-        let sib_matches = vec![
-            make_match_at(21, 25, Property::ScreenSize, "720p"),
-        ];
+        let target_matches = vec![make_match_at(21, 26, Property::ScreenSize, "1080p")];
+        let sib_matches = vec![make_match_at(21, 25, Property::ScreenSize, "720p")];
 
         let report = analyze_invariance(
-            &FileAnalysis { input: target_input, matches: &target_matches },
-            &[FileAnalysis { input: sib_input, matches: &sib_matches }],
+            &FileAnalysis {
+                input: target_input,
+                matches: &target_matches,
+            },
+            &[FileAnalysis {
+                input: sib_input,
+                matches: &sib_matches,
+            }],
         );
 
-        let year_2001: Vec<_> = report.year_signals.iter()
+        let year_2001: Vec<_> = report
+            .year_signals
+            .iter()
             .filter(|y| y.value == 2001)
             .collect();
         assert!(!year_2001.is_empty(), "should detect 2001 as year signal");
-        assert!(year_2001[0].is_invariant, "2001 should be invariant (title content)");
+        assert!(
+            year_2001[0].is_invariant,
+            "2001 should be invariant (title content)"
+        );
     }
 
     #[test]
@@ -604,23 +625,30 @@ mod tests {
         let target_input = "Movie.2023.1080p.mkv";
         let sib_input = "Movie.2024.1080p.mkv";
 
-        let target_matches = vec![
-            make_match_at(11, 16, Property::ScreenSize, "1080p"),
-        ];
-        let sib_matches = vec![
-            make_match_at(11, 16, Property::ScreenSize, "1080p"),
-        ];
+        let target_matches = vec![make_match_at(11, 16, Property::ScreenSize, "1080p")];
+        let sib_matches = vec![make_match_at(11, 16, Property::ScreenSize, "1080p")];
 
         let report = analyze_invariance(
-            &FileAnalysis { input: target_input, matches: &target_matches },
-            &[FileAnalysis { input: sib_input, matches: &sib_matches }],
+            &FileAnalysis {
+                input: target_input,
+                matches: &target_matches,
+            },
+            &[FileAnalysis {
+                input: sib_input,
+                matches: &sib_matches,
+            }],
         );
 
-        let year_signals: Vec<_> = report.year_signals.iter()
+        let year_signals: Vec<_> = report
+            .year_signals
+            .iter()
             .filter(|y| (2023..=2024).contains(&y.value))
             .collect();
         assert!(!year_signals.is_empty(), "should detect year signal");
-        assert!(!year_signals[0].is_invariant, "year should be variant (metadata)");
+        assert!(
+            !year_signals[0].is_invariant,
+            "year should be variant (metadata)"
+        );
     }
 
     #[test]
@@ -628,19 +656,24 @@ mod tests {
         let target = "Show.03.720p.mkv";
         let sib = "Show.04.720p.mkv";
 
-        let target_matches = vec![
-            make_match_at(9, 13, Property::ScreenSize, "720p"),
-        ];
-        let sib_matches = vec![
-            make_match_at(9, 13, Property::ScreenSize, "720p"),
-        ];
+        let target_matches = vec![make_match_at(9, 13, Property::ScreenSize, "720p")];
+        let sib_matches = vec![make_match_at(9, 13, Property::ScreenSize, "720p")];
 
         let report = analyze_invariance(
-            &FileAnalysis { input: target, matches: &target_matches },
-            &[FileAnalysis { input: sib, matches: &sib_matches }],
+            &FileAnalysis {
+                input: target,
+                matches: &target_matches,
+            },
+            &[FileAnalysis {
+                input: sib,
+                matches: &sib_matches,
+            }],
         );
 
-        assert!(!report.episode_signals.is_empty(), "should detect episode signal");
+        assert!(
+            !report.episode_signals.is_empty(),
+            "should detect episode signal"
+        );
         let ep = &report.episode_signals[0];
         assert_eq!(ep.value, 3);
         assert!(ep.is_sequential, "episodes should be sequential");
@@ -653,25 +686,31 @@ mod tests {
         let sib1 = "Show.502.720p.mkv";
         let sib2 = "Show.503.720p.mkv";
 
-        let target_matches = vec![
-            make_match_at(9, 13, Property::ScreenSize, "720p"),
-        ];
-        let sib1_matches = vec![
-            make_match_at(9, 13, Property::ScreenSize, "720p"),
-        ];
-        let sib2_matches = vec![
-            make_match_at(9, 13, Property::ScreenSize, "720p"),
-        ];
+        let target_matches = vec![make_match_at(9, 13, Property::ScreenSize, "720p")];
+        let sib1_matches = vec![make_match_at(9, 13, Property::ScreenSize, "720p")];
+        let sib2_matches = vec![make_match_at(9, 13, Property::ScreenSize, "720p")];
 
         let report = analyze_invariance(
-            &FileAnalysis { input: target, matches: &target_matches },
+            &FileAnalysis {
+                input: target,
+                matches: &target_matches,
+            },
             &[
-                FileAnalysis { input: sib1, matches: &sib1_matches },
-                FileAnalysis { input: sib2, matches: &sib2_matches },
+                FileAnalysis {
+                    input: sib1,
+                    matches: &sib1_matches,
+                },
+                FileAnalysis {
+                    input: sib2,
+                    matches: &sib2_matches,
+                },
             ],
         );
 
-        assert!(!report.episode_signals.is_empty(), "should detect 3-digit episode");
+        assert!(
+            !report.episode_signals.is_empty(),
+            "should detect 3-digit episode"
+        );
         let ep = &report.episode_signals[0];
         assert_eq!(ep.value, 501);
         assert!(ep.is_sequential);
@@ -681,12 +720,13 @@ mod tests {
     #[test]
     fn no_siblings_empty_report() {
         let target = "Movie.2024.1080p.mkv";
-        let matches = vec![
-            make_match_at(11, 16, Property::ScreenSize, "1080p"),
-        ];
+        let matches = vec![make_match_at(11, 16, Property::ScreenSize, "1080p")];
 
         let report = analyze_invariance(
-            &FileAnalysis { input: target, matches: &matches },
+            &FileAnalysis {
+                input: target,
+                matches: &matches,
+            },
             &[],
         );
 
@@ -700,20 +740,24 @@ mod tests {
         let target = "Show.42.720p.mkv";
         let sib = "Show.42.1080p.mkv";
 
-        let target_matches = vec![
-            make_match_at(8, 12, Property::ScreenSize, "720p"),
-        ];
-        let sib_matches = vec![
-            make_match_at(8, 13, Property::ScreenSize, "1080p"),
-        ];
+        let target_matches = vec![make_match_at(8, 12, Property::ScreenSize, "720p")];
+        let sib_matches = vec![make_match_at(8, 13, Property::ScreenSize, "1080p")];
 
         let report = analyze_invariance(
-            &FileAnalysis { input: target, matches: &target_matches },
-            &[FileAnalysis { input: sib, matches: &sib_matches }],
+            &FileAnalysis {
+                input: target,
+                matches: &target_matches,
+            },
+            &[FileAnalysis {
+                input: sib,
+                matches: &sib_matches,
+            }],
         );
 
-        assert!(report.episode_signals.is_empty(),
+        assert!(
+            report.episode_signals.is_empty(),
             "invariant number should not produce episode signal, got: {:?}",
-            report.episode_signals);
+            report.episode_signals
+        );
     }
 }
