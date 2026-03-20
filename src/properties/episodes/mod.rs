@@ -25,7 +25,8 @@ mod patterns;
 #[cfg(test)]
 mod tests;
 
-use crate::matcher::span::{MatchSpan, Property};
+use crate::matcher::span::{MatchSpan, Property, Source};
+use log::trace;
 use patterns::*;
 use std::sync::LazyLock;
 
@@ -872,6 +873,10 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
 
         if is_anime_style {
             // Anime: emit as absolute episode (no season decomposition).
+            trace!(
+                "[HEURISTIC] digit decomposition: {} → Episode={} (anime-style)",
+                num, num
+            );
             matches.push(
                 MatchSpan::new(
                     num_m.start(),
@@ -879,7 +884,8 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
                     Property::Episode,
                     num.to_string(),
                 )
-                .with_priority(0),
+                .with_priority(0)
+                .with_source(Source::Heuristic),
             );
             break;
         } else {
@@ -888,6 +894,10 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
             if season == 0 || episode == 0 || season > 30 || episode > 99 {
                 continue;
             }
+            trace!(
+                "[HEURISTIC] digit decomposition: {} → S{:02}E{:02}",
+                num, season, episode
+            );
             matches.push(
                 MatchSpan::new(
                     num_m.start(),
@@ -895,7 +905,8 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
                     Property::Season,
                     season.to_string(),
                 )
-                .with_priority(0),
+                .with_priority(0)
+                .with_source(Source::Heuristic),
             );
             matches.push(
                 MatchSpan::new(
@@ -904,7 +915,8 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
                     Property::Episode,
                     episode.to_string(),
                 )
-                .with_priority(0),
+                .with_priority(0)
+                .with_source(Source::Heuristic),
             );
             break;
         }
