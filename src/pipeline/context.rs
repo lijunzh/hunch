@@ -191,6 +191,9 @@ fn trim_title_suffix(text: &str) -> String {
     let mut s = text.trim_end_matches(SEPS).trim();
     loop {
         let trimmed = s.trim_end_matches(CJK_ORDINAL_CHARS);
+        // Strip trailing digits — partial digit prefixes leak from varying
+        // numbers across siblings (e.g., "0" from "03"/"04"/"05").
+        let trimmed = trimmed.trim_end_matches(|c: char| c.is_ascii_digit());
         let trimmed = trimmed.trim_end_matches(SEPS).trim();
         if trimmed.len() == s.len() {
             break;
