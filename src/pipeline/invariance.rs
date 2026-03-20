@@ -27,6 +27,8 @@ use crate::matcher::span::MatchSpan;
 pub(crate) struct InvarianceReport {
     /// Invariant title text (existing functionality from `find_invariant_text`).
     pub title: Option<String>,
+    /// Byte offset where the invariant title starts in the target input.
+    pub title_start: Option<usize>,
     /// Year signals: which year-like numbers are invariant (title) vs variant.
     pub year_signals: Vec<YearSignal>,
     /// Episode signals: which bare numbers form sequences across siblings.
@@ -114,9 +116,13 @@ pub(crate) fn analyze_invariance(
         .collect();
 
     // 2. Title: invariant text (existing algorithm).
-    let mut all_gaps = vec![target_gaps.clone()];
-    all_gaps.extend(sibling_gaps.clone());
-    let title = find_invariant_text(&all_gaps);
+    let all_gap_refs: Vec<&[UnclaimedGap]> = std::iter::once(target_gaps.as_slice())
+        .chain(sibling_gaps.iter().map(|v| v.as_slice()))
+        .collect();
+    let (title, title_start) = match find_invariant_text(&all_gap_refs) {
+        Some((start, text)) => (Some(text), Some(start)),
+        None => (None, None),
+    };
 
     // 3. Extract bare numbers from unclaimed gaps for each file.
     let target_numbers = extract_numbers_from_gaps(target.input, &target_gaps);
@@ -147,10 +153,12 @@ pub(crate) fn analyze_invariance(
     //    E.g., "2001.A.Space.Odyssey" → title="A Space Odyssey", but "2001" is
     //    an invariant year at position 0..4. If it's immediately before the
     //    title position in the input, prepend it.
-    let title = expand_title_with_invariant_years(target.input, title, &year_signals);
+    let (title, title_start) =
+        expand_title_with_invariant_years(target.input, title, title_start, &year_signals);
 
     InvarianceReport {
         title,
+        title_start,
         year_signals,
         episode_signals,
     }
@@ -165,22 +173,32 @@ pub(crate) fn analyze_invariance(
 fn expand_title_with_invariant_years(
     input: &str,
     title: Option<String>,
+    title_start: Option<usize>,
     year_signals: &[YearSignal],
-) -> Option<String> {
-    let title_text = title.as_deref()?;
+) -> (Option<String>, Option<usize>) {
+    let title_text = match title.as_deref() {
+        Some(t) => t,
+        None => return (title, title_start),
+    };
 
-    // Find the title's position in the input.
-    let title_start = input.find(title_text)?;
-    let title_end = title_start + title_text.len();
+    // Use the pre-computed title position instead of searching with input.find(),
+    // which can match the wrong occurrence for short or repeated title strings.
+    let title_start_pos = match title_start {
+        Some(s) => s,
+        None => return (title, title_start),
+    };
+    let title_end = find_title_end_in_input(input, title_start_pos, title_text);
 
-    let mut expanded_start = title_start;
+    let mut expanded_start = title_start_pos;
     let mut expanded_end = title_end;
 
-    for ys in year_signals {
-        if !ys.is_invariant {
-            continue;
-        }
+    // Sort invariant year signals by position to ensure stable expansion
+    // when multiple years appear on the same side of the title.
+    let mut sorted_signals: Vec<&YearSignal> =
+        year_signals.iter().filter(|ys| ys.is_invariant).collect();
+    sorted_signals.sort_by_key(|ys| ys.start);
 
+    for ys in sorted_signals {
         // Check if this invariant year is immediately before the title
         // (separated only by separators/whitespace).
         if ys.end <= expanded_start {
@@ -199,8 +217,8 @@ fn expand_title_with_invariant_years(
         }
     }
 
-    if expanded_start == title_start && expanded_end == title_end {
-        return Some(title_text.to_string());
+    if expanded_start == title_start_pos && expanded_end == title_end {
+        return (Some(title_text.to_string()), Some(expanded_start));
     }
 
     // Rebuild the title from the expanded range, normalizing separators.
@@ -209,7 +227,27 @@ fn expand_title_with_invariant_years(
         .chars()
         .map(|c| if SEPS.contains(&c) { ' ' } else { c })
         .collect();
-    Some(normalized.trim().to_string())
+    (Some(normalized.trim().to_string()), Some(expanded_start))
+}
+
+/// Find the end byte offset of the title text within the original input.
+///
+/// Since the title text is normalized (separators → spaces), we scan forward
+/// from `title_start`, matching non-separator content characters.
+fn find_title_end_in_input(input: &str, title_start: usize, title_text: &str) -> usize {
+    let mut pos = title_start;
+    let mut title_chars = title_text.chars().filter(|c| !c.is_whitespace()).peekable();
+
+    for ch in input[title_start..].chars() {
+        if title_chars.peek().is_none() {
+            break;
+        }
+        pos += ch.len_utf8();
+        if !SEPS.contains(&ch) && !TRIM_CHARS.contains(&ch) {
+            title_chars.next();
+        }
+    }
+    pos
 }
 /// Extract bare numbers from unclaimed gaps in an input string.
 fn extract_numbers_from_gaps(input: &str, gaps: &[UnclaimedGap]) -> Vec<NumberInGap> {
@@ -225,22 +263,26 @@ fn extract_numbers_from_gaps(input: &str, gaps: &[UnclaimedGap]) -> Vec<NumberIn
             let abs_end = gap.start + m.end();
             let digit_str = m.as_str();
 
-            // Skip codec-like numbers.
-            if digit_str == "264" || digit_str == "265" || digit_str == "128" {
+            // Skip codec-like numbers (shared constant avoids DRY violation).
+            if let Ok(n) = digit_str.parse::<u32>() {
+                if crate::CODEC_NUMBERS.contains(&n) {
+                    continue;
+                }
+            } else {
                 continue;
             }
 
-            if let Ok(value) = digit_str.parse::<u32>() {
-                numbers.push(NumberInGap {
-                    start: abs_start,
-                    end: abs_end,
-                    value,
-                    digit_count: digit_str.len(),
-                    gap_idx,
-                    idx_within_gap,
-                });
-                idx_within_gap += 1;
-            }
+            // value is already parsed above via the codec check.
+            let value: u32 = digit_str.parse().expect("already validated as numeric");
+            numbers.push(NumberInGap {
+                start: abs_start,
+                end: abs_end,
+                value,
+                digit_count: digit_str.len(),
+                gap_idx,
+                idx_within_gap,
+            });
+            idx_within_gap += 1;
         }
     }
 

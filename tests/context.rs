@@ -289,3 +289,40 @@ fn non_sequential_variant_not_injected() {
     // Just verify the title is correct and there's no crash.
     assert_eq!(r.title(), Some("Show"));
 }
+
+// ── P1: Cross-feature interaction tests ────────────────────────────────
+
+#[test]
+fn cjk_episode_with_path_context() {
+    // CJK episode marker + tv/ path context → should detect both.
+    let r = hunch::hunch("tv/Japanese/\u{5341}\u{4e8c}\u{56fd}\u{8a18}/\u{7b2c}13\u{8a71}.mkv");
+    assert_eq!(r.episode(), Some(13));
+    assert_eq!(r.media_type(), Some(hunch::MediaType::Episode));
+}
+
+#[test]
+fn invariance_with_cjk_siblings() {
+    // Cross-file invariance + CJK → should boost confidence.
+    let r = hunch_with_context(
+        "tv/\u{5341}\u{4e8c}\u{56fd}\u{8a18} \u{7b2c}03\u{8a71}.mkv",
+        &[
+            "tv/\u{5341}\u{4e8c}\u{56fd}\u{8a18} \u{7b2c}01\u{8a71}.mkv",
+            "tv/\u{5341}\u{4e8c}\u{56fd}\u{8a18} \u{7b2c}02\u{8a71}.mkv",
+        ],
+    );
+    assert_eq!(r.media_type(), Some(hunch::MediaType::Episode));
+    assert_eq!(r.confidence(), Confidence::High);
+}
+
+#[test]
+fn empty_input_with_context_no_panic() {
+    // Edge case: empty target with siblings should not panic.
+    let r = hunch_with_context("", &["sibling.mkv"]);
+    let _ = r.title(); // Just verify no panic.
+}
+
+#[test]
+fn extension_only_with_context_no_panic() {
+    let r = hunch_with_context(".mkv", &["sibling.mkv"]);
+    let _ = r.title();
+}

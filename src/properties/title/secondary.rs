@@ -5,6 +5,14 @@ use super::find_title_boundary;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::TokenStream;
 
+use std::sync::LazyLock;
+
+/// Regex to strip trailing "Part N" from episode titles.
+static RE_TRAILING_PART: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)\s*$")
+        .expect("RE_TRAILING_PART regex is valid")
+});
+
 /// Extract episode title: structure-aware extraction from whichever path
 /// segment contains the episode/season anchor.
 ///
@@ -178,10 +186,7 @@ fn extract_episode_title_in_segment(
         return None;
     }
 
-    // Strip trailing "Part N" from episode titles.
-    let re_trailing_part =
-        regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)\s*$").unwrap();
-    let cleaned = re_trailing_part.replace(&cleaned, "").trim().to_string();
+    let cleaned = RE_TRAILING_PART.replace(&cleaned, "").trim().to_string();
     if cleaned.is_empty() {
         return None;
     }
@@ -477,10 +482,11 @@ fn is_episode_directory(component: &str) -> bool {
         || component.starts_with("saison ")
         || component.starts_with("temporada ")
         || component.starts_with("stagione ")
-        // S01, S02, etc. as directory names
-        || (component.starts_with('s')
-            && component.len() <= 4
-            && component[1..].chars().all(|c| c.is_ascii_digit()))
+        // S01, S02, etc. as directory names.
+        // Uses strip_prefix for safe UTF-8 handling instead of byte indexing.
+        || component
+            .strip_prefix('s')
+            .is_some_and(|rest| !rest.is_empty() && rest.len() <= 3 && rest.chars().all(|c| c.is_ascii_digit()))
 }
 
 // ── Episode title helpers ────────────────────────────────────────────────

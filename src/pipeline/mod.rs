@@ -512,15 +512,22 @@ impl Pipeline {
         //   - Suppress Year matches for invariant year-like numbers (they're title content)
         //   - Inject episode matches for sequential variant numbers
         if let Some(report) = report {
-            pass2_helpers::apply_invariance_signals(input, all_matches, report);
+            pass2_helpers::apply_invariance_signals(all_matches, report);
         }
 
         // Step 5b: Title extraction.
         if let Some(override_title) = title_override {
             // Cross-file context provided a title — use it directly.
-            // Find the title's byte range in the input for a proper MatchSpan.
-            if let Some(start) = input.find(override_title) {
+            // Use the pre-computed byte offset from InvarianceReport if available,
+            // falling back to input.find() for backwards compatibility.
+            let title_start = report
+                .and_then(|r| r.title_start)
+                .or_else(|| input.find(override_title));
+            if let Some(start) = title_start {
                 let end = start + override_title.len();
+                // Clamp end to input length to avoid out-of-bounds when
+                // the title text is normalized (different length than raw).
+                let end = end.min(input.len());
                 let title_match = MatchSpan::new(start, end, Property::Title, override_title);
                 debug!(
                     "step 5b: title override — \"{}\" at {}..{}",
