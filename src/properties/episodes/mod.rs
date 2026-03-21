@@ -752,7 +752,9 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
         let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
         let filename = &input[fn_start..];
         for cap in LEADING_EPISODE.captures_iter(filename) {
-            let ep_match = cap.name("episode").unwrap();
+            let ep_match = cap
+                .name("episode")
+                .expect("episode group always present in CJK_EPISODE_MARKER regex");
             let ep_num: u32 = ep_match.as_str().parse().unwrap_or(0);
             if ep_num == 0 || ep_num > 999 || (1900..=2039).contains(&ep_num) {
                 continue;
@@ -905,7 +907,7 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
         if num_str.len() == 4 && (1920..=2039).contains(&num) {
             continue;
         }
-        if num == 264 || num == 265 || num == 128 {
+        if crate::CODEC_NUMBERS.contains(&num) {
             continue;
         }
 

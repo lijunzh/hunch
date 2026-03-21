@@ -21,7 +21,6 @@ use super::invariance;
 /// at that position). Non-sequential variant numbers are logged but not
 /// injected — they may represent something else.
 pub(super) fn apply_invariance_signals(
-    _input: &str,
     matches: &mut Vec<MatchSpan>,
     report: &invariance::InvarianceReport,
 ) {
@@ -70,10 +69,27 @@ pub(super) fn apply_invariance_signals(
             continue;
         }
 
+        // Check for non-decomposition overlaps BEFORE evicting heuristics.
+        // If a non-heuristic match exists at this position, skip entirely
+        // to avoid evicting heuristic decomposition with no replacement.
+        let overlaps_non_heuristic = matches.iter().any(|m| {
+            let overlaps = m.start < es.end && m.end > es.start;
+            let is_decomposed = overlaps
+                && (m.property == Property::Season || m.property == Property::Episode)
+                && m.priority <= 0;
+            overlaps && !is_decomposed
+        });
+        if overlaps_non_heuristic {
+            trace!(
+                "[INVARIANCE] non-heuristic overlap at {}..{}, skipping episode {} injection",
+                es.start, es.end, es.value
+            );
+            continue;
+        }
+
         // Evict any heuristic Season/Episode decomposition that overlaps.
         // Invariance signals (cross-file sequential evidence) have higher
         // confidence than single-file digit decomposition.
-        let before = matches.len();
         matches.retain(|m| {
             let overlaps = m.start < es.end && m.end > es.start;
             let is_decomposed = overlaps
@@ -87,23 +103,6 @@ pub(super) fn apply_invariance_signals(
             }
             !is_decomposed
         });
-
-        // Check for non-decomposition overlaps (e.g., codec, screen_size).
-        let overlaps_non_heuristic = matches.iter().any(|m| m.start < es.end && m.end > es.start);
-        if overlaps_non_heuristic {
-            // Restore evicted matches by re-running — but actually, we already
-            // removed them. If a non-heuristic match exists, skip injection
-            // but the eviction is already done. This is a rare edge case;
-            // log it and move on.
-            if matches.len() < before {
-                trace!(
-                    "[INVARIANCE] evicted heuristics but found non-heuristic overlap at {}..{}, \
-                     episode {} not injected (edge case)",
-                    es.start, es.end, es.value
-                );
-            }
-            continue;
-        }
 
         debug!(
             "[CONTEXT] injecting Episode={} at {}..{} (sequential, {}-digit)",

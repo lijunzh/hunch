@@ -91,7 +91,7 @@ pub(crate) fn find_unclaimed_gaps(input: &str, matches: &[MatchSpan]) -> Vec<Unc
 /// and episode-specific text follow the title and diverge between files.
 ///
 /// Returns `None` if no common prefix of length >= 2 chars is found.
-pub(crate) fn find_invariant_text(all_gaps: &[Vec<UnclaimedGap>]) -> Option<String> {
+pub(crate) fn find_invariant_text(all_gaps: &[&[UnclaimedGap]]) -> Option<(usize, String)> {
     if all_gaps.len() < 2 {
         return None;
     }
@@ -148,7 +148,7 @@ pub(crate) fn find_invariant_text(all_gaps: &[Vec<UnclaimedGap>]) -> Option<Stri
         }
     }
 
-    best.map(|(_, text)| text)
+    best
 }
 
 /// Compute the common prefix of two strings (by chars).
@@ -337,8 +337,8 @@ mod tests {
                 text: "S05E14".to_string(),
             },
         ];
-        let result = find_invariant_text(&[gaps1, gaps2]);
-        assert_eq!(result, Some("Breaking Bad".to_string()));
+        let result = find_invariant_text(&[&gaps1, &gaps2]);
+        assert_eq!(result, Some((0, "Breaking Bad".to_string())));
     }
 
     #[test]
@@ -363,8 +363,8 @@ mod tests {
                 text: "第01話".to_string(),
             },
         ];
-        let result = find_invariant_text(&[gaps1, gaps2]);
-        assert_eq!(result, Some("十二国記".to_string()));
+        let result = find_invariant_text(&[&gaps1, &gaps2]);
+        assert_eq!(result, Some((4, "十二国記".to_string())));
     }
 
     #[test]
@@ -373,7 +373,7 @@ mod tests {
             start: 0,
             text: "Title".to_string(),
         }];
-        assert_eq!(find_invariant_text(&[gaps]), None);
+        assert_eq!(find_invariant_text(&[&gaps]), None);
     }
 
     #[test]
@@ -386,7 +386,7 @@ mod tests {
             start: 0,
             text: "Bravo".to_string(),
         }];
-        assert_eq!(find_invariant_text(&[gaps1, gaps2]), None);
+        assert_eq!(find_invariant_text(&[&gaps1, &gaps2]), None);
     }
 
     #[test]
@@ -413,7 +413,7 @@ mod tests {
                 text: "GROUP".to_string(),
             },
         ];
-        let result = find_invariant_text(&[gaps1, gaps2]);
-        assert_eq!(result, Some("Show".to_string()));
+        let result = find_invariant_text(&[&gaps1, &gaps2]);
+        assert_eq!(result, Some((0, "Show".to_string())));
     }
 }

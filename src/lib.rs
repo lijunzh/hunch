@@ -104,6 +104,12 @@
 
 #![warn(missing_docs)]
 
+/// Codec-like bare numbers to skip during number extraction.
+///
+/// These values appear in filenames as part of codec identifiers
+/// (x264, x265, AES-128) and should not be treated as years or episodes.
+pub(crate) const CODEC_NUMBERS: &[u32] = &[264, 265, 128];
+
 pub mod matcher;
 pub mod properties;
 pub mod tokenizer;

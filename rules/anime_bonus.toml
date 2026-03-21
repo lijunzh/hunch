@@ -23,6 +23,3 @@ CM     = "CM"
 [exact]
 # Tokuten (特典) — Japanese BD bonus/extras
 tokuten = "Tokuten"
-# SP as episode detail (Special episode, not Special Edition)
-# Note: SP is also in edition.toml as "Special Edition" — episode_details
-# wins when combined with episode/season markers or anime context.
