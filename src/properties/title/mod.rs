@@ -121,6 +121,9 @@ pub fn extract_title(
         if let Some(title) = extract_after_bracket_group(input, matches, filename_start) {
             return Some(title);
         }
+        if let Some(title) = extract_unclaimed_bracket_title(input, matches, filename_start) {
+            return Some(title);
+        }
         return extract_title_from_parent(input, matches);
     }
 
@@ -231,6 +234,12 @@ fn handle_empty_title(
             return Some(MatchSpan::new(0, input.len(), Property::Title, cleaned));
         }
     }
+    // Unclaimed bracket content: when everything is in brackets and one
+    // bracket group isn't claimed by any matcher, it's likely the title.
+    // E.g., [DBD-Raws][4K_HDR][ready.player.one][2160P][...].mkv
+    if let Some(title) = extract_unclaimed_bracket_title(input, matches, filename_start) {
+        return Some(title);
+    }
     extract_title_from_parent(input, matches)
 }
 
@@ -327,6 +336,86 @@ fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<Match
                 Property::Title,
                 cleaned,
             ));
+        }
+    }
+
+    None
+}
+
+/// Find an unclaimed bracket group in an all-bracket filename.
+///
+/// When a filename is composed entirely of bracket groups (e.g.,
+/// `[Group][4K_HDR][ready.player.one][2160P][BDRip][HEVC-10bit][FLAC].mkv`),
+/// the bracket whose content isn't claimed by any property matcher is
+/// likely the title.
+///
+/// Skips the first bracket group (typically release group) and bracket
+/// groups that contain only digits (likely episode numbers).
+fn extract_unclaimed_bracket_title(
+    input: &str,
+    matches: &[MatchSpan],
+    filename_start: usize,
+) -> Option<MatchSpan> {
+    let filename = &input[filename_start..];
+
+    // Only applies to all-bracket filenames.
+    if !filename.starts_with('[') {
+        return None;
+    }
+
+    // Collect all bracket groups: (content_start_abs, content_end_abs, content).
+    let mut brackets: Vec<(usize, usize, &str)> = Vec::new();
+    let mut pos = 0;
+    while pos < filename.len() {
+        if filename[pos..].starts_with('[') {
+            if let Some(close) = filename[pos..].find(']') {
+                let content = &filename[pos + 1..pos + close];
+                let abs_start = filename_start + pos + 1;
+                let abs_end = filename_start + pos + close;
+                brackets.push((abs_start, abs_end, content));
+                pos += close + 1;
+            } else {
+                break;
+            }
+        } else {
+            // Non-bracket content means this isn't an all-bracket filename.
+            // Allow separators and extension at the end.
+            let rest = &filename[pos..];
+            if rest.starts_with(|c: char| c == '.' || c == ' ' || c == '-' || c == '_') {
+                break; // extension area
+            }
+            return None;
+        }
+    }
+
+    // Need at least 2 bracket groups (first is typically release group).
+    if brackets.len() < 2 {
+        return None;
+    }
+
+    // Find the first unclaimed bracket group (skip the first one = release group).
+    for &(abs_start, abs_end, content) in &brackets[1..] {
+        if content.is_empty() || content.chars().all(|c| c.is_ascii_digit()) {
+            continue;
+        }
+
+        // Check if this bracket's content overlaps with any existing match.
+        let is_claimed = matches.iter().any(|m| {
+            !matches!(m.property, Property::ReleaseGroup | Property::Title)
+                && m.start < abs_end
+                && m.end > abs_start
+        });
+
+        if !is_claimed {
+            let cleaned = clean_title(content);
+            if !cleaned.is_empty() {
+                return Some(MatchSpan::new(
+                    abs_start,
+                    abs_end,
+                    Property::Title,
+                    cleaned,
+                ));
+            }
         }
     }
 
