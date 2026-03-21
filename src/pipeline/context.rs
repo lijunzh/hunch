@@ -14,7 +14,7 @@
 use crate::matcher::span::MatchSpan;
 
 /// Separators used in media filenames for normalization.
-pub(crate) const SEPS: &[char] = &['.', ' ', '_', '-', '+'];
+pub(crate) const SEPS: &[char] = &['.', ' ', '_', '-', '+', '/', '\\'];
 
 /// Brackets to strip from gap boundaries.
 pub(crate) const TRIM_CHARS: &[char] = &[

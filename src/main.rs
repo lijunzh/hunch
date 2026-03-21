@@ -83,9 +83,10 @@ fn main() {
             .collect();
 
         for (i, input) in inputs.iter().enumerate() {
-            // Siblings stay as bare filenames — invariance detection
-            // only needs the varying parts across sibling files.
-            let siblings: Vec<&str> = bare_filenames
+            // Siblings also include the parent dir prefix so the invariance
+            // engine sees "Paw Patrol" as invariant text across all files,
+            // rather than finding a spurious common prefix in episode titles.
+            let siblings: Vec<&str> = inputs
                 .iter()
                 .enumerate()
                 .filter(|(j, _)| *j != i)
