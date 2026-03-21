@@ -12,10 +12,9 @@ use std::sync::LazyLock;
 /// like `[ready.player.one]` where `.one` is a valid gTLD but clearly
 /// not a website in context.
 const KNOWN_TLDS: &[&str] = &[
-    "com", "org", "net", "info", "tv", "io", "ru", "cc", "me", "to", "be",
-    "de", "fr", "es", "it", "nl", "se", "pl", "cz", "at", "ch", "co", "uk",
-    "us", "ca", "au", "nz", "jp", "kr", "cn", "tw", "br", "mx", "in", "za",
-    "ua", "hu", "ro", "bg", "hr", "si", "sk", "lt", "lv", "ee", "fi", "dk",
+    "com", "org", "net", "info", "tv", "io", "ru", "cc", "me", "to", "be", "de", "fr", "es", "it",
+    "nl", "se", "pl", "cz", "at", "ch", "co", "uk", "us", "ca", "au", "nz", "jp", "kr", "cn", "tw",
+    "br", "mx", "in", "za", "ua", "hu", "ro", "bg", "hr", "si", "sk", "lt", "lv", "ee", "fi", "dk",
     "no", "pt", "gr", "tr", "na",
 ];
 

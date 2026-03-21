@@ -381,7 +381,7 @@ fn extract_unclaimed_bracket_title(
             // Non-bracket content means this isn't an all-bracket filename.
             // Allow separators and extension at the end.
             let rest = &filename[pos..];
-            if rest.starts_with(|c: char| c == '.' || c == ' ' || c == '-' || c == '_') {
+            if rest.starts_with(['.', ' ', '-', '_']) {
                 break; // extension area
             }
             return None;
@@ -409,12 +409,7 @@ fn extract_unclaimed_bracket_title(
         if !is_claimed {
             let cleaned = clean_title(content);
             if !cleaned.is_empty() {
-                return Some(MatchSpan::new(
-                    abs_start,
-                    abs_end,
-                    Property::Title,
-                    cleaned,
-                ));
+                return Some(MatchSpan::new(abs_start, abs_end, Property::Title, cleaned));
             }
         }
     }

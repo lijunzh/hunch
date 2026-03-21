@@ -63,10 +63,7 @@ fn main() {
         // Extract the parent directory name for title fallback.
         // When filenames lack a title (e.g., "S01E10 - Episode.mkv"),
         // the pipeline can extract it from the parent dir (e.g., "Paw Patrol").
-        let parent_name = batch_dir
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let parent_name = batch_dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         let bare_filenames: Vec<String> = files
             .iter()
