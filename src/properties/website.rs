@@ -7,6 +7,17 @@ use regex::Regex;
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
+/// TLDs commonly found in media piracy/sharing website names.
+/// Used to filter bracket-enclosed matches and avoid false positives
+/// like `[ready.player.one]` where `.one` is a valid gTLD but clearly
+/// not a website in context.
+const KNOWN_TLDS: &[&str] = &[
+    "com", "org", "net", "info", "tv", "io", "ru", "cc", "me", "to", "be", "de", "fr", "es", "it",
+    "nl", "se", "pl", "cz", "at", "ch", "co", "uk", "us", "ca", "au", "nz", "jp", "kr", "cn", "tw",
+    "br", "mx", "in", "za", "ua", "hu", "ro", "bg", "hr", "si", "sk", "lt", "lv", "ee", "fi", "dk",
+    "no", "pt", "gr", "tr", "na",
+];
+
 /// Website in brackets with multi-part TLD: [tvu.org.ru], [www.site.com]
 /// Also handles [.www.site.com.] with optional leading/trailing dots.
 static WEBSITE_BRACKET: LazyLock<Regex> = LazyLock::new(|| {
@@ -37,10 +48,15 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     // Priority 1: Bracket-enclosed websites
     for cap in WEBSITE_BRACKET.captures_iter(input) {
         if let Some(site) = cap.name("site") {
-            matches.push(
-                MatchSpan::new(site.start(), site.end(), Property::Website, site.as_str())
-                    .with_priority(2),
-            );
+            let val = site.as_str();
+            // Validate TLD against known list to avoid false positives
+            // like [ready.player.one] where .one is a gTLD, not a website.
+            if has_known_tld(val) {
+                matches.push(
+                    MatchSpan::new(site.start(), site.end(), Property::Website, val)
+                        .with_priority(2),
+                );
+            }
         }
     }
 
@@ -83,6 +99,16 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     matches
 }
 
+/// Check whether a domain string ends with a known TLD.
+///
+/// Handles multi-part TLDs like `co.uk` by checking the final segment.
+fn has_known_tld(domain: &str) -> bool {
+    domain
+        .rsplit('.')
+        .next()
+        .is_some_and(|tld| KNOWN_TLDS.iter().any(|k| k.eq_ignore_ascii_case(tld)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,5 +135,26 @@ mod tests {
     fn test_dotted_brackets() {
         let m = find_matches("[.www.site.com.].-.Movie.mkv");
         assert!(m.iter().any(|x| x.value == "www.site.com"));
+    }
+
+    #[test]
+    fn test_ready_player_one_not_website() {
+        let m = find_matches(
+            "[DBD-Raws][4K_HDR][ready.player.one][2160P][BDRip][HEVC-10bit][FLAC].mkv",
+        );
+        assert!(
+            !m.iter().any(|x| x.value == "ready.player.one"),
+            "ready.player.one should NOT be detected as a website"
+        );
+    }
+
+    #[test]
+    fn test_has_known_tld() {
+        assert!(has_known_tld("sharethefiles.com"));
+        assert!(has_known_tld("tvu.org.ru"));
+        assert!(has_known_tld("www.nimp.na"));
+        assert!(has_known_tld("wawa.co.uk"));
+        assert!(!has_known_tld("ready.player.one"));
+        assert!(!has_known_tld("some.thing.movie"));
     }
 }
