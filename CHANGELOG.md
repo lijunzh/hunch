@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.5] - 2026-03-20
+
+### Added
+
+- **CJK episode markers** (`第N話`, `第N集`, `第N回`, `第N话`) — structural
+  pattern recognition for Japanese and Chinese episode numbering. Full-width
+  digit normalization (０-９ → 0-9) included. (#46)
+- **Anime bonus vocabulary** — NCOP, NCED, PV, CM tokens emit
+  `EpisodeDetails`, correctly classifying bonus content as episodes. (#46)
+- **Path-based type inference** — directory names (`tv/`, `anime/`,
+  `donghua/`, `Season N/`, `sN/`) force `MediaType::Episode` even when
+  the filename alone lacks episode markers. (#46)
+- **InvarianceReport** with year/episode signal detection — cross-file
+  sequential analysis identifies bare numbers as episodes and suppresses
+  invariant years from metadata. (#47, #48)
+- **Source tagging** (`Structural`, `Context`, `Heuristic`) on all
+  `MatchSpan`s — heuristic-only results cap confidence at Medium. (#47, #48)
+- 28 new integration tests (370 → 386 total) covering CJK markers,
+  path inference, invariance signals, cross-feature interactions, and
+  panic safety edge cases.
+
+### Changed
+
+- **`find_invariant_text`** now returns `(usize, String)` — pre-computed
+  byte offset eliminates fragile `input.find()` re-search that could match
+  the wrong occurrence for short/repeated title strings.
+- **`find_invariant_text`** accepts `&[&[UnclaimedGap]]` instead of
+  cloning all gap Vecs (zero-copy).
+- **Year signal expansion** sorts signals by `.start` before the loop,
+  preventing non-adjacent text from being glued into titles.
+- **Heuristic eviction guard** — `apply_invariance_signals` now checks
+  for non-heuristic overlaps *before* evicting heuristic matches,
+  preventing data loss when a codec or screen-size match occupies the
+  same span.
+- **Trailing Part regex** hoisted to `LazyLock<Regex>` (was compiled
+  per-call in episode title extraction).
+- **`is_episode_directory`** uses `strip_prefix('s')` instead of
+  `component[1..]` byte indexing for safe UTF-8 handling.
+
+### Fixed
+
+- **`CODEC_NUMBERS` shared constant** (264, 265, 128) — extracted from
+  duplicated checks in `invariance.rs` and `episodes/mod.rs`. (DRY)
+- Stale SP comment orphan removed from `anime_bonus.toml`.
+- Unused `_input` parameter removed from `apply_invariance_signals`.
+- `.unwrap()` → `.expect()` on CJK regex capture groups.
+
 ## [1.1.4] - 2026-03-20
 
 ### Added
@@ -542,6 +589,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.5]: https://github.com/lijunzh/hunch/releases/tag/v1.1.5
 [1.1.4]: https://github.com/lijunzh/hunch/releases/tag/v1.1.4
 [1.1.3]: https://github.com/lijunzh/hunch/releases/tag/v1.1.3
 [1.1.2]: https://github.com/lijunzh/hunch/releases/tag/v1.1.2
