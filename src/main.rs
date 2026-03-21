@@ -60,20 +60,39 @@ fn main() {
             eprintln!("No media files found in {}", batch_dir.display());
             std::process::exit(1);
         }
-        let filenames: Vec<String> = files
+        // Extract the parent directory name for title fallback.
+        // When filenames lack a title (e.g., "S01E10 - Episode.mkv"),
+        // the pipeline can extract it from the parent dir (e.g., "Paw Patrol").
+        let parent_name = batch_dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+        let bare_filenames: Vec<String> = files
             .iter()
             .filter_map(|p| p.file_name()?.to_str().map(String::from))
             .collect();
 
-        for (i, filename) in filenames.iter().enumerate() {
-            let siblings: Vec<&str> = filenames
+        // Build inputs with parent dir prefix so extract_title_from_parent works.
+        let inputs: Vec<String> = bare_filenames
+            .iter()
+            .map(|f| {
+                if parent_name.is_empty() {
+                    f.clone()
+                } else {
+                    format!("{parent_name}/{f}")
+                }
+            })
+            .collect();
+
+        for (i, input) in inputs.iter().enumerate() {
+            // Siblings stay as bare filenames — invariance detection
+            // only needs the varying parts across sibling files.
+            let siblings: Vec<&str> = bare_filenames
                 .iter()
                 .enumerate()
                 .filter(|(j, _)| *j != i)
                 .map(|(_, s)| s.as_str())
                 .collect();
-            let result = pipeline.run_with_context(filename, &siblings);
-            print_result(filename, &result, cli.json);
+            let result = pipeline.run_with_context(input, &siblings);
+            print_result(&bare_filenames[i], &result, cli.json);
         }
         return;
     }
