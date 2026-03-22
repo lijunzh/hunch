@@ -34,28 +34,22 @@ structurally eliminated.
 
 ## Design Decisions
 
-Decisions derived from the principles, organized by the boundary
-they define. Hunch's architecture is a series of clear boundaries:
-what belongs in the library vs. the CLI, in data vs. code, in the
-engine vs. context, and in the machine vs. the human.
+Each decision is derived from one or both principles. Some decisions
+establish boundaries (library/CLI, data/code, engine/human); others
+are standalone constraints.
 
-### Boundary 1: Library vs. CLI (P1, P2)
+### D1: Pure library, I/O-free (P1, P2)
 
-**The library is a pure function. The CLI is the I/O shell.**
-
-The library (`hunch::hunch()`, `Pipeline::run()`) takes a filename,
-path, and sibling context as input and returns metadata as output.
-No network, no database, no ML, no filesystem I/O. Deterministic
-by construction (P1).
+The library (`hunch::hunch()`, `Pipeline::run()`) is a pure function:
+filename, path, and sibling context in, metadata out. No network, no
+database, no ML, no filesystem I/O. Deterministic by construction (P1).
 
 The CLI is the only component that touches the filesystem: reading
-directories for `--batch` and `--context`, printing to
-stdout/stderr. This boundary ensures the library is embeddable,
-testable, and safe to call from any context.
+directories for `--batch` and `--context`, printing to stdout/stderr.
+This keeps the library embeddable, testable, and safe to call from
+any context.
 
-### Boundary 2: Data vs. Code (P1, P2)
-
-**Vocabulary belongs in TOML. Logic belongs in Rust.**
+### D2: Vocabulary in TOML, logic in Rust (P1, P2)
 
 Simple pattern recognition ("is `x264` a codec?") lives in TOML
 lookup tables — readable, auditable, contributors can add patterns
@@ -71,14 +65,23 @@ Control flow (episode parsing, date detection, title extraction)
 lives in Rust. The boundary is: if it's a vocabulary lookup, it's
 TOML; if it needs branching or state, it's Rust.
 
+### D3: Single self-contained binary (P2)
+
 All TOML rules are `include_str!`-ed at compile time. No runtime
 config files, no data directories. `cargo install hunch` gives you
-everything (P2). The `regex` crate (not `fancy_regex`) ensures
-linear-time matching — ReDoS is structurally impossible (P2).
+everything.
 
-### Boundary 3: Engine vs. Context (P1)
+### D4: Linear-time regex only (P2)
 
-**The engine is dumb. Context is smart.**
+The `regex` crate (not `fancy_regex`) ensures linear-time matching.
+The tokenizer eliminates the need for lookaround by isolating tokens
+before matching. ReDoS is structurally impossible.
+
+### D5: Zero `unsafe` (P2)
+
+The entire codebase is safe Rust. No `unsafe`, no FFI.
+
+### D6: Dumb engine, smart context (P1)
 
 The Rust engine is a simple pattern matcher — TOML lookups and regex,
 nothing clever. When the engine can't decide (is "French" a language
@@ -89,24 +92,14 @@ or a title word?), it defers to **context**:
 - **Token position:** relative to unambiguous anchors (SxxExx, 1080p)
 
 Prefer context over heuristics. Heuristics are fragile; context is
-structural. When context is also insufficient, defer to the human
-(Boundary 4).
+structural. When context is also insufficient, surface the ambiguity
+to the human (D7).
 
-The escalation chain:
-```
-Unambiguous pattern (S01E02)  →  High confidence, engine decides
-Context resolves it (tv/ dir) →  High confidence, context decides
-Heuristic guess (bare number) →  Medium confidence, engine guesses
-Genuine ambiguity (Movie 10)  →  Low confidence, human decides
-```
-
-### Boundary 4: Machine vs. Human (P1)
-
-**Surface ambiguity, don't resolve it silently.**
+### D7: Surface ambiguity to the user (P1)
 
 When multiple valid interpretations exist and neither the engine nor
-available context can distinguish them, hunch must be transparent
-about the uncertainty rather than guessing.
+available context can distinguish them, hunch is transparent about
+the uncertainty rather than guessing.
 
 Mechanism:
 - **Confidence** drops when conflicting signals exist.
@@ -133,6 +126,14 @@ Known ambiguity patterns:
 | `YYYY` in title position | Year vs. title word | Cross-file context |
 | Bare number after title | Episode vs. version vs. part | Use structural markers |
 | CJK mixed collections | Movies + TV in same dir | Directory structure |
+
+The escalation chain (D6 → D7):
+```
+Unambiguous pattern (S01E02)  →  High confidence, engine decides
+Context resolves it (tv/ dir) →  High confidence, context decides
+Heuristic guess (bare number) →  Medium confidence, engine guesses
+Genuine ambiguity (Movie 10)  →  Low confidence, human decides
+```
 
 ---
 
@@ -212,7 +213,7 @@ The zone map inverts the flow:
 | 2: Tech vocab | `x264`, `BluRay`, `DTS` | Almost always unambiguous |
 | 3: Positional | Year-like numbers (1920–2039) | Ambiguous — use context |
 
-Tier 1 and 2 anchors are structural context (Boundary 3). Tier 3 tokens like
+Tier 1 and 2 anchors are unambiguous (D6). Tier 3 tokens like
 year-like numbers are genuinely ambiguous — "2001" in
 "2001.A.Space.Odyssey.1968" is title, not year. The engine uses basic
 positional heuristics as a fallback, but the principled solution is
@@ -251,14 +252,14 @@ via `--context` and `--batch`.
 | Cross-file context + title found | High |
 | ≥3 tech anchors + title ≥2 chars | High |
 | Some anchors, reasonable title | Medium |
-| Conflicting interpretations (Boundary 4) | Low |
+| Conflicting interpretations (D7) | Low |
 | No title or title ≤1 char | Low |
 
 Confidence is honest about uncertainty (P1). When the engine can't
 decide, it says so — and the CLI suggests using `--context` to
 provide structural context instead of guessing harder.
 
-When hunch detects conflicting interpretations (Boundary 4), it:
+When hunch detects conflicting interpretations (D7), it:
 
 1. **Still produces a result** — picks the most common interpretation
    as the default (a best-effort answer is better than none).
