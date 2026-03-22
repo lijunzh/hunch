@@ -36,7 +36,7 @@ pub fn apply_zone_rules(
     token_stream: &TokenStream,
     matches: &mut Vec<MatchSpan>,
 ) {
-    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let fn_start = crate::filename_start(input);
     let initial_count = matches.len();
 
     // ── Rule 1: Language disambiguation (context-aware) ────────────────

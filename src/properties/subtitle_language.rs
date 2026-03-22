@@ -139,7 +139,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 Property::SubtitleLanguage,
                 normalized,
             )
-            .with_priority(2),
+            .with_priority(crate::priority::KEYWORD),
         );
     }
 
@@ -153,7 +153,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                    .with_priority(2),
+                    .with_priority(crate::priority::KEYWORD),
             );
         }
     }
@@ -174,7 +174,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                    .with_priority(2),
+                    .with_priority(crate::priority::KEYWORD),
             );
         }
     }
@@ -189,7 +189,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         if check_boundary(bytes, full.start(), full.end(), b) {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                    .with_priority(2),
+                    .with_priority(crate::priority::KEYWORD),
             );
         }
     }
@@ -219,7 +219,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                             Property::SubtitleLanguage,
                             normalized,
                         )
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                     );
                 }
             }
@@ -238,7 +238,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 .unwrap_or("und");
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                    .with_priority(0),
+                    .with_priority(crate::priority::DEFAULT),
             );
         }
     }
@@ -255,7 +255,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 .unwrap_or("und");
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::SubtitleLanguage, lang)
-                    .with_priority(0),
+                    .with_priority(crate::priority::DEFAULT),
             );
         }
     }

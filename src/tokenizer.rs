@@ -174,7 +174,7 @@ pub struct TokenStream {
 /// Dot-acronyms like `S.H.I.E.L.D.` are preserved as single tokens.
 /// Bracket groups like `[rarbg]` are marked with `in_brackets: true`.
 pub fn tokenize(input: &str) -> TokenStream {
-    let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let filename_start = crate::filename_start(input);
 
     // Split input into raw path segments.
     let raw_parts = split_path_segments(input);

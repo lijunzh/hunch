@@ -23,6 +23,8 @@ use matching::MatchContext;
 use log::{debug, trace};
 use std::sync::LazyLock;
 
+use crate::priority;
+
 // ── TOML rule sets (embedded at compile time) ──────────────────────────────
 
 static VIDEO_CODEC_RULES: LazyLock<RuleSet> =
@@ -92,10 +94,6 @@ enum SegmentScope {
     AllSegments,
 }
 
-/// Priority penalty applied to matches from directory segments.
-/// Ensures filename matches always win over directory matches in conflict resolution.
-const DIR_PRIORITY_PENALTY: i32 = -5;
-
 /// The two-pass parsing pipeline.
 ///
 /// Orchestrates the full parsing flow: tokenization → zone mapping
@@ -132,43 +130,43 @@ impl Pipeline {
             (
                 &VIDEO_CODEC_RULES,
                 Property::VideoCodec,
-                0,
+                priority::DEFAULT,
                 SegmentScope::AllSegments,
             ),
             (
                 &COLOR_DEPTH_RULES,
                 Property::ColorDepth,
-                0,
+                priority::DEFAULT,
                 SegmentScope::AllSegments,
             ),
             (
                 &AUDIO_CODEC_RULES,
                 Property::AudioCodec,
-                0,
+                priority::DEFAULT,
                 SegmentScope::AllSegments,
             ),
             (
                 &AUDIO_PROFILE_RULES,
                 Property::AudioProfile,
-                1,
+                priority::VOCABULARY,
                 SegmentScope::AllSegments,
             ),
             (
                 &AUDIO_CHANNELS_RULES,
                 Property::AudioChannels,
-                -1,
+                priority::HEURISTIC,
                 SegmentScope::AllSegments,
             ),
             (
                 &FRAME_RATE_RULES,
                 Property::FrameRate,
-                0,
+                priority::DEFAULT,
                 SegmentScope::AllSegments,
             ),
             (
                 &SCREEN_SIZE_RULES,
                 Property::ScreenSize,
-                0,
+                priority::DEFAULT,
                 SegmentScope::AllSegments,
             ),
             // Tech properties: ambiguous tokens, filename only.
@@ -176,64 +174,69 @@ impl Pipeline {
             (
                 &STREAMING_SERVICE_RULES,
                 Property::StreamingService,
-                1,
+                priority::VOCABULARY,
                 SegmentScope::FilenameOnly,
             ),
             (
                 &VIDEO_PROFILE_RULES,
                 Property::VideoProfile,
-                -2,
+                priority::POSITIONAL,
                 SegmentScope::FilenameOnly,
             ),
             (
                 &EPISODE_DETAILS_RULES,
                 Property::EpisodeDetails,
-                -1,
+                priority::HEURISTIC,
                 SegmentScope::FilenameOnly,
             ),
             (
                 &ANIME_BONUS_RULES,
                 Property::EpisodeDetails,
-                -1,
+                priority::HEURISTIC,
                 SegmentScope::FilenameOnly,
             ),
             (
                 &EPISODE_FORMAT_RULES,
                 Property::EpisodeFormat,
-                -1,
+                priority::HEURISTIC,
                 SegmentScope::FilenameOnly,
             ),
             (
                 &EDITION_RULES,
                 Property::Edition,
-                0,
+                priority::DEFAULT,
                 SegmentScope::AllSegments,
             ),
             // Other: AllSegments with dir priority penalty.
             // Per-directory zone maps filter false positives in title zones.
-            (&OTHER_RULES, Property::Other, 0, SegmentScope::AllSegments),
+            (
+                &OTHER_RULES,
+                Property::Other,
+                priority::DEFAULT,
+                SegmentScope::AllSegments,
+            ),
             (
                 &OTHER_POSITIONAL_RULES,
                 Property::Other,
-                -2,
+                priority::POSITIONAL,
                 SegmentScope::FilenameOnly,
             ),
             (
                 &VIDEO_API_RULES,
                 Property::VideoApi,
-                0,
+                priority::DEFAULT,
                 SegmentScope::FilenameOnly,
             ),
             (
                 &SOURCE_RULES,
                 Property::Source,
-                0,
+                priority::DEFAULT,
                 SegmentScope::AllSegments,
             ),
             (
                 &CONTAINER_RULES,
                 Property::Container,
-                5,
+                priority::STRUCTURAL,
                 SegmentScope::FilenameOnly,
             ),
             // Contextual properties: match all segments (dirs carry real metadata)
@@ -248,25 +251,37 @@ impl Pipeline {
             (
                 &COUNTRY_RULES,
                 Property::Country,
-                -2,
+                priority::POSITIONAL,
                 SegmentScope::FilenameOnly,
             ),
             (
                 &LANGUAGE_RULES,
                 Property::Language,
-                -1,
+                priority::HEURISTIC,
                 SegmentScope::AllSegments,
             ),
             (
                 &SUBTITLE_LANGUAGE_RULES,
                 Property::SubtitleLanguage,
-                -1,
+                priority::HEURISTIC,
                 SegmentScope::FilenameOnly,
             ),
         ];
 
-        // Legacy matchers — algorithmic patterns not expressible in TOML.
-        // Note: source is now fully TOML (source.toml with side_effects).
+        // Legacy matchers — algorithmic patterns that need Rust.
+        //
+        // **Algorithmic** (genuinely need Rust — branching, state, or position):
+        //   episodes, date, language, subtitle_language, episode_count,
+        //   release_group (Pass 2), part, website, aspect_ratio, bit_rate
+        //
+        // **Migration candidates** (could be expressed as TOML rules):
+        //   crc32     — single regex, bracket context expressible via zone_scope
+        //   uuid      — two regex patterns, no boundary logic beyond TOML's
+        //   version   — two regexes + CharClass boundaries (needs D8 extension)
+        //   size      — regex + unit parse (needs value normalization in TOML)
+        //   bonus     — regex + boundary check (borderline)
+        //
+        // NOTE: source is now fully TOML (source.toml with side_effects).
         // audio_profile is handled entirely by audio_profile.toml.
         let legacy_matchers: Vec<LegacyMatcherFn> = vec![
             aspect_ratio::find_matches,
@@ -673,7 +688,7 @@ impl Pipeline {
 
                 // Directory matches get a priority penalty so filename wins in conflicts.
                 let effective_priority = if is_dir {
-                    *priority + DIR_PRIORITY_PENALTY
+                    *priority + priority::DIR_PENALTY
                 } else {
                     *priority
                 };
@@ -717,7 +732,7 @@ impl Pipeline {
             matches.push(
                 MatchSpan::new(ext_start, input.len(), Property::Container, ext.as_str())
                     .as_extension()
-                    .with_priority(10),
+                    .with_priority(priority::EXTENSION),
             );
         }
 

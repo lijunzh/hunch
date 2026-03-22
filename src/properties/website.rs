@@ -54,7 +54,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             if has_known_tld(val) {
                 matches.push(
                     MatchSpan::new(site.start(), site.end(), Property::Website, val)
-                        .with_priority(2),
+                        .with_priority(crate::priority::KEYWORD),
                 );
             }
         }
@@ -74,7 +74,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         {
             matches.push(
                 MatchSpan::new(site.start(), site.end(), Property::Website, site.as_str())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
     }
@@ -89,7 +89,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 if val.len() > 7 {
                     matches.push(
                         MatchSpan::new(site.start(), site.end(), Property::Website, val)
-                            .with_priority(0),
+                            .with_priority(crate::priority::DEFAULT),
                     );
                 }
             }

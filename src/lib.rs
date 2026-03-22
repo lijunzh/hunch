@@ -119,12 +119,27 @@ pub(crate) const CODEC_NUMBERS: &[u32] = &[264, 265, 128];
 pub(crate) const FILENAME_SEPS: &[char] = &['.', ' ', '_', '-', '+'];
 
 pub mod matcher;
+pub(crate) mod priority;
 pub mod properties;
 pub mod tokenizer;
 pub mod zone_map;
 
 mod hunch_result;
 mod pipeline;
+
+/// Byte offset where the filename starts in a path string.
+///
+/// Returns the position after the last `/` or `\`, or 0 if no
+/// path separator is present. This is the single source of truth
+/// for legacy matchers that need to distinguish filename tokens
+/// from directory path components.
+///
+/// Prefer `TokenStream.filename_start` when a token stream is
+/// available. This function exists for legacy matchers that only
+/// receive the raw input string.
+pub(crate) fn filename_start(input: &str) -> usize {
+    input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0)
+}
 
 pub use hunch_result::{Confidence, HunchResult, MediaType};
 pub use matcher::span::Property;

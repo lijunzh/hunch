@@ -23,7 +23,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                     Property::Crc,
                     crc.as_str().to_uppercase(),
                 )
-                .with_priority(2),
+                .with_priority(crate::priority::KEYWORD),
             );
         }
     }

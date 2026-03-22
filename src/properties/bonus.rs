@@ -38,7 +38,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             if n > 0 {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Bonus, n.to_string())
-                        .with_priority(0),
+                        .with_priority(crate::priority::DEFAULT),
                 );
             }
         }
@@ -52,7 +52,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         if !cleaned.is_empty() {
             matches.push(
                 MatchSpan::new(title.start(), title.end(), Property::BonusTitle, cleaned)
-                    .with_priority(0),
+                    .with_priority(crate::priority::DEFAULT),
             );
         }
     }
