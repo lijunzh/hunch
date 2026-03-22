@@ -11,6 +11,7 @@ pub use secondary::{
     extract_alternative_titles, extract_episode_title, extract_film_title, infer_media_type,
 };
 
+use crate::FILENAME_SEPS as SEPS;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::TokenStream;
 use crate::zone_map::ZoneMap;
@@ -18,9 +19,6 @@ use clean::{
     clean_title, is_abbreviated, is_generic_dir, is_likely_extension, pick_better_casing,
     strip_extension,
 };
-
-/// Separators used in media filenames.
-const SEPS: &[char] = &['.', ' ', '_', '-', '+'];
 
 /// Characters we strip from title boundaries.
 const BRACKETS: &[char] = &['(', ')', '[', ']', '{', '}'];
