@@ -3,7 +3,7 @@
 //! Now fully handled by TOML rules (`rules/source.toml`) with side_effects
 //! for Rip, Screener, and Reencoded flags. Ultra HD Blu-ray promotion for
 //! wide-gap patterns (UHD...Bluray with 4+ tokens between) is handled by
-//! zone_rules Rule 7.
+//! zone_rules `subtitle_source_conflict`.
 
 #[cfg(test)]
 mod tests {
