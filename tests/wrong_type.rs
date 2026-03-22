@@ -5,6 +5,7 @@
 //! 2. Vocabulary: Anime bonus tokens (NCOP/NCED/PV/CM) → EpisodeDetails
 //! 3. Architectural: Path-based type inference (tv/ → episode)
 
+use hunch::matcher::span::Property;
 use hunch::{MediaType, hunch};
 
 // ── Layer 1: CJK episode markers (structural pattern) ───────────────────
@@ -198,13 +199,14 @@ fn s01_directory_shorthand() {
 // ── P0: SP regression guard ─────────────────────────────────────────────
 
 #[test]
-fn sp_without_path_context_is_movie() {
-    // SP without tv/ path should not force episode type.
+fn sp_without_path_context_is_episode() {
+    // SP is now recognized as EpisodeDetails → type: episode.
+    // "Legal High SP" is a TV special — episode is correct.
     let r = hunch("Legal.High.SP.2013.BluRay.1080p.x265.mkv");
     assert_eq!(
         r.media_type(),
-        Some(MediaType::Movie),
-        "SP without episode context should remain movie"
+        Some(MediaType::Episode),
+        "SP → EpisodeDetails → episode"
     );
 }
 
@@ -241,4 +243,77 @@ fn backslash_path_tv_directory() {
         Some(MediaType::Episode),
         "tv\\ with backslash should be detected"
     );
+}
+
+// ── #67: Additional anime bonus markers ──────────────────────────────
+
+#[test]
+fn sp_is_episode_details() {
+    let r = hunch("[Group][Show][SP][1080P][BDRip].mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.first(Property::EpisodeDetails), Some("Special"));
+}
+
+#[test]
+fn ova_is_episode_details() {
+    let r = hunch("[Group][Show][OVA][1080P][BDRip].mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.first(Property::EpisodeDetails), Some("OVA"));
+}
+
+#[test]
+fn oad_is_episode_details() {
+    let r = hunch("[Group][Show][OAD][1080P][BDRip].mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Episode));
+}
+
+#[test]
+fn ona_is_episode_details() {
+    let r = hunch("[Group][Show][ONA][1080P][BDRip].mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Episode));
+}
+
+#[test]
+fn op_is_episode_details() {
+    let r = hunch("[Group][Show][OP1][1080P][BDRip].mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.first(Property::EpisodeDetails), Some("OP"));
+}
+
+#[test]
+fn ed_is_episode_details() {
+    let r = hunch("[Group][Show][ED2][1080P][BDRip].mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.first(Property::EpisodeDetails), Some("ED"));
+}
+
+#[test]
+fn menu_is_episode_details() {
+    let r = hunch("[Group][Show][MENU][1080P][BDRip].mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Episode));
+}
+
+#[test]
+fn sp_numbered_pattern() {
+    // SP02 via regex pattern
+    let r = hunch("[Group][Show][SP02][1080P][BDRip].mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.first(Property::EpisodeDetails), Some("Special"));
+}
+
+// ── #67: Case-sensitivity guards ─────────────────────────────────
+
+#[test]
+fn lowercase_ed_not_matched() {
+    // "Ed" in a title should NOT be treated as ED (Ending).
+    let r = hunch("Ed.Sheeran.Live.2024.1080p.mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Movie));
+    assert!(r.first(Property::EpisodeDetails).is_none());
+}
+
+#[test]
+fn lowercase_sp_not_matched() {
+    // "sp" lowercase in title context.
+    let r = hunch("The.Spanish.Prisoner.1997.1080p.mkv");
+    assert!(r.first(Property::EpisodeDetails).is_none());
 }
