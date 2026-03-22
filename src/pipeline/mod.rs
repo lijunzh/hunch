@@ -349,7 +349,7 @@ impl Pipeline {
     ///     &["Paw Patrol/S01E11 - Pups and the Ghost Pirate.mkv"],
     /// );
     /// assert_eq!(result.title(), Some("Paw Patrol"));
-    /// ```    /// ```
+    /// ```
     pub fn run_with_context(&self, input: &str, siblings: &[&str]) -> HunchResult {
         if siblings.is_empty() {
             return self.run(input);
