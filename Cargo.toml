@@ -30,6 +30,8 @@ cli = ["clap", "env_logger"]
 [dev-dependencies]
 pretty_assertions = "1"
 criterion = { version = "0.7", features = ["html_reports"] }
+assert_cmd = "2"
+tempfile = "3"
 
 [[bench]]
 name = "parse"
