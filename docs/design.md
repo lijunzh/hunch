@@ -34,27 +34,39 @@ to replicate its outcomes. Instead, hunch is built for the future:
 - **Rust as a platform choice, not a language preference.** Rust
   enables compile-time safety, single-binary deployment, and
   linear-time regex guarantees. These aren't nice-to-haves —
-  they're structural advantages that shape the design (P2).
+  they're structural advantages that shape the design (P3).
 
 ---
 
 ## Principles
 
-Foundational beliefs that drive every design decision.
+Three foundational beliefs, in priority order, that drive every
+design decision.
 
-### P1: Predictable behavior
+### P1: Easy to reason about
+
+Users can trace why hunch produced a result. Contributors can add
+patterns without understanding the engine.
+
+This is the principle that prevents hunch from becoming guessit.
+guessit is capable but hard to reason about — rebulk chains,
+callbacks, validators, tags. Hunch chooses simplicity: fewer
+concepts, self-contained modules, linear escalation paths. We'd
+rather be slightly less capable than incomprehensible.
+
+### P2: Predictable behavior
 
 Same input, same output. Always.
 
-Hunch is a deterministic function. Given the same filename, path, and
-sibling context, it always produces the same result. When it can't be
-confident, it says so honestly rather than guessing silently. Users
-should always be able to understand *why* hunch produced a given
-result and *what to do* when it's wrong.
+Hunch is a deterministic function. Given the same filename, path,
+and sibling context, it always produces the same result. When it
+can't be confident, it says so honestly rather than guessing
+silently. Users should always be able to understand *what to do*
+when hunch is wrong.
 
 A confident wrong answer is worse than an honest "I'm not sure."
 
-### P2: Compile-time safety
+### P3: Compile-time safety
 
 Correctness is enforced before shipping, not at runtime.
 
@@ -67,22 +79,22 @@ structurally eliminated.
 
 ## Design Decisions
 
-Each decision is derived from one or both principles. Some decisions
+Each decision is derived from one or more principles. Some decisions
 establish boundaries (library/CLI, data/code, engine/human); others
 are standalone constraints.
 
-### D1: Pure library, I/O-free (P1, P2)
+### D1: Pure library, I/O-free (P2, P3)
 
 The library (`hunch::hunch()`, `Pipeline::run()`) is a pure function:
 filename, path, and sibling context in, metadata out. No network, no
-database, no ML, no filesystem I/O. Deterministic by construction (P1).
+database, no ML, no filesystem I/O. Deterministic by construction (P2).
 
 The CLI is the only component that touches the filesystem: reading
 directories for `--batch` and `--context`, printing to stdout/stderr.
 This keeps the library embeddable, testable, and safe to call from
 any context.
 
-### D2: Vocabulary in TOML, logic in Rust (P1, P2)
+### D2: Vocabulary in TOML, logic in Rust (P1, P2, P3)
 
 Simple pattern recognition ("is `x264` a codec?") lives in TOML
 lookup tables — readable, auditable, contributors can add patterns
@@ -98,23 +110,23 @@ Control flow (episode parsing, date detection, title extraction)
 lives in Rust. The boundary is: if it's a vocabulary lookup, it's
 TOML; if it needs branching or state, it's Rust.
 
-### D3: Single self-contained binary (P2)
+### D3: Single self-contained binary (P3)
 
 All TOML rules are `include_str!`-ed at compile time. No runtime
 config files, no data directories. `cargo install hunch` gives you
 everything.
 
-### D4: Linear-time regex only (P2)
+### D4: Linear-time regex only (P3)
 
 The `regex` crate (not `fancy_regex`) ensures linear-time matching.
 The tokenizer eliminates the need for lookaround by isolating tokens
 before matching. ReDoS is structurally impossible.
 
-### D5: Zero `unsafe` (P2)
+### D5: Zero `unsafe` (P3)
 
 The entire codebase is safe Rust. No `unsafe`, no FFI.
 
-### D6: Dumb engine, smart context (P1)
+### D6: Dumb engine, smart context (P1, P2)
 
 The Rust engine is a simple pattern matcher — TOML lookups and regex,
 nothing clever. When the engine can't decide (is "French" a language
@@ -128,7 +140,7 @@ Prefer context over heuristics. Heuristics are fragile; context is
 structural. When context is also insufficient, surface the ambiguity
 to the human (D7).
 
-### D7: Surface ambiguity to the user (P1)
+### D7: Surface ambiguity to the user (P1, P2)
 
 When multiple valid interpretations exist and neither the engine nor
 available context can distinguish them, hunch is transparent about
@@ -167,6 +179,32 @@ Context resolves it (tv/ dir) →  High confidence, context decides
 Heuristic guess (bare number) →  Medium confidence, engine guesses
 Genuine ambiguity (Movie 10)  →  Low confidence, human decides
 ```
+
+### D8: 5 features, not 15 (P1)
+
+guessit uses `rebulk`, a pattern engine with chains, rules, tags,
+formatters, handlers, and validators (~15 features). Hunch's TOML
+engine has 5 features and expresses ~90% of rebulk's patterns:
+
+| Feature | Rebulk | Hunch |
+|---|---|---|
+| Exact lookup | `string_match()` | `[exact]` HashMap |
+| Regex | `regex_match()` | `[[patterns]]` |
+| Side effects | Callbacks + chains | `side_effects = [...]` |
+| Neighbor checks | `previous`/`next` callbacks | `not_before`/`not_after` |
+| Zone scoping | Rule tags + validators | `zone_scope` field |
+
+The remaining 10% (multi-span patterns with arbitrary gaps) are edge
+cases where cross-file context is the principled solution, not more
+clever Rust code. We'd rather cover 90% simply than 100% opaquely.
+
+### D9: Self-contained property matchers (P1)
+
+Each property matcher is one file (or small module), testable in
+isolation. You don't need to understand the pipeline to understand
+how `video_codec` or `episodes` matching works. Adding a new
+property means adding a TOML file and registering it — not
+understanding a dependency graph.
 
 ---
 
@@ -209,24 +247,6 @@ tech matches; Pass 2 uses those positions for structural extraction.
 ---
 
 ## Implementation Details
-
-### No rebulk port
-
-guessit uses `rebulk`, a Python pattern engine with chains, rules,
-tags, formatters, handlers, and validators (~15 features). Hunch's
-TOML engine has 5 features and expresses ~90% of rebulk's patterns:
-
-| Feature | Rebulk | Hunch |
-|---|---|---|
-| Exact lookup | `string_match()` | `[exact]` HashMap |
-| Regex | `regex_match()` | `[[patterns]]` |
-| Side effects | Callbacks + chains | `side_effects = [...]` |
-| Neighbor checks | `previous`/`next` callbacks | `not_before`/`not_after` |
-| Zone scoping | Rule tags + validators | `zone_scope` field |
-
-The remaining 10% (multi-span patterns with arbitrary gaps) are edge
-cases where cross-file context is the principled solution, not
-more clever Rust code.
 
 ### Zone map — anchors first, matching second
 
@@ -288,7 +308,7 @@ via `--context` and `--batch`.
 | Conflicting interpretations (D7) | Low |
 | No title or title ≤1 char | Low |
 
-Confidence is honest about uncertainty (P1). When the engine can't
+Confidence is honest about uncertainty (P2). When the engine can't
 decide, it says so — and the CLI suggests using `--context` to
 provide structural context instead of guessing harder.
 
