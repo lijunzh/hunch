@@ -110,6 +110,14 @@
 /// (x264, x265, AES-128) and should not be treated as years or episodes.
 pub(crate) const CODEC_NUMBERS: &[u32] = &[264, 265, 128];
 
+/// Common separators used in media filenames.
+///
+/// These characters are treated as word boundaries when normalizing
+/// filenames for title extraction and gap analysis. Path separators
+/// (`/`, `\`) are intentionally excluded — they are only relevant
+/// in the cross-file context module where full paths are analyzed.
+pub(crate) const FILENAME_SEPS: &[char] = &['.', ' ', '_', '-', '+'];
+
 pub mod matcher;
 pub mod properties;
 pub mod tokenizer;

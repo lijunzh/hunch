@@ -258,10 +258,18 @@ pub(super) fn pick_better_casing<'a>(a: &'a str, b: &'a str) -> &'a str {
 }
 
 /// Check if a directory name is generic (should be skipped for title).
+///
+/// Generic directories are structural (e.g., "Season 1", "Extras") or
+/// organizational (e.g., "Movies", "Downloads"). When walking parent
+/// directories for title fallback, these are skipped so the real title
+/// directory (e.g., "Transformers 1984") is found.
 pub(super) fn is_generic_dir(name: &str) -> bool {
     let lower = name.to_lowercase();
-    matches!(
+
+    // Exact matches (case-insensitive).
+    if matches!(
         lower.as_str(),
+        // Library root / organizational
         "movies"
             | "movie"
             | "films"
@@ -273,6 +281,11 @@ pub(super) fn is_generic_dir(name: &str) -> bool {
             | "media"
             | "video"
             | "videos"
+            | "anime"
+            | "donghua"
+            | "kids"
+            | "cartoons"
+            // Download / system
             | "downloads"
             | "download"
             | "completed"
@@ -285,10 +298,60 @@ pub(super) fn is_generic_dir(name: &str) -> bool {
             | "home"
             | "tmp"
             | "temp"
-    ) || lower.starts_with("season")
+            // Bonus / extras
+            | "extras"
+            | "extra"
+            | "specials"
+            | "special"
+            | "bonus"
+            | "featurettes"
+            | "featurette"
+            | "behind the scenes"
+            | "deleted scenes"
+            | "interviews"
+            | "interview"
+            | "trailers"
+            | "trailer"
+            | "samples"
+            | "sample"
+            // Subtitles / audio
+            | "subs"
+            | "subtitles"
+            | "subtitle"
+            | "ost"
+            | "soundtrack"
+            | "soundtracks"
+    ) {
+        return true;
+    }
+
+    // Prefix matches (e.g., "Season 1", "Disc 2", "CD1").
+    if lower.starts_with("season")
         || lower.starts_with("saison")
         || lower.starts_with("temporada")
         || lower.starts_with("stagione")
+        || lower.starts_with("disc")
+        || lower.starts_with("disk")
+        || lower.starts_with("dvd")
+    {
+        return true;
+    }
+
+    // CD1, CD2, etc.
+    if lower.starts_with("cd") && lower[2..].chars().all(|c| c.is_ascii_digit()) && lower.len() <= 4
+    {
+        return true;
+    }
+
+    // Quality-as-dir: "1080p", "720p", "2160p", "4K", "4k"
+    if lower.ends_with('p') && lower[..lower.len() - 1].chars().all(|c| c.is_ascii_digit()) {
+        return true;
+    }
+    if lower == "4k" {
+        return true;
+    }
+
+    false
 }
 
 #[cfg(test)]
@@ -313,5 +376,71 @@ mod tests {
     #[test]
     fn test_strip_paren_year() {
         assert_eq!(clean_title("Movie Name (2005)"), "Movie Name");
+    }
+
+    // ── is_generic_dir ──────────────────────────────────────────────
+
+    #[test]
+    fn generic_dir_originals() {
+        // Original entries still work.
+        assert!(is_generic_dir("Movies"));
+        assert!(is_generic_dir("tv"));
+        assert!(is_generic_dir("Season 1"));
+        assert!(is_generic_dir("Saison 03"));
+    }
+
+    #[test]
+    fn generic_dir_extras_and_bonus() {
+        assert!(is_generic_dir("Extras"));
+        assert!(is_generic_dir("Specials"));
+        assert!(is_generic_dir("Bonus"));
+        assert!(is_generic_dir("Featurettes"));
+        assert!(is_generic_dir("Behind The Scenes"));
+        assert!(is_generic_dir("Deleted Scenes"));
+        assert!(is_generic_dir("Trailers"));
+        assert!(is_generic_dir("Sample"));
+    }
+
+    #[test]
+    fn generic_dir_disc_and_cd() {
+        assert!(is_generic_dir("Disc 1"));
+        assert!(is_generic_dir("Disc2"));
+        assert!(is_generic_dir("Disk 3"));
+        assert!(is_generic_dir("DVD1"));
+        assert!(is_generic_dir("CD1"));
+        assert!(is_generic_dir("CD2"));
+        assert!(!is_generic_dir("CD123")); // too long for CD pattern
+    }
+
+    #[test]
+    fn generic_dir_quality() {
+        assert!(is_generic_dir("1080p"));
+        assert!(is_generic_dir("720p"));
+        assert!(is_generic_dir("2160p"));
+        assert!(is_generic_dir("4K"));
+    }
+
+    #[test]
+    fn generic_dir_subtitles_and_audio() {
+        assert!(is_generic_dir("Subs"));
+        assert!(is_generic_dir("Subtitles"));
+        assert!(is_generic_dir("OST"));
+        assert!(is_generic_dir("Soundtrack"));
+    }
+
+    #[test]
+    fn generic_dir_structural() {
+        assert!(is_generic_dir("Anime"));
+        assert!(is_generic_dir("Kids"));
+        assert!(is_generic_dir("Cartoons"));
+    }
+
+    #[test]
+    fn non_generic_dirs() {
+        // Real titles should NOT be generic.
+        assert!(!is_generic_dir("Paw Patrol"));
+        assert!(!is_generic_dir("Transformers 1984"));
+        assert!(!is_generic_dir("Breaking Bad"));
+        assert!(!is_generic_dir("十二国記"));
     }
 }
