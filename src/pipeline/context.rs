@@ -13,8 +13,15 @@
 
 use crate::matcher::span::MatchSpan;
 
-/// Separators used in media filenames for normalization.
-pub(crate) const SEPS: &[char] = &['.', ' ', '_', '-', '+', '/', '\\'];
+/// Separators for cross-file gap normalization.
+///
+/// Extends [`crate::FILENAME_SEPS`] with path separators (`/`, `\`) because
+/// batch mode constructs inputs like `"ParentDir/filename.mkv"` and we
+/// need to normalize the path separator into a space boundary.
+pub(crate) const SEPS: &[char] = &[
+    '.', ' ', '_', '-', '+', // same as FILENAME_SEPS
+    '/', '\\', // path separators (batch mode)
+];
 
 /// Brackets to strip from gap boundaries.
 pub(crate) const TRIM_CHARS: &[char] = &[
