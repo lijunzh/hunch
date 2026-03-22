@@ -639,7 +639,16 @@ impl Pipeline {
         let media_type = title::infer_media_type(input, all_matches);
         let proper_count = proper_count::compute_proper_count(input, all_matches);
 
-        // Step 5e: Strip video/audio tech properties from subtitle containers.
+        // Step 5e: When media_type is "movie", drop heuristic-only episode
+        // matches — bare numbers like "10" in "Movie.10" are franchise
+        // numbers, not episodes. Strong episode signals (SxxExx) are kept.
+        if media_type == "movie" {
+            all_matches.retain(|m| {
+                !(m.property == Property::Episode && m.priority <= priority::HEURISTIC)
+            });
+        }
+
+        // Step 5f: Strip video/audio tech properties from subtitle containers.
         // Files like .ass, .srt, .sub should not carry video_codec, color_depth, etc.
         pass2_helpers::strip_tech_from_subtitle_containers(all_matches);
 
