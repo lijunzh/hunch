@@ -11,7 +11,7 @@
 //! 5. Digit decomposition (101→S1E01)  ⚠️ HEURISTIC — see note below
 //! 6. Post-processing (absolute episodes, week detection)
 //!
-//! ## Principle alignment (Boundary 3: Engine vs. Context)
+//! ## Principle alignment (D6: Dumb engine, smart context)
 //!
 //! Groups 1–2 are **structural patterns** — unambiguous, context-free.
 //! Groups 3–4 are **vocabulary patterns** — keyword-driven, low risk.
@@ -878,7 +878,7 @@ fn try_cjk_episode_marker(input: &str, matches: &mut Vec<MatchSpan>) {
 
 /// 3/4-digit decomposition: 101→S1E01, 2401→S24E01.
 ///
-/// ⚠️ **Fragile heuristic** (Boundary 3 violation) — this guesses season/episode
+/// ⚠️ **Fragile heuristic** (D6 violation) — this guesses season/episode
 /// from bare numbers using digit splitting. It's a last-resort fallback
 /// that only runs when no structural patterns (SxxExx, NxN) matched.
 ///
