@@ -149,6 +149,12 @@ fn run_batch(pipeline: &Pipeline, batch_dir: &Path, recursive: bool, json: bool)
     } else {
         list_media_files(batch_dir)
     };
+
+    // In flat mode, warn if subdirectories contain media files being skipped.
+    if !recursive {
+        warn_if_subdirs_have_media(batch_dir);
+    }
+
     if files.is_empty() {
         eprintln!("No media files found in {}", batch_dir.display());
         std::process::exit(1);
@@ -299,4 +305,54 @@ fn is_media_extension(path: &Path) -> bool {
                 .iter()
                 .any(|me| me.eq_ignore_ascii_case(ext))
         })
+}
+
+/// When running flat `--batch` (no `-r`), check if subdirectories contain
+/// media files. If so, print a hint suggesting `-r` for better results.
+///
+/// This catches the #1 UX footgun: flat batch silently loses path context
+/// from ancestor directories (tv/, Anime/, Season 1/), producing plausible
+/// but wrong results (e.g., bonus content classified as movies).
+fn warn_if_subdirs_have_media(batch_dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(batch_dir) else {
+        return;
+    };
+    let subdirs_with_media: Vec<String> = entries
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir())
+        .filter(|e| dir_contains_media(&e.path()))
+        .filter_map(|e| e.file_name().to_str().map(String::from))
+        .collect();
+
+    if subdirs_with_media.is_empty() {
+        return;
+    }
+
+    let n = subdirs_with_media.len();
+    let dir_display = batch_dir.display();
+    eprintln!(
+        "hint: found media files in {n} subdirector{} being skipped. \
+         Use -r to include them\n      \
+         with full path context (improves type detection and title extraction).\n      \
+         Example: hunch --batch {dir_display} -r -j",
+        if n == 1 { "y" } else { "ies" },
+    );
+}
+
+/// Check if a directory (recursively) contains at least one media file.
+/// Short-circuits on the first match for performance.
+fn dir_contains_media(dir: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    let mut subdirs = Vec::new();
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_file() && is_media_extension(&path) {
+            return true;
+        } else if path.is_dir() {
+            subdirs.push(path);
+        }
+    }
+    subdirs.iter().any(|d| dir_contains_media(d))
 }
