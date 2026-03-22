@@ -5,6 +5,69 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.6] - 2026-03-22
+
+### Added
+
+- **`MediaType::Extra`** — new media type variant for supplementary content
+  (NCED, NCOP, OP, ED, SP, PV, CM, OVA, OAD, ONA, Menu, Tokuten). Files
+  with `episode_details` but no episode/season/date markers now return
+  `type=extra` instead of `type=episode`. The specific marker remains
+  accessible via `episode_details()`. (#89)
+- **Recursive `--batch -r`** — new `-r`/`--recursive` flag walks the full
+  directory tree and groups siblings per-directory. Enables cross-file title
+  extraction for deeply nested libraries (`tv/Show/Season 1/01.mkv` →
+  `title: "Show"`). (#66)
+- **Library ergonomics** — `Property` re-exported at crate root
+  (`use hunch::Property`); 10 new typed accessors on `HunchResult`
+  (`episode_details()`, `language()`, `languages()`, `subtitle_language()`,
+  `subtitle_languages()`, `bonus()`, `date()`, `film()`, `disc()`,
+  `media_type()`); `MatchSpan::value` implements `AsRef<str>`. (#73)
+- **Flat `--batch` warning** — when `--batch <dir>` is used without `-r`
+  and subdirectories contain media files being skipped, hunch prints a hint
+  to stderr suggesting `--batch -r`. (#74)
+
+### Fixed
+
+- **"Movie N" parsed as episode** — `Detective.Conan.Movie.10...` in a
+  `movie/` directory now returns `type=movie`. Bare number matches at
+  HEURISTIC priority lose to movie-directory path context; strong S/E
+  markers still win. (#88)
+- **Missing anime bonus markers** — SP, OVA, OAD, ONA, OP, ED, and MENU
+  tokens now emit `episode_details`, fixing classification of common anime
+  BD bonus content. (#68)
+- **Batch mode parent dir fallback** — `--batch` now passes
+  `parent_dir/filename` to the pipeline so `extract_title_from_parent()`
+  has directory context. Fixes ~860 files that previously parsed without a
+  title. (#62)
+- **Batch siblings invariance** — siblings passed to the invariance engine
+  now include the parent directory path so the invariant title text (e.g.,
+  "Paw Patrol") is correctly identified and suppressed from episode titles.
+  (#63)
+
+### Changed
+
+- **Named priority constants** — new `src/priority.rs` module exposes
+  `STRUCTURAL`, `KEYWORD`, `VOCABULARY`, `DEFAULT`, `HEURISTIC`,
+  `POSITIONAL` tiers (and others) as named constants. Replaces magic
+  integers throughout the codebase. (#85)
+- **Named zone rules** — zone rules are now referred to by descriptive
+  names (e.g., `language_in_title_zone`) instead of numbers (Rule 1,
+  Rule 2, …). (#86)
+
+### Docs
+
+- Added `--batch -r` flag to CLI help, README, and user manual. (#69)
+- Added P5 principle (surface ambiguity) and updated D6 in design.md. (#76)
+- Restructured design.md: separated principles, decisions, and boundaries
+  into distinct sections. (#77, #78)
+- Added Mission section to design.md — hunch is not a guessit port. (#79)
+- Scoped D7 to reflect reality; acknowledged D9 matcher classes. (#84)
+
+### Tests
+
+- Added CLI integration tests for the flat-batch subdirectory warning. (#75)
+
 ## [1.1.5] - 2026-03-20
 
 ### Added
@@ -589,6 +652,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.6]: https://github.com/lijunzh/hunch/releases/tag/v1.1.6
 [1.1.5]: https://github.com/lijunzh/hunch/releases/tag/v1.1.5
 [1.1.4]: https://github.com/lijunzh/hunch/releases/tag/v1.1.4
 [1.1.3]: https://github.com/lijunzh/hunch/releases/tag/v1.1.3
