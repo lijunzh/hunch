@@ -47,12 +47,27 @@ fn main() {
 
 ### Cross-file context
 
-For CJK, anime, or ambiguous filenames:
+For CJK, anime, or ambiguous filenames, hunch uses sibling files and
+directory names as context for better title extraction and type detection.
 
 ```bash
-hunch --context ./Season1/ "(BD)十二国記 第13話「月の影 影の海　終章」(1440x1080 x264-10bpp flac).mkv"
+# Single file with sibling context:
+hunch --context ./Season1/ "(BD)十二国記 第13話(1440x1080 x264-10bpp flac).mkv"
+
+# Batch-parse a single directory:
 hunch --batch ./Season1/ --json
+
+# Batch-parse an entire media library (recommended):
+hunch --batch /path/to/tv/ -r -j
 ```
+
+> **💡 Tip:** Always use `--batch -r` from your library root (e.g., `tv/`,
+> `movies/`) rather than running `--batch` on each leaf directory individually.
+> The `-r` flag preserves full relative paths like
+> `tv/Anime/Show/Extra/Menu.mkv`, giving the parser critical context from
+> directory names (`tv/`, `Anime/`, `Season 1/`) for accurate type detection.
+> Without `-r`, files in deep subdirectories lose their path context and
+> bonus content (SP, OVA, NCED) may be misclassified.
 
 ## Documentation
 
