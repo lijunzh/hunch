@@ -1,13 +1,46 @@
 # Design — Hunch
 
-> Principles, architecture, and key decisions for contributors
-> and maintainers.
+> Mission, principles, architecture, and key decisions for
+> contributors and maintainers.
+
+---
+
+## Mission
+
+Hunch is a media filename parser built on Rust — not a port of
+guessit, but a new tool with different goals.
+
+guessit is a mature Python library with deep coverage of legacy
+release conventions. Hunch respects that lineage but doesn't try
+to replicate its outcomes. Instead, hunch is built for the future:
+
+- **Match most of guessit's capabilities, not all its outputs.**
+  guessit's test suite encodes years of edge cases, some of which
+  reflect conventions that no longer exist or decisions we disagree
+  with. Hunch aims for high coverage of real-world filenames, not
+  test-for-test parity with guessit.
+
+- **Evolve from real-world testing, not from a frozen fixture.**
+  Hunch's test fixtures are living documents. When a real-world
+  filename breaks expectations, the fixture grows. When a pattern
+  turns out to be wrong, the fixture changes. Tests reflect what
+  hunch *should* do, not what guessit *did* do.
+
+- **Build for the future, not the past.** Reasonable backward
+  compatibility matters, but it doesn't override correctness.
+  When new evidence shows a better interpretation, hunch adopts
+  it — with clear versioning and changelogs so users can adapt.
+
+- **Rust as a platform choice, not a language preference.** Rust
+  enables compile-time safety, single-binary deployment, and
+  linear-time regex guarantees. These aren't nice-to-haves —
+  they're structural advantages that shape the design (P2).
 
 ---
 
 ## Principles
 
-Two foundational beliefs that drive every design decision.
+Foundational beliefs that drive every design decision.
 
 ### P1: Predictable behavior
 
