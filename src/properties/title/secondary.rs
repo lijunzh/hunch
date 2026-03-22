@@ -422,7 +422,6 @@ fn split_on_separators<'a>(s: &'a str, separators: &[&str]) -> Vec<&'a str> {
 /// Infer media type from the set of matched properties.
 pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
     // 1. Structural signals from matched properties.
-    let has_episode = matches.iter().any(|m| m.property == Property::Episode);
     let has_season = matches.iter().any(|m| m.property == Property::Season);
     let has_date = matches.iter().any(|m| m.property == Property::Date);
     let has_episode_details = matches
@@ -434,20 +433,56 @@ pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
         && !matches.iter().any(|m| m.property == Property::Film)
         && !matches.iter().any(|m| m.property == Property::Year);
 
-    if has_episode || has_season || has_date || has_episode_details || has_bonus_no_film {
+    // Episode signal strength: only consider episodes above HEURISTIC priority
+    // as strong evidence. Bare numbers (pri ≤ HEURISTIC) are guesses that
+    // path context can override.
+    let strong_episode = matches
+        .iter()
+        .any(|m| m.property == Property::Episode && m.priority > crate::priority::HEURISTIC);
+    let weak_episode = !strong_episode && matches.iter().any(|m| m.property == Property::Episode);
+
+    // 2. Strong structural signals always win — SxxExx, "Episode 1", etc.
+    if strong_episode || has_season || has_date || has_episode_details || has_bonus_no_film {
         return "episode";
     }
 
-    // 2. Path-based context: directory names are strong evidence.
-    //    "tv/", "TV Shows/", "Series/", "Anime/" → episode.
-    //    This is the architectural fix for WRONG_TYPE (#46) — instead of
-    //    adding keyword rules for every bonus marker (NCOP, PV, SP, etc.),
-    //    the directory structure tells us what the content is.
+    // 3. Path-based context (D6: smart context overrides dumb engine).
+    //    Movie directory context suppresses weak (heuristic) episode signals.
+    //    Episode directory context promotes to episode even without structural markers.
+    if path_hints_movie(input) {
+        // Movie dir + only a heuristic episode guess → movie wins.
+        // The bare number is likely a franchise number, not an episode.
+        if weak_episode {
+            return "movie";
+        }
+    }
     if path_hints_episode(input) {
         return "episode";
     }
 
+    // 4. Weak episode signal with no path context → still episode.
+    if weak_episode {
+        return "episode";
+    }
+
     "movie"
+}
+
+/// Check if the input path's directory components hint at movie content.
+///
+/// Recognises common media library directory conventions:
+/// - `movie/`, `movies/`, `film/`, `films/`
+///
+/// Conservative: only unambiguous movie indicators.
+fn path_hints_movie(input: &str) -> bool {
+    let dir_part = match input.rfind(['/', '\\']) {
+        Some(i) => &input[..i],
+        None => return false,
+    };
+    let lower = dir_part.to_lowercase();
+    lower
+        .split(['/', '\\'])
+        .any(|c| matches!(c, "movie" | "movies" | "film" | "films"))
 }
 
 /// Check if the input path's directory components hint at TV/episode content.

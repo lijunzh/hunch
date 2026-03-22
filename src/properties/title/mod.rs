@@ -668,4 +668,34 @@ mod tests {
         let matches = vec![MatchSpan::new(0, 4, Property::Year, "2024")];
         assert_eq!(infer_media_type("Movie.2024.mkv", &matches), "movie");
     }
+
+    #[test]
+    fn test_movie_dir_suppresses_heuristic_episode() {
+        // "Movie 10" in a movie/ directory: bare number is a franchise number,
+        // not an episode. Path context should win over heuristic episode.
+        let matches = vec![
+            MatchSpan::new(52, 56, Property::Episode, "10")
+                .with_priority(crate::priority::HEURISTIC),
+        ];
+        assert_eq!(
+            infer_media_type(
+                "movie/Japanese/Detective Conan/Detective.Conan.Movie.10.mkv",
+                &matches
+            ),
+            "movie"
+        );
+    }
+
+    #[test]
+    fn test_movie_dir_keeps_strong_episode() {
+        // SxxExx in a movie/ directory: strong signal overrides path context.
+        let matches = vec![
+            MatchSpan::new(0, 6, Property::Season, "1"),
+            MatchSpan::new(0, 6, Property::Episode, "3").with_priority(crate::priority::STRUCTURAL),
+        ];
+        assert_eq!(
+            infer_media_type("movie/Show.S01E03.mkv", &matches),
+            "episode"
+        );
+    }
 }
