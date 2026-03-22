@@ -1,10 +1,13 @@
 # Anime bonus content markers.
 # These tokens indicate non-episode bonus content (openings, endings,
-# previews, commercials) that should be classified as type: "episode"
-# rather than type: "movie" when found in a TV directory.
+# previews, commercials, specials) that should be classified as
+# type: "episode" rather than type: "movie".
 #
 # Matched unrestricted because they commonly appear inside CJK bracket
 # filenames: [Group][Title][NCED1][1080P]...
+#
+# All entries are case-sensitive (exact_sensitive) to avoid false positives
+# with title words (e.g., "Op" as a name vs "OP" as Opening).
 property = "episode_details"
 zone_scope = "unrestricted"
 
@@ -14,12 +17,67 @@ NCOP   = "NCOP"
 NCED   = "NCED"
 NCOP1  = "NCOP"
 NCOP2  = "NCOP"
+NCOP3  = "NCOP"
 NCED1  = "NCED"
 NCED2  = "NCED"
+NCED3  = "NCED"
+# Opening/Ending themes
+OP     = "OP"
+OP1    = "OP"
+OP2    = "OP"
+OP3    = "OP"
+ED     = "ED"
+ED1    = "ED"
+ED2    = "ED"
+ED3    = "ED"
+# Special (SP) — anime specials, OVA bonus episodes
+SP     = "Special"
+SP1    = "Special"
+SP2    = "Special"
+SP3    = "Special"
+SP4    = "Special"
+SP5    = "Special"
+# OVA / OAD / ONA — original anime formats (not TV broadcast)
+OVA    = "OVA"
+OVA1   = "OVA"
+OVA2   = "OVA"
+OVA3   = "OVA"
+OAD    = "OAD"
+OAD1   = "OAD"
+OAD2   = "OAD"
+ONA    = "ONA"
+ONA1   = "ONA"
+ONA2   = "ONA"
 # Preview / Commercial / Menu
 PV     = "PV"
+PV1    = "PV"
+PV2    = "PV"
 CM     = "CM"
+CM1    = "CM"
+CM2    = "CM"
+# Menu (BD menu screens)
+MENU   = "Menu"
 
 [exact]
 # Tokuten (特典) — Japanese BD bonus/extras
 tokuten = "Tokuten"
+
+[[patterns]]
+# Numbered variants with higher numbers: SP01, SP02, etc.
+match = '(?i)^SP(\d{1,2})$'
+value = "Special"
+
+[[patterns]]
+# OVA with higher numbers: OVA04, etc.
+match = '(?i)^OVA(\d{1,2})$'
+value = "OVA"
+
+[[patterns]]
+# NCOP/NCED with higher numbers
+match = '(?i)^NC(OP|ED)(\d{1,2})$'
+value = "NC{1}"
+
+[[patterns]]
+# OP/ED with higher numbers
+match = '(?i)^(OP|ED)(\d{1,2})$'
+value = "{1}"
