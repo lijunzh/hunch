@@ -311,9 +311,14 @@ impl Pipeline {
 
     /// Parse a filename using sibling filenames for cross-file title detection.
     ///
-    /// Siblings should be raw filenames (no directory paths). Even 1–2 siblings
-    /// can dramatically improve title extraction for CJK and non-standard
-    /// formats.
+    /// Both `input` and `siblings` can include directory path components
+    /// (e.g., `"Show Name/Season 1/S01E03.720p.mkv"`). When paths are
+    /// provided, `extract_title_from_parent` uses them for title fallback
+    /// (walking parent directories, skipping generic names like "Season 1").
+    ///
+    /// Siblings should be files from the **same directory** as the target.
+    /// Even 1–2 siblings can dramatically improve title extraction for CJK
+    /// and non-standard formats.
     ///
     /// Cross-file analysis produces an `InvarianceReport` that informs:
     /// - **Title**: invariant text across files
@@ -332,6 +337,19 @@ impl Pipeline {
     /// );
     /// assert_eq!(result.title(), Some("Show"));
     /// ```
+    ///
+    /// # Example with paths
+    ///
+    /// ```rust
+    /// use hunch::Pipeline;
+    ///
+    /// let pipeline = Pipeline::new();
+    /// let result = pipeline.run_with_context(
+    ///     "Paw Patrol/S01E10 - Pups Save Ryder's Robot.mkv",
+    ///     &["Paw Patrol/S01E11 - Pups and the Ghost Pirate.mkv"],
+    /// );
+    /// assert_eq!(result.title(), Some("Paw Patrol"));
+    /// ```    /// ```
     pub fn run_with_context(&self, input: &str, siblings: &[&str]) -> HunchResult {
         if siblings.is_empty() {
             return self.run(input);
