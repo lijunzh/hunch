@@ -26,11 +26,11 @@
 //!
 //! [`HunchResult`] provides typed convenience accessors for common
 //! properties, plus generic [`first`](HunchResult::first) and
-//! [`all`](HunchResult::all) methods for any [`Property`](matcher::span::Property):
+//! [`all`](HunchResult::all) methods for any [`Property`]:
 //!
 //! ```rust
 //! use hunch::hunch;
-//! use hunch::matcher::span::Property;
+//! use hunch::Property;
 //!
 //! let r = hunch("Movie.2024.FRENCH.1080p.BluRay.DTS.x264-GROUP.mkv");
 //!
@@ -127,12 +127,27 @@ mod hunch_result;
 mod pipeline;
 
 pub use hunch_result::{Confidence, HunchResult, MediaType};
+pub use matcher::span::Property;
 pub use pipeline::Pipeline;
 
 /// Parse a media filename and return structured metadata.
 ///
 /// This is the main entry point for the library. It creates a default
 /// [`Pipeline`] and runs it against the input string.
+///
+/// # Performance
+///
+/// Creates a new [`Pipeline`] on every call. For batch processing,
+/// prefer constructing a [`Pipeline`] once and calling
+/// [`Pipeline::run`] or [`Pipeline::run_with_context`] in a loop:
+///
+/// ```rust
+/// let pipeline = hunch::Pipeline::new();
+/// for name in &["Movie.2024.mkv", "Show.S01E01.mkv"] {
+///     let result = pipeline.run(name);
+///     // ...
+/// }
+/// ```
 ///
 /// # Example
 ///
@@ -157,15 +172,25 @@ pub fn hunch(input: &str) -> HunchResult {
 /// Falls back to standard [`hunch`] behavior when no invariant is found
 /// or when `siblings` is empty.
 ///
+/// Accepts any iterable of string-like types (`&[&str]`, `&[String]`,
+/// `Vec<String>`, etc.).
+///
 /// # Example
 ///
 /// ```rust
+/// // Works with &[&str]:
 /// let result = hunch::hunch_with_context(
 ///     "Show.S01E03.720p.mkv",
 ///     &["Show.S01E01.720p.mkv", "Show.S01E02.720p.mkv"],
 /// );
 /// assert_eq!(result.title(), Some("Show"));
+///
+/// // Also works with Vec<String>:
+/// let siblings = vec!["Show.S01E01.720p.mkv".to_string()];
+/// let result = hunch::hunch_with_context("Show.S01E03.720p.mkv", &siblings);
+/// assert_eq!(result.title(), Some("Show"));
 /// ```
-pub fn hunch_with_context(input: &str, siblings: &[&str]) -> HunchResult {
-    Pipeline::default().run_with_context(input, siblings)
+pub fn hunch_with_context<S: AsRef<str>>(input: &str, siblings: &[S]) -> HunchResult {
+    let sibs: Vec<&str> = siblings.iter().map(|s| s.as_ref()).collect();
+    Pipeline::default().run_with_context(input, &sibs)
 }

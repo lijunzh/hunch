@@ -21,7 +21,10 @@ fn western_episode_series_cross_file() {
 #[test]
 fn western_movie_no_siblings_fallback() {
     // Zero siblings → falls back to standard run().
-    let result = hunch_with_context("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv", &[]);
+    let result = hunch_with_context(
+        "The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv",
+        &[] as &[&str],
+    );
     assert_eq!(result.title(), Some("The Matrix"));
     assert_eq!(result.year(), Some(1999));
 }
@@ -273,7 +276,7 @@ fn year_and_episode_both_detected() {
 #[test]
 fn no_siblings_no_invariance_signals() {
     // Zero siblings → standard run, no invariance signals.
-    let r = hunch_with_context("Show.03.720p.mkv", &[]);
+    let r = hunch_with_context("Show.03.720p.mkv", &[] as &[&str]);
     // Without context, "03" might or might not be episode. Just verify no crash.
     assert!(r.title().is_some());
 }
