@@ -1,5 +1,6 @@
 //! Hunch CLI — parse media filenames from the command line.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
@@ -30,6 +31,10 @@ struct Cli {
     #[arg(long = "batch", value_name = "DIR", conflicts_with_all = ["context_dir", "filename"])]
     batch_dir: Option<PathBuf>,
 
+    /// Recurse into subdirectories (only with --batch).
+    #[arg(short = 'r', long = "recursive", requires = "batch_dir")]
+    recursive: bool,
+
     /// Output raw JSON (default is pretty-printed).
     #[arg(short = 'j', long = "json")]
     json: bool,
@@ -55,46 +60,7 @@ fn main() {
 
     // ── Batch mode ──────────────────────────────────────────────────────
     if let Some(ref batch_dir) = cli.batch_dir {
-        let files = list_media_files(batch_dir);
-        if files.is_empty() {
-            eprintln!("No media files found in {}", batch_dir.display());
-            std::process::exit(1);
-        }
-        // Extract the parent directory name for title fallback.
-        // When filenames lack a title (e.g., "S01E10 - Episode.mkv"),
-        // the pipeline can extract it from the parent dir (e.g., "Paw Patrol").
-        let parent_name = batch_dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
-
-        let bare_filenames: Vec<String> = files
-            .iter()
-            .filter_map(|p| p.file_name()?.to_str().map(String::from))
-            .collect();
-
-        // Build inputs with parent dir prefix so extract_title_from_parent works.
-        let inputs: Vec<String> = bare_filenames
-            .iter()
-            .map(|f| {
-                if parent_name.is_empty() {
-                    f.clone()
-                } else {
-                    format!("{parent_name}/{f}")
-                }
-            })
-            .collect();
-
-        for (i, input) in inputs.iter().enumerate() {
-            // Siblings also include the parent dir prefix so the invariance
-            // engine sees "Paw Patrol" as invariant text across all files,
-            // rather than finding a spurious common prefix in episode titles.
-            let siblings: Vec<&str> = inputs
-                .iter()
-                .enumerate()
-                .filter(|(j, _)| *j != i)
-                .map(|(_, s)| s.as_str())
-                .collect();
-            let result = pipeline.run_with_context(input, &siblings);
-            print_result(&bare_filenames[i], &result, cli.json);
-        }
+        run_batch(&pipeline, batch_dir, cli.recursive, cli.json);
         return;
     }
 
@@ -142,6 +108,97 @@ fn main() {
     }
 }
 
+// ── Batch processing ────────────────────────────────────────────────────
+
+/// Run batch mode: collect media files, group by directory, parse with
+/// sibling context.
+///
+/// Files in the same directory are siblings of each other. Each file's input
+/// string is its relative path from the batch root, so
+/// `extract_title_from_parent` can walk the full directory chain.
+fn run_batch(pipeline: &Pipeline, batch_dir: &Path, recursive: bool, json: bool) {
+    // Collect files: flat or recursive.
+    let files = if recursive {
+        list_media_files_recursive(batch_dir)
+    } else {
+        list_media_files(batch_dir)
+    };
+    if files.is_empty() {
+        eprintln!("No media files found in {}", batch_dir.display());
+        std::process::exit(1);
+    }
+
+    // Build relative paths from the batch root, prefixed with the batch
+    // dir name itself. This ensures extract_title_from_parent can walk
+    // the full directory chain.
+    //
+    // Flat:      batch_dir="Paw Patrol/" → "Paw Patrol/S01E10.mkv"
+    // Recursive: batch_dir="tv/"         → "tv/Paw Patrol/Season 1/01.mkv"
+    let batch_name = batch_dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
+    let rel_paths: Vec<String> = files
+        .iter()
+        .filter_map(|p| {
+            let rel = p.strip_prefix(batch_dir).ok()?.to_str()?;
+            if batch_name.is_empty() {
+                Some(rel.to_string())
+            } else {
+                Some(format!("{batch_name}/{rel}"))
+            }
+        })
+        .collect();
+
+    // Group files by their parent directory (siblings = same parent dir).
+    // Key: parent dir relative path (e.g., "Show/Season 1")
+    // Value: indices into rel_paths
+    let groups = group_by_parent(&rel_paths);
+
+    for indices in groups.values() {
+        let group_paths: Vec<&str> = indices.iter().map(|&i| rel_paths[i].as_str()).collect();
+
+        for (pos, &idx) in indices.iter().enumerate() {
+            let input = &rel_paths[idx];
+            let siblings: Vec<&str> = group_paths
+                .iter()
+                .enumerate()
+                .filter(|(j, _)| *j != pos)
+                .map(|(_, s)| *s)
+                .collect();
+
+            let result = pipeline.run_with_context(input, &siblings);
+
+            // Display filename: bare filename for flat, relative path for recursive.
+            let display_name = if recursive {
+                input.as_str()
+            } else {
+                files[idx]
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(input)
+            };
+            print_result(display_name, &result, json);
+        }
+    }
+}
+
+/// Group relative paths by their parent directory.
+///
+/// Returns a sorted map of parent dir → indices, so sibling detection
+/// is scoped per-directory.
+fn group_by_parent(rel_paths: &[String]) -> BTreeMap<String, Vec<usize>> {
+    let mut groups: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+    for (i, path) in rel_paths.iter().enumerate() {
+        let parent = Path::new(path)
+            .parent()
+            .and_then(|p| p.to_str())
+            .unwrap_or("")
+            .to_string();
+        groups.entry(parent).or_default().push(i);
+    }
+    groups
+}
+
+// ── Output ──────────────────────────────────────────────────────────────
+
 /// Print a parse result as pretty JSON or compact JSON.
 fn print_result(filename: &str, result: &hunch::HunchResult, json: bool) {
     if json {
@@ -162,7 +219,9 @@ fn print_result(filename: &str, result: &hunch::HunchResult, json: bool) {
     }
 }
 
-/// List all media files in a directory (non-recursive).
+// ── File listing ────────────────────────────────────────────────────────
+
+/// List media files in a directory (non-recursive).
 fn list_media_files(dir: &Path) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         eprintln!("Error: cannot read directory {}", dir.display());
@@ -171,17 +230,47 @@ fn list_media_files(dir: &Path) -> Vec<PathBuf> {
     let mut files: Vec<PathBuf> = entries
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| {
-            p.is_file()
-                && p.extension()
-                    .and_then(|ext| ext.to_str())
-                    .is_some_and(|ext| {
-                        MEDIA_EXTENSIONS
-                            .iter()
-                            .any(|me| me.eq_ignore_ascii_case(ext))
-                    })
-        })
+        .filter(|p| p.is_file() && is_media_extension(p))
         .collect();
     files.sort();
     files
+}
+
+/// List media files in a directory tree (recursive).
+fn list_media_files_recursive(dir: &Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+    walk_dir(dir, &mut files);
+    files.sort();
+    files
+}
+
+/// Recursively walk a directory tree, collecting media files.
+fn walk_dir(dir: &Path, out: &mut Vec<PathBuf>) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let mut dirs = Vec::new();
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_file() && is_media_extension(&path) {
+            out.push(path);
+        } else if path.is_dir() {
+            dirs.push(path);
+        }
+    }
+    dirs.sort();
+    for d in dirs {
+        walk_dir(&d, out);
+    }
+}
+
+/// Check if a path has a recognized media file extension.
+fn is_media_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            MEDIA_EXTENSIONS
+                .iter()
+                .any(|me| me.eq_ignore_ascii_case(ext))
+        })
 }
