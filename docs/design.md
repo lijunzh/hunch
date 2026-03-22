@@ -1,62 +1,138 @@
 # Design — Hunch
 
-> Design principles, architecture, and key decisions for contributors
+> Principles, architecture, and key decisions for contributors
 > and maintainers.
 
 ---
 
-## Design Principles
+## Principles
 
-1. **Pure, offline, deterministic.** Hunch is a function: filename,
-   path, and sibling context in, metadata out. No network, no database,
-   no ML, no filesystem I/O in the library. The CLI is the only
-   component that touches the filesystem.
+Two foundational beliefs that drive every design decision.
 
-2. **Zero `unsafe`.** The entire codebase is safe Rust.
+### P1: Predictable behavior
 
-3. **Dumb engine, smart context.** The Rust engine is a simple pattern
-   matcher — TOML lookups and regex, nothing clever. When the engine
-   can't decide (is "French" a language or a title word?), use
-   **context** to resolve it: directory structure, sibling filenames,
-   token position relative to anchors. Prefer context over heuristics.
-   Heuristics are fragile; context is structural. When even context
-   is insufficient, see P5 (surface ambiguity).
+Same input, same output. Always.
 
-4. **Single binary.** All TOML rules are `include_str!`-ed. No runtime
-   config files, no data directories. `cargo install hunch` gives you
-   everything.
+Hunch is a deterministic function. Given the same filename, path, and
+sibling context, it always produces the same result. When it can't be
+confident, it says so honestly rather than guessing silently. Users
+should always be able to understand *why* hunch produced a given
+result and *what to do* when it's wrong.
 
-5. **Surface ambiguity, don't resolve it silently.** When multiple
-   valid interpretations exist and neither the engine nor available
-   context can distinguish them, hunch must be transparent about the
-   uncertainty rather than guessing.
+A confident wrong answer is worse than an honest "I'm not sure."
 
-   **Why:** A confident wrong answer is worse than an honest "I'm not
-   sure." Users can resolve ambiguity structurally (rename files,
-   organize directories, provide context). Heuristic guesses hide the
-   problem and silently produce wrong results that look right.
+### P2: Compile-time safety
 
-   **Mechanism:**
-   - **Confidence** drops when conflicting signals exist (D6).
-   - **Conflicts** are surfaced in the output so callers can inspect
-     and resolve them.
-   - The CLI prints **actionable hints** when ambiguity is detected
-     (e.g., "'Movie 10' could be franchise film #10 or episode 10.
-     Organize into movie/ or tv/ for unambiguous classification").
+Correctness is enforced before shipping, not at runtime.
 
-   **Example:** `Detective.Conan.Movie.10.mkv` — "Movie" followed by
-   a number is genuinely ambiguous. It could be the 10th movie in a
-   franchise (common in CJK media where movies and TV series are
-   stored together) or episode 10 of something with "Movie" in the
-   title. Adding a "if preceded by Movie, treat as Film" rule just
-   replaces one wrong guess with a different wrong guess. The correct
-   response is to lower confidence, surface the conflict, and let the
-   user provide structural disambiguation.
+No `unsafe` code, no runtime file loading, no external dependencies
+at runtime. If it compiles, the binary is self-contained and the
+regex engine is guaranteed linear-time. Runtime surprises are
+structurally eliminated.
 
-   **Relationship to P3:** P3 says "prefer context over heuristics."
-   P5 extends this: when context is also insufficient, prefer
-   transparency over guessing. The escalation chain is:
-   context → heuristic (last resort, low confidence) → ambiguity signal.
+---
+
+## Design Decisions
+
+Decisions derived from the principles, organized by the boundary
+they define. Hunch's architecture is a series of clear boundaries:
+what belongs in the library vs. the CLI, in data vs. code, in the
+engine vs. context, and in the machine vs. the human.
+
+### Boundary 1: Library vs. CLI (P1, P2)
+
+**The library is a pure function. The CLI is the I/O shell.**
+
+The library (`hunch::hunch()`, `Pipeline::run()`) takes a filename,
+path, and sibling context as input and returns metadata as output.
+No network, no database, no ML, no filesystem I/O. Deterministic
+by construction (P1).
+
+The CLI is the only component that touches the filesystem: reading
+directories for `--batch` and `--context`, printing to
+stdout/stderr. This boundary ensures the library is embeddable,
+testable, and safe to call from any context.
+
+### Boundary 2: Data vs. Code (P1, P2)
+
+**Vocabulary belongs in TOML. Logic belongs in Rust.**
+
+Simple pattern recognition ("is `x264` a codec?") lives in TOML
+lookup tables — readable, auditable, contributors can add patterns
+without deep Rust knowledge:
+
+```toml
+[exact]
+x264 = "H.264"
+hevc = "H.265"
+```
+
+Control flow (episode parsing, date detection, title extraction)
+lives in Rust. The boundary is: if it's a vocabulary lookup, it's
+TOML; if it needs branching or state, it's Rust.
+
+All TOML rules are `include_str!`-ed at compile time. No runtime
+config files, no data directories. `cargo install hunch` gives you
+everything (P2). The `regex` crate (not `fancy_regex`) ensures
+linear-time matching — ReDoS is structurally impossible (P2).
+
+### Boundary 3: Engine vs. Context (P1)
+
+**The engine is dumb. Context is smart.**
+
+The Rust engine is a simple pattern matcher — TOML lookups and regex,
+nothing clever. When the engine can't decide (is "French" a language
+or a title word?), it defers to **context**:
+
+- **Directory structure:** `tv/`, `movie/`, `Season 1/` in the path
+- **Sibling filenames:** cross-file invariance reveals titles
+- **Token position:** relative to unambiguous anchors (SxxExx, 1080p)
+
+Prefer context over heuristics. Heuristics are fragile; context is
+structural. When context is also insufficient, defer to the human
+(Boundary 4).
+
+The escalation chain:
+```
+Unambiguous pattern (S01E02)  →  High confidence, engine decides
+Context resolves it (tv/ dir) →  High confidence, context decides
+Heuristic guess (bare number) →  Medium confidence, engine guesses
+Genuine ambiguity (Movie 10)  →  Low confidence, human decides
+```
+
+### Boundary 4: Machine vs. Human (P1)
+
+**Surface ambiguity, don't resolve it silently.**
+
+When multiple valid interpretations exist and neither the engine nor
+available context can distinguish them, hunch must be transparent
+about the uncertainty rather than guessing.
+
+Mechanism:
+- **Confidence** drops when conflicting signals exist.
+- **Conflicts** are surfaced in the output so callers can inspect
+  and resolve them.
+- The CLI prints **actionable hints** suggesting how the user can
+  provide structural disambiguation.
+
+**Example:** `Detective.Conan.Movie.10.mkv` — "Movie" followed by
+a number is genuinely ambiguous. It could be the 10th movie in a
+franchise (common in CJK media where movies and TV series coexist
+in the same directory) or episode 10 of something with "Movie" in
+the title. Adding a "if preceded by Movie, treat as Film" rule
+just replaces one wrong guess with a different wrong guess. The
+correct response: lower confidence, surface the conflict, let the
+user organize files into `movie/` or `tv/` for unambiguous
+classification.
+
+Known ambiguity patterns:
+
+| Pattern | Interpretations | User resolution |
+|---|---|---|
+| `Movie N` | Film #N vs. episode N | Organize into `movie/` or `tv/` |
+| `YYYY` in title position | Year vs. title word | Cross-file context |
+| Bare number after title | Episode vs. version vs. part | Use structural markers |
+| CJK mixed collections | Movies + TV in same dir | Directory structure |
 
 ---
 
@@ -98,47 +174,9 @@ tech matches; Pass 2 uses those positions for structural extraction.
 
 ---
 
-## Key Design Decisions
+## Implementation Details
 
-### D1: TOML rules over hardcoded Rust
-
-Simple vocabulary patterns belong in data files, not code:
-
-```toml
-# rules/video_codec.toml
-[exact]
-x264 = "H.264"
-hevc = "H.265"
-
-[[patterns]]
-match = '(?i)^[xh][-.]?265$'
-value = "H.265"
-```
-
-**Why:** Readable, auditable, contributors can add patterns without
-deep Rust knowledge. Compile-time embedding preserves single-binary
-deployment.
-
-**Boundary:** Properties that need control flow (episodes, dates) have
-Rust helpers, but these should stay simple. When disambiguation is
-needed, prefer cross-file context over clever heuristics.
-
-### D2: `regex` only — no `fancy_regex`
-
-The tokenizer eliminates the need for lookaround:
-
-```
-# Before (needs lookaround): scan raw string
-(?<!\w)HDTV(?!\w)  on "Movie.HDTV.x264"
-
-# After (token isolation): match isolated token
-(?i)^HDTV$  on token "HDTV"
-```
-
-**Security benefit:** Linear-time matching. ReDoS is structurally
-impossible.
-
-### D3: No rebulk port
+### No rebulk port
 
 guessit uses `rebulk`, a Python pattern engine with chains, rules,
 tags, formatters, handlers, and validators (~15 features). Hunch's
@@ -153,10 +191,10 @@ TOML engine has 5 features and expresses ~90% of rebulk's patterns:
 | Zone scoping | Rule tags + validators | `zone_scope` field |
 
 The remaining 10% (multi-span patterns with arbitrary gaps) are edge
-cases where cross-file context (D5) is the principled solution, not
+cases where cross-file context is the principled solution, not
 more clever Rust code.
 
-### D4: Zone map — anchors first, matching second
+### Zone map — anchors first, matching second
 
 The v0.1 pipeline matched everything, then pruned mistakes. This lost
 information (a pruned match can't be restored as title content).
@@ -174,15 +212,15 @@ The zone map inverts the flow:
 | 2: Tech vocab | `x264`, `BluRay`, `DTS` | Almost always unambiguous |
 | 3: Positional | Year-like numbers (1920–2039) | Ambiguous — use context |
 
-Tier 1 and 2 anchors are structural context (P3). Tier 3 tokens like
+Tier 1 and 2 anchors are structural context (Boundary 3). Tier 3 tokens like
 year-like numbers are genuinely ambiguous — "2001" in
 "2001.A.Space.Odyssey.1968" is title, not year. The engine uses basic
 positional heuristics as a fallback, but the principled solution is
-**cross-file context** (D5): if siblings all share "2001" in the same
-position, it's title. Confidence scoring (D6) signals when context
+**cross-file context**: if siblings all share "2001" in the same
+position, it's title. Confidence scoring signals when context
 would help.
 
-### D5: Cross-file context
+### Cross-file context
 
 The title is the **invariant text** across sibling files:
 
@@ -204,7 +242,7 @@ The title is the **invariant text** across sibling files:
 caller-provided data, not filesystem access. The CLI reads directories
 via `--context` and `--batch`.
 
-### D6: Confidence scoring and ambiguity signals
+### Confidence scoring
 
 `HunchResult::confidence()` returns `High | Medium | Low`:
 
@@ -213,38 +251,20 @@ via `--context` and `--batch`.
 | Cross-file context + title found | High |
 | ≥3 tech anchors + title ≥2 chars | High |
 | Some anchors, reasonable title | Medium |
-| Conflicting interpretations (P5) | Low |
+| Conflicting interpretations (Boundary 4) | Low |
 | No title or title ≤1 char | Low |
 
-Confidence is honest about uncertainty. When the dumb engine can't
+Confidence is honest about uncertainty (P1). When the engine can't
 decide, it says so — and the CLI suggests using `--context` to
 provide structural context instead of guessing harder.
 
-**Ambiguity signals (P5):** When hunch detects that a parse contains
-conflicting interpretations, it should:
+When hunch detects conflicting interpretations (Boundary 4), it:
 
-1. **Still produce a result** — pick the most common interpretation
+1. **Still produces a result** — picks the most common interpretation
    as the default (a best-effort answer is better than none).
-2. **Drop confidence to Low** — signal that the result is uncertain.
-3. **Surface conflicts** — include machine-readable conflict
+2. **Drops confidence to Low** — signals that the result is uncertain.
+3. **Surfaces conflicts** — includes machine-readable conflict
    descriptions so callers can decide how to handle them.
-
-Known ambiguity patterns:
-
-| Pattern | Interpretations | Resolution path |
-|---|---|---|
-| `Movie N` (e.g., "Movie 10") | Film #N in franchise vs. episode N | User organizes into `movie/` or `tv/` |
-| `YYYY` in title position | Year vs. title word ("2001: A Space Odyssey") | Cross-file context (D5) |
-| Bare number after title | Episode vs. version vs. part | Structural markers (`S01E01`, `Part 2`) |
-| CJK mixed collections | Same dir has movies + TV episodes | User provides directory structure |
-
-The escalation chain (P3 → P5):
-```
-Unambiguous pattern (S01E02)  →  High confidence, no conflict
-Context resolves it (tv/ dir) →  High confidence, no conflict
-Heuristic guess (bare number) →  Medium confidence, no conflict
-Genuine ambiguity (Movie 10)  →  Low confidence, conflict surfaced
-```
 
 ---
 

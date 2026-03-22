@@ -329,9 +329,9 @@ fn build_dir_zones(input: &str, token_stream: &TokenStream) -> Vec<SegmentZone> 
 /// Uses `tech_zone_start` (derived from Tier 1+2 anchors) to determine
 /// which year candidates are title content vs actual release years.
 ///
-/// ⚠️ **Heuristic fallback** (P3) — the "last candidate = year" rule is
+/// ⚠️ **Heuristic fallback** (Boundary 3) — the "last candidate = year" rule is
 /// a positional heuristic. The principled solution is cross-file context
-/// (docs/design.md D5): if siblings share "2001" in the same position,
+/// (docs/design.md, Cross-file context): if siblings share "2001" in the same position,
 /// it's title, not year. This fallback is acceptable until context-based
 /// year resolution is implemented.
 fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> Option<YearInfo> {
