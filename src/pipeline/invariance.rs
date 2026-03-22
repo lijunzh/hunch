@@ -5,8 +5,8 @@
 //! siblings are title content, numbers that vary are metadata (episodes,
 //! years). Sequential variant numbers provide episode evidence.
 //!
-//! See `InvarianceReport` for the unified result, and docs/plan-52-53.md
-//! for the full design.
+//! See `InvarianceReport` for the unified result, and docs/design.md
+//! (Cross-file context) for the architectural rationale.
 
 use std::sync::LazyLock;
 
