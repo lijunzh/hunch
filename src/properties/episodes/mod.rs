@@ -11,7 +11,7 @@
 //! 5. Digit decomposition (101→S1E01)  ⚠️ HEURISTIC — see note below
 //! 6. Post-processing (absolute episodes, week detection)
 //!
-//! ## Principle alignment (P3: Dumb engine, smart context)
+//! ## Principle alignment (Boundary 3: Engine vs. Context)
 //!
 //! Groups 1–2 are **structural patterns** — unambiguous, context-free.
 //! Groups 3–4 are **vocabulary patterns** — keyword-driven, low risk.
@@ -19,7 +19,8 @@
 //! via `filename.starts_with('[')`) are **fragile heuristics** that
 //! guess based on position and format conventions. These should be
 //! superseded by cross-file context when available (see docs/design.md
-//! D5). Until then, they run at low priority as last-resort fallbacks.
+//! context when available (see docs/design.md, Cross-file context).
+//! Until then, they run at low priority as last-resort fallbacks.
 
 mod patterns;
 #[cfg(test)]
@@ -877,14 +878,14 @@ fn try_cjk_episode_marker(input: &str, matches: &mut Vec<MatchSpan>) {
 
 /// 3/4-digit decomposition: 101→S1E01, 2401→S24E01.
 ///
-/// ⚠️ **Fragile heuristic** (P3 violation) — this guesses season/episode
+/// ⚠️ **Fragile heuristic** (Boundary 3 violation) — this guesses season/episode
 /// from bare numbers using digit splitting. It's a last-resort fallback
 /// that only runs when no structural patterns (SxxExx, NxN) matched.
 ///
 /// The `is_anime_style` check (`filename.starts_with('[')`) is also
 /// fragile — it assumes bracket-prefixed filenames are anime.
 ///
-/// **Principled fix:** Use cross-file context (docs/design.md D5) to
+/// **Principled fix:** Use cross-file context (docs/design.md, Cross-file context) to
 /// detect episode numbering patterns across siblings instead of guessing
 /// from digit positions in a single filename.
 fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
