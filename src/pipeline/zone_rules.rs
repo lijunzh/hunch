@@ -1,20 +1,22 @@
 //! Zone-based disambiguation rules.
 //!
 //! Post-matching disambiguation that handles cross-property semantics.
-//! Rules 1 and 2 use neighbor-based context analysis (token_context module)
-//! instead of fragile positional heuristics.
+//! `language_disambiguation` and `source_in_title_context` use
+//! neighbor-based context analysis (token_context module) instead of
+//! fragile positional heuristics.
 //!
 //! ## Rule inventory (7 active)
 //!
-//! | # | Name | Context signal |
-//! |---|------|----------------|
-//! | 1 | Language disambiguation | Neighbor roles + duplicate detection |
-//! | 2 | Source disambiguation | Neighbor roles (title words vs tech) |
-//! | 3 | UHD Blu-ray (atomic) | Co-occurrence (semantic) |
-//! | 5 | Other ↔ ReleaseGroup | Adjacency to release group |
-//! | 6 | Source subsumption | Subsumption table (semantic) |
-//! | 7 | Language inside tech span | Byte-range containment |
-//! | 8 | Language inside subtitle span | Byte-range containment |
+//! | Rule | Phase | Context signal |
+//! |------|-------|----------------|
+//! | `language_disambiguation` | Pass 1 | Neighbor roles + duplicate detection |
+//! | `source_in_title_context` | Pass 1 | Neighbor roles (title words vs tech) |
+//! | `uhd_bluray_promotion` | Pass 1 | Co-occurrence (semantic) |
+//! | `subtitle_source_conflict` | Pass 1 | Same-span priority comparison |
+//! | `language_inside_tech_span` | Pass 1 | Byte-range containment |
+//! | `language_inside_subtitle_span` | Pass 1 | Byte-range containment |
+//! | `source_subsumption` | Pass 1 | Subsumption table (semantic) |
+//! | `other_release_group_adjacency` | Pass 2 | Adjacency to release group |
 
 use log::trace;
 
@@ -26,10 +28,10 @@ use super::token_context;
 
 /// Structure-aware disambiguation using neighbor context.
 ///
-/// Rules 1 and 2 use the `token_context` module to classify ambiguous
-/// matches based on their neighbors' roles (title word vs tech token),
-/// replacing the old positional heuristics ("first half of title zone",
-/// "before the anchor").
+/// `language_disambiguation` and `source_in_title_context` use the
+/// `token_context` module to classify ambiguous matches based on their
+/// neighbors' roles (title word vs tech token), replacing the old
+/// positional heuristics ("first half of title zone", "before the anchor").
 pub fn apply_zone_rules(
     input: &str,
     _zone_map: &ZoneMap,
@@ -39,13 +41,12 @@ pub fn apply_zone_rules(
     let fn_start = crate::filename_start(input);
     let initial_count = matches.len();
 
-    // ── Rule 1: Language disambiguation (context-aware) ────────────────
-    // Instead of positional heuristics ("first half of title zone"),
-    // check each language match's actual context:
-    //   - Is it surrounded by title words? → drop (it's a title word)
-    //   - Is it surrounded by tech tokens? → keep (it's a language label)
-    //   - Does a duplicate exist in tech context? → drop (redundant)
-    //   - Is it after a " - " separator or in brackets? → keep (metadata slot)
+    // ── language_disambiguation ────────────────────────────────────────
+    // Check each language match's actual neighbor context:
+    //   - Surrounded by title words? → drop (it's a title word)
+    //   - Surrounded by tech tokens? → keep (it's a language label)
+    //   - Duplicate exists in tech context? → drop (redundant)
+    //   - After a " - " separator or in brackets? → keep (metadata slot)
     {
         let drop_positions: Vec<usize> = matches
             .iter()
@@ -65,7 +66,7 @@ pub fn apply_zone_rules(
         initial_count
     );
 
-    // ── Rule 2: Source in title context → title word ──────────────────
+    // ── source_in_title_context ───────────────────────────────────────
     // When multiple sources exist, drop the one(s) surrounded by title words.
     // This replaces the fragile "before anchor = title word" heuristic.
     let source_count = matches
@@ -82,10 +83,10 @@ pub fn apply_zone_rules(
         matches.retain(|m| m.property != Property::Source || !drop_positions.contains(&m.start));
     }
 
-    // ── Rule 3+4: UHD Blu-ray promotion + redundant Ultra HD cleanup ──
+    // ── uhd_bluray_promotion ──────────────────────────────────────────
     // When UHD/4K/2160p appears alongside Blu-ray, promote the source
     // to "Ultra HD Blu-ray" and drop the redundant Other:"Ultra HD".
-    // Combined into a single atomic rule (no ordering dependency).
+    // Promotion and cleanup are atomic (no ordering dependency).
     let has_uhd_signal = matches.iter().any(|m| {
         m.start >= fn_start
             && ((m.property == Property::Other && m.value == "Ultra HD")
@@ -107,17 +108,17 @@ pub fn apply_zone_rules(
         matches.retain(|m| !(m.property == Property::Other && m.value == "Ultra HD"));
     }
 
-    // ── Rule 5: MOVED to apply_post_release_group_rules() ─────────────────
+    // ── other_release_group_adjacency → see apply_post_release_group_rules()
     // HQ/HR/FanSub adjacency check depends on release group positions,
-    // which are now extracted in Pass 2 (post-resolution).
+    // which are only available after Pass 2 extraction.
 
-    // ── Rule 7a: Same-position SubtitleLanguage vs Source conflict ──────
-    // When SubtitleLanguage and Source occupy the exact same span (e.g., `tc`
-    // matching both Telecine and Traditional Chinese), keep the higher-priority
-    // SubtitleLanguage and drop the Source.
-    // Also: "TC" for Telecine is extremely rare and almost always a CJK subtitle
-    // indicator. If SubtitleLanguage is already detected (e.g., from BIG5 or
-    // .tc.ass), drop any Source=Telecine match regardless of position.
+    // ── subtitle_source_conflict ──────────────────────────────────────
+    // When SubtitleLanguage and Source occupy the exact same span (e.g.,
+    // `tc` matching both Telecine and Traditional Chinese), keep the
+    // higher-priority SubtitleLanguage and drop the Source.
+    // Also: "TC" for Telecine is extremely rare and almost always a CJK
+    // subtitle indicator. If SubtitleLanguage is already detected (e.g.,
+    // from BIG5 or .tc.ass), drop any Source=Telecine match.
     {
         let has_sub_lang = matches
             .iter()
@@ -142,9 +143,9 @@ pub fn apply_zone_rules(
         });
     }
 
-    // ── Rule 7: Language/SubtitleLanguage contained within a tech span ───
+    // ── language_inside_tech_span ─────────────────────────────────────
 
-    // ── Rule 8: Language contained within a SubtitleLanguage span ────────
+    // ── language_inside_subtitle_span ─────────────────────────────────
     // When a short language token (e.g., "FR", "SWE") falls inside a wider
     // subtitle_language span (e.g., "FR Sub", "SWE Sub"), drop the language
     // match — the token is part of a subtitle marker, not an audio language.
@@ -167,9 +168,9 @@ pub fn apply_zone_rules(
         }
     }
 
-    // ── Rule 6: Deduplicate subsumed Source values ──────────────────────────
-    // When both a generic source (TV, HD) and a specific source (HDTV, HD-DVD)
-    // exist, drop the generic one since the specific subsumes it.
+    // ── source_subsumption ────────────────────────────────────────────
+    // When both a generic source (TV, HD) and a specific source (HDTV,
+    // HD-DVD) exist, drop the generic one since the specific subsumes it.
     {
         let source_values: Vec<(usize, String)> = matches
             .iter()
@@ -231,7 +232,7 @@ pub fn apply_zone_rules(
 /// after Pass 2 extraction. Called from the pipeline after release_group
 /// has been extracted.
 pub fn apply_post_release_group_rules(matches: &mut Vec<MatchSpan>) {
-    // ── Rule 5: Other overlapping or adjacent to ReleaseGroup → drop ambiguous Other ───
+    // ── other_release_group_adjacency ─────────────────────────────────
     let rg_spans: Vec<(usize, usize)> = matches
         .iter()
         .filter(|m| m.property == Property::ReleaseGroup)
