@@ -15,7 +15,27 @@ const MEDIA_EXTENSIONS: &[&str] = &[
 #[derive(Parser)]
 #[command(
     name = "hunch",
-    about = "Fast, offline media filename parser — extract title, year, codec, and 40+ properties"
+    about = "Fast, offline media filename parser — extract title, year, codec, and 40+ properties",
+    after_help = "EXAMPLES:
+  Parse a single file:
+    hunch 'Show.S01E03.720p.BluRay.x264-GROUP.mkv'
+
+  Parse with sibling context (improves title detection):
+    hunch 'S01E03.mkv' --context /path/to/show/
+
+  Batch-parse a single directory:
+    hunch --batch /path/to/show/ -j
+
+  Batch-parse an entire media library (RECOMMENDED):
+    hunch --batch /path/to/tv/ -r -j
+
+    The -r flag recurses into subdirectories and preserves the full
+    relative path (e.g. tv/Anime/Show/Extra/file.mkv). This gives
+    the parser critical context from directory names like 'tv/',
+    'Anime/', 'Season 1/' for accurate type detection.
+
+    Without -r, files in deep subdirectories lose their path context
+    and bonus content may be misclassified as movies."
 )]
 #[command(version)]
 struct Cli {
@@ -28,10 +48,16 @@ struct Cli {
     context_dir: Option<PathBuf>,
 
     /// Parse all media files in a directory (siblings used as mutual context).
+    ///
+    /// For media libraries, use with -r to preserve full path context:
+    ///   hunch --batch /path/to/tv/ -r -j
     #[arg(long = "batch", value_name = "DIR", conflicts_with_all = ["context_dir", "filename"])]
     batch_dir: Option<PathBuf>,
 
     /// Recurse into subdirectories (only with --batch).
+    ///
+    /// Preserves relative paths so directory names (tv/, Anime/, Season 1/)
+    /// provide context for type inference. Recommended for media libraries.
     #[arg(short = 'r', long = "recursive", requires = "batch_dir")]
     recursive: bool,
 
