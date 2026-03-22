@@ -19,11 +19,44 @@
    can't decide (is "French" a language or a title word?), use
    **context** to resolve it: directory structure, sibling filenames,
    token position relative to anchors. Prefer context over heuristics.
-   Heuristics are fragile; context is structural.
+   Heuristics are fragile; context is structural. When even context
+   is insufficient, see P5 (surface ambiguity).
 
 4. **Single binary.** All TOML rules are `include_str!`-ed. No runtime
    config files, no data directories. `cargo install hunch` gives you
    everything.
+
+5. **Surface ambiguity, don't resolve it silently.** When multiple
+   valid interpretations exist and neither the engine nor available
+   context can distinguish them, hunch must be transparent about the
+   uncertainty rather than guessing.
+
+   **Why:** A confident wrong answer is worse than an honest "I'm not
+   sure." Users can resolve ambiguity structurally (rename files,
+   organize directories, provide context). Heuristic guesses hide the
+   problem and silently produce wrong results that look right.
+
+   **Mechanism:**
+   - **Confidence** drops when conflicting signals exist (D6).
+   - **Conflicts** are surfaced in the output so callers can inspect
+     and resolve them.
+   - The CLI prints **actionable hints** when ambiguity is detected
+     (e.g., "'Movie 10' could be franchise film #10 or episode 10.
+     Organize into movie/ or tv/ for unambiguous classification").
+
+   **Example:** `Detective.Conan.Movie.10.mkv` — "Movie" followed by
+   a number is genuinely ambiguous. It could be the 10th movie in a
+   franchise (common in CJK media where movies and TV series are
+   stored together) or episode 10 of something with "Movie" in the
+   title. Adding a "if preceded by Movie, treat as Film" rule just
+   replaces one wrong guess with a different wrong guess. The correct
+   response is to lower confidence, surface the conflict, and let the
+   user provide structural disambiguation.
+
+   **Relationship to P3:** P3 says "prefer context over heuristics."
+   P5 extends this: when context is also insufficient, prefer
+   transparency over guessing. The escalation chain is:
+   context → heuristic (last resort, low confidence) → ambiguity signal.
 
 ---
 
@@ -171,7 +204,7 @@ The title is the **invariant text** across sibling files:
 caller-provided data, not filesystem access. The CLI reads directories
 via `--context` and `--batch`.
 
-### D6: Confidence scoring
+### D6: Confidence scoring and ambiguity signals
 
 `HunchResult::confidence()` returns `High | Medium | Low`:
 
@@ -180,11 +213,38 @@ via `--context` and `--batch`.
 | Cross-file context + title found | High |
 | ≥3 tech anchors + title ≥2 chars | High |
 | Some anchors, reasonable title | Medium |
+| Conflicting interpretations (P5) | Low |
 | No title or title ≤1 char | Low |
 
 Confidence is honest about uncertainty. When the dumb engine can't
 decide, it says so — and the CLI suggests using `--context` to
 provide structural context instead of guessing harder.
+
+**Ambiguity signals (P5):** When hunch detects that a parse contains
+conflicting interpretations, it should:
+
+1. **Still produce a result** — pick the most common interpretation
+   as the default (a best-effort answer is better than none).
+2. **Drop confidence to Low** — signal that the result is uncertain.
+3. **Surface conflicts** — include machine-readable conflict
+   descriptions so callers can decide how to handle them.
+
+Known ambiguity patterns:
+
+| Pattern | Interpretations | Resolution path |
+|---|---|---|
+| `Movie N` (e.g., "Movie 10") | Film #N in franchise vs. episode N | User organizes into `movie/` or `tv/` |
+| `YYYY` in title position | Year vs. title word ("2001: A Space Odyssey") | Cross-file context (D5) |
+| Bare number after title | Episode vs. version vs. part | Structural markers (`S01E01`, `Part 2`) |
+| CJK mixed collections | Same dir has movies + TV episodes | User provides directory structure |
+
+The escalation chain (P3 → P5):
+```
+Unambiguous pattern (S01E02)  →  High confidence, no conflict
+Context resolves it (tv/ dir) →  High confidence, no conflict
+Heuristic guess (bare number) →  Medium confidence, no conflict
+Genuine ambiguity (Movie 10)  →  Low confidence, conflict surfaced
+```
 
 ---
 
