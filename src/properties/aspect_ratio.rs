@@ -27,7 +27,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 let full = cap.get(0).unwrap();
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::AspectRatio, formatted)
-                        .with_priority(-1),
+                        .with_priority(crate::priority::HEURISTIC),
                 );
             }
         }

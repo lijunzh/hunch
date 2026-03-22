@@ -64,8 +64,10 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         // Output without spaces: "320Kbps", "19.1Mbps".
         let value = format!("{num}{normalized_unit}");
 
-        matches
-            .push(MatchSpan::new(abs_start, abs_end, Property::BitRate, &value).with_priority(1));
+        matches.push(
+            MatchSpan::new(abs_start, abs_end, Property::BitRate, &value)
+                .with_priority(crate::priority::VOCABULARY),
+        );
 
         // Advance past this match.
         search_start = abs_end;

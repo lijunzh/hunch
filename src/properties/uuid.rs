@@ -27,7 +27,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         if let Some(uuid) = cap.name("uuid") {
             matches.push(
                 MatchSpan::new(uuid.start(), uuid.end(), Property::Uuid, uuid.as_str())
-                    .with_priority(2),
+                    .with_priority(crate::priority::KEYWORD),
             );
         }
     }
@@ -38,7 +38,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             if let Some(uuid) = cap.name("uuid") {
                 matches.push(
                     MatchSpan::new(uuid.start(), uuid.end(), Property::Uuid, uuid.as_str())
-                        .with_priority(2),
+                        .with_priority(crate::priority::KEYWORD),
                 );
             }
         }

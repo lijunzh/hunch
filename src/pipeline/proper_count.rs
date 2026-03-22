@@ -13,7 +13,7 @@ static REPACK_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
 });
 
 pub fn compute_proper_count(input: &str, matches: &[MatchSpan]) -> u32 {
-    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let fn_start = crate::filename_start(input);
     let mut has_real = false;
     let mut proper_count_raw: u32 = 0;
     let mut repack_count: u32 = 0;

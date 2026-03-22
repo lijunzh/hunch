@@ -231,7 +231,7 @@ pub fn extract_film_title(
     let film_match = matches.iter().find(|m| m.property == Property::Film)?;
     let _title_match = matches.iter().find(|m| m.property == Property::Title)?;
 
-    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let fn_start = crate::filename_start(input);
 
     if film_match.start <= fn_start {
         return None;
@@ -300,7 +300,7 @@ pub fn extract_alternative_titles(
     matches: &[MatchSpan],
     _token_stream: &TokenStream,
 ) -> Vec<MatchSpan> {
-    let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let filename_start = crate::filename_start(input);
 
     let first_match = matches
         .iter()

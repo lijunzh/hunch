@@ -23,7 +23,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             if let Some(lang) = lang_code_to_name(code) {
                 matches.push(
                     MatchSpan::new(cap.start(), cap.end(), Property::Language, lang)
-                        .with_priority(0),
+                        .with_priority(crate::priority::DEFAULT),
                 );
             }
         }

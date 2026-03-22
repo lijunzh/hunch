@@ -218,8 +218,10 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     for cap in WEEK.captures_iter(input) {
         let full = cap.get(0).expect("group 0 always present");
         let week = parse_num(&cap, "week");
-        matches
-            .push(MatchSpan::new(full.start(), full.end(), Property::Week, week).with_priority(1));
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Week, week)
+                .with_priority(crate::priority::VOCABULARY),
+        );
     }
 
     matches
@@ -239,7 +241,7 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
         if s1 == s2 && e2 >= e1 {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, s1.to_string())
-                    .with_priority(5),
+                    .with_priority(crate::priority::STRUCTURAL),
             );
             matches.extend(episode_range(e1, e2, full.start(), full.end(), 5));
         }
@@ -268,7 +270,7 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
                 Property::Season,
                 season.to_string(),
             )
-            .with_priority(-1),
+            .with_priority(crate::priority::HEURISTIC),
         );
 
         let ep_rest = cap.name("ep_rest").map(|m| m.as_str()).unwrap_or("");
@@ -280,13 +282,13 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
                     Property::Episode,
                     ep_start.to_string(),
                 )
-                .with_priority(5),
+                .with_priority(crate::priority::STRUCTURAL),
             );
         } else {
             for ep in &parse_multi_episodes(ep_start, ep_rest) {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Episode, ep.to_string())
-                        .with_priority(5),
+                        .with_priority(crate::priority::STRUCTURAL),
                 );
             }
         }
@@ -294,15 +296,25 @@ fn try_sxxexx_family(input: &str, matches: &mut Vec<MatchSpan>) {
 
     // S03-E01 (dash separated).
     if matches.is_empty() {
-        match_season_episode(&SXX_DASH_EXX, input, 4, matches);
+        match_season_episode(
+            &SXX_DASH_EXX,
+            input,
+            crate::priority::STRUCTURAL - 1,
+            matches,
+        );
     }
     // S06xE01.
     if matches.is_empty() {
-        match_season_episode(&SXX_X_EXX, input, 4, matches);
+        match_season_episode(&SXX_X_EXX, input, crate::priority::STRUCTURAL - 1, matches);
     }
     // S03-X01 for bonus.
     if matches.is_empty() {
-        match_season_episode(&SXX_DASH_XXX, input, 4, matches);
+        match_season_episode(
+            &SXX_DASH_XXX,
+            input,
+            crate::priority::STRUCTURAL - 1,
+            matches,
+        );
     }
 }
 
@@ -332,7 +344,7 @@ fn try_nxn(input: &str, matches: &mut Vec<MatchSpan>) {
                 Property::Season,
                 season.to_string(),
             )
-            .with_priority(3),
+            .with_priority(crate::priority::PATTERN),
         );
 
         let ep_end = cap.name("ep2").and_then(|m| m.as_str().parse::<u32>().ok());
@@ -348,11 +360,11 @@ fn try_nxn(input: &str, matches: &mut Vec<MatchSpan>) {
                         Property::Episode,
                         ep_start.to_string(),
                     )
-                    .with_priority(3),
+                    .with_priority(crate::priority::PATTERN),
                 );
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Episode, end.to_string())
-                        .with_priority(3),
+                        .with_priority(crate::priority::PATTERN),
                 );
             }
             None => {
@@ -363,7 +375,7 @@ fn try_nxn(input: &str, matches: &mut Vec<MatchSpan>) {
                         Property::Episode,
                         ep_start.to_string(),
                     )
-                    .with_priority(3),
+                    .with_priority(crate::priority::PATTERN),
                 );
             }
         }
@@ -392,7 +404,7 @@ fn try_season_patterns(input: &str, matches: &mut Vec<MatchSpan>) {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, season)
                     .as_path_based()
-                    .with_priority(-2),
+                    .with_priority(crate::priority::POSITIONAL),
             );
         }
     }
@@ -415,7 +427,8 @@ fn try_season_patterns(input: &str, matches: &mut Vec<MatchSpan>) {
             }
             let season = parse_num(&cap, "season");
             matches.push(
-                MatchSpan::new(full.start(), full.end(), Property::Season, season).with_priority(1),
+                MatchSpan::new(full.start(), full.end(), Property::Season, season)
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
     }
@@ -431,7 +444,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
         for s in s1..=s2 {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
         return;
@@ -445,7 +458,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
         for s in s1..=s2 {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
         return;
@@ -462,7 +475,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
             if let Ok(s) = num_str.parse::<u32>() {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                 );
             }
         }
@@ -481,7 +494,7 @@ fn try_s_prefix_ranges(input: &str, matches: &mut Vec<MatchSpan>) {
         for s in &nums {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
     }
@@ -498,7 +511,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
             for s in s1..=s2 {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                 );
             }
             return;
@@ -519,7 +532,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
         for s in &nums {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
         return;
@@ -538,14 +551,14 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
         for s in &prefix_nums {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
         if let Some(&last) = prefix_nums.last() {
             for s in (last + 1)..=end {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                 );
             }
         }
@@ -572,14 +585,14 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
             for s in &nums[..nums.len() - 2] {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                 );
             }
             if range_end > range_start {
                 for s in range_start..=range_end {
                     matches.push(
                         MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                            .with_priority(1),
+                            .with_priority(crate::priority::VOCABULARY),
                     );
                 }
             }
@@ -587,7 +600,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
             for s in &nums {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Season, s.to_string())
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                 );
             }
         }
@@ -610,7 +623,7 @@ fn try_season_words(input: &str, matches: &mut Vec<MatchSpan>) {
         if let Some(num) = roman_to_int(roman_str) {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, num.to_string())
-                    .with_priority(2),
+                    .with_priority(crate::priority::KEYWORD),
             );
         }
     }
@@ -660,7 +673,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                         Property::Episode,
                         ep_start.to_string(),
                     )
-                    .with_priority(2),
+                    .with_priority(crate::priority::KEYWORD),
                 );
             } else if !extra_eps.is_empty() {
                 // Space-separated zero-padded episodes: E01 02 03
@@ -671,7 +684,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                         Property::Episode,
                         ep_start.to_string(),
                     )
-                    .with_priority(2),
+                    .with_priority(crate::priority::KEYWORD),
                 );
                 for ep in &extra_eps {
                     matches.push(
@@ -681,14 +694,14 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                             Property::Episode,
                             ep.to_string(),
                         )
-                        .with_priority(2),
+                        .with_priority(crate::priority::KEYWORD),
                     );
                 }
             } else {
                 for ep in &parse_multi_episodes(ep_start, ep_rest) {
                     matches.push(
                         MatchSpan::new(full.start(), full.end(), Property::Episode, ep.to_string())
-                            .with_priority(2),
+                            .with_priority(crate::priority::KEYWORD),
                     );
                 }
             }
@@ -715,7 +728,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                         Property::Episode,
                         ep_start.to_string(),
                     )
-                    .with_priority(2),
+                    .with_priority(crate::priority::KEYWORD),
                 );
             }
         }
@@ -733,7 +746,8 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
         let full = cap.get(0).expect("group 0 always present");
         let episode = parse_num(&cap, "episode");
         matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Episode, episode).with_priority(-1),
+            MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                .with_priority(crate::priority::HEURISTIC),
         );
     }
 
@@ -744,13 +758,14 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
         let full = cap.get(0).expect("group 0 always present");
         let episode = parse_num(&cap, "episode");
         matches.push(
-            MatchSpan::new(full.start(), full.end(), Property::Episode, episode).with_priority(1),
+            MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                .with_priority(crate::priority::VOCABULARY),
         );
     }
 
     // Leading episode: `01 - Ep Name`.
     if !has_property(matches, Property::Episode) {
-        let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+        let fn_start = crate::filename_start(input);
         let filename = &input[fn_start..];
         for cap in LEADING_EPISODE.captures_iter(filename) {
             let ep_match = cap
@@ -764,7 +779,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
             let abs_end = fn_start + ep_match.end();
             matches.push(
                 MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
-                    .with_priority(0),
+                    .with_priority(crate::priority::DEFAULT),
             );
             break;
         }
@@ -796,13 +811,13 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
                             Property::Episode,
                             ep1.to_string(),
                         )
-                        .with_priority(3),
+                        .with_priority(crate::priority::PATTERN),
                     );
                 }
             } else {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Episode, ep1.to_string())
-                        .with_priority(3),
+                        .with_priority(crate::priority::PATTERN),
                 );
             }
         }
@@ -814,7 +829,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
 /// CJK fansub: `[Group][Title][01][1080P]...
 /// Detects bare 1-3 digit numbers in brackets between other brackets.
 fn try_cjk_bracket_episode(input: &str, matches: &mut Vec<MatchSpan>) {
-    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let fn_start = crate::filename_start(input);
     let filename = &input[fn_start..];
 
     // Only apply to filenames starting with `[` (CJK fansub style).
@@ -836,7 +851,7 @@ fn try_cjk_bracket_episode(input: &str, matches: &mut Vec<MatchSpan>) {
         let abs_end = fn_start + ep_match.end();
         matches.push(
             MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
-                .with_priority(1),
+                .with_priority(crate::priority::VOCABULARY),
         );
     }
 }
@@ -869,7 +884,7 @@ fn try_cjk_episode_marker(input: &str, matches: &mut Vec<MatchSpan>) {
         let abs_end = ep_match.end();
         matches.push(
             MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
-                .with_priority(2),
+                .with_priority(crate::priority::KEYWORD),
         );
     }
 }
@@ -889,7 +904,7 @@ fn try_cjk_episode_marker(input: &str, matches: &mut Vec<MatchSpan>) {
 /// detect episode numbering patterns across siblings instead of guessing
 /// from digit positions in a single filename.
 fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
-    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let fn_start = crate::filename_start(input);
     let filename = &input[fn_start..];
     // ⚠️ Fragile: assumes bracket-prefix = anime. Should use context instead.
     let is_anime_style = filename.starts_with('[') || filename.contains('_');
@@ -925,7 +940,7 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
                     Property::Episode,
                     num.to_string(),
                 )
-                .with_priority(0)
+                .with_priority(crate::priority::DEFAULT)
                 .with_source(Source::Heuristic),
             );
             break;
@@ -946,7 +961,7 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
                     Property::Season,
                     season.to_string(),
                 )
-                .with_priority(0)
+                .with_priority(crate::priority::DEFAULT)
                 .with_source(Source::Heuristic),
             );
             matches.push(
@@ -956,7 +971,7 @@ fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
                     Property::Episode,
                     episode.to_string(),
                 )
-                .with_priority(0)
+                .with_priority(crate::priority::DEFAULT)
                 .with_source(Source::Heuristic),
             );
             break;
@@ -990,7 +1005,7 @@ fn detect_absolute_episodes(input: &str, matches: &mut Vec<MatchSpan>) {
     let in_se_span = |pos: usize| -> bool { se_spans.iter().any(|(s, e)| pos >= *s && pos < *e) };
 
     let first_se_start = se_spans.iter().map(|(s, _)| *s).min().unwrap_or(usize::MAX);
-    let fn_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
+    let fn_start = crate::filename_start(input);
     let bytes = input.as_bytes();
 
     static NUM_RANGE: LazyLock<regex::Regex> =

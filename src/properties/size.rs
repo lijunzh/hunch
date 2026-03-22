@@ -28,7 +28,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     {
         matches.push(
             MatchSpan::new(size.start(), size.end(), Property::Size, size.as_str())
-                .with_priority(1),
+                .with_priority(crate::priority::VOCABULARY),
         );
     }
     matches

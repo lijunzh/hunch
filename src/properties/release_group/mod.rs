@@ -110,7 +110,8 @@ pub fn find_matches(
 
         if !is_rejected_group(&value, abs_start, abs_end, resolved) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-1),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                    .with_priority(crate::priority::HEURISTIC),
             );
         }
     }
@@ -149,7 +150,7 @@ pub fn find_matches(
                 if !is_rejected_group(&value, abs_start, abs_end, resolved) {
                     matches.push(
                         MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                            .with_priority(-1),
+                            .with_priority(crate::priority::HEURISTIC),
                     );
                 }
             }
@@ -166,7 +167,8 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                    .with_priority(crate::priority::POSITIONAL),
             );
         }
     }
@@ -181,7 +183,8 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                    .with_priority(crate::priority::POSITIONAL),
             );
         }
     }
@@ -209,7 +212,8 @@ pub fn find_matches(
             && !is_hex_crc(value)
         {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                    .with_priority(crate::priority::POSITIONAL),
             );
         }
     }
@@ -227,7 +231,8 @@ pub fn find_matches(
             && !is_hex_crc(value)
         {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-2),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                    .with_priority(crate::priority::POSITIONAL),
             );
         }
     }
@@ -242,7 +247,8 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-1),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                    .with_priority(crate::priority::HEURISTIC),
             );
         }
     }
@@ -258,7 +264,8 @@ pub fn find_matches(
         let abs_end = filename_start + group.end();
         if !is_rejected_group(value, abs_start, abs_end, resolved) && value.len() >= 3 {
             matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value).with_priority(-4),
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                    .with_priority(crate::priority::POSITIONAL - 2),
             );
         }
     }
@@ -293,7 +300,7 @@ pub fn find_matches(
             }
             matches.push(
                 MatchSpan::new(merged_start, abs_end, Property::ReleaseGroup, merged_value)
-                    .with_priority(-3),
+                    .with_priority(crate::priority::POSITIONAL - 1),
             );
         }
     }
@@ -321,7 +328,7 @@ pub fn find_matches(
             {
                 matches.push(
                     MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, content)
-                        .with_priority(-4),
+                        .with_priority(crate::priority::POSITIONAL - 2),
                 );
                 break;
             }
@@ -351,7 +358,7 @@ pub fn find_matches(
                     }
                     matches.push(
                         MatchSpan::new(0, 0, Property::ReleaseGroup, parent_value)
-                            .with_priority(-3),
+                            .with_priority(crate::priority::POSITIONAL - 1),
                     );
                 }
             }
@@ -452,7 +459,7 @@ fn find_compound_bracket_group_from_tokenstream(
                     Property::ReleaseGroup,
                     merged,
                 )
-                .with_priority(-2),
+                .with_priority(crate::priority::POSITIONAL),
             )
         }
         _ => None,
