@@ -146,12 +146,19 @@ When multiple valid interpretations exist and neither the engine nor
 available context can distinguish them, hunch is transparent about
 the uncertainty rather than guessing.
 
-Mechanism:
-- **Confidence** drops when conflicting signals exist.
-- **Conflicts** are surfaced in the output so callers can inspect
-  and resolve them.
-- The CLI prints **actionable hints** suggesting how the user can
-  provide structural disambiguation.
+Current mechanism:
+- **Confidence** drops when conflicting signals exist
+  (High → Medium → Low).
+- **Trace logging** shows which matches were dropped and why
+  (enable with `RUST_LOG=hunch=trace`).
+- The CLI prints a **generic hint** when confidence is Low,
+  suggesting `--context` for cross-file disambiguation.
+
+Future (not yet implemented):
+- A `conflicts` field on `HunchResult` carrying the losing
+  alternatives and pattern-specific disambiguation hints.
+- The CLI printing **actionable hints** per ambiguity pattern
+  (e.g., "organize into `movie/` or `tv/`").
 
 **Example:** `Detective.Conan.Movie.10.mkv` — "Movie" followed by
 a number is genuinely ambiguous. It could be the 10th movie in a
@@ -200,11 +207,25 @@ clever Rust code. We'd rather cover 90% simply than 100% opaquely.
 
 ### D9: Self-contained property matchers (P1)
 
-Each property matcher is one file (or small module), testable in
-isolation. You don't need to understand the pipeline to understand
-how `video_codec` or `episodes` matching works. Adding a new
-property means adding a TOML file and registering it — not
-understanding a dependency graph.
+Property matchers come in two classes:
+
+**Vocabulary matchers** are fully self-contained: one file, one
+signature (`fn find_matches(input: &str) -> Vec<MatchSpan>`),
+testable in isolation. You don't need to understand the pipeline
+to understand how `video_codec` or `year` matching works. Adding
+a new vocabulary property means adding a TOML file and registering
+it — not understanding a dependency graph.
+
+Examples: video_codec (TOML), audio_codec (TOML), year, crc32,
+uuid, date, language, bit_rate.
+
+**Positional matchers** inherently depend on resolved match
+positions from Pass 1. Title extraction *must* see what other
+properties have been claimed; release_group *must* know which
+spans are already taken. Their self-containment is at the module
+level (one directory, own tests), not the function level.
+
+Examples: title, release_group, episode_title, alternative_title.
 
 ---
 
