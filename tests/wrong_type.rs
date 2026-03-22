@@ -2,7 +2,7 @@
 //!
 //! Tests three layers of fix:
 //! 1. Structural: CJK episode markers (第N話/第N集) — pattern recognition
-//! 2. Vocabulary: Anime bonus tokens (NCOP/NCED/PV/CM) → EpisodeDetails
+//! 2. Vocabulary: Anime bonus tokens (NCOP/NCED/PV/CM) → EpisodeDetails → Extra
 //! 3. Architectural: Path-based type inference (tv/ → episode)
 
 use hunch::matcher::span::Property;
@@ -43,15 +43,27 @@ fn nced_is_episode_details() {
     let r = hunch("[DBD-Raws][Saki][NCED1][1080P][BDRip][HEVC-10bit][FLAC].mkv");
     assert_eq!(
         r.media_type(),
-        Some(MediaType::Episode),
-        "NCED → EpisodeDetails → episode"
+        Some(MediaType::Extra),
+        "NCED → EpisodeDetails (no ep/season) → extra"
     );
+}
+
+#[test]
+fn episode_details_with_season_stays_episode() {
+    // S01E00 Special: has episode + season + episode_details → episode, not extra.
+    let r = hunch("Show.S01E00.Special.mkv");
+    assert_eq!(
+        r.media_type(),
+        Some(MediaType::Episode),
+        "episode_details + ep/season → episode"
+    );
+    assert_eq!(r.first(Property::EpisodeDetails), Some("Special"));
 }
 
 #[test]
 fn pv_is_episode_details() {
     let r = hunch("[DBD-Raws][Natsume Yuujinchou Shichi][PV][1080P][BDRip][HEVC-10bit][FLAC].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
 }
 
 #[test]
@@ -59,33 +71,33 @@ fn cm_is_episode_details() {
     let r = hunch(
         "[TxxZ&POPGO&MGRT][Cowboy_Bebop][BDrip][BDBOX_SP02][CM][1920x1080_x264Hi10P_flac][31C5B7B3].mkv",
     );
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
 }
 
 // ── Layer 3: Path-based type inference (architectural fix) ──────────────
 
 #[test]
 fn tv_directory_overrides_movie_default() {
-    // SP without episode markers → would be "movie" by filename alone.
-    // But tv/ path → "episode".
+    // SP without episode markers → extra (supplementary content).
+    // tv/ path doesn't override: SP is still a special, not a regular episode.
     let r = hunch("tv/Japanese/Legal.High.SP.2013.BluRay.1080p.x265.10bit.FRDS.mkv");
     assert_eq!(
         r.media_type(),
-        Some(MediaType::Episode),
-        "tv/ directory should force episode type"
+        Some(MediaType::Extra),
+        "SP (no ep/season) → extra, even in tv/ dir"
     );
 }
 
 #[test]
 fn tv_shows_directory() {
     let r = hunch("TV Shows/Power Rangers/Power Rangers Special - Alpha's Magical Christmas.avi");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
 }
 
 #[test]
 fn anime_directory() {
     let r = hunch("Anime/Saki/[DBD-Raws][Saki][SP][1080P][BDRip][HEVC-10bit][FLAC].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
 }
 
 #[test]
@@ -199,14 +211,14 @@ fn s01_directory_shorthand() {
 // ── P0: SP regression guard ─────────────────────────────────────────────
 
 #[test]
-fn sp_without_path_context_is_episode() {
-    // SP is now recognized as EpisodeDetails → type: episode.
-    // "Legal High SP" is a TV special — episode is correct.
+fn sp_without_path_context_is_extra() {
+    // SP is recognized as EpisodeDetails → type: extra.
+    // "Legal High SP" is a TV special — supplementary content.
     let r = hunch("Legal.High.SP.2013.BluRay.1080p.x265.mkv");
     assert_eq!(
         r.media_type(),
-        Some(MediaType::Episode),
-        "SP → EpisodeDetails → episode"
+        Some(MediaType::Extra),
+        "SP → EpisodeDetails (no ep/season) → extra"
     );
 }
 
@@ -250,54 +262,54 @@ fn backslash_path_tv_directory() {
 #[test]
 fn sp_is_episode_details() {
     let r = hunch("[Group][Show][SP][1080P][BDRip].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
     assert_eq!(r.first(Property::EpisodeDetails), Some("Special"));
 }
 
 #[test]
 fn ova_is_episode_details() {
     let r = hunch("[Group][Show][OVA][1080P][BDRip].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
     assert_eq!(r.first(Property::EpisodeDetails), Some("OVA"));
 }
 
 #[test]
 fn oad_is_episode_details() {
     let r = hunch("[Group][Show][OAD][1080P][BDRip].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
 }
 
 #[test]
 fn ona_is_episode_details() {
     let r = hunch("[Group][Show][ONA][1080P][BDRip].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
 }
 
 #[test]
 fn op_is_episode_details() {
     let r = hunch("[Group][Show][OP1][1080P][BDRip].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
     assert_eq!(r.first(Property::EpisodeDetails), Some("OP"));
 }
 
 #[test]
 fn ed_is_episode_details() {
     let r = hunch("[Group][Show][ED2][1080P][BDRip].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
     assert_eq!(r.first(Property::EpisodeDetails), Some("ED"));
 }
 
 #[test]
 fn menu_is_episode_details() {
     let r = hunch("[Group][Show][MENU][1080P][BDRip].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
 }
 
 #[test]
 fn sp_numbered_pattern() {
     // SP02 via regex pattern
     let r = hunch("[Group][Show][SP02][1080P][BDRip].mkv");
-    assert_eq!(r.media_type(), Some(MediaType::Episode));
+    assert_eq!(r.media_type(), Some(MediaType::Extra));
     assert_eq!(r.first(Property::EpisodeDetails), Some("Special"));
 }
 
