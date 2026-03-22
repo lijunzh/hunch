@@ -320,6 +320,10 @@ impl Pipeline {
     /// Even 1–2 siblings can dramatically improve title extraction for CJK
     /// and non-standard formats.
     ///
+    /// Accepts any slice of string-like types (`&[&str]`, `&[String]`, etc.).
+    /// Even 1–2 siblings can dramatically improve title extraction for CJK
+    /// and non-standard formats.
+    ///
     /// Cross-file analysis produces an `InvarianceReport` that informs:
     /// - **Title**: invariant text across files
     /// - **Year signals**: year-like numbers classified as title vs metadata
@@ -350,7 +354,13 @@ impl Pipeline {
     /// );
     /// assert_eq!(result.title(), Some("Paw Patrol"));
     /// ```
-    pub fn run_with_context(&self, input: &str, siblings: &[&str]) -> HunchResult {
+    pub fn run_with_context<S: AsRef<str>>(&self, input: &str, siblings: &[S]) -> HunchResult {
+        let sibs: Vec<&str> = siblings.iter().map(|s| s.as_ref()).collect();
+        self.run_with_context_inner(input, &sibs)
+    }
+
+    /// Inner implementation with concrete `&[&str]` to avoid monomorphization bloat.
+    fn run_with_context_inner(&self, input: &str, siblings: &[&str]) -> HunchResult {
         if siblings.is_empty() {
             return self.run(input);
         }

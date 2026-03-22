@@ -226,6 +226,56 @@ impl HunchResult {
         self.all(Property::Other)
     }
 
+    /// Episode detail tag (e.g., "Special", "OVA", "NCED", "OP").
+    pub fn episode_details(&self) -> Option<&str> {
+        self.first(Property::EpisodeDetails)
+    }
+
+    /// Audio language (e.g., "English", "French", "Japanese").
+    pub fn language(&self) -> Option<&str> {
+        self.first(Property::Language)
+    }
+
+    /// All audio languages (when multiple are present).
+    pub fn languages(&self) -> Vec<&str> {
+        self.all(Property::Language)
+    }
+
+    /// Subtitle language (e.g., "English", "French").
+    pub fn subtitle_language(&self) -> Option<&str> {
+        self.first(Property::SubtitleLanguage)
+    }
+
+    /// All subtitle languages (when multiple are present).
+    pub fn subtitle_languages(&self) -> Vec<&str> {
+        self.all(Property::SubtitleLanguage)
+    }
+
+    /// Bonus content number (e.g., 2 from `-x02`).
+    pub fn bonus(&self) -> Option<i32> {
+        self.first(Property::Bonus).and_then(|s| s.parse().ok())
+    }
+
+    /// Release or air date (e.g., "2024-01-15").
+    pub fn date(&self) -> Option<&str> {
+        self.first(Property::Date)
+    }
+
+    /// Film number in a franchise set (e.g., 3 from `-f03`).
+    pub fn film(&self) -> Option<i32> {
+        self.first(Property::Film).and_then(|s| s.parse().ok())
+    }
+
+    /// Disc number (e.g., 1 from `Disc 1`).
+    pub fn disc(&self) -> Option<i32> {
+        self.first(Property::Disc).and_then(|s| s.parse().ok())
+    }
+
+    /// Video frame rate (e.g., "24fps", "60fps").
+    pub fn frame_rate(&self) -> Option<&str> {
+        self.first(Property::FrameRate)
+    }
+
     // ── Generic accessors ──
 
     /// Get the first value for a property.
