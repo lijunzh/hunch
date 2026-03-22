@@ -441,6 +441,13 @@ pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
         .any(|m| m.property == Property::Episode && m.priority > crate::priority::HEURISTIC);
     let weak_episode = !strong_episode && matches.iter().any(|m| m.property == Property::Episode);
 
+    // Episode details (NCED, OP, SP, PV, CM, etc.) WITHOUT episode/season
+    // markers are supplementary content — "extra", not "episode".
+    // With episode/season (e.g., S01E00 Special), it's still an episode.
+    if has_episode_details && !strong_episode && !weak_episode && !has_season && !has_date {
+        return "extra";
+    }
+
     // 2. Strong structural signals always win — SxxExx, "Episode 1", etc.
     if strong_episode || has_season || has_date || has_episode_details || has_bonus_no_film {
         return "episode";
@@ -456,6 +463,7 @@ pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
             return "movie";
         }
     }
+
     if path_hints_episode(input) {
         return "episode";
     }

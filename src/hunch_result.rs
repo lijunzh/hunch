@@ -41,6 +41,10 @@ pub enum MediaType {
     Movie,
     /// A TV series episode (has season/episode markers).
     Episode,
+    /// Supplementary content: bonus features, openings, endings, previews,
+    /// specials (SP/OVA/OAD/ONA), commercials, menus, tokuten.
+    /// The specific marker is available via [`episode_details`](HunchResult::episode_details).
+    Extra,
 }
 
 /// The result of parsing a media filename.
@@ -217,6 +221,7 @@ impl HunchResult {
         match self.first(Property::MediaType)?.to_lowercase().as_str() {
             "movie" => Some(MediaType::Movie),
             "episode" => Some(MediaType::Episode),
+            "extra" => Some(MediaType::Extra),
             _ => None,
         }
     }
