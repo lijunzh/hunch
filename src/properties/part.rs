@@ -101,7 +101,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             if !value.is_empty() {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Part, &value)
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                 );
             }
         }
@@ -116,7 +116,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             for n in disc_nums {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Disc, n.to_string())
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                 );
             }
         }
@@ -129,7 +129,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         if check_boundary(bytes, full.start(), full.end(), &ALPHADIGIT_BOTH) {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::CdCount, num.as_str())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
     }
@@ -141,7 +141,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         if check_boundary(bytes, full.start(), full.end(), &ALPHA_ALPHADIGIT) {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Cd, num.as_str())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
     }
@@ -155,7 +155,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             if n > 0 {
                 matches.push(
                     MatchSpan::new(full.start(), full.end(), Property::Film, n.to_string())
-                        .with_priority(1),
+                        .with_priority(crate::priority::VOCABULARY),
                 );
             }
         }
@@ -169,7 +169,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         if check_boundary(bytes, full.start(), full.end(), &ALPHA_ALPHADIGIT) {
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Part, num.as_str())
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
             );
         }
     }

@@ -47,7 +47,10 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             continue;
         }
 
-        matches.push(MatchSpan::new(m.start(), m.end(), Property::Year, raw).with_priority(-1));
+        matches.push(
+            MatchSpan::new(m.start(), m.end(), Property::Year, raw)
+                .with_priority(crate::priority::HEURISTIC),
+        );
         pos = m.end();
     }
     matches

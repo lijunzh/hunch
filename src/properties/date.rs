@@ -89,7 +89,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 Property::Date,
                 format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
             )
-            .with_priority(2),
+            .with_priority(crate::priority::KEYWORD),
         );
     }
 
@@ -111,7 +111,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 Property::Date,
                 format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
             )
-            .with_priority(2),
+            .with_priority(crate::priority::KEYWORD),
         );
     }
 
@@ -133,7 +133,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 Property::Date,
                 format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
             )
-            .with_priority(2),
+            .with_priority(crate::priority::KEYWORD),
         );
     }
 
@@ -155,7 +155,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 Property::Date,
                 format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
             )
-            .with_priority(2),
+            .with_priority(crate::priority::KEYWORD),
         );
     }
 
@@ -177,7 +177,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                 Property::Date,
                 format!("{}-{}-{}", year.as_str(), month.as_str(), day.as_str()),
             )
-            .with_priority(1),
+            .with_priority(crate::priority::VOCABULARY),
         );
     }
 
@@ -205,7 +205,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                     Property::Date,
                     format!("{year_full}-{m:02}-{d:02}"),
                 )
-                .with_priority(0),
+                .with_priority(crate::priority::DEFAULT),
             );
         }
     }
@@ -239,7 +239,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                         Property::Date,
                         format!("{}-{month_num:02}-{day:02}", year_s),
                     )
-                    .with_priority(1),
+                    .with_priority(crate::priority::VOCABULARY),
                 );
             }
         }
