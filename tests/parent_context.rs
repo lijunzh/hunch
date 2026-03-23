@@ -78,3 +78,54 @@ fn issue_94_no_fallback_no_crash() {
     );
     assert_eq!(result.title(), Some("Some Movie"));
 }
+
+// ── Invariance title = directory name → prefer fallback ─────────────
+
+#[test]
+fn issue_94_dir_name_invariance_yields_to_fallback() {
+    // When invariance finds a title that's just a directory name from
+    // the path, the parent fallback should win.
+    let pipeline = Pipeline::new();
+    let siblings = vec![
+        "夏目友人帐/特典映像/[DBD-Raws][Natsume.Yuujinchou.Shichi][NC.Ver][1080P].mkv",
+        "夏目友人帐/特典映像/[DBD-Raws][Natsume.Yuujinchou.Shichi][TalkShow][1080P].mkv",
+    ];
+    let result = pipeline.run_with_context_and_fallback(
+        "夏目友人帐/特典映像/[DBD-Raws][Natsume.Yuujinchou.Shichi][劇伴コンサート][1080P].mkv",
+        &siblings,
+        Some("夏目友人帐"),
+    );
+    let title = result.title().unwrap_or("");
+    // The invariance would find "特典映像" or "夏目友人帐" as invariant dir names.
+    // With the fix, the parent fallback "夏目友人帐" should be preferred over
+    // a dir-name-only invariance title like "特典映像".
+    assert_ne!(
+        title, "特典映像",
+        "invariance should not use the sub-directory name as the title"
+    );
+}
+
+#[test]
+fn issue_94_dir_name_invariance_extras() {
+    // "Extras" is a directory name. Even though invariance might find it
+    // as common text, the fallback should be preferred.
+    let pipeline = Pipeline::new();
+    let siblings = vec![
+        "ShowName/Extras/Behind.The.Scenes.720p.mkv",
+        "ShowName/Extras/Visual.Effects.720p.mkv",
+    ];
+    let result = pipeline.run_with_context_and_fallback(
+        "ShowName/Extras/Interview.720p.mkv",
+        &siblings,
+        Some("ShowName"),
+    );
+    let title = result.title().unwrap_or("");
+    assert_ne!(
+        title, "Extras",
+        "directory name 'Extras' should not be the title when fallback is available"
+    );
+    assert!(
+        title.contains("ShowName"),
+        "title should include the parent show name, got: {title:?}"
+    );
+}
