@@ -76,7 +76,43 @@ static RELEASE_GROUP_LAST_DOT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\.(?P<group>[A-Za-z][A-Za-z0-9]{1,15})(?:\.[a-z0-9]{2,5})?$").unwrap()
 });
 
-// ── Matching logic (post-resolution) ──────────────────────────────────────
+// ── Matching logic (post-resolution) ───────────────────────────────────────────
+
+/// Heuristic: reject first-bracket candidates that look like natural-language
+/// titles rather than release groups.
+///
+/// Release groups are usually short and formatted (`DBD-Raws`, `EMBER`,
+/// `TxxZ&POPGO&MGRT`). Titles are often multi-word phrases with regular words
+/// and spaces (`Kimetsu no Yaiba Mugen Ressha Hen`).
+fn looks_like_natural_language_title(candidate: &str) -> bool {
+    let trimmed = candidate.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    if trimmed.contains(['&', '/', '@']) {
+        return false;
+    }
+
+    let words: Vec<&str> = trimmed
+        .split_whitespace()
+        .filter(|word| !word.is_empty())
+        .collect();
+
+    if words.len() < 4 {
+        return false;
+    }
+
+    if words.iter().any(|word| {
+        word.contains('-')
+            || word.chars().any(|c| !c.is_alphanumeric() && c != '\'' && c != '!')
+            || word.chars().all(|c| c.is_ascii_uppercase())
+    }) {
+        return false;
+    }
+
+    words.iter().filter(|word| word.len() >= 2).count() >= 4
+}
 
 /// Find release group matches using resolved tech match positions.
 ///
@@ -200,7 +236,10 @@ pub fn find_matches(
         let value = group.as_str().trim();
         let abs_start = filename_start + group.start();
         let abs_end = filename_start + group.end();
-        if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
+        if !is_rejected_group(value, abs_start, abs_end, resolved)
+            && !is_hex_crc(value)
+            && !looks_like_natural_language_title(value)
+        {
             matches.push(
                 MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
                     .with_priority(crate::priority::HEURISTIC),
