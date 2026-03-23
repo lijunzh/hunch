@@ -376,8 +376,45 @@ impl Pipeline {
 
     /// Inner implementation with concrete `&[&str]` to avoid monomorphization bloat.
     fn run_with_context_inner(&self, input: &str, siblings: &[&str]) -> HunchResult {
-        if siblings.is_empty() {
+        self.run_with_context_and_fallback_inner(input, siblings, None)
+    }
+
+    /// Parse with sibling context and an optional fallback title.
+    ///
+    /// When `fallback_title` is `Some(...)`, it is used as the title hint
+    /// if and only if the invariance analysis does not produce one. This
+    /// allows parent directory context to propagate to child directories
+    /// (e.g., `Extras/`, `SP/`) that have too few files for independent
+    /// invariance detection.
+    ///
+    /// The fallback informs but does not force: if the child directory
+    /// has strong invariance of its own, it wins.
+    pub fn run_with_context_and_fallback<S: AsRef<str>>(
+        &self,
+        input: &str,
+        siblings: &[S],
+        fallback_title: Option<&str>,
+    ) -> HunchResult {
+        let sibs: Vec<&str> = siblings.iter().map(|s| s.as_ref()).collect();
+        self.run_with_context_and_fallback_inner(input, &sibs, fallback_title)
+    }
+
+    /// Inner implementation for context + fallback.
+    fn run_with_context_and_fallback_inner(
+        &self,
+        input: &str,
+        siblings: &[&str],
+        fallback_title: Option<&str>,
+    ) -> HunchResult {
+        if siblings.is_empty() && fallback_title.is_none() {
             return self.run(input);
+        }
+
+        // If we have no siblings but do have a fallback title, run Pass 1
+        // and use the fallback directly in Pass 2.
+        if siblings.is_empty() {
+            let (mut matches, ts, zm) = self.pass1(input);
+            return self.pass2(input, &mut matches, &zm, &ts, fallback_title, None);
         }
 
         // 1. Run Pass 1 on target + all siblings.
@@ -422,13 +459,29 @@ impl Pipeline {
         }
 
         // 3. Run Pass 2 with invariance report.
+        // If invariance found a title from actual filename content, use it.
+        // If it found a title that's just a directory name from the path,
+        // treat it as weak evidence and prefer the fallback title from the
+        // parent directory. (#94)
+        let invariance_title = report.title.as_deref();
+        let title_hint = match (invariance_title, fallback_title) {
+            (Some(inv), Some(fb)) if is_path_dir_name(input, inv) => {
+                debug!(
+                    "invariance title {:?} is a directory name — preferring parent fallback {:?}",
+                    inv, fb
+                );
+                Some(fb)
+            }
+            (Some(inv), _) => Some(inv),
+            (None, fb) => fb,
+        };
         let mut matches = target_matches;
         self.pass2(
             input,
             &mut matches,
             &target_zm,
             &target_ts,
-            report.title.as_deref(),
+            title_hint,
             Some(&report),
         )
     }
@@ -749,6 +802,57 @@ impl Pipeline {
     }
 }
 
+/// Check whether `title` matches directory components of `input`.
+///
+/// Returns `true` when the invariance title is:
+/// - An exact match to a single directory component (e.g., `"特典映像"`)
+/// - A concatenation of consecutive directory components joined by spaces
+///   (e.g., `"夏目友人帐 特典映像"` from path `夏目友人帐/特典映像/file.mkv`)
+///
+/// When the invariance engine finds a title that came from directory
+/// structure rather than filename content, it's weak evidence. The caller
+/// can then prefer a fallback title from parent context.
+///
+/// Comparison is case-insensitive.
+fn is_path_dir_name(input: &str, title: &str) -> bool {
+    use std::path::Path;
+    let path = Path::new(input);
+    let title_lower = title.to_lowercase();
+
+    // Collect directory components (excluding the filename itself).
+    let dir_names: Vec<String> = path
+        .ancestors()
+        .skip(1) // skip the file itself
+        .filter_map(|a| a.file_name().and_then(|n| n.to_str()))
+        .map(|n| n.to_lowercase())
+        .collect();
+
+    // 1. Exact match to a single directory component.
+    if dir_names.contains(&title_lower) {
+        return true;
+    }
+
+    // 2. Concatenation of consecutive directory components (space-joined).
+    //    The path produces components in reverse (child → parent), so
+    //    reverse to get parent → child order, then check all contiguous
+    //    subsequences.
+    let ordered: Vec<&str> = dir_names.iter().rev().map(|s| s.as_str()).collect();
+    for start in 0..ordered.len() {
+        let mut concat = String::new();
+        for component in ordered.iter().skip(start) {
+            if !concat.is_empty() {
+                concat.push(' ');
+            }
+            concat.push_str(component);
+            if concat == title_lower {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -762,5 +866,34 @@ mod tests {
         assert!(VIDEO_PROFILE_RULES.exact_count() >= 2);
         assert!(EPISODE_DETAILS_RULES.exact_count() >= 4);
         assert!(EDITION_RULES.exact_count() >= 10);
+    }
+
+    #[test]
+    fn test_is_path_dir_name() {
+        // Single directory component match.
+        assert!(is_path_dir_name("夏目友人帐/特典映像/file.mkv", "特典映像"));
+        assert!(is_path_dir_name(
+            "夏目友人帐/特典映像/file.mkv",
+            "夏目友人帐"
+        ));
+        assert!(is_path_dir_name("ShowDir/Extras/file.mkv", "Extras"));
+        assert!(is_path_dir_name("ShowDir/Extras/file.mkv", "ShowDir"));
+        // Case-insensitive.
+        assert!(is_path_dir_name("ShowDir/file.mkv", "showdir"));
+        // Compound: consecutive dir names joined by space.
+        assert!(is_path_dir_name(
+            "夏目友人帐/特典映像/file.mkv",
+            "夏目友人帐 特典映像"
+        ));
+        assert!(is_path_dir_name(
+            "Show/Season 1/Extras/file.mkv",
+            "Show Season 1"
+        ));
+        // Filename itself should NOT match.
+        assert!(!is_path_dir_name("ShowDir/file.mkv", "file"));
+        // Text not in path should NOT match.
+        assert!(!is_path_dir_name("ShowDir/file.mkv", "OtherDir"));
+        // Non-contiguous dir names should NOT match.
+        assert!(!is_path_dir_name("A/B/C/file.mkv", "A C"));
     }
 }
