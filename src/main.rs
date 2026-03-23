@@ -195,8 +195,20 @@ fn run_batch(pipeline: &Pipeline, batch_dir: &Path, recursive: bool, json: bool)
         // Look up the nearest ancestor's cached title as a fallback hint.
         // This propagates invariance results from parent directories to
         // child directories like Extras/, 特典映像/, SP/. (#94)
+        //
+        // Suppress the fallback for generic child directories like
+        // Samples/, Sample/ — these are not show content and should not
+        // inherit the parent's title. (#97 comment)
         let fallback_title: Option<&str> = if recursive {
-            find_ancestor_title(parent_key, &dir_titles)
+            let dir_name = Path::new(parent_key)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("");
+            if is_sample_dir(dir_name) {
+                None
+            } else {
+                find_ancestor_title(parent_key, &dir_titles)
+            }
         } else {
             None
         };
@@ -432,4 +444,15 @@ fn dir_contains_media(dir: &Path) -> bool {
         }
     }
     subdirs.iter().any(|d| dir_contains_media(d))
+}
+
+/// Check whether a directory name indicates sample/preview content.
+///
+/// Sample directories should not inherit parent titles — their files
+/// are clips, not show episodes. (#97)
+fn is_sample_dir(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "sample" | "samples" | "subs" | "subtitles" | "featurettes"
+    )
 }
