@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.1.7] - 2026-03-23
+
+### Fixed
+
+- **Bracket metadata leakage** — bracketed metadata in CJK/anime filenames no
+  longer leaks into `episode_title`, and release-group extraction now prefers
+  the actual first bracket group instead of bracket fragments. (#92)
+- **Generic category directories** — library/category directories like
+  `English/`, `Japanese/`, `Anime/`, and CJK bonus folders are filtered more
+  aggressively so they do not become titles. (#95)
+- **Parent-context fallback in batch mode** — files in sparse extras/specials
+  subdirectories now fall back to parent-directory context more reliably during
+  recursive batch parsing. (#96)
+- **Empty intermediate directory propagation** — recursive batch parsing now
+  preserves useful parent context through empty/intermediate directory layers
+  instead of dropping title hints. (#98)
+- **Explicit movie signals override `tv/` path hints** — filenames and parent
+  directories containing strong movie cues such as `The Movie`, `... Movie`,
+  and `劇場版` now classify as `type=movie` even inside TV-oriented directory
+  trees. (#99)
+- **Natural-language first brackets** — filenames like
+  `[Kimetsu no Yaiba Mugen Ressha Hen][JPN+ENG]...` now treat the first bracket
+  as `title` when it looks like natural language instead of a release group.
+  (#100)
+
+### Docs
+
+- Added a README **Known Limitations** section documenting the main remaining
+  edge-case categories and their tradeoffs. (#103)
+
 ## [1.1.6] - 2026-03-22
 
 ### Added
@@ -652,6 +682,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.7]: https://github.com/lijunzh/hunch/releases/tag/v1.1.7
 [1.1.6]: https://github.com/lijunzh/hunch/releases/tag/v1.1.6
 [1.1.5]: https://github.com/lijunzh/hunch/releases/tag/v1.1.5
 [1.1.4]: https://github.com/lijunzh/hunch/releases/tag/v1.1.4
