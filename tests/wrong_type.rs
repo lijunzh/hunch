@@ -132,6 +132,20 @@ fn movie_in_movies_dir_still_movie() {
 }
 
 #[test]
+fn special_edition_movie_stays_movie() {
+    let r = hunch("Star Wars: Episode IV - A New Hope (2004) Special Edition.MKV");
+    assert_eq!(r.media_type(), Some(MediaType::Movie));
+    assert_eq!(r.first(Property::Edition), Some("Special"));
+}
+
+#[test]
+fn special_edition_after_year_stays_movie() {
+    let r = hunch("A.Common.Title.2014.Special.Edition.avi");
+    assert_eq!(r.media_type(), Some(MediaType::Movie));
+    assert_eq!(r.first(Property::Edition), Some("Special"));
+}
+
+#[test]
 fn regular_episode_still_episode() {
     let r = hunch("Show.S01E03.720p.mkv");
     assert_eq!(r.media_type(), Some(MediaType::Episode));
