@@ -94,17 +94,20 @@ See [docs/compatibility.md](docs/compatibility.md) for per-property breakdowns.
 
 ## Known Limitations
 
-Hunch achieves **99.8% accuracy** on a real-world media library of 7,838 files
-(validated against a mixed Anime/English/Japanese/Kids collection). The
-remaining edge cases are documented below as honest limitations of a
-deterministic, offline filename parser.
+In one real-world library audit of 7,838 files, hunch achieved **99.8%
+accuracy** across a mixed Anime / English / Japanese / Kids collection. The
+remaining failures fall into a small number of edge-case categories that are
+difficult to solve reliably with a deterministic, offline filename parser.
+
+These examples illustrate the main categories of remaining failures rather than
+an exhaustive list of every individual filename.
 
 ### Bonus content without episode numbers
 
-Files in bonus directories (`Bonus/`, `特典映像/`) that lack numeric episode
-markers are typed as `episode` with no episode number. Hunch recognizes these
-directory names for title cleanup but does not infer `type=extra` from
-directory names alone.
+Files in bonus directories such as `Bonus/` or `特典映像/` that contain no
+numeric episode marker may still be classified as `episode` with no episode
+number. Hunch recognizes these directory names for title cleanup but does not
+currently infer `type=extra` from directory names alone.
 
 ```
 tv/Anime/.../特典映像/[DBD-Raws][Natsume Yuujinchou Shichi][声優トークショー][1080P][BDRip][HEVC-10bit][FLAC].mkv
@@ -114,45 +117,49 @@ tv/English/Power Rangers/17 - Power Rangers RPM/Bonus/Power Rangers RPM - Stuntm
   → type=episode, episode=None  (expected: type=extra)
 ```
 
-**Why not fix it?** Extending directory-name detection to set `type` couples
-title cleanup with type inference. The set of bonus directory names is
-unbounded (`Extras/`, `Featurettes/`, `Behind the Scenes/`, `Making Of/`,
-etc.) — each new rule risks regressions on other libraries.
+**Why this remains difficult:** directory names are useful context, but using
+them alone to infer `type=extra` would require an open-ended set of
+library-specific rules (`Extras/`, `Featurettes/`, `Behind the Scenes/`,
+`Making Of/`, etc.), increasing regression risk across other collections.
 
-### Sample/preview clips in movie directories
+### Sample / preview clips
 
-Verification clips like `Sample1.mkv` in `Samples/` subdirectories may have
-digits parsed as episode numbers, causing `type=episode` in a movie context.
+Verification clips such as `Sample1.mkv` inside `Samples/` directories may have
+their digits interpreted as episode numbers.
 
 ```
 movie/.../Samples/Sample1.mkv
   → type=episode, episode=1  (expected: not real media content)
 ```
 
-**Why not fix it?** Sample files are not meaningful media content. Filtering
-them would require special-casing directory and filename patterns that vary
-across release groups.
+**Why this is low priority:** sample files are typically release artifacts
+rather than meaningful library entries. Reliable detection would require
+special-casing many filename and directory conventions that vary across release
+groups.
 
-### Ambiguous special/episode cross-references
+### Ambiguous special / episode cross-references
 
-Filenames with both `SP` (special) and `EP` (episode) markers where the EP
-number refers to a related TV episode rather than this file's own episode
-number.
+Some filenames contain both special markers (`SP`) and episode markers (`EP`),
+where the episode number refers to a related TV episode rather than the file
+itself.
 
 ```
 movie/.../[Detective Conan][Tokuten BD][SP02][TV Series EP1080][BDRIP][1080P][H264_FLAC].mkv
   → type=episode, episode=1080  (EP1080 is a cross-reference, not this file's episode)
 ```
 
-**Why not fix it?** Distinguishing "this file is episode 1080" from "this file
-relates to episode 1080" requires semantic understanding that a filename parser
-cannot provide.
+**Why this remains difficult:** distinguishing "this file is episode 1080" from
+"this file references episode 1080" requires semantic understanding beyond
+hunch's current deterministic filename heuristics.
 
 ### Malformed filenames
 
-Genuinely broken filenames like `1.The.mkv.mkv` produce nonsensical results.
-This is garbage-in, garbage-out — no parser can extract structure from
-structureless input.
+Genuinely malformed inputs such as `1.The.mkv.mkv` can still produce poor
+results.
+
+**Why this is not prioritized:** hunch assumes filenames contain at least some
+recoverable structure. Severely malformed input is treated as garbage-in,
+garbage-out.
 
 ## Contributing
 
