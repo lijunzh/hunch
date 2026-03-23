@@ -285,6 +285,26 @@ pub(super) fn is_generic_dir(name: &str) -> bool {
             | "donghua"
             | "kids"
             | "cartoons"
+            | "shows"
+            | "documentary"
+            | "documentaries"
+            | "music"
+            | "concert"
+            | "concerts"
+            // Language categories (library organization, not show titles)
+            | "chinese"
+            | "english"
+            | "japanese"
+            | "korean"
+            | "french"
+            | "german"
+            | "spanish"
+            | "italian"
+            | "portuguese"
+            | "russian"
+            | "thai"
+            | "hindi"
+            | "arabic"
             // Download / system
             | "downloads"
             | "download"
@@ -433,6 +453,29 @@ mod tests {
         assert!(is_generic_dir("Anime"));
         assert!(is_generic_dir("Kids"));
         assert!(is_generic_dir("Cartoons"));
+        assert!(is_generic_dir("Shows"));
+        assert!(is_generic_dir("Documentary"));
+        assert!(is_generic_dir("Documentaries"));
+        assert!(is_generic_dir("Music"));
+        assert!(is_generic_dir("Concert"));
+        assert!(is_generic_dir("Concerts"));
+    }
+
+    #[test]
+    fn generic_dir_language_categories() {
+        assert!(is_generic_dir("Chinese"));
+        assert!(is_generic_dir("English"));
+        assert!(is_generic_dir("Japanese"));
+        assert!(is_generic_dir("Korean"));
+        assert!(is_generic_dir("French"));
+        assert!(is_generic_dir("German"));
+        assert!(is_generic_dir("Spanish"));
+        assert!(is_generic_dir("Italian"));
+        assert!(is_generic_dir("Portuguese"));
+        assert!(is_generic_dir("Russian"));
+        assert!(is_generic_dir("Thai"));
+        assert!(is_generic_dir("Hindi"));
+        assert!(is_generic_dir("Arabic"));
     }
 
     #[test]
