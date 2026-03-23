@@ -59,8 +59,14 @@ fn expands_multi_key_groups_into_multiple_cases() {
     assert_eq!(cases.len(), 2);
     assert_eq!(cases[0].filename, "Show.S01E01.mkv");
     assert_eq!(cases[1].filename, "Show.S01E02.mkv");
-    assert_eq!(cases[0].expected, expected_map(&[("type", "episode"), ("title", "Show")]));
-    assert_eq!(cases[1].expected, expected_map(&[("type", "episode"), ("title", "Show")]));
+    assert_eq!(
+        cases[0].expected,
+        expected_map(&[("type", "episode"), ("title", "Show")])
+    );
+    assert_eq!(
+        cases[1].expected,
+        expected_map(&[("type", "episode"), ("title", "Show")])
+    );
 }
 
 #[test]
@@ -123,8 +129,14 @@ fn parses_lists_and_preserves_commas_inside_quoted_values() {
 
     let cases = load_test_cases(&path);
     assert_eq!(cases.len(), 1);
-    assert_eq!(cases[0].expected.get("language"), Some(&"[English, Japanese]".to_string()));
-    assert_eq!(cases[0].expected.get("subtitle_language"), Some(&"".to_string()));
+    assert_eq!(
+        cases[0].expected.get("language"),
+        Some(&"[English, Japanese]".to_string())
+    );
+    assert_eq!(
+        cases[0].expected.get("subtitle_language"),
+        Some(&"".to_string())
+    );
     assert_eq!(
         cases[0].expected.get("episode_title"),
         Some(&"Right Place, Wrong Time".to_string())
