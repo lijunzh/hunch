@@ -92,6 +92,68 @@ All 49 guessit properties implemented. Validated against guessit's
 
 See [docs/compatibility.md](docs/compatibility.md) for per-property breakdowns.
 
+## Known Limitations
+
+Hunch achieves **99.8% accuracy** on a real-world media library of 7,838 files
+(validated against a mixed Anime/English/Japanese/Kids collection). The
+remaining edge cases are documented below as honest limitations of a
+deterministic, offline filename parser.
+
+### Bonus content without episode numbers
+
+Files in bonus directories (`Bonus/`, `特典映像/`) that lack numeric episode
+markers are typed as `episode` with no episode number. Hunch recognizes these
+directory names for title cleanup but does not infer `type=extra` from
+directory names alone.
+
+```
+tv/Anime/.../特典映像/[DBD-Raws][Natsume Yuujinchou Shichi][声優トークショー][1080P][BDRip][HEVC-10bit][FLAC].mkv
+  → type=episode, episode=None  (expected: type=extra)
+
+tv/English/Power Rangers/17 - Power Rangers RPM/Bonus/Power Rangers RPM - Stuntman Behind The Scenes (Japanese).mp4
+  → type=episode, episode=None  (expected: type=extra)
+```
+
+**Why not fix it?** Extending directory-name detection to set `type` couples
+title cleanup with type inference. The set of bonus directory names is
+unbounded (`Extras/`, `Featurettes/`, `Behind the Scenes/`, `Making Of/`,
+etc.) — each new rule risks regressions on other libraries.
+
+### Sample/preview clips in movie directories
+
+Verification clips like `Sample1.mkv` in `Samples/` subdirectories may have
+digits parsed as episode numbers, causing `type=episode` in a movie context.
+
+```
+movie/.../Samples/Sample1.mkv
+  → type=episode, episode=1  (expected: not real media content)
+```
+
+**Why not fix it?** Sample files are not meaningful media content. Filtering
+them would require special-casing directory and filename patterns that vary
+across release groups.
+
+### Ambiguous special/episode cross-references
+
+Filenames with both `SP` (special) and `EP` (episode) markers where the EP
+number refers to a related TV episode rather than this file's own episode
+number.
+
+```
+movie/.../[Detective Conan][Tokuten BD][SP02][TV Series EP1080][BDRIP][1080P][H264_FLAC].mkv
+  → type=episode, episode=1080  (EP1080 is a cross-reference, not this file's episode)
+```
+
+**Why not fix it?** Distinguishing "this file is episode 1080" from "this file
+relates to episode 1080" requires semantic understanding that a filename parser
+cannot provide.
+
+### Malformed filenames
+
+Genuinely broken filenames like `1.The.mkv.mkv` produce nonsensical results.
+This is garbage-in, garbage-out — no parser can extract structure from
+structureless input.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). The easiest contribution is
