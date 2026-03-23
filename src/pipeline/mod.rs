@@ -461,29 +461,66 @@ impl Pipeline {
         // 3. Run Pass 2 with invariance report.
         // If invariance found a title from actual filename content, use it.
         // If it found a title that's just a directory name from the path,
-        // treat it as weak evidence and prefer the fallback title from the
-        // parent directory. (#94)
+        // treat it as weak evidence:
+        //   - Prefer the parent fallback title if available (#94).
+        //   - Otherwise let pass2's normal extractor try first. If pass2
+        //     also fails, use the dir-name title as last resort — an
+        //     imprecise title beats no title (#97).
         let invariance_title = report.title.as_deref();
-        let title_hint = match (invariance_title, fallback_title) {
-            (Some(inv), Some(fb)) if is_path_dir_name(input, inv) => {
+        let (title_hint, last_resort_title) = match (invariance_title, fallback_title) {
+            (Some(inv), _) if is_path_dir_name(input, inv) => {
                 debug!(
-                    "invariance title {:?} is a directory name — preferring parent fallback {:?}",
-                    inv, fb
+                    "invariance title {:?} is a directory name — {}",
+                    inv,
+                    fallback_title
+                        .map(|fb| format!("preferring parent fallback {:?}", fb))
+                        .unwrap_or_else(|| "letting pass2 try first".to_string())
                 );
-                Some(fb)
+                // With fallback: use fallback, no last resort needed.
+                // Without fallback: pass2 tries first, dir name is last resort.
+                (
+                    fallback_title,
+                    if fallback_title.is_none() {
+                        Some(inv)
+                    } else {
+                        None
+                    },
+                )
             }
-            (Some(inv), _) => Some(inv),
-            (None, fb) => fb,
+            (Some(inv), _) => (Some(inv), None),
+            (None, fb) => (fb, None),
         };
         let mut matches = target_matches;
-        self.pass2(
+        let mut result = self.pass2(
             input,
             &mut matches,
             &target_zm,
             &target_ts,
             title_hint,
             Some(&report),
-        )
+        );
+
+        // Last resort: if pass2 found no title and we have a dir-name
+        // invariance title stashed, use it — but only if it's a meaningful
+        // name (not a generic category like "movie", "Japanese", "Anime").
+        if result.title().is_none() {
+            if let Some(lr) = last_resort_title {
+                if crate::properties::title::is_generic_dir(lr) {
+                    debug!(
+                        "pass2 found no title — last-resort {:?} is generic, skipping",
+                        lr
+                    );
+                } else {
+                    debug!(
+                        "pass2 found no title — using last-resort dir-name title {:?}",
+                        lr
+                    );
+                    result.set(Property::Title, lr);
+                }
+            }
+        }
+
+        result
     }
 
     /// Run Pass 1: tokenize → zone map → match → conflict resolve → zone disambiguate.
@@ -802,16 +839,19 @@ impl Pipeline {
     }
 }
 
-/// Check whether `title` matches directory components of `input`.
+/// Check whether `title` is derived from directory components of `input`.
 ///
 /// Returns `true` when the invariance title is:
 /// - An exact match to a single directory component (e.g., `"特典映像"`)
 /// - A concatenation of consecutive directory components joined by spaces
 ///   (e.g., `"夏目友人帐 特典映像"` from path `夏目友人帐/特典映像/file.mkv`)
+/// - Composed entirely of directory components, even non-consecutive
+///   (e.g., `"Anime  特典映像"` from `tv/Anime/ShowDir/特典映像/file.mkv`
+///   where `ShowDir` was consumed by matchers, leaving a double space) (#97)
 ///
 /// When the invariance engine finds a title that came from directory
 /// structure rather than filename content, it's weak evidence. The caller
-/// can then prefer a fallback title from parent context.
+/// can then prefer a fallback title or let pass2 extract from the filename.
 ///
 /// Comparison is case-insensitive.
 fn is_path_dir_name(input: &str, title: &str) -> bool {
@@ -848,6 +888,15 @@ fn is_path_dir_name(input: &str, title: &str) -> bool {
                 return true;
             }
         }
+    }
+
+    // 3. All-parts check: every non-empty whitespace-delimited part of
+    //    the title is a directory component. Catches non-consecutive dir
+    //    names joined by double spaces (e.g., "Anime  特典映像" from
+    //    tv/Anime/ShowDir/特典映像/ where ShowDir was consumed). (#97)
+    let parts: Vec<&str> = title_lower.split_whitespace().collect();
+    if parts.len() >= 2 && parts.iter().all(|part| dir_names.iter().any(|d| d == part)) {
+        return true;
     }
 
     false
@@ -893,7 +942,16 @@ mod tests {
         assert!(!is_path_dir_name("ShowDir/file.mkv", "file"));
         // Text not in path should NOT match.
         assert!(!is_path_dir_name("ShowDir/file.mkv", "OtherDir"));
-        // Non-contiguous dir names should NOT match.
-        assert!(!is_path_dir_name("A/B/C/file.mkv", "A C"));
+        // Non-contiguous dir names should match via all-parts check (#97).
+        assert!(is_path_dir_name(
+            "tv/Anime/ShowDir/特典映像/file.mkv",
+            "Anime  特典映像"
+        ));
+        assert!(is_path_dir_name("A/B/C/file.mkv", "A C"));
+        assert!(is_path_dir_name("A/B/C/file.mkv", "A  C"));
+        // Single word that is NOT a dir name should NOT match.
+        assert!(!is_path_dir_name("A/B/C/file.mkv", "D E"));
+        // Mixed: one part is a dir, the other isn't.
+        assert!(!is_path_dir_name("A/B/C/file.mkv", "A D"));
     }
 }
