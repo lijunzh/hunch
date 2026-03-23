@@ -137,6 +137,28 @@ fn regular_episode_still_episode() {
     assert_eq!(r.media_type(), Some(MediaType::Episode));
 }
 
+#[test]
+fn movie_keywords_override_tv_path_hint() {
+    let r = hunch(
+        "tv/English/Power Rangers/02.5 - Mighty Morphin Power Rangers The Movie/Mighty Morphin Power Rangers The Movie.avi",
+    );
+    assert_eq!(r.media_type(), Some(MediaType::Movie));
+}
+
+#[test]
+fn a_movie_phrase_override_tv_path_hint() {
+    let r = hunch(
+        "tv/English/Power Rangers/04.5 - Turbo - A Power Rangers Movie/Turbo - A Power Rangers Movie.avi",
+    );
+    assert_eq!(r.media_type(), Some(MediaType::Movie));
+}
+
+#[test]
+fn cjk_movie_directory_override_tv_path_hint() {
+    let r = hunch("tv/Anime/鬼滅之刃/劇場版/鬼滅之刃劇場版 無限列車篇.mkv");
+    assert_eq!(r.media_type(), Some(MediaType::Movie));
+}
+
 // ── P0: CJK edge cases ─────────────────────────────────────────────────
 
 #[test]
