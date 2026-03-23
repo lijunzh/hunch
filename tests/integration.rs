@@ -643,7 +643,24 @@ fn issue_39_cjk_cowboy_bebop_sp02() {
     assert_eq!(r.first(Property::Crc), Some("31C5B7B3"));
 }
 
-// ── Issue #35 regression: subtitle containers strip video tech ────────────
+#[test]
+fn issue_100_first_bracket_is_title_when_natural_language() {
+    let r = hunch(
+        "[Kimetsu no Yaiba Mugen Ressha Hen][JPN+ENG][BDRIP][1080P][H264_FLACx3_DTS-HDMA].mkv",
+    );
+    assert_eq!(r.title(), Some("Kimetsu no Yaiba Mugen Ressha Hen"));
+    assert_eq!(r.release_group(), None);
+}
+
+#[test]
+fn issue_100_real_release_group_still_detected() {
+    let r =
+        hunch("[Prejudice-Studio][Kimetsu no Yaiba Mugen Ressha Hen][JPN+ENG][BDRIP][1080P].mkv");
+    assert_eq!(r.release_group(), Some("Prejudice-Studio"));
+    assert_eq!(r.title(), Some("Kimetsu no Yaiba Mugen Ressha Hen"));
+}
+
+// ── Issue #35 regression: subtitle containers strip video tech ──────────────────
 
 #[test]
 fn issue_35_western_srt_no_video_props() {
