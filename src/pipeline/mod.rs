@@ -376,8 +376,45 @@ impl Pipeline {
 
     /// Inner implementation with concrete `&[&str]` to avoid monomorphization bloat.
     fn run_with_context_inner(&self, input: &str, siblings: &[&str]) -> HunchResult {
-        if siblings.is_empty() {
+        self.run_with_context_and_fallback_inner(input, siblings, None)
+    }
+
+    /// Parse with sibling context and an optional fallback title.
+    ///
+    /// When `fallback_title` is `Some(...)`, it is used as the title hint
+    /// if and only if the invariance analysis does not produce one. This
+    /// allows parent directory context to propagate to child directories
+    /// (e.g., `Extras/`, `SP/`) that have too few files for independent
+    /// invariance detection.
+    ///
+    /// The fallback informs but does not force: if the child directory
+    /// has strong invariance of its own, it wins.
+    pub fn run_with_context_and_fallback<S: AsRef<str>>(
+        &self,
+        input: &str,
+        siblings: &[S],
+        fallback_title: Option<&str>,
+    ) -> HunchResult {
+        let sibs: Vec<&str> = siblings.iter().map(|s| s.as_ref()).collect();
+        self.run_with_context_and_fallback_inner(input, &sibs, fallback_title)
+    }
+
+    /// Inner implementation for context + fallback.
+    fn run_with_context_and_fallback_inner(
+        &self,
+        input: &str,
+        siblings: &[&str],
+        fallback_title: Option<&str>,
+    ) -> HunchResult {
+        if siblings.is_empty() && fallback_title.is_none() {
             return self.run(input);
+        }
+
+        // If we have no siblings but do have a fallback title, run Pass 1
+        // and use the fallback directly in Pass 2.
+        if siblings.is_empty() {
+            let (mut matches, ts, zm) = self.pass1(input);
+            return self.pass2(input, &mut matches, &zm, &ts, fallback_title, None);
         }
 
         // 1. Run Pass 1 on target + all siblings.
@@ -422,13 +459,16 @@ impl Pipeline {
         }
 
         // 3. Run Pass 2 with invariance report.
+        // If invariance found a title, use it. Otherwise fall back to
+        // the parent directory's cached title (if available). (#94)
+        let title_hint = report.title.as_deref().or(fallback_title);
         let mut matches = target_matches;
         self.pass2(
             input,
             &mut matches,
             &target_zm,
             &target_ts,
-            report.title.as_deref(),
+            title_hint,
             Some(&report),
         )
     }

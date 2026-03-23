@@ -184,8 +184,24 @@ fn run_batch(pipeline: &Pipeline, batch_dir: &Path, recursive: bool, json: bool)
     // Value: indices into rel_paths
     let groups = group_by_parent(&rel_paths);
 
-    for indices in groups.values() {
+    // In recursive mode, process groups top-down and cache titles so child
+    // directories can inherit parent context. BTreeMap iteration is already
+    // sorted lexically, which means parents come before children. (#94)
+    let mut dir_titles: BTreeMap<String, String> = BTreeMap::new();
+
+    for (parent_key, indices) in &groups {
         let group_paths: Vec<&str> = indices.iter().map(|&i| rel_paths[i].as_str()).collect();
+
+        // Look up the nearest ancestor's cached title as a fallback hint.
+        // This propagates invariance results from parent directories to
+        // child directories like Extras/, 特典映像/, SP/. (#94)
+        let fallback_title: Option<&str> = if recursive {
+            find_ancestor_title(parent_key, &dir_titles)
+        } else {
+            None
+        };
+
+        let mut group_titles: Vec<String> = Vec::new();
 
         for (pos, &idx) in indices.iter().enumerate() {
             let input = &rel_paths[idx];
@@ -196,7 +212,12 @@ fn run_batch(pipeline: &Pipeline, batch_dir: &Path, recursive: bool, json: bool)
                 .map(|(_, s)| *s)
                 .collect();
 
-            let result = pipeline.run_with_context(input, &siblings);
+            let result = pipeline.run_with_context_and_fallback(input, &siblings, fallback_title);
+
+            // Collect titles for parent context caching.
+            if let Some(title) = result.title() {
+                group_titles.push(title.to_string());
+            }
 
             // Display filename: bare filename for flat, relative path for recursive.
             let display_name = if recursive {
@@ -208,6 +229,14 @@ fn run_batch(pipeline: &Pipeline, batch_dir: &Path, recursive: bool, json: bool)
                     .unwrap_or(input)
             };
             print_result(display_name, &result, json);
+        }
+
+        // Cache the most common title from this directory group so child
+        // directories can inherit it as fallback context. (#94)
+        if recursive {
+            if let Some(title) = most_common_title(&group_titles) {
+                dir_titles.insert(parent_key.clone(), title);
+            }
         }
     }
 }
@@ -227,6 +256,54 @@ fn group_by_parent(rel_paths: &[String]) -> BTreeMap<String, Vec<usize>> {
         groups.entry(parent).or_default().push(i);
     }
     groups
+}
+
+/// Find the cached title from the nearest ancestor directory.
+///
+/// Walks up the directory tree from `child_key` and returns the first
+/// cached title found. This propagates titles from parent directories
+/// to child directories in recursive batch mode.
+fn find_ancestor_title<'a>(
+    child_key: &str,
+    dir_titles: &'a BTreeMap<String, String>,
+) -> Option<&'a str> {
+    let mut current = child_key;
+    loop {
+        let parent = Path::new(current)
+            .parent()
+            .and_then(|p| p.to_str())
+            .unwrap_or("");
+
+        if parent == current {
+            break;
+        }
+
+        if let Some(title) = dir_titles.get(parent) {
+            return Some(title.as_str());
+        }
+
+        current = parent;
+    }
+    None
+}
+
+/// Find the most common title in a group of results.
+///
+/// Returns the title that appears most frequently, breaking ties by
+/// first occurrence. Used to cache a representative title for parent
+/// context propagation.
+fn most_common_title(titles: &[String]) -> Option<String> {
+    if titles.is_empty() {
+        return None;
+    }
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    for title in titles {
+        *counts.entry(title.as_str()).or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .max_by_key(|(_, count)| *count)
+        .map(|(title, _)| title.to_string())
 }
 
 // ── Output ──────────────────────────────────────────────────────────────
