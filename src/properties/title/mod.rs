@@ -391,8 +391,11 @@ fn extract_unclaimed_bracket_title(
         return None;
     }
 
-    // Find the first unclaimed bracket group (skip the first one = release group).
-    for &(abs_start, abs_end, content) in &brackets[1..] {
+    // Find the first unclaimed bracket group. Prefer skipping the first bracket
+    // (typically a release group), but allow it when no release group was
+    // detected and the first bracket is the only plausible title (#100).
+    let start_index = usize::from(matches.iter().any(|m| m.property == Property::ReleaseGroup));
+    for &(abs_start, abs_end, content) in &brackets[start_index..] {
         if content.is_empty() || content.chars().all(|c| c.is_ascii_digit()) {
             continue;
         }
