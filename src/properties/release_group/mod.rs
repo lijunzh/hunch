@@ -105,7 +105,9 @@ fn looks_like_natural_language_title(candidate: &str) -> bool {
 
     if words.iter().any(|word| {
         word.contains('-')
-            || word.chars().any(|c| !c.is_alphanumeric() && c != '\'' && c != '!')
+            || word
+                .chars()
+                .any(|c| !c.is_alphanumeric() && c != '\'' && c != '!')
             || word.chars().all(|c| c.is_ascii_uppercase())
     }) {
         return false;
