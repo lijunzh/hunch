@@ -155,6 +155,8 @@ fn extract_episode_title_in_segment(
     };
 
     // Trim at opening brackets/parens (metadata, not title content).
+    // If the region starts with a bracket, there is no episode title —
+    // the bracket content is metadata (e.g., `[Bilibili WEB-DL ...]`).
     let ep_title_end = {
         if ep_title_end <= ep_title_start {
             return None;
@@ -167,8 +169,9 @@ fn extract_episode_title_in_segment(
             })
         });
         match bracket_pos {
-            Some(pos) if pos > 0 => ep_title_start + pos,
-            _ => ep_title_end,
+            Some(0) => return None, // bracket immediately — no episode title
+            Some(pos) => ep_title_start + pos,
+            None => ep_title_end,
         }
     };
 

@@ -189,9 +189,27 @@ pub fn find_matches(
         }
     }
 
-    // 3c. Compound bracket merging using tokenizer's bracket model.
-    // Must run BEFORE individual bracket steps (4-6) to catch
-    // `(Tigole) [QxR]`, `(JBENT)[TAoE]` patterns.
+    // 3c. `[GROUP]` at start (anime/fansub style).
+    // Runs before compound bracket detection so that CJK fansub patterns
+    // like `[Prejudice-Studio] Title - 01 [metadata]` correctly pick up
+    // the first bracket as the release group. (#91)
+    if matches.is_empty()
+        && let Some(cap) = RELEASE_GROUP_START_BRACKET.captures(filename)
+        && let Some(group) = cap.name("group")
+    {
+        let value = group.as_str().trim();
+        let abs_start = filename_start + group.start();
+        let abs_end = filename_start + group.end();
+        if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
+            matches.push(
+                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
+                    .with_priority(crate::priority::HEURISTIC),
+            );
+        }
+    }
+
+    // 3d. Compound bracket merging using tokenizer's bracket model.
+    // Catches `(Tigole) [QxR]`, `(JBENT)[TAoE]` patterns.
     if matches.is_empty()
         && let Some(compound) =
             find_compound_bracket_group_from_tokenstream(token_stream, filename_start, resolved)
@@ -237,23 +255,7 @@ pub fn find_matches(
         }
     }
 
-    // 6. `[GROUP]` at start (anime style).
-    if matches.is_empty()
-        && let Some(cap) = RELEASE_GROUP_START_BRACKET.captures(filename)
-        && let Some(group) = cap.name("group")
-    {
-        let value = group.as_str().trim();
-        let abs_start = filename_start + group.start();
-        let abs_end = filename_start + group.end();
-        if !is_rejected_group(value, abs_start, abs_end, resolved) && !is_hex_crc(value) {
-            matches.push(
-                MatchSpan::new(abs_start, abs_end, Property::ReleaseGroup, value)
-                    .with_priority(crate::priority::HEURISTIC),
-            );
-        }
-    }
-
-    // 7. Space-separated at end (requires tech zone anchors).
+    // 6. Space-separated at end (requires tech zone anchors).
     if matches.is_empty()
         && zone_map.has_anchors
         && let Some(cap) = RELEASE_GROUP_SPACE_END.captures(filename)
@@ -270,7 +272,7 @@ pub fn find_matches(
         }
     }
 
-    // 8. Last dot-segment as fallback (requires tech zone anchors).
+    // 7. Last dot-segment as fallback (requires tech zone anchors).
     //    Also tries to merge preceding dot-segments (e.g., `YTS.LT` → "YTS.LT").
     if matches.is_empty()
         && zone_map.has_anchors
@@ -305,7 +307,7 @@ pub fn find_matches(
         }
     }
 
-    // 8b. Mid-filename bracket group containing a single non-tech word.
+    // 7b. Mid-filename bracket group containing a single non-tech word.
     // E.g., `[HorribleSubs]` in `Show!.Name.2.-.10.(2016).[HorribleSubs][WEBRip]..[HD.720p]`.
     if matches.is_empty() {
         for bg in &token_stream.bracket_groups {
@@ -335,7 +337,7 @@ pub fn find_matches(
         }
     }
 
-    // 9. Check parent directory for release group.
+    // 8. Check parent directory for release group.
     if filename_start > 0 {
         let parent = &input[..filename_start.saturating_sub(1)];
         let parent_name = parent.rsplit(['/', '\\']).next().unwrap_or("");
@@ -365,7 +367,7 @@ pub fn find_matches(
         }
     }
 
-    // 10. Merge `-GROUP [BRACKET]` when Step 2 found a dash-group
+    // 9. Merge `-GROUP [BRACKET]` when Step 2 found a dash-group
     // but missed an adjacent bracket suffix (separated by space).
     // E.g., `-0SEC [GloDLS].mkv` → "0SEC [GloDLS]" (was just "0SEC").
     if matches.len() == 1 {
