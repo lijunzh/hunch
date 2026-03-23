@@ -654,9 +654,8 @@ fn issue_100_first_bracket_is_title_when_natural_language() {
 
 #[test]
 fn issue_100_real_release_group_still_detected() {
-    let r = hunch(
-        "[Prejudice-Studio][Kimetsu no Yaiba Mugen Ressha Hen][JPN+ENG][BDRIP][1080P].mkv",
-    );
+    let r =
+        hunch("[Prejudice-Studio][Kimetsu no Yaiba Mugen Ressha Hen][JPN+ENG][BDRIP][1080P].mkv");
     assert_eq!(r.release_group(), Some("Prejudice-Studio"));
     assert_eq!(r.title(), Some("Kimetsu no Yaiba Mugen Ressha Hen"));
 }
