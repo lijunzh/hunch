@@ -430,6 +430,7 @@ pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
     let has_episode_details = matches
         .iter()
         .any(|m| m.property == Property::EpisodeDetails);
+    let has_strong_movie_signal = path_hints_movie(input) || has_movie_signal(input);
     // Bonus without Film or Year = TV series bonus (episode), not movie extra.
     // Movie extras typically have years: Moon_(2009)-x02-Making_Of
     let has_bonus_no_film = matches.iter().any(|m| m.property == Property::Bonus)
@@ -456,22 +457,20 @@ pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
         return "episode";
     }
 
-    // 3. Path-based context (D6: smart context overrides dumb engine).
-    //    Movie directory context suppresses weak (heuristic) episode signals.
-    //    Episode directory context promotes to episode even without structural markers.
-    if path_hints_movie(input) {
-        // Movie dir + only a heuristic episode guess → movie wins.
-        // The bare number is likely a franchise number, not an episode.
-        if weak_episode {
-            return "movie";
-        }
+    // 3. Strong movie signals override weak path-based episode context.
+    //    File/parent names like "The Movie" or "劇場版" are explicit content
+    //    labels, stronger than organizational directories like `tv/`.
+    if has_strong_movie_signal {
+        return "movie";
     }
 
+    // 4. Path-based context (D6: smart context overrides dumb engine).
+    //    Episode directory context promotes to episode even without structural markers.
     if path_hints_episode(input) {
         return "episode";
     }
 
-    // 4. Weak episode signal with no path context → still episode.
+    // 5. Weak episode signal with no stronger movie evidence → still episode.
     if weak_episode {
         return "episode";
     }
@@ -494,6 +493,43 @@ fn path_hints_movie(input: &str) -> bool {
     lower
         .split(['/', '\\'])
         .any(|c| matches!(c, "movie" | "movies" | "film" | "films"))
+}
+
+/// Detect explicit movie signals in the filename or immediate parent directory.
+///
+/// These are stronger than organizational path hints like `tv/` because they
+/// describe the actual content, not where the user happened to file it.
+fn has_movie_signal(input: &str) -> bool {
+    let mut parts = input.rsplitn(2, ['/', '\\']);
+    let filename = parts.next().unwrap_or(input);
+    let dir_part = parts.next().unwrap_or("");
+    let parent = dir_part.rsplit(['/', '\\']).next().unwrap_or("");
+
+    is_movie_signal_component(filename) || is_movie_signal_component(parent)
+}
+
+fn is_movie_signal_component(component: &str) -> bool {
+    let normalized = component
+        .replace(['.', '_', '-'], " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+
+    if normalized.is_empty() {
+        return false;
+    }
+
+    normalized.contains("劇場版")
+        || normalized.contains("剧场版")
+        || normalized.contains("劇場版")
+        || normalized.contains("映画")
+        || normalized.contains(" movie")
+        || normalized.starts_with("movie ")
+        || normalized.ends_with(" movie")
+        || normalized.contains(" the movie")
+        || normalized.contains(" a power rangers movie")
+        || normalized.contains(" film")
 }
 
 /// Check if the input path's directory components hint at TV/episode content.
