@@ -66,3 +66,33 @@ fn issue_93_kids_dir_not_title() {
         "category dir 'Kids' must not become the title"
     );
 }
+
+#[test]
+fn issue_93_tokuten_eizou_dir_not_title() {
+    let r = hunch("特典映像/[Group][ShowTitle][Concert][1080P].mkv");
+    assert_ne!(
+        r.title(),
+        Some("特典映像"),
+        "CJK bonus dir '特典映像' must not become the title"
+    );
+}
+
+#[test]
+fn issue_93_tokuten_dir_not_title() {
+    let r = hunch("特典/bonus.mkv");
+    assert_ne!(
+        r.title(),
+        Some("特典"),
+        "CJK bonus dir '特典' must not become the title"
+    );
+}
+
+#[test]
+fn issue_93_sp_dir_not_title() {
+    let r = hunch("SP/Special.720p.mkv");
+    assert_ne!(
+        r.title(),
+        Some("SP"),
+        "bonus dir 'SP' must not become the title"
+    );
+}

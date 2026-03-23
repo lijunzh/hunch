@@ -334,6 +334,11 @@ pub(super) fn is_generic_dir(name: &str) -> bool {
             | "trailer"
             | "samples"
             | "sample"
+            // CJK bonus / extras directory names
+            | "特典映像"  // tokuten eizou — special footage (JP)
+            | "特典"      // tokuten — bonus/extras (JP)
+            | "映像特典"  // eizou tokuten — video bonus (JP)
+            | "sp"
             // Subtitles / audio
             | "subs"
             | "subtitles"
@@ -476,6 +481,14 @@ mod tests {
         assert!(is_generic_dir("Thai"));
         assert!(is_generic_dir("Hindi"));
         assert!(is_generic_dir("Arabic"));
+    }
+
+    #[test]
+    fn generic_dir_cjk_bonus() {
+        assert!(is_generic_dir("特典映像"));
+        assert!(is_generic_dir("特典"));
+        assert!(is_generic_dir("映像特典"));
+        assert!(is_generic_dir("SP"));
     }
 
     #[test]
