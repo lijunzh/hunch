@@ -140,6 +140,34 @@ Prefer context over heuristics. Heuristics are fragile; context is
 structural. When context is also insufficient, surface the ambiguity
 to the human (D7).
 
+Current heuristic classes, roughly ordered by how strongly hunch
+should rely on them:
+
+| Heuristic class | Strength | Status |
+|---|---|---|
+| Structural patterns (`S01E02`, `1x03`) | Strong | Foundational — keep |
+| Cross-file invariance, parent path context | Strong | Foundational — keep |
+| TOML vocabulary (codecs, sources, editions) | Strong | Foundational — keep |
+| Zone map (title zone vs tech zone) | Strong | Foundational — keep |
+| CJK bracket positional rules | Medium | Useful but convention-dependent |
+| Positional fallback ladders | Medium | Acceptable, but order-sensitive |
+| Bare number as episode | Weak | Fallback only; lower confidence |
+| Digit decomposition (`0106` → `S01E06`) | Weak | Transitional; prefer context |
+| Ambiguous path-word inference | Weak | Fragile; context should replace |
+
+This table is not a ban on heuristics. Filename parsing is inherently
+heuristic. The purpose is to distinguish:
+
+- heuristics that are foundational and expected to remain
+- heuristics that are acceptable fallbacks but should stay bounded
+- heuristics that are transitional and should yield to better context
+
+Contributors should treat **weak** heuristics as non-authoritative by
+default. If a weak heuristic fires, it should ideally either:
+
+- be overridden by stronger structural/context signals, or
+- reduce confidence and surface ambiguity rather than silently winning
+
 ### D7: Surface ambiguity to the user (P1, P2)
 
 When multiple valid interpretations exist and neither the engine nor
