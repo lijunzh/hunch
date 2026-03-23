@@ -263,7 +263,7 @@ pub(super) fn pick_better_casing<'a>(a: &'a str, b: &'a str) -> &'a str {
 /// organizational (e.g., "Movies", "Downloads"). When walking parent
 /// directories for title fallback, these are skipped so the real title
 /// directory (e.g., "Transformers 1984") is found.
-pub(super) fn is_generic_dir(name: &str) -> bool {
+pub(crate) fn is_generic_dir(name: &str) -> bool {
     let lower = name.to_lowercase();
 
     // Exact matches (case-insensitive).

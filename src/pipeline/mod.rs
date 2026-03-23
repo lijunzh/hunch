@@ -463,33 +463,64 @@ impl Pipeline {
         // If it found a title that's just a directory name from the path,
         // treat it as weak evidence:
         //   - Prefer the parent fallback title if available (#94).
-        //   - Otherwise discard it entirely and let pass2's normal title
-        //     extractor run. This handles empty intermediate directories
-        //     (e.g., tv/Anime/) that break the fallback chain (#97).
+        //   - Otherwise let pass2's normal extractor try first. If pass2
+        //     also fails, use the dir-name title as last resort — an
+        //     imprecise title beats no title (#97).
         let invariance_title = report.title.as_deref();
-        let title_hint = match (invariance_title, fallback_title) {
+        let (title_hint, last_resort_title) = match (invariance_title, fallback_title) {
             (Some(inv), _) if is_path_dir_name(input, inv) => {
                 debug!(
                     "invariance title {:?} is a directory name — {}",
                     inv,
                     fallback_title
                         .map(|fb| format!("preferring parent fallback {:?}", fb))
-                        .unwrap_or_else(|| "discarding (no fallback available)".to_string())
+                        .unwrap_or_else(|| "letting pass2 try first".to_string())
                 );
-                fallback_title
+                // With fallback: use fallback, no last resort needed.
+                // Without fallback: pass2 tries first, dir name is last resort.
+                (
+                    fallback_title,
+                    if fallback_title.is_none() {
+                        Some(inv)
+                    } else {
+                        None
+                    },
+                )
             }
-            (Some(inv), _) => Some(inv),
-            (None, fb) => fb,
+            (Some(inv), _) => (Some(inv), None),
+            (None, fb) => (fb, None),
         };
         let mut matches = target_matches;
-        self.pass2(
+        let mut result = self.pass2(
             input,
             &mut matches,
             &target_zm,
             &target_ts,
             title_hint,
             Some(&report),
-        )
+        );
+
+        // Last resort: if pass2 found no title and we have a dir-name
+        // invariance title stashed, use it — but only if it's a meaningful
+        // name (not a generic category like "movie", "Japanese", "Anime").
+        if result.title().is_none() {
+            if let Some(lr) = last_resort_title {
+                if crate::properties::title::is_generic_dir(lr) {
+                    debug!(
+                        "pass2 found no title — last-resort {:?} is generic, skipping",
+                        lr
+                    );
+                } else {
+                    debug!(
+                        "pass2 found no title — using last-resort dir-name title {:?}",
+                        lr
+                    );
+                    result.set(Property::Title, lr);
+                }
+            }
+        }
+
+        result
     }
 
     /// Run Pass 1: tokenize → zone map → match → conflict resolve → zone disambiguate.

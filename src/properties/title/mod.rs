@@ -7,6 +7,7 @@
 mod clean;
 mod secondary;
 
+pub(crate) use clean::is_generic_dir;
 pub use secondary::{
     extract_alternative_titles, extract_episode_title, extract_film_title, infer_media_type,
 };
@@ -16,8 +17,7 @@ use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::TokenStream;
 use crate::zone_map::ZoneMap;
 use clean::{
-    clean_title, is_abbreviated, is_generic_dir, is_likely_extension, pick_better_casing,
-    strip_extension,
+    clean_title, is_abbreviated, is_likely_extension, pick_better_casing, strip_extension,
 };
 
 /// Characters we strip from title boundaries.
