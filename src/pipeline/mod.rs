@@ -828,7 +828,7 @@ fn is_path_dir_name(input: &str, title: &str) -> bool {
         .collect();
 
     // 1. Exact match to a single directory component.
-    if dir_names.iter().any(|d| *d == title_lower) {
+    if dir_names.contains(&title_lower) {
         return true;
     }
 
@@ -839,11 +839,11 @@ fn is_path_dir_name(input: &str, title: &str) -> bool {
     let ordered: Vec<&str> = dir_names.iter().rev().map(|s| s.as_str()).collect();
     for start in 0..ordered.len() {
         let mut concat = String::new();
-        for end in start..ordered.len() {
+        for component in ordered.iter().skip(start) {
             if !concat.is_empty() {
                 concat.push(' ');
             }
-            concat.push_str(ordered[end]);
+            concat.push_str(component);
             if concat == title_lower {
                 return true;
             }
@@ -872,7 +872,10 @@ mod tests {
     fn test_is_path_dir_name() {
         // Single directory component match.
         assert!(is_path_dir_name("夏目友人帐/特典映像/file.mkv", "特典映像"));
-        assert!(is_path_dir_name("夏目友人帐/特典映像/file.mkv", "夏目友人帐"));
+        assert!(is_path_dir_name(
+            "夏目友人帐/特典映像/file.mkv",
+            "夏目友人帐"
+        ));
         assert!(is_path_dir_name("ShowDir/Extras/file.mkv", "Extras"));
         assert!(is_path_dir_name("ShowDir/Extras/file.mkv", "ShowDir"));
         // Case-insensitive.
@@ -891,9 +894,6 @@ mod tests {
         // Text not in path should NOT match.
         assert!(!is_path_dir_name("ShowDir/file.mkv", "OtherDir"));
         // Non-contiguous dir names should NOT match.
-        assert!(!is_path_dir_name(
-            "A/B/C/file.mkv",
-            "A C"
-        ));
+        assert!(!is_path_dir_name("A/B/C/file.mkv", "A C"));
     }
 }
