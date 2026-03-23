@@ -430,6 +430,7 @@ pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
     let has_episode_details = matches
         .iter()
         .any(|m| m.property == Property::EpisodeDetails);
+    let has_edition = matches.iter().any(|m| m.property == Property::Edition);
     let has_strong_movie_signal = path_hints_movie(input) || has_movie_signal(input);
     // Bonus without Film or Year = TV series bonus (episode), not movie extra.
     // Movie extras typically have years: Moon_(2009)-x02-Making_Of
@@ -445,15 +446,19 @@ pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
         .any(|m| m.property == Property::Episode && m.priority > crate::priority::HEURISTIC);
     let weak_episode = !strong_episode && matches.iter().any(|m| m.property == Property::Episode);
 
+    let episode_details_signal = has_episode_details && !has_edition;
+
     // Episode details (NCED, OP, SP, PV, CM, etc.) WITHOUT episode/season
     // markers are supplementary content — "extra", not "episode".
     // With episode/season (e.g., S01E00 Special), it's still an episode.
-    if has_episode_details && !strong_episode && !weak_episode && !has_season && !has_date {
+    // But when "Special" is part of an edition marker ("Special Edition"),
+    // that's movie metadata, not episodic evidence.
+    if episode_details_signal && !strong_episode && !weak_episode && !has_season && !has_date {
         return "extra";
     }
 
     // 2. Strong structural signals always win — SxxExx, "Episode 1", etc.
-    if strong_episode || has_season || has_date || has_episode_details || has_bonus_no_film {
+    if strong_episode || has_season || has_date || episode_details_signal || has_bonus_no_film {
         return "episode";
     }
 
