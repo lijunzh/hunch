@@ -196,3 +196,178 @@ fn strip_yaml_quotes(s: &str) -> String {
         s.to_string()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── strip_yaml_quotes ────────────────────────────────────────────────────
+
+    #[test]
+    fn sqy_strips_double_quotes() {
+        assert_eq!(strip_yaml_quotes(r#""hello""#), "hello");
+    }
+
+    #[test]
+    fn sqy_strips_single_quotes() {
+        assert_eq!(strip_yaml_quotes("'5.1'"), "5.1");
+    }
+
+    #[test]
+    fn sqy_strips_inline_comment() {
+        assert_eq!(strip_yaml_quotes("value # comment"), "value");
+    }
+
+    #[test]
+    fn sqy_preserves_hash_inside_double_quotes() {
+        assert_eq!(strip_yaml_quotes(r#""keep # this""#), "keep # this");
+    }
+
+    #[test]
+    fn sqy_passthrough_plain_value() {
+        assert_eq!(strip_yaml_quotes("plain"), "plain");
+    }
+
+    #[test]
+    fn sqy_mismatched_quotes_not_stripped() {
+        // Opening double-quote, closing single-quote: leave as-is.
+        assert_eq!(strip_yaml_quotes("\"oops'"), "\"oops'");
+    }
+
+    #[test]
+    fn sqy_empty_string() {
+        assert_eq!(strip_yaml_quotes(""), "");
+    }
+
+    // ── parse_prop_line ──────────────────────────────────────────────────────
+
+    #[test]
+    fn ppl_basic_key_value() {
+        let mut props = HashMap::new();
+        let mut list_key = None;
+        parse_prop_line("title: Movie", &mut props, &mut list_key);
+        assert_eq!(props.get("title").map(String::as_str), Some("Movie"));
+        assert!(list_key.is_none());
+    }
+
+    #[test]
+    fn ppl_empty_value_sets_list_key() {
+        let mut props = HashMap::new();
+        let mut list_key = None;
+        parse_prop_line("language:", &mut props, &mut list_key);
+        assert!(props.is_empty(), "no value should be inserted yet");
+        assert_eq!(list_key.as_deref(), Some("language"));
+    }
+
+    #[test]
+    fn ppl_colon_in_value_uses_first_split() {
+        // split_once(':') keeps the rest of the value intact.
+        let mut props = HashMap::new();
+        let mut list_key = None;
+        parse_prop_line(
+            "episode_title: Part 1: The Beginning",
+            &mut props,
+            &mut list_key,
+        );
+        assert_eq!(
+            props.get("episode_title").map(String::as_str),
+            Some("Part 1: The Beginning")
+        );
+    }
+
+    #[test]
+    fn ppl_strips_inline_comment_from_value() {
+        let mut props = HashMap::new();
+        let mut list_key = None;
+        parse_prop_line("source: Blu-ray # best format", &mut props, &mut list_key);
+        assert_eq!(props.get("source").map(String::as_str), Some("Blu-ray"));
+    }
+
+    #[test]
+    fn ppl_ignores_line_without_colon() {
+        let mut props = HashMap::new();
+        let mut list_key = None;
+        parse_prop_line("no colon here", &mut props, &mut list_key);
+        assert!(props.is_empty());
+        assert!(list_key.is_none());
+    }
+
+    // ── parse_groups ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn pg_empty_content_yields_no_groups() {
+        assert!(parse_groups("").is_empty());
+    }
+
+    #[test]
+    fn pg_blank_lines_and_comments_ignored() {
+        let content = "# top comment\n\n? file.mkv\n: type: movie\n";
+        let groups = parse_groups(content);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].0, vec!["file.mkv"]);
+        assert_eq!(groups[0].1.get("type").map(String::as_str), Some("movie"));
+    }
+
+    #[test]
+    fn pg_single_group_key_and_props() {
+        let content = "? Movie.mkv\n: title: Movie\n  type: movie\n";
+        let groups = parse_groups(content);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].0, vec!["Movie.mkv"]);
+        assert_eq!(groups[0].1.get("title").map(String::as_str), Some("Movie"));
+        assert_eq!(groups[0].1.get("type").map(String::as_str), Some("movie"));
+    }
+
+    #[test]
+    fn pg_multi_key_group_shares_same_props() {
+        let content = "? A.mkv\n? B.mkv\n: type: episode\n";
+        let groups = parse_groups(content);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].0, vec!["A.mkv", "B.mkv"]);
+        assert_eq!(groups[0].1.get("type").map(String::as_str), Some("episode"));
+    }
+
+    #[test]
+    fn pg_two_consecutive_groups() {
+        let content = "? First.mkv\n: type: movie\n\n? Second.mkv\n: type: episode\n";
+        let groups = parse_groups(content);
+        assert_eq!(groups.len(), 2);
+        assert_eq!(groups[0].0, vec!["First.mkv"]);
+        assert_eq!(groups[1].0, vec!["Second.mkv"]);
+    }
+
+    #[test]
+    fn pg_list_property_joined_with_brackets() {
+        let content = "? Episode.mkv\n: language:\n  - English\n  - Japanese\n";
+        let groups = parse_groups(content);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(
+            groups[0].1.get("language").map(String::as_str),
+            Some("[English, Japanese]")
+        );
+    }
+
+    #[test]
+    fn pg_single_list_item_not_wrapped_in_brackets() {
+        let content = "? Episode.mkv\n: language:\n  - English\n";
+        let groups = parse_groups(content);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(
+            groups[0].1.get("language").map(String::as_str),
+            Some("English")
+        );
+    }
+
+    #[test]
+    fn pg_empty_list_value_stored_as_empty_string() {
+        // A key declared with no list items (e.g., `subtitle_language:` with
+        // no `- …` lines) should be present with an empty-string value.
+        let content = "? Movie.mkv\n: subtitle_language:\n  type: movie\n";
+        let groups = parse_groups(content);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(
+            groups[0].1.get("subtitle_language").map(String::as_str),
+            Some("")
+        );
+    }
+}
