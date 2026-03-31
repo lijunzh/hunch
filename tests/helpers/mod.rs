@@ -264,7 +264,11 @@ mod tests {
         // split_once(':') keeps the rest of the value intact.
         let mut props = HashMap::new();
         let mut list_key = None;
-        parse_prop_line("episode_title: Part 1: The Beginning", &mut props, &mut list_key);
+        parse_prop_line(
+            "episode_title: Part 1: The Beginning",
+            &mut props,
+            &mut list_key,
+        );
         assert_eq!(
             props.get("episode_title").map(String::as_str),
             Some("Part 1: The Beginning")
