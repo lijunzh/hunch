@@ -1,6 +1,11 @@
 name: Dependabot Auto-Merge
 
-on: pull_request
+# pull_request_target runs in the base-branch context and grants write
+# permissions to the GITHUB_TOKEN — required for Dependabot PRs, which
+# receive a read-only token under the plain `pull_request` trigger.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: write
@@ -17,7 +22,10 @@ jobs:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Enable auto-merge (squash)
+      - name: Enable auto-merge (squash — linear history)
+        # --auto tells GitHub to merge once all required status checks pass.
+        # The repo ruleset enforces those checks, so this is safe without an
+        # extra "wait" step.  Squash keeps the main history linear.
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
