@@ -22,16 +22,6 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Approve PR (minor + patch only)
-        # Best-effort: fails gracefully if the repo disables
-        # "Allow GitHub Actions to approve pull requests".
-        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
-        continue-on-error: true
-        run: gh pr review --approve "$PR_URL"
-        env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Enable auto-merge (squash — linear history)
         if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         # --auto tells GitHub to merge once all required status checks pass.
