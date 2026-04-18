@@ -8,3 +8,37 @@ venv
 .venv
 __pycache__/
 *.pyc
+
+# ── Secrets ───────────────────────────────────────────────────────────
+# Defense-in-depth: prevent accidental commit of credentials. These
+# patterns are intentionally aggressive — a false-positive ignore is
+# always recoverable; a leaked credential isn't.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_rsa.*
+id_dsa
+id_dsa.*
+id_ecdsa
+id_ecdsa.*
+id_ed25519
+id_ed25519.*
+*.crt.key
+secrets/
+secrets.*
+credentials.json
+service-account*.json
+
+# ── Editor / OS noise ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
