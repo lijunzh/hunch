@@ -1,0 +1,853 @@
+pub mod hunch
+pub mod hunch::matcher
+pub mod hunch::matcher::engine
+pub fn hunch::matcher::engine::resolve_conflicts(matches: &mut alloc::vec::Vec<hunch::matcher::span::MatchSpan>)
+pub mod hunch::matcher::regex_utils
+pub enum hunch::matcher::regex_utils::CharClass
+pub hunch::matcher::regex_utils::CharClass::Alpha
+pub hunch::matcher::regex_utils::CharClass::AlphaDigit
+pub hunch::matcher::regex_utils::CharClass::Custom(alloc::vec::Vec<(u8, u8)>)
+pub hunch::matcher::regex_utils::CharClass::Digit
+pub hunch::matcher::regex_utils::CharClass::Lower
+pub hunch::matcher::regex_utils::CharClass::LowerDigit
+impl core::clone::Clone for hunch::matcher::regex_utils::CharClass
+pub fn hunch::matcher::regex_utils::CharClass::clone(&self) -> hunch::matcher::regex_utils::CharClass
+impl core::fmt::Debug for hunch::matcher::regex_utils::CharClass
+pub fn hunch::matcher::regex_utils::CharClass::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::matcher::regex_utils::CharClass
+impl core::marker::Send for hunch::matcher::regex_utils::CharClass
+impl core::marker::Sync for hunch::matcher::regex_utils::CharClass
+impl core::marker::Unpin for hunch::matcher::regex_utils::CharClass
+impl core::marker::UnsafeUnpin for hunch::matcher::regex_utils::CharClass
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::regex_utils::CharClass
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::regex_utils::CharClass
+pub struct hunch::matcher::regex_utils::BoundarySpec
+pub hunch::matcher::regex_utils::BoundarySpec::left: core::option::Option<hunch::matcher::regex_utils::CharClass>
+pub hunch::matcher::regex_utils::BoundarySpec::right: core::option::Option<hunch::matcher::regex_utils::CharClass>
+impl core::clone::Clone for hunch::matcher::regex_utils::BoundarySpec
+pub fn hunch::matcher::regex_utils::BoundarySpec::clone(&self) -> hunch::matcher::regex_utils::BoundarySpec
+impl core::fmt::Debug for hunch::matcher::regex_utils::BoundarySpec
+pub fn hunch::matcher::regex_utils::BoundarySpec::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::matcher::regex_utils::BoundarySpec
+impl core::marker::Send for hunch::matcher::regex_utils::BoundarySpec
+impl core::marker::Sync for hunch::matcher::regex_utils::BoundarySpec
+impl core::marker::Unpin for hunch::matcher::regex_utils::BoundarySpec
+impl core::marker::UnsafeUnpin for hunch::matcher::regex_utils::BoundarySpec
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::regex_utils::BoundarySpec
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::regex_utils::BoundarySpec
+pub struct hunch::matcher::regex_utils::BoundedRegex
+pub hunch::matcher::regex_utils::BoundedRegex::boundary: hunch::matcher::regex_utils::BoundarySpec
+impl hunch::matcher::regex_utils::BoundedRegex
+pub fn hunch::matcher::regex_utils::BoundedRegex::captures<'a>(&'a self, input: &'a str) -> core::option::Option<regex::regex::string::Captures<'a>>
+pub fn hunch::matcher::regex_utils::BoundedRegex::captures_iter<'a>(&'a self, input: &'a str) -> alloc::vec::Vec<regex::regex::string::Captures<'a>>
+pub fn hunch::matcher::regex_utils::BoundedRegex::new(pattern: &str) -> Self
+impl core::marker::Freeze for hunch::matcher::regex_utils::BoundedRegex
+impl core::marker::Send for hunch::matcher::regex_utils::BoundedRegex
+impl core::marker::Sync for hunch::matcher::regex_utils::BoundedRegex
+impl core::marker::Unpin for hunch::matcher::regex_utils::BoundedRegex
+impl core::marker::UnsafeUnpin for hunch::matcher::regex_utils::BoundedRegex
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::regex_utils::BoundedRegex
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::regex_utils::BoundedRegex
+pub fn hunch::matcher::regex_utils::captures_iter_bounded<'a>(re: &'a regex::regex::string::Regex, input: &'a str, boundary: &hunch::matcher::regex_utils::BoundarySpec) -> alloc::vec::Vec<regex::regex::string::Captures<'a>>
+pub fn hunch::matcher::regex_utils::check_boundary(input: &[u8], start: usize, end: usize, spec: &hunch::matcher::regex_utils::BoundarySpec) -> bool
+pub mod hunch::matcher::rule_loader
+pub enum hunch::matcher::rule_loader::ZoneScope
+pub hunch::matcher::rule_loader::ZoneScope::AfterAnchor
+pub hunch::matcher::rule_loader::ZoneScope::TechOnly
+pub hunch::matcher::rule_loader::ZoneScope::Unrestricted
+impl core::clone::Clone for hunch::matcher::rule_loader::ZoneScope
+pub fn hunch::matcher::rule_loader::ZoneScope::clone(&self) -> hunch::matcher::rule_loader::ZoneScope
+impl core::cmp::Eq for hunch::matcher::rule_loader::ZoneScope
+impl core::cmp::PartialEq for hunch::matcher::rule_loader::ZoneScope
+pub fn hunch::matcher::rule_loader::ZoneScope::eq(&self, other: &hunch::matcher::rule_loader::ZoneScope) -> bool
+impl core::default::Default for hunch::matcher::rule_loader::ZoneScope
+pub fn hunch::matcher::rule_loader::ZoneScope::default() -> hunch::matcher::rule_loader::ZoneScope
+impl core::fmt::Debug for hunch::matcher::rule_loader::ZoneScope
+pub fn hunch::matcher::rule_loader::ZoneScope::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for hunch::matcher::rule_loader::ZoneScope
+impl core::marker::StructuralPartialEq for hunch::matcher::rule_loader::ZoneScope
+impl core::marker::Freeze for hunch::matcher::rule_loader::ZoneScope
+impl core::marker::Send for hunch::matcher::rule_loader::ZoneScope
+impl core::marker::Sync for hunch::matcher::rule_loader::ZoneScope
+impl core::marker::Unpin for hunch::matcher::rule_loader::ZoneScope
+impl core::marker::UnsafeUnpin for hunch::matcher::rule_loader::ZoneScope
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::rule_loader::ZoneScope
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::rule_loader::ZoneScope
+pub struct hunch::matcher::rule_loader::RuleSet
+pub hunch::matcher::rule_loader::RuleSet::property: alloc::string::String
+pub hunch::matcher::rule_loader::RuleSet::zone_scope: hunch::matcher::rule_loader::ZoneScope
+impl hunch::matcher::rule_loader::RuleSet
+pub fn hunch::matcher::rule_loader::RuleSet::exact_count(&self) -> usize
+pub fn hunch::matcher::rule_loader::RuleSet::from_toml(toml_str: &str) -> Self
+pub fn hunch::matcher::rule_loader::RuleSet::match_token(&self, token: &str) -> core::option::Option<hunch::matcher::rule_loader::TokenMatch<'_>>
+pub fn hunch::matcher::rule_loader::RuleSet::pattern_count(&self) -> usize
+impl core::fmt::Debug for hunch::matcher::rule_loader::RuleSet
+pub fn hunch::matcher::rule_loader::RuleSet::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::matcher::rule_loader::RuleSet
+impl core::marker::Send for hunch::matcher::rule_loader::RuleSet
+impl core::marker::Sync for hunch::matcher::rule_loader::RuleSet
+impl core::marker::Unpin for hunch::matcher::rule_loader::RuleSet
+impl core::marker::UnsafeUnpin for hunch::matcher::rule_loader::RuleSet
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::rule_loader::RuleSet
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::rule_loader::RuleSet
+pub struct hunch::matcher::rule_loader::SideEffect
+pub hunch::matcher::rule_loader::SideEffect::property: alloc::string::String
+pub hunch::matcher::rule_loader::SideEffect::value: alloc::string::String
+impl core::clone::Clone for hunch::matcher::rule_loader::SideEffect
+pub fn hunch::matcher::rule_loader::SideEffect::clone(&self) -> hunch::matcher::rule_loader::SideEffect
+impl core::cmp::Eq for hunch::matcher::rule_loader::SideEffect
+impl core::cmp::PartialEq for hunch::matcher::rule_loader::SideEffect
+pub fn hunch::matcher::rule_loader::SideEffect::eq(&self, other: &hunch::matcher::rule_loader::SideEffect) -> bool
+impl core::fmt::Debug for hunch::matcher::rule_loader::SideEffect
+pub fn hunch::matcher::rule_loader::SideEffect::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for hunch::matcher::rule_loader::SideEffect
+impl<'de> serde_core::de::Deserialize<'de> for hunch::matcher::rule_loader::SideEffect
+pub fn hunch::matcher::rule_loader::SideEffect::deserialize<__D>(__deserializer: __D) -> core::result::Result<Self, <__D as serde_core::de::Deserializer>::Error> where __D: serde_core::de::Deserializer<'de>
+impl core::marker::Freeze for hunch::matcher::rule_loader::SideEffect
+impl core::marker::Send for hunch::matcher::rule_loader::SideEffect
+impl core::marker::Sync for hunch::matcher::rule_loader::SideEffect
+impl core::marker::Unpin for hunch::matcher::rule_loader::SideEffect
+impl core::marker::UnsafeUnpin for hunch::matcher::rule_loader::SideEffect
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::rule_loader::SideEffect
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::rule_loader::SideEffect
+pub struct hunch::matcher::rule_loader::TokenMatch<'a>
+pub hunch::matcher::rule_loader::TokenMatch::not_after: core::option::Option<alloc::vec::Vec<alloc::string::String>>
+pub hunch::matcher::rule_loader::TokenMatch::not_before: core::option::Option<alloc::vec::Vec<alloc::string::String>>
+pub hunch::matcher::rule_loader::TokenMatch::reclaimable: bool
+pub hunch::matcher::rule_loader::TokenMatch::requires_after: core::option::Option<alloc::vec::Vec<alloc::string::String>>
+pub hunch::matcher::rule_loader::TokenMatch::requires_before: core::option::Option<alloc::vec::Vec<alloc::string::String>>
+pub hunch::matcher::rule_loader::TokenMatch::requires_context: bool
+pub hunch::matcher::rule_loader::TokenMatch::requires_nearby: core::option::Option<alloc::vec::Vec<alloc::string::String>>
+pub hunch::matcher::rule_loader::TokenMatch::side_effects: alloc::vec::Vec<hunch::matcher::rule_loader::SideEffect>
+pub hunch::matcher::rule_loader::TokenMatch::value: alloc::borrow::Cow<'a, str>
+impl<'a> core::clone::Clone for hunch::matcher::rule_loader::TokenMatch<'a>
+pub fn hunch::matcher::rule_loader::TokenMatch<'a>::clone(&self) -> hunch::matcher::rule_loader::TokenMatch<'a>
+impl<'a> core::fmt::Debug for hunch::matcher::rule_loader::TokenMatch<'a>
+pub fn hunch::matcher::rule_loader::TokenMatch<'a>::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Freeze for hunch::matcher::rule_loader::TokenMatch<'a>
+impl<'a> core::marker::Send for hunch::matcher::rule_loader::TokenMatch<'a>
+impl<'a> core::marker::Sync for hunch::matcher::rule_loader::TokenMatch<'a>
+impl<'a> core::marker::Unpin for hunch::matcher::rule_loader::TokenMatch<'a>
+impl<'a> core::marker::UnsafeUnpin for hunch::matcher::rule_loader::TokenMatch<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::rule_loader::TokenMatch<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for hunch::matcher::rule_loader::TokenMatch<'a>
+pub mod hunch::matcher::span
+pub enum hunch::matcher::span::Property
+pub hunch::matcher::span::Property::AbsoluteEpisode
+pub hunch::matcher::span::Property::AlternativeTitle
+pub hunch::matcher::span::Property::AspectRatio
+pub hunch::matcher::span::Property::AudioBitRate
+pub hunch::matcher::span::Property::AudioChannels
+pub hunch::matcher::span::Property::AudioCodec
+pub hunch::matcher::span::Property::AudioProfile
+pub hunch::matcher::span::Property::BitRate
+pub hunch::matcher::span::Property::Bonus
+pub hunch::matcher::span::Property::BonusTitle
+pub hunch::matcher::span::Property::Cd
+pub hunch::matcher::span::Property::CdCount
+pub hunch::matcher::span::Property::ColorDepth
+pub hunch::matcher::span::Property::Container
+pub hunch::matcher::span::Property::Country
+pub hunch::matcher::span::Property::Crc
+pub hunch::matcher::span::Property::Date
+pub hunch::matcher::span::Property::Disc
+pub hunch::matcher::span::Property::Edition
+pub hunch::matcher::span::Property::Episode
+pub hunch::matcher::span::Property::EpisodeCount
+pub hunch::matcher::span::Property::EpisodeDetails
+pub hunch::matcher::span::Property::EpisodeFormat
+pub hunch::matcher::span::Property::EpisodeTitle
+pub hunch::matcher::span::Property::Film
+pub hunch::matcher::span::Property::FilmTitle
+pub hunch::matcher::span::Property::FrameRate
+pub hunch::matcher::span::Property::Language
+pub hunch::matcher::span::Property::MediaType
+pub hunch::matcher::span::Property::Mimetype
+pub hunch::matcher::span::Property::Other
+pub hunch::matcher::span::Property::Part
+pub hunch::matcher::span::Property::ProperCount
+pub hunch::matcher::span::Property::ReleaseGroup
+pub hunch::matcher::span::Property::ScreenSize
+pub hunch::matcher::span::Property::Season
+pub hunch::matcher::span::Property::SeasonCount
+pub hunch::matcher::span::Property::Size
+pub hunch::matcher::span::Property::Source
+pub hunch::matcher::span::Property::StreamingService
+pub hunch::matcher::span::Property::SubtitleLanguage
+pub hunch::matcher::span::Property::Title
+pub hunch::matcher::span::Property::Uuid
+pub hunch::matcher::span::Property::Version
+pub hunch::matcher::span::Property::VideoApi
+pub hunch::matcher::span::Property::VideoBitRate
+pub hunch::matcher::span::Property::VideoCodec
+pub hunch::matcher::span::Property::VideoProfile
+pub hunch::matcher::span::Property::Website
+pub hunch::matcher::span::Property::Week
+pub hunch::matcher::span::Property::Year
+impl hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::from_name(name: &str) -> core::option::Option<Self>
+impl hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::is_numeric(&self) -> bool
+impl core::clone::Clone for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::clone(&self) -> hunch::matcher::span::Property
+impl core::cmp::Eq for hunch::matcher::span::Property
+impl core::cmp::Ord for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::cmp(&self, other: &hunch::matcher::span::Property) -> core::cmp::Ordering
+impl core::cmp::PartialEq for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::eq(&self, other: &hunch::matcher::span::Property) -> bool
+impl core::cmp::PartialOrd for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::partial_cmp(&self, other: &hunch::matcher::span::Property) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for hunch::matcher::span::Property
+impl core::marker::StructuralPartialEq for hunch::matcher::span::Property
+impl core::marker::Freeze for hunch::matcher::span::Property
+impl core::marker::Send for hunch::matcher::span::Property
+impl core::marker::Sync for hunch::matcher::span::Property
+impl core::marker::Unpin for hunch::matcher::span::Property
+impl core::marker::UnsafeUnpin for hunch::matcher::span::Property
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::span::Property
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::span::Property
+pub enum hunch::matcher::span::Source
+pub hunch::matcher::span::Source::Context
+pub hunch::matcher::span::Source::Heuristic
+pub hunch::matcher::span::Source::Structural
+impl core::clone::Clone for hunch::matcher::span::Source
+pub fn hunch::matcher::span::Source::clone(&self) -> hunch::matcher::span::Source
+impl core::cmp::Eq for hunch::matcher::span::Source
+impl core::cmp::PartialEq for hunch::matcher::span::Source
+pub fn hunch::matcher::span::Source::eq(&self, other: &hunch::matcher::span::Source) -> bool
+impl core::default::Default for hunch::matcher::span::Source
+pub fn hunch::matcher::span::Source::default() -> hunch::matcher::span::Source
+impl core::fmt::Debug for hunch::matcher::span::Source
+pub fn hunch::matcher::span::Source::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for hunch::matcher::span::Source
+pub fn hunch::matcher::span::Source::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for hunch::matcher::span::Source
+pub fn hunch::matcher::span::Source::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for hunch::matcher::span::Source
+impl core::marker::StructuralPartialEq for hunch::matcher::span::Source
+impl core::marker::Freeze for hunch::matcher::span::Source
+impl core::marker::Send for hunch::matcher::span::Source
+impl core::marker::Sync for hunch::matcher::span::Source
+impl core::marker::Unpin for hunch::matcher::span::Source
+impl core::marker::UnsafeUnpin for hunch::matcher::span::Source
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::span::Source
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::span::Source
+pub struct hunch::matcher::span::MatchSpan
+pub hunch::matcher::span::MatchSpan::end: usize
+pub hunch::matcher::span::MatchSpan::is_extension: bool
+pub hunch::matcher::span::MatchSpan::is_path_based: bool
+pub hunch::matcher::span::MatchSpan::priority: i32
+pub hunch::matcher::span::MatchSpan::property: hunch::matcher::span::Property
+pub hunch::matcher::span::MatchSpan::reclaimable: bool
+pub hunch::matcher::span::MatchSpan::source: hunch::matcher::span::Source
+pub hunch::matcher::span::MatchSpan::start: usize
+pub hunch::matcher::span::MatchSpan::value: alloc::string::String
+impl hunch::matcher::span::MatchSpan
+pub fn hunch::matcher::span::MatchSpan::as_extension(self) -> Self
+pub fn hunch::matcher::span::MatchSpan::as_path_based(self) -> Self
+pub fn hunch::matcher::span::MatchSpan::as_reclaimable(self) -> Self
+pub fn hunch::matcher::span::MatchSpan::is_empty(&self) -> bool
+pub fn hunch::matcher::span::MatchSpan::len(&self) -> usize
+pub fn hunch::matcher::span::MatchSpan::new(start: usize, end: usize, property: hunch::matcher::span::Property, value: impl core::convert::Into<alloc::string::String>) -> Self
+pub fn hunch::matcher::span::MatchSpan::overlaps(&self, other: &Self) -> bool
+pub fn hunch::matcher::span::MatchSpan::with_priority(self, priority: i32) -> Self
+pub fn hunch::matcher::span::MatchSpan::with_source(self, source: hunch::matcher::span::Source) -> Self
+impl core::clone::Clone for hunch::matcher::span::MatchSpan
+pub fn hunch::matcher::span::MatchSpan::clone(&self) -> hunch::matcher::span::MatchSpan
+impl core::fmt::Debug for hunch::matcher::span::MatchSpan
+pub fn hunch::matcher::span::MatchSpan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::matcher::span::MatchSpan
+impl core::marker::Send for hunch::matcher::span::MatchSpan
+impl core::marker::Sync for hunch::matcher::span::MatchSpan
+impl core::marker::Unpin for hunch::matcher::span::MatchSpan
+impl core::marker::UnsafeUnpin for hunch::matcher::span::MatchSpan
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::span::MatchSpan
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::span::MatchSpan
+pub enum hunch::matcher::Property
+pub hunch::matcher::Property::AbsoluteEpisode
+pub hunch::matcher::Property::AlternativeTitle
+pub hunch::matcher::Property::AspectRatio
+pub hunch::matcher::Property::AudioBitRate
+pub hunch::matcher::Property::AudioChannels
+pub hunch::matcher::Property::AudioCodec
+pub hunch::matcher::Property::AudioProfile
+pub hunch::matcher::Property::BitRate
+pub hunch::matcher::Property::Bonus
+pub hunch::matcher::Property::BonusTitle
+pub hunch::matcher::Property::Cd
+pub hunch::matcher::Property::CdCount
+pub hunch::matcher::Property::ColorDepth
+pub hunch::matcher::Property::Container
+pub hunch::matcher::Property::Country
+pub hunch::matcher::Property::Crc
+pub hunch::matcher::Property::Date
+pub hunch::matcher::Property::Disc
+pub hunch::matcher::Property::Edition
+pub hunch::matcher::Property::Episode
+pub hunch::matcher::Property::EpisodeCount
+pub hunch::matcher::Property::EpisodeDetails
+pub hunch::matcher::Property::EpisodeFormat
+pub hunch::matcher::Property::EpisodeTitle
+pub hunch::matcher::Property::Film
+pub hunch::matcher::Property::FilmTitle
+pub hunch::matcher::Property::FrameRate
+pub hunch::matcher::Property::Language
+pub hunch::matcher::Property::MediaType
+pub hunch::matcher::Property::Mimetype
+pub hunch::matcher::Property::Other
+pub hunch::matcher::Property::Part
+pub hunch::matcher::Property::ProperCount
+pub hunch::matcher::Property::ReleaseGroup
+pub hunch::matcher::Property::ScreenSize
+pub hunch::matcher::Property::Season
+pub hunch::matcher::Property::SeasonCount
+pub hunch::matcher::Property::Size
+pub hunch::matcher::Property::Source
+pub hunch::matcher::Property::StreamingService
+pub hunch::matcher::Property::SubtitleLanguage
+pub hunch::matcher::Property::Title
+pub hunch::matcher::Property::Uuid
+pub hunch::matcher::Property::Version
+pub hunch::matcher::Property::VideoApi
+pub hunch::matcher::Property::VideoBitRate
+pub hunch::matcher::Property::VideoCodec
+pub hunch::matcher::Property::VideoProfile
+pub hunch::matcher::Property::Website
+pub hunch::matcher::Property::Week
+pub hunch::matcher::Property::Year
+impl hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::from_name(name: &str) -> core::option::Option<Self>
+impl hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::is_numeric(&self) -> bool
+impl core::clone::Clone for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::clone(&self) -> hunch::matcher::span::Property
+impl core::cmp::Eq for hunch::matcher::span::Property
+impl core::cmp::Ord for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::cmp(&self, other: &hunch::matcher::span::Property) -> core::cmp::Ordering
+impl core::cmp::PartialEq for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::eq(&self, other: &hunch::matcher::span::Property) -> bool
+impl core::cmp::PartialOrd for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::partial_cmp(&self, other: &hunch::matcher::span::Property) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for hunch::matcher::span::Property
+impl core::marker::StructuralPartialEq for hunch::matcher::span::Property
+impl core::marker::Freeze for hunch::matcher::span::Property
+impl core::marker::Send for hunch::matcher::span::Property
+impl core::marker::Sync for hunch::matcher::span::Property
+impl core::marker::Unpin for hunch::matcher::span::Property
+impl core::marker::UnsafeUnpin for hunch::matcher::span::Property
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::span::Property
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::span::Property
+pub struct hunch::matcher::MatchSpan
+pub hunch::matcher::MatchSpan::end: usize
+pub hunch::matcher::MatchSpan::is_extension: bool
+pub hunch::matcher::MatchSpan::is_path_based: bool
+pub hunch::matcher::MatchSpan::priority: i32
+pub hunch::matcher::MatchSpan::property: hunch::matcher::span::Property
+pub hunch::matcher::MatchSpan::reclaimable: bool
+pub hunch::matcher::MatchSpan::source: hunch::matcher::span::Source
+pub hunch::matcher::MatchSpan::start: usize
+pub hunch::matcher::MatchSpan::value: alloc::string::String
+impl hunch::matcher::span::MatchSpan
+pub fn hunch::matcher::span::MatchSpan::as_extension(self) -> Self
+pub fn hunch::matcher::span::MatchSpan::as_path_based(self) -> Self
+pub fn hunch::matcher::span::MatchSpan::as_reclaimable(self) -> Self
+pub fn hunch::matcher::span::MatchSpan::is_empty(&self) -> bool
+pub fn hunch::matcher::span::MatchSpan::len(&self) -> usize
+pub fn hunch::matcher::span::MatchSpan::new(start: usize, end: usize, property: hunch::matcher::span::Property, value: impl core::convert::Into<alloc::string::String>) -> Self
+pub fn hunch::matcher::span::MatchSpan::overlaps(&self, other: &Self) -> bool
+pub fn hunch::matcher::span::MatchSpan::with_priority(self, priority: i32) -> Self
+pub fn hunch::matcher::span::MatchSpan::with_source(self, source: hunch::matcher::span::Source) -> Self
+impl core::clone::Clone for hunch::matcher::span::MatchSpan
+pub fn hunch::matcher::span::MatchSpan::clone(&self) -> hunch::matcher::span::MatchSpan
+impl core::fmt::Debug for hunch::matcher::span::MatchSpan
+pub fn hunch::matcher::span::MatchSpan::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::matcher::span::MatchSpan
+impl core::marker::Send for hunch::matcher::span::MatchSpan
+impl core::marker::Sync for hunch::matcher::span::MatchSpan
+impl core::marker::Unpin for hunch::matcher::span::MatchSpan
+impl core::marker::UnsafeUnpin for hunch::matcher::span::MatchSpan
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::span::MatchSpan
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::span::MatchSpan
+pub fn hunch::matcher::resolve_conflicts(matches: &mut alloc::vec::Vec<hunch::matcher::span::MatchSpan>)
+pub mod hunch::properties
+pub mod hunch::properties::aspect_ratio
+pub fn hunch::properties::aspect_ratio::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::audio_codec
+pub mod hunch::properties::audio_profile
+pub mod hunch::properties::bit_rate
+pub fn hunch::properties::bit_rate::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::bonus
+pub fn hunch::properties::bonus::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::color_depth
+pub mod hunch::properties::container
+pub mod hunch::properties::country
+pub mod hunch::properties::crc32
+pub fn hunch::properties::crc32::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::date
+pub fn hunch::properties::date::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::edition
+pub mod hunch::properties::episode_count
+pub fn hunch::properties::episode_count::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::episode_details
+pub mod hunch::properties::episodes
+pub fn hunch::properties::episodes::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::frame_rate
+pub mod hunch::properties::language
+pub fn hunch::properties::language::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::other
+pub mod hunch::properties::part
+pub fn hunch::properties::part::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::release_group
+pub fn hunch::properties::release_group::find_matches(input: &str, resolved: &[hunch::matcher::span::MatchSpan], zone_map: &hunch::zone_map::ZoneMap, token_stream: &hunch::tokenizer::TokenStream) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::screen_size
+pub mod hunch::properties::size
+pub fn hunch::properties::size::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::source
+pub mod hunch::properties::streaming_service
+pub mod hunch::properties::subtitle_language
+pub fn hunch::properties::subtitle_language::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::title
+pub fn hunch::properties::title::absorb_reclaimable(title: &hunch::matcher::span::MatchSpan, matches: &mut alloc::vec::Vec<hunch::matcher::span::MatchSpan>)
+pub fn hunch::properties::title::extract_alternative_titles(input: &str, matches: &[hunch::matcher::span::MatchSpan], _token_stream: &hunch::tokenizer::TokenStream) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub fn hunch::properties::title::extract_episode_title(input: &str, matches: &[hunch::matcher::span::MatchSpan], token_stream: &hunch::tokenizer::TokenStream) -> core::option::Option<hunch::matcher::span::MatchSpan>
+pub fn hunch::properties::title::extract_film_title(input: &str, matches: &[hunch::matcher::span::MatchSpan], _token_stream: &hunch::tokenizer::TokenStream) -> core::option::Option<(hunch::matcher::span::MatchSpan, hunch::matcher::span::MatchSpan)>
+pub fn hunch::properties::title::extract_title(input: &str, matches: &[hunch::matcher::span::MatchSpan], zone_map: &hunch::zone_map::ZoneMap, _token_stream: &hunch::tokenizer::TokenStream) -> core::option::Option<hunch::matcher::span::MatchSpan>
+pub fn hunch::properties::title::infer_media_type(input: &str, matches: &[hunch::matcher::span::MatchSpan]) -> &'static str
+pub mod hunch::properties::uuid
+pub fn hunch::properties::uuid::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::version
+pub fn hunch::properties::version::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::video_codec
+pub mod hunch::properties::video_profile
+pub mod hunch::properties::website
+pub fn hunch::properties::website::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::properties::year
+pub fn hunch::properties::year::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
+pub mod hunch::tokenizer
+pub enum hunch::tokenizer::BracketKind
+pub hunch::tokenizer::BracketKind::Curly
+pub hunch::tokenizer::BracketKind::Round
+pub hunch::tokenizer::BracketKind::Square
+impl core::clone::Clone for hunch::tokenizer::BracketKind
+pub fn hunch::tokenizer::BracketKind::clone(&self) -> hunch::tokenizer::BracketKind
+impl core::cmp::Eq for hunch::tokenizer::BracketKind
+impl core::cmp::PartialEq for hunch::tokenizer::BracketKind
+pub fn hunch::tokenizer::BracketKind::eq(&self, other: &hunch::tokenizer::BracketKind) -> bool
+impl core::fmt::Debug for hunch::tokenizer::BracketKind
+pub fn hunch::tokenizer::BracketKind::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for hunch::tokenizer::BracketKind
+impl core::marker::StructuralPartialEq for hunch::tokenizer::BracketKind
+impl core::marker::Freeze for hunch::tokenizer::BracketKind
+impl core::marker::Send for hunch::tokenizer::BracketKind
+impl core::marker::Sync for hunch::tokenizer::BracketKind
+impl core::marker::Unpin for hunch::tokenizer::BracketKind
+impl core::marker::UnsafeUnpin for hunch::tokenizer::BracketKind
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::BracketKind
+impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::BracketKind
+pub enum hunch::tokenizer::SegmentKind
+pub hunch::tokenizer::SegmentKind::Directory
+pub hunch::tokenizer::SegmentKind::Filename
+impl core::clone::Clone for hunch::tokenizer::SegmentKind
+pub fn hunch::tokenizer::SegmentKind::clone(&self) -> hunch::tokenizer::SegmentKind
+impl core::cmp::Eq for hunch::tokenizer::SegmentKind
+impl core::cmp::PartialEq for hunch::tokenizer::SegmentKind
+pub fn hunch::tokenizer::SegmentKind::eq(&self, other: &hunch::tokenizer::SegmentKind) -> bool
+impl core::fmt::Debug for hunch::tokenizer::SegmentKind
+pub fn hunch::tokenizer::SegmentKind::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for hunch::tokenizer::SegmentKind
+impl core::marker::StructuralPartialEq for hunch::tokenizer::SegmentKind
+impl core::marker::Freeze for hunch::tokenizer::SegmentKind
+impl core::marker::Send for hunch::tokenizer::SegmentKind
+impl core::marker::Sync for hunch::tokenizer::SegmentKind
+impl core::marker::Unpin for hunch::tokenizer::SegmentKind
+impl core::marker::UnsafeUnpin for hunch::tokenizer::SegmentKind
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::SegmentKind
+impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::SegmentKind
+pub enum hunch::tokenizer::Separator
+pub hunch::tokenizer::Separator::Dash
+pub hunch::tokenizer::Separator::Dot
+pub hunch::tokenizer::Separator::None
+pub hunch::tokenizer::Separator::PathSep
+pub hunch::tokenizer::Separator::Space
+pub hunch::tokenizer::Separator::Underscore
+impl core::clone::Clone for hunch::tokenizer::Separator
+pub fn hunch::tokenizer::Separator::clone(&self) -> hunch::tokenizer::Separator
+impl core::cmp::Eq for hunch::tokenizer::Separator
+impl core::cmp::PartialEq for hunch::tokenizer::Separator
+pub fn hunch::tokenizer::Separator::eq(&self, other: &hunch::tokenizer::Separator) -> bool
+impl core::fmt::Debug for hunch::tokenizer::Separator
+pub fn hunch::tokenizer::Separator::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for hunch::tokenizer::Separator
+impl core::marker::StructuralPartialEq for hunch::tokenizer::Separator
+impl core::marker::Freeze for hunch::tokenizer::Separator
+impl core::marker::Send for hunch::tokenizer::Separator
+impl core::marker::Sync for hunch::tokenizer::Separator
+impl core::marker::Unpin for hunch::tokenizer::Separator
+impl core::marker::UnsafeUnpin for hunch::tokenizer::Separator
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::Separator
+impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::Separator
+pub struct hunch::tokenizer::BracketGroup
+pub hunch::tokenizer::BracketGroup::close: usize
+pub hunch::tokenizer::BracketGroup::content: alloc::string::String
+pub hunch::tokenizer::BracketGroup::kind: hunch::tokenizer::BracketKind
+pub hunch::tokenizer::BracketGroup::open: usize
+pub hunch::tokenizer::BracketGroup::segment_idx: usize
+impl hunch::tokenizer::BracketGroup
+pub fn hunch::tokenizer::BracketGroup::content_span(&self) -> core::ops::range::Range<usize>
+pub fn hunch::tokenizer::BracketGroup::span(&self) -> core::ops::range::Range<usize>
+impl core::clone::Clone for hunch::tokenizer::BracketGroup
+pub fn hunch::tokenizer::BracketGroup::clone(&self) -> hunch::tokenizer::BracketGroup
+impl core::cmp::Eq for hunch::tokenizer::BracketGroup
+impl core::cmp::PartialEq for hunch::tokenizer::BracketGroup
+pub fn hunch::tokenizer::BracketGroup::eq(&self, other: &hunch::tokenizer::BracketGroup) -> bool
+impl core::fmt::Debug for hunch::tokenizer::BracketGroup
+pub fn hunch::tokenizer::BracketGroup::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for hunch::tokenizer::BracketGroup
+impl core::marker::Freeze for hunch::tokenizer::BracketGroup
+impl core::marker::Send for hunch::tokenizer::BracketGroup
+impl core::marker::Sync for hunch::tokenizer::BracketGroup
+impl core::marker::Unpin for hunch::tokenizer::BracketGroup
+impl core::marker::UnsafeUnpin for hunch::tokenizer::BracketGroup
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::BracketGroup
+impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::BracketGroup
+pub struct hunch::tokenizer::PathSegment
+pub hunch::tokenizer::PathSegment::depth: usize
+pub hunch::tokenizer::PathSegment::end: usize
+pub hunch::tokenizer::PathSegment::kind: hunch::tokenizer::SegmentKind
+pub hunch::tokenizer::PathSegment::start: usize
+pub hunch::tokenizer::PathSegment::tokens: alloc::vec::Vec<hunch::tokenizer::Token>
+impl core::clone::Clone for hunch::tokenizer::PathSegment
+pub fn hunch::tokenizer::PathSegment::clone(&self) -> hunch::tokenizer::PathSegment
+impl core::fmt::Debug for hunch::tokenizer::PathSegment
+pub fn hunch::tokenizer::PathSegment::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::tokenizer::PathSegment
+impl core::marker::Send for hunch::tokenizer::PathSegment
+impl core::marker::Sync for hunch::tokenizer::PathSegment
+impl core::marker::Unpin for hunch::tokenizer::PathSegment
+impl core::marker::UnsafeUnpin for hunch::tokenizer::PathSegment
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::PathSegment
+impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::PathSegment
+pub struct hunch::tokenizer::Token
+pub hunch::tokenizer::Token::end: usize
+pub hunch::tokenizer::Token::in_brackets: bool
+pub hunch::tokenizer::Token::separator: hunch::tokenizer::Separator
+pub hunch::tokenizer::Token::start: usize
+pub hunch::tokenizer::Token::text: alloc::string::String
+impl hunch::tokenizer::Token
+pub fn hunch::tokenizer::Token::is_empty(&self) -> bool
+pub fn hunch::tokenizer::Token::len(&self) -> usize
+pub fn hunch::tokenizer::Token::lower(&self) -> &str
+impl core::clone::Clone for hunch::tokenizer::Token
+pub fn hunch::tokenizer::Token::clone(&self) -> hunch::tokenizer::Token
+impl core::cmp::Eq for hunch::tokenizer::Token
+impl core::cmp::PartialEq for hunch::tokenizer::Token
+pub fn hunch::tokenizer::Token::eq(&self, other: &hunch::tokenizer::Token) -> bool
+impl core::fmt::Debug for hunch::tokenizer::Token
+pub fn hunch::tokenizer::Token::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for hunch::tokenizer::Token
+impl core::marker::Freeze for hunch::tokenizer::Token
+impl core::marker::Send for hunch::tokenizer::Token
+impl core::marker::Sync for hunch::tokenizer::Token
+impl core::marker::Unpin for hunch::tokenizer::Token
+impl core::marker::UnsafeUnpin for hunch::tokenizer::Token
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::Token
+impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::Token
+pub struct hunch::tokenizer::TokenStream
+pub hunch::tokenizer::TokenStream::bracket_groups: alloc::vec::Vec<hunch::tokenizer::BracketGroup>
+pub hunch::tokenizer::TokenStream::extension: core::option::Option<alloc::string::String>
+pub hunch::tokenizer::TokenStream::filename_start: usize
+pub hunch::tokenizer::TokenStream::input: alloc::string::String
+pub hunch::tokenizer::TokenStream::segments: alloc::vec::Vec<hunch::tokenizer::PathSegment>
+pub hunch::tokenizer::TokenStream::tokens: alloc::vec::Vec<hunch::tokenizer::Token>
+impl core::clone::Clone for hunch::tokenizer::TokenStream
+pub fn hunch::tokenizer::TokenStream::clone(&self) -> hunch::tokenizer::TokenStream
+impl core::fmt::Debug for hunch::tokenizer::TokenStream
+pub fn hunch::tokenizer::TokenStream::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::tokenizer::TokenStream
+impl core::marker::Send for hunch::tokenizer::TokenStream
+impl core::marker::Sync for hunch::tokenizer::TokenStream
+impl core::marker::Unpin for hunch::tokenizer::TokenStream
+impl core::marker::UnsafeUnpin for hunch::tokenizer::TokenStream
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::TokenStream
+impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::TokenStream
+pub fn hunch::tokenizer::tokenize(input: &str) -> hunch::tokenizer::TokenStream
+pub mod hunch::zone_map
+pub struct hunch::zone_map::SegmentZone
+pub hunch::zone_map::SegmentZone::has_anchors: bool
+pub hunch::zone_map::SegmentZone::segment_idx: usize
+pub hunch::zone_map::SegmentZone::tech_zone: core::ops::range::Range<usize>
+pub hunch::zone_map::SegmentZone::title_zone: core::ops::range::Range<usize>
+impl core::clone::Clone for hunch::zone_map::SegmentZone
+pub fn hunch::zone_map::SegmentZone::clone(&self) -> hunch::zone_map::SegmentZone
+impl core::fmt::Debug for hunch::zone_map::SegmentZone
+pub fn hunch::zone_map::SegmentZone::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::zone_map::SegmentZone
+impl core::marker::Send for hunch::zone_map::SegmentZone
+impl core::marker::Sync for hunch::zone_map::SegmentZone
+impl core::marker::Unpin for hunch::zone_map::SegmentZone
+impl core::marker::UnsafeUnpin for hunch::zone_map::SegmentZone
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::zone_map::SegmentZone
+impl core::panic::unwind_safe::UnwindSafe for hunch::zone_map::SegmentZone
+pub struct hunch::zone_map::TitleYear
+pub hunch::zone_map::TitleYear::end: usize
+pub hunch::zone_map::TitleYear::start: usize
+pub hunch::zone_map::TitleYear::value: u32
+impl core::clone::Clone for hunch::zone_map::TitleYear
+pub fn hunch::zone_map::TitleYear::clone(&self) -> hunch::zone_map::TitleYear
+impl core::fmt::Debug for hunch::zone_map::TitleYear
+pub fn hunch::zone_map::TitleYear::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::zone_map::TitleYear
+impl core::marker::Send for hunch::zone_map::TitleYear
+impl core::marker::Sync for hunch::zone_map::TitleYear
+impl core::marker::Unpin for hunch::zone_map::TitleYear
+impl core::marker::UnsafeUnpin for hunch::zone_map::TitleYear
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::zone_map::TitleYear
+impl core::panic::unwind_safe::UnwindSafe for hunch::zone_map::TitleYear
+pub struct hunch::zone_map::YearInfo
+pub hunch::zone_map::YearInfo::end: usize
+pub hunch::zone_map::YearInfo::start: usize
+pub hunch::zone_map::YearInfo::title_years: alloc::vec::Vec<hunch::zone_map::TitleYear>
+pub hunch::zone_map::YearInfo::value: u32
+impl core::clone::Clone for hunch::zone_map::YearInfo
+pub fn hunch::zone_map::YearInfo::clone(&self) -> hunch::zone_map::YearInfo
+impl core::fmt::Debug for hunch::zone_map::YearInfo
+pub fn hunch::zone_map::YearInfo::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::zone_map::YearInfo
+impl core::marker::Send for hunch::zone_map::YearInfo
+impl core::marker::Sync for hunch::zone_map::YearInfo
+impl core::marker::Unpin for hunch::zone_map::YearInfo
+impl core::marker::UnsafeUnpin for hunch::zone_map::YearInfo
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::zone_map::YearInfo
+impl core::panic::unwind_safe::UnwindSafe for hunch::zone_map::YearInfo
+pub struct hunch::zone_map::ZoneMap
+pub hunch::zone_map::ZoneMap::dir_zones: alloc::vec::Vec<hunch::zone_map::SegmentZone>
+pub hunch::zone_map::ZoneMap::has_anchors: bool
+pub hunch::zone_map::ZoneMap::tech_zone: core::ops::range::Range<usize>
+pub hunch::zone_map::ZoneMap::title_zone: core::ops::range::Range<usize>
+pub hunch::zone_map::ZoneMap::year: core::option::Option<hunch::zone_map::YearInfo>
+impl core::clone::Clone for hunch::zone_map::ZoneMap
+pub fn hunch::zone_map::ZoneMap::clone(&self) -> hunch::zone_map::ZoneMap
+impl core::fmt::Debug for hunch::zone_map::ZoneMap
+pub fn hunch::zone_map::ZoneMap::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::zone_map::ZoneMap
+impl core::marker::Send for hunch::zone_map::ZoneMap
+impl core::marker::Sync for hunch::zone_map::ZoneMap
+impl core::marker::Unpin for hunch::zone_map::ZoneMap
+impl core::marker::UnsafeUnpin for hunch::zone_map::ZoneMap
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::zone_map::ZoneMap
+impl core::panic::unwind_safe::UnwindSafe for hunch::zone_map::ZoneMap
+pub fn hunch::zone_map::build_zone_map(input: &str, token_stream: &hunch::tokenizer::TokenStream) -> hunch::zone_map::ZoneMap
+pub fn hunch::zone_map::is_tier2_token(text: &str) -> bool
+pub enum hunch::Confidence
+pub hunch::Confidence::High
+pub hunch::Confidence::Low
+pub hunch::Confidence::Medium
+impl core::clone::Clone for hunch::Confidence
+pub fn hunch::Confidence::clone(&self) -> hunch::Confidence
+impl core::cmp::Eq for hunch::Confidence
+impl core::cmp::Ord for hunch::Confidence
+pub fn hunch::Confidence::cmp(&self, other: &hunch::Confidence) -> core::cmp::Ordering
+impl core::cmp::PartialEq for hunch::Confidence
+pub fn hunch::Confidence::eq(&self, other: &hunch::Confidence) -> bool
+impl core::cmp::PartialOrd for hunch::Confidence
+pub fn hunch::Confidence::partial_cmp(&self, other: &hunch::Confidence) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for hunch::Confidence
+pub fn hunch::Confidence::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for hunch::Confidence
+impl core::marker::StructuralPartialEq for hunch::Confidence
+impl serde_core::ser::Serialize for hunch::Confidence
+pub fn hunch::Confidence::serialize<__S>(&self, __serializer: __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl core::marker::Freeze for hunch::Confidence
+impl core::marker::Send for hunch::Confidence
+impl core::marker::Sync for hunch::Confidence
+impl core::marker::Unpin for hunch::Confidence
+impl core::marker::UnsafeUnpin for hunch::Confidence
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::Confidence
+impl core::panic::unwind_safe::UnwindSafe for hunch::Confidence
+pub enum hunch::MediaType
+pub hunch::MediaType::Episode
+pub hunch::MediaType::Extra
+pub hunch::MediaType::Movie
+impl core::clone::Clone for hunch::MediaType
+pub fn hunch::MediaType::clone(&self) -> hunch::MediaType
+impl core::cmp::Eq for hunch::MediaType
+impl core::cmp::PartialEq for hunch::MediaType
+pub fn hunch::MediaType::eq(&self, other: &hunch::MediaType) -> bool
+impl core::fmt::Debug for hunch::MediaType
+pub fn hunch::MediaType::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for hunch::MediaType
+impl core::marker::StructuralPartialEq for hunch::MediaType
+impl serde_core::ser::Serialize for hunch::MediaType
+pub fn hunch::MediaType::serialize<__S>(&self, __serializer: __S) -> core::result::Result<<__S as serde_core::ser::Serializer>::Ok, <__S as serde_core::ser::Serializer>::Error> where __S: serde_core::ser::Serializer
+impl core::marker::Freeze for hunch::MediaType
+impl core::marker::Send for hunch::MediaType
+impl core::marker::Sync for hunch::MediaType
+impl core::marker::Unpin for hunch::MediaType
+impl core::marker::UnsafeUnpin for hunch::MediaType
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::MediaType
+impl core::panic::unwind_safe::UnwindSafe for hunch::MediaType
+pub enum hunch::Property
+pub hunch::Property::AbsoluteEpisode
+pub hunch::Property::AlternativeTitle
+pub hunch::Property::AspectRatio
+pub hunch::Property::AudioBitRate
+pub hunch::Property::AudioChannels
+pub hunch::Property::AudioCodec
+pub hunch::Property::AudioProfile
+pub hunch::Property::BitRate
+pub hunch::Property::Bonus
+pub hunch::Property::BonusTitle
+pub hunch::Property::Cd
+pub hunch::Property::CdCount
+pub hunch::Property::ColorDepth
+pub hunch::Property::Container
+pub hunch::Property::Country
+pub hunch::Property::Crc
+pub hunch::Property::Date
+pub hunch::Property::Disc
+pub hunch::Property::Edition
+pub hunch::Property::Episode
+pub hunch::Property::EpisodeCount
+pub hunch::Property::EpisodeDetails
+pub hunch::Property::EpisodeFormat
+pub hunch::Property::EpisodeTitle
+pub hunch::Property::Film
+pub hunch::Property::FilmTitle
+pub hunch::Property::FrameRate
+pub hunch::Property::Language
+pub hunch::Property::MediaType
+pub hunch::Property::Mimetype
+pub hunch::Property::Other
+pub hunch::Property::Part
+pub hunch::Property::ProperCount
+pub hunch::Property::ReleaseGroup
+pub hunch::Property::ScreenSize
+pub hunch::Property::Season
+pub hunch::Property::SeasonCount
+pub hunch::Property::Size
+pub hunch::Property::Source
+pub hunch::Property::StreamingService
+pub hunch::Property::SubtitleLanguage
+pub hunch::Property::Title
+pub hunch::Property::Uuid
+pub hunch::Property::Version
+pub hunch::Property::VideoApi
+pub hunch::Property::VideoBitRate
+pub hunch::Property::VideoCodec
+pub hunch::Property::VideoProfile
+pub hunch::Property::Website
+pub hunch::Property::Week
+pub hunch::Property::Year
+impl hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::from_name(name: &str) -> core::option::Option<Self>
+impl hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::is_numeric(&self) -> bool
+impl core::clone::Clone for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::clone(&self) -> hunch::matcher::span::Property
+impl core::cmp::Eq for hunch::matcher::span::Property
+impl core::cmp::Ord for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::cmp(&self, other: &hunch::matcher::span::Property) -> core::cmp::Ordering
+impl core::cmp::PartialEq for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::eq(&self, other: &hunch::matcher::span::Property) -> bool
+impl core::cmp::PartialOrd for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::partial_cmp(&self, other: &hunch::matcher::span::Property) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for hunch::matcher::span::Property
+pub fn hunch::matcher::span::Property::hash<__H: core::hash::Hasher>(&self, state: &mut __H)
+impl core::marker::Copy for hunch::matcher::span::Property
+impl core::marker::StructuralPartialEq for hunch::matcher::span::Property
+impl core::marker::Freeze for hunch::matcher::span::Property
+impl core::marker::Send for hunch::matcher::span::Property
+impl core::marker::Sync for hunch::matcher::span::Property
+impl core::marker::Unpin for hunch::matcher::span::Property
+impl core::marker::UnsafeUnpin for hunch::matcher::span::Property
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::span::Property
+impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::span::Property
+pub struct hunch::HunchResult
+impl hunch::HunchResult
+pub fn hunch::HunchResult::all(&self, property: hunch::matcher::span::Property) -> alloc::vec::Vec<&str>
+pub fn hunch::HunchResult::audio_bit_rate(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::audio_channels(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::audio_codec(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::bonus(&self) -> core::option::Option<i32>
+pub fn hunch::HunchResult::color_depth(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::confidence(&self) -> hunch::Confidence
+pub fn hunch::HunchResult::container(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::date(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::disc(&self) -> core::option::Option<i32>
+pub fn hunch::HunchResult::edition(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::episode(&self) -> core::option::Option<i32>
+pub fn hunch::HunchResult::episode_details(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::episode_title(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::film(&self) -> core::option::Option<i32>
+pub fn hunch::HunchResult::first(&self, property: hunch::matcher::span::Property) -> core::option::Option<&str>
+pub fn hunch::HunchResult::frame_rate(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::is_episode(&self) -> bool
+pub fn hunch::HunchResult::is_extra(&self) -> bool
+pub fn hunch::HunchResult::is_movie(&self) -> bool
+pub fn hunch::HunchResult::language(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::languages(&self) -> alloc::vec::Vec<&str>
+pub fn hunch::HunchResult::media_type(&self) -> core::option::Option<hunch::MediaType>
+pub fn hunch::HunchResult::mimetype(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::other(&self) -> alloc::vec::Vec<&str>
+pub fn hunch::HunchResult::part(&self) -> core::option::Option<i32>
+pub fn hunch::HunchResult::proper_count(&self) -> core::option::Option<u32>
+pub fn hunch::HunchResult::properties(&self) -> &alloc::collections::btree::map::BTreeMap<hunch::matcher::span::Property, alloc::vec::Vec<alloc::string::String>>
+pub fn hunch::HunchResult::release_group(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::screen_size(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::season(&self) -> core::option::Option<i32>
+pub fn hunch::HunchResult::source(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::streaming_service(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::subtitle_language(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::subtitle_languages(&self) -> alloc::vec::Vec<&str>
+pub fn hunch::HunchResult::title(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::to_flat_map(&self) -> alloc::collections::btree::map::BTreeMap<alloc::string::String, serde_json::value::Value>
+pub fn hunch::HunchResult::video_bit_rate(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::video_codec(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::video_profile(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::year(&self) -> core::option::Option<i32>
+impl core::clone::Clone for hunch::HunchResult
+pub fn hunch::HunchResult::clone(&self) -> hunch::HunchResult
+impl core::fmt::Debug for hunch::HunchResult
+pub fn hunch::HunchResult::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for hunch::HunchResult
+pub fn hunch::HunchResult::fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for hunch::HunchResult
+impl core::marker::Send for hunch::HunchResult
+impl core::marker::Sync for hunch::HunchResult
+impl core::marker::Unpin for hunch::HunchResult
+impl core::marker::UnsafeUnpin for hunch::HunchResult
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::HunchResult
+impl core::panic::unwind_safe::UnwindSafe for hunch::HunchResult
+pub struct hunch::Pipeline
+impl hunch::Pipeline
+pub fn hunch::Pipeline::new() -> Self
+pub fn hunch::Pipeline::run(&self, input: &str) -> hunch::HunchResult
+pub fn hunch::Pipeline::run_with_context<S: core::convert::AsRef<str>>(&self, input: &str, siblings: &[S]) -> hunch::HunchResult
+pub fn hunch::Pipeline::run_with_context_and_fallback<S: core::convert::AsRef<str>>(&self, input: &str, siblings: &[S], fallback_title: core::option::Option<&str>) -> hunch::HunchResult
+impl core::default::Default for hunch::Pipeline
+pub fn hunch::Pipeline::default() -> Self
+impl core::marker::Freeze for hunch::Pipeline
+impl core::marker::Send for hunch::Pipeline
+impl core::marker::Sync for hunch::Pipeline
+impl core::marker::Unpin for hunch::Pipeline
+impl core::marker::UnsafeUnpin for hunch::Pipeline
+impl core::panic::unwind_safe::RefUnwindSafe for hunch::Pipeline
+impl core::panic::unwind_safe::UnwindSafe for hunch::Pipeline
+pub fn hunch::hunch(input: &str) -> hunch::HunchResult
+pub fn hunch::hunch_with_context<S: core::convert::AsRef<str>>(input: &str, siblings: &[S]) -> hunch::HunchResult
