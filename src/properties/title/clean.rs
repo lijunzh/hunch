@@ -628,6 +628,54 @@ mod tests {
     }
 
     #[test]
+    fn preserve_dashes_kitchen_sink_composition() {
+        // Kitchen-sink test: locks in the *composition order* of every
+        // transform inside `clean_title_preserve_dashes` simultaneously.
+        //
+        // Pre-PR-C this composition was only exercised piecewise (one
+        // transform per test). When the pipeline was decomposed in #130,
+        // the per-transform tests caught regressions inside each step,
+        // but no single test caught "Step 2 strips the year that Step 4
+        // expected to see, leaving Step 4 a no-op". This test pins the
+        // full chain end-to-end so any future re-decomposition of
+        // `clean.rs` (and there will be one — see DESIGN D10) cannot
+        // silently change interaction order.
+        //
+        // Composition under exercise (left to right, all in one input):
+        //   1. strip_leading_brackets:   `[Group] ` → ""
+        //   2. strip_paren_year:         ` (2014)` at end → ""
+        //                                (only fires at end-of-string)
+        //   3. strip_paren_groups:       `(Director's Cut)` mid-string → " "
+        //   4. normalize_separators(PreserveStructuralDash):
+        //        - dot-acronyms preserved
+        //        - `_-_` and `.-.` and ` - ` → ` - `
+        //        - other separators → single space
+        //   5. trim_trailing_punct:      strip trailing `:-,;`
+        //
+        // Note: the trailing-keyword strip (Step 6) is intentionally NOT
+        // applied by `clean_title_preserve_dashes` — "Part N" is genuine
+        // title content for this code path.
+        let input =
+            "[Group].Show_-_Sub.-.Detail.(Director's.Cut).Part.2.S.H.I.E.L.D._-_End.(2014).";
+        // Note: the dot-acronym detector greedily extends "S.H.I.E.L.D."
+        // backwards to include the preceding `2.` (since `2` is also
+        // alphanumeric, the run `2.S.H.I.E.L.D.` matches the
+        // `[A-Za-z0-9](\.[A-Za-z0-9]){2,}\.?` pattern in one shot). The
+        // trailing dot of the acronym also survives. This is the
+        // documented (and tested below in `step_normalize_preserves_dot_acronyms`)
+        // behavior; pinning it explicitly here so any change shows up
+        // as a clear cross-step regression rather than as a mysterious
+        // failure in a single sub-step test.
+        let expected = "Show - Sub - Detail Part 2.S.H.I.E.L.D. - End";
+        assert_eq!(
+            clean_title_preserve_dashes(input),
+            expected,
+            "composition order regression: each step must run on the \
+             output of the previous one in the documented sequence"
+        );
+    }
+
+    #[test]
     fn step_normalize_preserves_dot_acronyms() {
         let out = normalize_separators("Agents.of.S.H.I.E.L.D.S01", DashPolicy::WordDashOnly);
         assert!(out.contains("S.H.I.E.L.D"), "got: {out}");

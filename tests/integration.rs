@@ -674,3 +674,60 @@ fn issue_35_western_srt_no_video_props() {
     assert_eq!(r.audio_codec(), None);
     assert_eq!(r.source(), None);
 }
+
+// ── Issue #124 regression: anime multi-segment title with " - " and "Part N" ──
+//
+// The bug (pre-#127): "[Group] Show - Sub Part 2 - 13 [tags].mkv" had its
+// title truncated at the first " - ", losing the "Sub Part 2" segment
+// (the title became "Show" instead of "Show - Sub Part 2").
+//
+// The fix is in `clean_title_preserve_dashes` (src/properties/title/clean.rs)
+// + the anime-bracket title-boundary detector. This integration test
+// pins the *cross-module contract* end-to-end — the unit tests in
+// `clean.rs` only exercise the cleaner in isolation, and the YAML
+// fixture in `tests/fixtures/episodes.yml` is the catch-all harness.
+// A focused integration test makes the regression discoverable when
+// anyone changes either the cleaner OR the title-boundary detector,
+// and prints a sharper diagnostic than the harness does.
+
+#[test]
+fn issue_124_anime_multi_segment_title_preserved() {
+    let r = hunch(
+        "[Erai-raws] Enen no Shouboutai - San no Shou Part 2 - 13 \
+         [1080p CR WEB-DL AVC AAC][MultiSub][7FF9B816].mkv",
+    );
+    assert_eq!(
+        r.title(),
+        Some("Enen no Shouboutai - San no Shou Part 2"),
+        "the multi-segment title with embedded \" - \" and \"Part 2\" \
+         must be preserved verbatim (not truncated at the first dash)"
+    );
+    assert_eq!(r.episode(), Some(13));
+    assert_eq!(r.release_group(), Some("Erai-raws"));
+    assert_eq!(r.screen_size(), Some("1080p"));
+    assert_eq!(r.container(), Some("mkv"));
+}
+
+#[test]
+fn issue_124_anime_dash_only_no_part_keyword() {
+    // Sibling case without "Part N": still must keep the second segment
+    // as part of the title (the boundary detector should treat the
+    // trailing " - 11" as the episode marker, not the inner " - ").
+    //
+    // Note: the YAML fixture in tests/fixtures/episodes.yml asserts
+    // `title: "Show Name"` + `alternative_title: "Still Name"` — that's
+    // the *guessit-compat aspirational* target (the compatibility report
+    // tracks how close we are). Current behavior keeps both segments in
+    // the title; this test pins that behavior so we don't accidentally
+    // change it via an unrelated cleaner refactor.
+    let r = hunch("[SuperGroup].Show.Name.-.Still.Name.-.11.[1080p].mkv");
+    assert_eq!(r.release_group(), Some("SuperGroup"));
+    assert_eq!(r.episode(), Some(11));
+    assert_eq!(r.screen_size(), Some("1080p"));
+    assert_eq!(
+        r.title(),
+        Some("Show Name - Still Name"),
+        "the inner \" - \" must be preserved as part of the title (the \
+         trailing \" - 11\" is the episode marker)"
+    );
+}
