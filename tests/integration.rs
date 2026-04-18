@@ -576,9 +576,10 @@ fn cjk_prejudice_studio_mixed_title() {
     assert_eq!(r.screen_size(), Some("1080p"));
     assert_eq!(r.source(), Some("Web"));
     assert_eq!(r.container(), Some("mp4"));
-    // TODO(issue #34): release_group should be "Prejudice-Studio" but the
-    // compound bracket merger picks up "Bilingual 简日内嵌" instead.
-    // assert_eq!(r.release_group(), Some("Prejudice-Studio"));
+    // Was previously TODO(issue #34) — the compound bracket merger
+    // mistakenly absorbed Prejudice-Studio. Fixed by the v1.1.x bracket
+    // strategy refactor; pinned here so the regression can't sneak back.
+    assert_eq!(r.release_group(), Some("Prejudice-Studio"));
 }
 
 // ── Issue #38 regression: episode title last word ≠ release_group ─────────
@@ -627,9 +628,11 @@ fn issue_39_cjk_bracket_sp_prefix() {
     assert_eq!(r.title(), Some("Saki"));
     // SP + 01 — episode should be detected.
     assert!(r.episode().is_some(), "episode should be detected");
-    // TODO(v1.1.4): release_group should be "DBD-Raws" but the bracket
-    // merger currently absorbs [Saki] into the group name. Format-aware
-    // extraction in v1.1.4 will fix this.
+    // Was previously TODO(v1.1.4) — the bracket merger absorbed [Saki]
+    // into the group name. Resolved by the format-aware bracket extractor;
+    // pin the corrected behavior so the regression can't sneak back.
+    assert_eq!(r.release_group(), Some("DBD-Raws"));
+    assert_eq!(r.episode_details(), Some("Special"));
 }
 
 #[test]
