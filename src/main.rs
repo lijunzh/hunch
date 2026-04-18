@@ -357,6 +357,15 @@ fn list_media_files(dir: &Path) -> Vec<PathBuf> {
     files
 }
 
+/// Maximum recursion depth for [`walk_dir`] / [`dir_contains_media`].
+///
+/// Real-world media libraries are very rarely deeper than 6 levels
+/// (`Movies/Genre/Year/Title/Disc/file.mkv`). 32 leaves a generous safety
+/// margin while bounding worst-case stack usage and preventing
+/// pathological-input DoS (e.g., a directory tree built deliberately
+/// to exhaust stack on traversal).
+const MAX_WALK_DEPTH: usize = 32;
+
 /// List media files in a directory tree (recursive).
 fn list_media_files_recursive(dir: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
@@ -366,22 +375,55 @@ fn list_media_files_recursive(dir: &Path) -> Vec<PathBuf> {
 }
 
 /// Recursively walk a directory tree, collecting media files.
+///
+/// **Defensive guarantees** (added in PR-B of the v1.1.8 release-prep wave):
+///
+/// - **Depth-bounded**: stops recursing past [`MAX_WALK_DEPTH`] (32) to
+///   prevent stack overflow from pathologically deep trees.
+/// - **Symlink-safe**: skips symlinked entries entirely (uses
+///   [`std::fs::DirEntry::file_type`], which does NOT follow symlinks).
+///   This avoids:
+///     - Infinite recursion on symlink loops
+///     - Filesystem-escape via a symlink to `/`, `/home`, etc.
+///     - Surprising double-traversal when a directory is symlinked into
+///       its own descendant.
+///
+///   Trade-off: legitimate symlink farms (e.g., a curated `Movies/` of
+///   symlinks to a NAS share) will be skipped. The CLI does not currently
+///   advertise symlink support, so this is the safer default. If users
+///   request symlink-following, add an opt-in flag with a visited-inode
+///   set rather than removing the guard.
 fn walk_dir(dir: &Path, out: &mut Vec<PathBuf>) {
+    walk_dir_inner(dir, out, 0);
+}
+
+fn walk_dir_inner(dir: &Path, out: &mut Vec<PathBuf>, depth: usize) {
+    if depth >= MAX_WALK_DEPTH {
+        return;
+    }
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
     let mut dirs = Vec::new();
     for entry in entries.filter_map(|e| e.ok()) {
+        // Use file_type() (does NOT follow symlinks) instead of
+        // path.is_file() / path.is_dir() (which DO follow symlinks).
+        let Ok(ft) = entry.file_type() else {
+            continue;
+        };
+        if ft.is_symlink() {
+            continue;
+        }
         let path = entry.path();
-        if path.is_file() && is_media_extension(&path) {
+        if ft.is_file() && is_media_extension(&path) {
             out.push(path);
-        } else if path.is_dir() {
+        } else if ft.is_dir() {
             dirs.push(path);
         }
     }
     dirs.sort();
     for d in dirs {
-        walk_dir(&d, out);
+        walk_dir_inner(&d, out, depth + 1);
     }
 }
 
@@ -408,7 +450,13 @@ fn warn_if_subdirs_have_media(batch_dir: &Path) {
     };
     let subdirs_with_media: Vec<String> = entries
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().is_dir())
+        .filter(|e| {
+            // Use file_type() (does NOT follow symlinks) to stay
+            // consistent with walk_dir's defensive guarantees.
+            e.file_type()
+                .map(|ft| ft.is_dir() && !ft.is_symlink())
+                .unwrap_or(false)
+        })
         .filter(|e| dir_contains_media(&e.path()))
         .filter_map(|e| e.file_name().to_str().map(String::from))
         .collect();
@@ -430,20 +478,38 @@ fn warn_if_subdirs_have_media(batch_dir: &Path) {
 
 /// Check if a directory (recursively) contains at least one media file.
 /// Short-circuits on the first match for performance.
+///
+/// Same defensive guarantees as [`walk_dir`]: depth-bounded by
+/// [`MAX_WALK_DEPTH`] and skips symlinks.
 fn dir_contains_media(dir: &Path) -> bool {
+    dir_contains_media_inner(dir, 0)
+}
+
+fn dir_contains_media_inner(dir: &Path, depth: usize) -> bool {
+    if depth >= MAX_WALK_DEPTH {
+        return false;
+    }
     let Ok(entries) = std::fs::read_dir(dir) else {
         return false;
     };
     let mut subdirs = Vec::new();
     for entry in entries.filter_map(|e| e.ok()) {
+        let Ok(ft) = entry.file_type() else {
+            continue;
+        };
+        if ft.is_symlink() {
+            continue;
+        }
         let path = entry.path();
-        if path.is_file() && is_media_extension(&path) {
+        if ft.is_file() && is_media_extension(&path) {
             return true;
-        } else if path.is_dir() {
+        } else if ft.is_dir() {
             subdirs.push(path);
         }
     }
-    subdirs.iter().any(|d| dir_contains_media(d))
+    subdirs
+        .iter()
+        .any(|d| dir_contains_media_inner(d, depth + 1))
 }
 
 /// Check whether a directory name indicates sample/preview content.
