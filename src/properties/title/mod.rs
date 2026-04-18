@@ -6,6 +6,7 @@
 
 mod clean;
 mod secondary;
+mod strategies;
 
 pub(crate) use clean::is_generic_dir;
 pub use secondary::{
@@ -16,10 +17,8 @@ use crate::FILENAME_SEPS as SEPS;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::TokenStream;
 use crate::zone_map::ZoneMap;
-use clean::{
-    clean_title, clean_title_preserve_dashes, is_abbreviated, is_likely_extension,
-    pick_better_casing, strip_extension,
-};
+use clean::{clean_title, is_abbreviated, is_likely_extension, pick_better_casing};
+use strategies::{StrategyContext, TitleStrategy};
 
 /// Characters we strip from title boundaries.
 const BRACKETS: &[char] = &['(', ')', '[', ']', '{', '}'];
@@ -114,21 +113,24 @@ pub fn extract_title(
     let cleaned = clean_title(raw_title);
 
     if cleaned.is_empty() {
-        if let Some(title) = extract_cjk_bracket_title(input, matches, filename_start) {
+        let ctx = StrategyContext {
+            input,
+            matches,
+            filename_start,
+        };
+        if let Some(title) = strategies::run_fallback_ladder(&ctx) {
             return Some(title);
         }
-        if let Some(title) = extract_after_bracket_group(input, matches, filename_start) {
-            return Some(title);
-        }
-        if let Some(title) = extract_unclaimed_bracket_title(input, matches, filename_start) {
-            return Some(title);
-        }
-        return extract_title_from_parent(input, matches);
+        return None;
     }
 
     // Prefer parent dir casing when titles match case-insensitively.
     if has_parent_dir(input)
-        && let Some(parent_match) = extract_title_from_parent(input, matches)
+        && let Some(parent_match) = strategies::ParentDir.try_extract(&StrategyContext {
+            input,
+            matches,
+            filename_start,
+        })
         && parent_match.value.to_lowercase() == cleaned.to_lowercase()
         && parent_match.value != cleaned
     {
@@ -146,7 +148,11 @@ pub fn extract_title(
     // Abbreviated filenames fall back to parent directory.
     if is_abbreviated(&cleaned)
         && has_parent_dir(input)
-        && let Some(parent_title) = extract_title_from_parent(input, matches)
+        && let Some(parent_title) = strategies::ParentDir.try_extract(&StrategyContext {
+            input,
+            matches,
+            filename_start,
+        })
     {
         return Some(parent_title);
     }
@@ -236,10 +242,15 @@ fn handle_empty_title(
     // Unclaimed bracket content: when everything is in brackets and one
     // bracket group isn't claimed by any matcher, it's likely the title.
     // E.g., [DBD-Raws][4K_HDR][ready.player.one][2160P][...].mkv
-    if let Some(title) = extract_unclaimed_bracket_title(input, matches, filename_start) {
+    let ctx = StrategyContext {
+        input,
+        matches,
+        filename_start,
+    };
+    if let Some(title) = strategies::UnclaimedBracket.try_extract(&ctx) {
         return Some(title);
     }
-    extract_title_from_parent(input, matches)
+    strategies::ParentDir.try_extract(&ctx)
 }
 
 /// Extract title from position `start` to the next match in the filename.
@@ -267,319 +278,6 @@ fn extract_title_after_position(
     None
 }
 
-/// Try to extract the title from the parent directory name.
-fn extract_title_from_parent(input: &str, matches: &[MatchSpan]) -> Option<MatchSpan> {
-    let parts: Vec<&str> = input.split(['/', '\\']).collect();
-    if parts.len() < 2 {
-        if matches.is_empty() {
-            let stripped = strip_extension(input);
-            let cleaned = clean_title(stripped);
-            if !cleaned.is_empty() {
-                return Some(MatchSpan::new(0, stripped.len(), Property::Title, cleaned));
-            }
-        }
-        return None;
-    }
-
-    let mut offset = 0;
-    let mut dir_spans: Vec<(usize, usize, &str)> = Vec::new();
-    #[allow(clippy::needless_range_loop)]
-    for i in 0..parts.len() - 1 {
-        let dir_name = parts[i];
-        let dir_start = offset;
-        let dir_end = dir_start + dir_name.len();
-        offset = dir_end + 1;
-        dir_spans.push((dir_start, dir_end, dir_name));
-    }
-
-    // Iterate deepest-first.
-    for &(dir_start, dir_end, dir_name) in dir_spans.iter().rev() {
-        if dir_name.is_empty() || is_generic_dir(dir_name) {
-            continue;
-        }
-
-        let first_match_in_dir = matches
-            .iter()
-            .filter(|m| m.start >= dir_start && m.start < dir_end)
-            .filter(|m| !m.is_extension && !m.is_path_based)
-            .min_by_key(|m| m.start);
-
-        let title_end = first_match_in_dir.map(|m| m.start).unwrap_or(dir_end);
-        if title_end <= dir_start {
-            // Directory starts with a match (e.g., "S02 Some Series").
-            // Try extracting title from content AFTER the first match.
-            if let Some(first_m) = first_match_in_dir {
-                let after = first_m.end;
-                let next_match = matches
-                    .iter()
-                    .filter(|m| m.start > after && m.start < dir_end && !m.is_extension)
-                    .min_by_key(|m| m.start);
-                let after_end = next_match.map(|m| m.start).unwrap_or(dir_end);
-                if after_end > after {
-                    let raw = &input[after..after_end];
-                    let cleaned = clean_title(raw);
-                    if !cleaned.is_empty() {
-                        return Some(MatchSpan::new(after, after_end, Property::Title, cleaned));
-                    }
-                }
-            }
-            continue;
-        }
-
-        let raw_title = &input[dir_start..title_end];
-        let cleaned = clean_title(raw_title);
-        if !cleaned.is_empty() {
-            return Some(MatchSpan::new(
-                dir_start,
-                title_end,
-                Property::Title,
-                cleaned,
-            ));
-        }
-    }
-
-    None
-}
-
-/// Find an unclaimed bracket group in an all-bracket filename.
-///
-/// When a filename is composed entirely of bracket groups (e.g.,
-/// `[Group][4K_HDR][ready.player.one][2160P][BDRip][HEVC-10bit][FLAC].mkv`),
-/// the bracket whose content isn't claimed by any property matcher is
-/// likely the title.
-///
-/// Skips the first bracket group (typically release group) and bracket
-/// groups that contain only digits (likely episode numbers).
-fn extract_unclaimed_bracket_title(
-    input: &str,
-    matches: &[MatchSpan],
-    filename_start: usize,
-) -> Option<MatchSpan> {
-    let filename = &input[filename_start..];
-
-    // Only applies to all-bracket filenames.
-    if !filename.starts_with('[') {
-        return None;
-    }
-
-    // Collect all bracket groups: (content_start_abs, content_end_abs, content).
-    let mut brackets: Vec<(usize, usize, &str)> = Vec::new();
-    let mut pos = 0;
-    while pos < filename.len() {
-        if filename[pos..].starts_with('[') {
-            if let Some(close) = filename[pos..].find(']') {
-                let content = &filename[pos + 1..pos + close];
-                let abs_start = filename_start + pos + 1;
-                let abs_end = filename_start + pos + close;
-                brackets.push((abs_start, abs_end, content));
-                pos += close + 1;
-            } else {
-                break;
-            }
-        } else {
-            // Non-bracket content means this isn't an all-bracket filename.
-            // Allow separators and extension at the end.
-            let rest = &filename[pos..];
-            if rest.starts_with(['.', ' ', '-', '_']) {
-                break; // extension area
-            }
-            return None;
-        }
-    }
-
-    // Need at least 2 bracket groups (first is typically release group).
-    if brackets.len() < 2 {
-        return None;
-    }
-
-    // Find the first unclaimed bracket group. Prefer skipping the first bracket
-    // (typically a release group), but allow it when no release group was
-    // detected and the first bracket is the only plausible title (#100).
-    let start_index = usize::from(matches.iter().any(|m| m.property == Property::ReleaseGroup));
-    for &(abs_start, abs_end, content) in &brackets[start_index..] {
-        if content.is_empty() || content.chars().all(|c| c.is_ascii_digit()) {
-            continue;
-        }
-
-        // Check if this bracket's content overlaps with any existing match.
-        let is_claimed = matches.iter().any(|m| {
-            !matches!(m.property, Property::ReleaseGroup | Property::Title)
-                && m.start < abs_end
-                && m.end > abs_start
-        });
-
-        if !is_claimed {
-            let cleaned = clean_title(content);
-            if !cleaned.is_empty() {
-                return Some(MatchSpan::new(abs_start, abs_end, Property::Title, cleaned));
-            }
-        }
-    }
-
-    None
-}
-
-/// For CJK fansub format: `[Group][Title][Episode][Resolution]...`
-///
-/// When the filename starts with consecutive bracket groups and we have an
-/// episode match, the second bracket group contains the title.
-fn extract_cjk_bracket_title(
-    input: &str,
-    matches: &[MatchSpan],
-    filename_start: usize,
-) -> Option<MatchSpan> {
-    let filename = &input[filename_start..];
-
-    // Must start with a bracket group.
-    if !filename.starts_with('[') {
-        return None;
-    }
-
-    // Must have an episode match (CJK bracket episodes have been detected).
-    let has_episode = matches.iter().any(|m| m.property == Property::Episode);
-    if !has_episode {
-        return None;
-    }
-
-    // Find the first bracket group (release group).
-    let first_close = filename.find(']')?;
-
-    // The second bracket group should immediately follow.
-    let rest = &filename[first_close + 1..];
-    if !rest.starts_with('[') {
-        return None;
-    }
-
-    let second_open = first_close + 1;
-    let second_close = rest.find(']')?;
-    let content = &rest[1..second_close];
-
-    // The content should not be a pure number (that's an episode)
-    // and should not be a known tech token.
-    if content.is_empty() || content.chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-
-    let abs_start = filename_start + second_open + 1;
-    let abs_end = filename_start + second_open + 1 + content.len();
-
-    // Check if this bracket content is already claimed by a tech match.
-    let is_claimed = matches.iter().any(|m| {
-        !matches!(
-            m.property,
-            Property::ReleaseGroup | Property::Title | Property::Episode
-        ) && m.start < abs_end
-            && m.end > abs_start
-    });
-    if is_claimed {
-        return None;
-    }
-
-    Some(MatchSpan::new(
-        abs_start,
-        abs_end,
-        Property::Title,
-        content.to_string(),
-    ))
-}
-
-/// For anime-style: `[Group] Title - 04 [480p]`.
-fn extract_after_bracket_group(
-    input: &str,
-    matches: &[MatchSpan],
-    filename_start: usize,
-) -> Option<MatchSpan> {
-    let filename = &input[filename_start..];
-    let filename_end = filename_start + filename.len();
-
-    let mut pos = 0;
-    while pos < filename.len() && filename[pos..].starts_with('[') {
-        if let Some(close) = filename[pos..].find(']') {
-            pos += close + 1;
-            while pos < filename.len() && SEPS.contains(&(filename.as_bytes()[pos] as char)) {
-                pos += 1;
-            }
-        } else {
-            break;
-        }
-    }
-
-    if pos == 0 || pos >= filename.len() {
-        return None;
-    }
-
-    let title_start_abs = filename_start + pos;
-
-    // Anime bracket releases follow `[Group] <Title> - <epnum> [tags]`. When an
-    // Episode match exists later in the filename, the " - <epnum>" pair is the
-    // structural boundary; any `Part N` *inside* the title (e.g.
-    // "San no Shou Part 2") must not pre-empt it. See issue #124.
-    let has_episode_after = matches.iter().any(|m| {
-        m.property == Property::Episode && m.start >= title_start_abs && m.start < filename_end
-    });
-
-    let next_match = matches
-        .iter()
-        .filter(|m| m.start >= title_start_abs && m.start < filename_end && !m.is_extension)
-        .filter(|m| !(has_episode_after && m.property == Property::Part))
-        .min_by_key(|m| m.start);
-
-    let title_end_abs = match next_match {
-        Some(m) => m.start,
-        None => {
-            let has_ext = matches
-                .iter()
-                .any(|m| m.property == Property::Container && m.start >= filename_start);
-            if has_ext {
-                filename
-                    .rfind('.')
-                    .map(|dot| filename_start + dot)
-                    .unwrap_or(filename_end)
-            } else {
-                filename_end
-            }
-        }
-    };
-
-    if title_end_abs <= title_start_abs {
-        return None;
-    }
-
-    let raw = &input[title_start_abs..title_end_abs];
-
-    // When the next match is the Episode (anime `Title - Ep` pattern),
-    // the structural boundary is the " - " right before the episode number.
-    // Trim trailing separators rather than letting find_title_boundary chop at
-    // the *first* in-title " - " — that would lose multi-segment titles like
-    // "Enen no Shouboutai - San no Shou Part 2".
-    let is_anime_episode_boundary = next_match.map(|m| m.property) == Some(Property::Episode);
-    let title_end_abs = if is_anime_episode_boundary {
-        let trimmed = raw.trim_end_matches([' ', '.', '_', '-']);
-        title_start_abs + trimmed.len()
-    } else {
-        find_title_boundary(raw)
-            .map(|offset| title_start_abs + offset)
-            .unwrap_or(title_end_abs)
-    };
-    let raw = &input[title_start_abs..title_end_abs];
-
-    let cleaned = if is_anime_episode_boundary {
-        clean_title_preserve_dashes(raw)
-    } else {
-        clean_title(raw)
-    };
-    if cleaned.is_empty() {
-        return None;
-    }
-
-    Some(MatchSpan::new(
-        title_start_abs,
-        title_end_abs,
-        Property::Title,
-        cleaned,
-    ))
-}
-
 fn has_parent_dir(input: &str) -> bool {
     input.contains('/') || input.contains('\\')
 }
@@ -587,7 +285,7 @@ fn has_parent_dir(input: &str) -> bool {
 /// Find the first structural separator in a raw title span.
 ///
 /// Returns the byte offset within `raw` where the title should be truncated.
-fn find_title_boundary(raw: &str) -> Option<usize> {
+pub(super) fn find_title_boundary(raw: &str) -> Option<usize> {
     let min_title_len = 3;
 
     // Find the earliest structural separator across all types.
