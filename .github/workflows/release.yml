@@ -7,8 +7,12 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+# Default to least-privilege (#151). Only the jobs that actually need to write
+# repository contents (uploading release assets) escalate to `contents: write`
+# via per-job overrides below. Read-only jobs (verify-version, test, build,
+# publish, homebrew) inherit this default.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # Verify that the git tag matches Cargo.toml version.
@@ -101,18 +105,43 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: crates-io
-    continue-on-error: true
+    # NOTE: `continue-on-error` was previously `true` to silently absorb the
+    # "already uploaded" error on re-runs. We now detect that case explicitly
+    # and fail loudly on any other publish error (#152). Genuine network /
+    # auth / metadata failures will surface as workflow failures so the
+    # operator can intervene before downstream consumers see drift between
+    # the GitHub Release tag and the crates.io version.
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
-      - run: cargo publish
+      - name: Publish (idempotent on "already uploaded")
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -o pipefail
+          if cargo publish 2>&1 | tee /tmp/cargo-publish.log; then
+            echo "✅ Published successfully"
+            exit 0
+          fi
+          # Distinguish "this version is already on crates.io" (idempotent
+          # success on re-run) from any other failure mode (auth, network,
+          # missing metadata, semver drift, etc.).
+          if grep -qE 'crate version .* is already uploaded|already exists on crates.io' /tmp/cargo-publish.log; then
+            echo "::warning::Version already on crates.io — treating as idempotent success"
+            exit 0
+          fi
+          echo "::error::cargo publish failed for a non-idempotent reason — see log above"
+          exit 1
 
   github-release:
     name: GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    # Only this job needs write access — it uploads release assets and
+    # creates the Release page (#151). All other jobs inherit the
+    # workflow-level `contents: read` default.
+    permissions:
+      contents: write
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
