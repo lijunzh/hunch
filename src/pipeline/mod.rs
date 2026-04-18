@@ -354,8 +354,8 @@ impl Pipeline {
 
         // Step 4b: Mark Part reclaimable when an Episode is present so
         // the standard title absorption flow handles anime titles
-        // containing "Part N" (see #128 Debt #3, replaces the post-hoc
-        // `absorb_part_into_title` corrector).
+        // containing "Part N" (see #128 Debt #3, principled replacement
+        // for an earlier post-hoc title-absorption corrector).
         part::mark_reclaimable_when_episode_present(&mut all_matches);
 
         for m in &all_matches {

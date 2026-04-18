@@ -70,6 +70,23 @@ cargo clippy -- -D warnings
 - Follow the design principles in [DESIGN.md](DESIGN.md)
 - Prefer context over heuristics (Principle 3)
 
+## Releases
+
+Maintainer-only. The standard release flow auto-extracts release notes
+from the matching `## [X.Y.Z]` section of `CHANGELOG.md`.
+
+### Optional: per-release notes override
+
+For a one-off release (e.g., a hotfix that needs an executive summary or
+an upgrade-guide blurb that shouldn't bloat the CHANGELOG), drop a
+`RELEASE_NOTES.md` file at the repo root **before tagging**. The release
+workflow will use it verbatim instead of the CHANGELOG extract.
+
+**Important:** delete `RELEASE_NOTES.md` after the release ships,
+otherwise every subsequent release will reuse the same stale notes.
+`RELEASE_NOTES.md` is intentionally **not** in `.gitignore` because the
+release workflow needs to read it from a clean checkout.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under
