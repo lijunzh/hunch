@@ -226,6 +226,32 @@ impl HunchResult {
         }
     }
 
+    /// `true` if the detected media type is [`MediaType::Movie`].
+    ///
+    /// Convenience over `media_type() == Some(MediaType::Movie)` for routing
+    /// downstream lookups (e.g., TMDb movie endpoint vs. TVDb episode endpoint).
+    /// Returns `false` when the media type is unknown — callers that need to
+    /// distinguish "definitely not a movie" from "unknown" should use
+    /// [`media_type`](Self::media_type) directly.
+    pub fn is_movie(&self) -> bool {
+        self.media_type() == Some(MediaType::Movie)
+    }
+
+    /// `true` if the detected media type is [`MediaType::Episode`].
+    ///
+    /// See [`is_movie`](Self::is_movie) for caveats around unknown media type.
+    pub fn is_episode(&self) -> bool {
+        self.media_type() == Some(MediaType::Episode)
+    }
+
+    /// `true` if the detected media type is [`MediaType::Extra`]
+    /// (bonus features, openings, endings, specials, etc.).
+    ///
+    /// See [`is_movie`](Self::is_movie) for caveats around unknown media type.
+    pub fn is_extra(&self) -> bool {
+        self.media_type() == Some(MediaType::Extra)
+    }
+
     /// All "other" flags (e.g., "HDR", "Remux", "Proper").
     pub fn other(&self) -> Vec<&str> {
         self.all(Property::Other)
@@ -349,5 +375,72 @@ impl std::fmt::Display for HunchResult {
             Ok(json) => write!(f, "{json}"),
             Err(e) => write!(f, "<serialization error: {e}>"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    //! Unit tests for typed-accessor helpers added on top of the [`MediaType`]
+    //! enum. The helpers themselves are pure derived getters — no parsing
+    //! change — so we test them by manually setting the underlying property
+    //! rather than running the full pipeline.
+
+    use super::*;
+    use crate::matcher::span::Property;
+
+    fn empty_result() -> HunchResult {
+        HunchResult {
+            props: BTreeMap::new(),
+            confidence: Confidence::Medium,
+        }
+    }
+
+    #[test]
+    fn is_movie_true_when_media_type_is_movie() {
+        let mut r = empty_result();
+        r.set(Property::MediaType, "movie");
+        assert!(r.is_movie());
+        assert!(!r.is_episode());
+        assert!(!r.is_extra());
+    }
+
+    #[test]
+    fn is_episode_true_when_media_type_is_episode() {
+        let mut r = empty_result();
+        r.set(Property::MediaType, "episode");
+        assert!(r.is_episode());
+        assert!(!r.is_movie());
+        assert!(!r.is_extra());
+    }
+
+    #[test]
+    fn is_extra_true_when_media_type_is_extra() {
+        let mut r = empty_result();
+        r.set(Property::MediaType, "extra");
+        assert!(r.is_extra());
+        assert!(!r.is_movie());
+        assert!(!r.is_episode());
+    }
+
+    #[test]
+    fn all_three_helpers_false_when_media_type_unknown() {
+        // Explicit choice: helpers return `false` when the media type is
+        // unknown, NOT "true for movie because there's no episode marker"
+        // (which is what go-ptn does). Callers that need the trichotomy
+        // (movie / episode / unknown) should use `media_type()` directly.
+        let r = empty_result();
+        assert_eq!(r.media_type(), None);
+        assert!(!r.is_movie());
+        assert!(!r.is_episode());
+        assert!(!r.is_extra());
+    }
+
+    #[test]
+    fn is_movie_case_insensitive_via_media_type() {
+        // media_type() lower-cases internally, so any casing of the stored
+        // value should still produce the right helper answer.
+        let mut r = empty_result();
+        r.set(Property::MediaType, "MOVIE");
+        assert!(r.is_movie());
     }
 }
