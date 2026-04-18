@@ -731,3 +731,85 @@ fn issue_124_anime_dash_only_no_part_keyword() {
          trailing \" - 11\" is the episode marker)"
     );
 }
+
+// ── Competitor-borrowed regression pins (April 2026 review of go-ptn / parse-torrent-name) ──
+//
+// These tests pin behaviors discovered during a comparative review against
+// `razsteinmetz/go-ptn` and `divijbindlish/parse-torrent-name`. Two of the
+// behaviors below (SBS/OU stereoscopic detection) were already correctly
+// implemented in hunch but lacked focused tests; the third (R0–R6 DVD region
+// codes) extended coverage from a single value (R5) to the standard set.
+
+#[test]
+fn stereoscopic_half_sbs_emits_3d_other() {
+    // Half-SBS (Side-by-Side) is a 3D delivery format — it implies the
+    // content is stereoscopic 3D even when the literal "3D" token is absent.
+    // hunch's TOML rule (rules/other_positional.toml) maps Half-SBS → "3D",
+    // which is more semantically correct than emitting a separate "SBS" tag
+    // (the approach taken by go-ptn / parse-torrent-name).
+    let r = hunch("TEST.2015.1080p.3D.BluRay.Half-SBS.x264.DTS-HD.MA.7.1-ABC");
+    assert!(
+        r.other().contains(&"3D"),
+        "Half-SBS must contribute a \"3D\" Other value (stereoscopic delivery format)"
+    );
+    assert_eq!(r.title(), Some("TEST"));
+    assert_eq!(r.year(), Some(2015));
+    assert_eq!(r.screen_size(), Some("1080p"));
+    assert_eq!(r.source(), Some("Blu-ray"));
+}
+
+#[test]
+fn stereoscopic_half_ou_emits_3d_other() {
+    // Half-OU (Over-Under) is the vertical-stack stereoscopic counterpart to
+    // Half-SBS. Same semantic mapping: implies 3D delivery.
+    let r = hunch("TEST.2015.1080p.3D.BluRay.Half-OU.x264.DTS-HD.MA.7.1-ABC");
+    assert!(
+        r.other().contains(&"3D"),
+        "Half-OU must contribute a \"3D\" Other value (stereoscopic delivery format)"
+    );
+    assert_eq!(r.source(), Some("Blu-ray"));
+}
+
+#[test]
+fn dvd_region_codes_r0_through_r6() {
+    // DVD region codes R0 (worldwide) through R6 (China) are the standard
+    // MPAA region set. R7–R9 are reserved/non-theatrical and intentionally
+    // omitted to limit false positives on niche release-group tokens.
+    //
+    // Pre-review (April 2026) only R5 was supported. This test pins the
+    // extension to R0–R6 from rules/other.toml.
+    let pairs = [
+        ("R0", "Region 0"),
+        ("R1", "Region 1"),
+        ("R2", "Region 2"),
+        ("R3", "Region 3"),
+        ("R4", "Region 4"),
+        ("R5", "Region 5"),
+        ("R6", "Region 6"),
+    ];
+    for (token, expected) in pairs {
+        let filename = format!("Movie.2024.{token}.DVDRip.x264-GROUP.mkv");
+        let r = hunch(&filename);
+        assert!(
+            r.other().contains(&expected),
+            "{filename} should yield Other = \"{expected}\", got {:?}",
+            r.other()
+        );
+        assert_eq!(r.source(), Some("DVD"), "{filename} source");
+    }
+}
+
+#[test]
+fn dvd_region_r5_does_not_break_classic_brave_fixture() {
+    // Regression: the canonical go-ptn / parse-torrent-name R5 fixture.
+    // Pinning this guards against any future change to the region-code
+    // exact-match table that might over-generalize and corrupt the classic
+    // case both libraries use as their R5 reference example.
+    let r = hunch("Brave.2012.R5.DVDRip.XViD.LiNE-UNiQUE");
+    assert_eq!(r.title(), Some("Brave"));
+    assert_eq!(r.year(), Some(2012));
+    assert_eq!(r.source(), Some("DVD"));
+    assert_eq!(r.video_codec(), Some("Xvid"));
+    assert_eq!(r.release_group(), Some("UNiQUE"));
+    assert!(r.other().contains(&"Region 5"));
+}

@@ -24,7 +24,16 @@ ultra       = "Ultra HD"
 pal         = "PAL"
 ntsc        = "NTSC"
 secam       = "SECAM"
+# DVD region codes (R0–R6 are the standard MPAA regions; R7–R9 are reserved
+# and rarely used in real-world filenames, so we omit them to limit false
+# positives on niche release-group/encoding tokens that begin with R).
+r0          = "Region 0"
+r1          = "Region 1"
+r2          = "Region 2"
+r3          = "Region 3"
+r4          = "Region 4"
 r5          = "Region 5"
+r6          = "Region 6"
 screener    = "Screener"
 scr         = "Screener"
 hybrid      = "Hybrid"
