@@ -620,6 +620,18 @@
   year: 2004
   edition: Special
 
+# PR-C regression pin: "Title.YEAR.Special.Edition.ext" must NOT be
+# misclassified as an episode by the type-vote (the `Edition: Special`
+# match used to bleed into the episode-marker tally pre-31d6970). Locked
+# in by `tests/wrong_type.rs::special_edition_after_year_stays_movie`;
+# this fixture entry pins the cross-property invariance through the
+# YAML harness as well.
+? A.Common.Title.2014.Special.Edition.avi
+: title: A Common Title
+  year: 2014
+  edition: Special
+  container: avi
+
 ? Dr.LiNE.The.Lorax.2012.DVDRip.LiNE.XviD.AC3.HQ.Hive-CM8.mp4
 : video_codec: Xvid
   title: Dr LiNE The Lorax
