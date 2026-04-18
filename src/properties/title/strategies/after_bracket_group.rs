@@ -9,7 +9,7 @@ use crate::FILENAME_SEPS as SEPS;
 use crate::matcher::span::{MatchSpan, Property};
 
 use super::super::clean::{clean_title, clean_title_preserve_dashes};
-use super::super::find_title_boundary;
+use super::super::find_first_structural_separator;
 use super::{StrategyContext, TitleStrategy};
 
 pub(crate) struct AfterBracketGroup;
@@ -85,7 +85,7 @@ impl TitleStrategy for AfterBracketGroup {
 
         // When the next match is the Episode (anime `Title - Ep` pattern),
         // the structural boundary is the " - " right before the episode number.
-        // Trim trailing separators rather than letting find_title_boundary chop at
+        // Trim trailing separators rather than letting find_first_structural_separator chop at
         // the *first* in-title " - " — that would lose multi-segment titles like
         // "Enen no Shouboutai - San no Shou Part 2".
         let is_anime_episode_boundary = next_match.map(|m| m.property) == Some(Property::Episode);
@@ -93,7 +93,7 @@ impl TitleStrategy for AfterBracketGroup {
             let trimmed = raw.trim_end_matches([' ', '.', '_', '-']);
             title_start_abs + trimmed.len()
         } else {
-            find_title_boundary(raw)
+            find_first_structural_separator(raw)
                 .map(|offset| title_start_abs + offset)
                 .unwrap_or(title_end_abs)
         };
