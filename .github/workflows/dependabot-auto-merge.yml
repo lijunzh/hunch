@@ -3,6 +3,12 @@ name: Dependabot Auto-Merge
 # pull_request_target runs in the base-branch context and grants write
 # permissions to the GITHUB_TOKEN — required for Dependabot PRs, which
 # receive a read-only token under the plain `pull_request` trigger.
+#
+# SECURITY: pull_request_target with elevated permissions is dangerous
+# if combined with `actions/checkout` of the PR head SHA — that would
+# execute attacker-controlled code with write tokens. We deliberately
+# do NOT check out the PR; we only call `gh pr merge --auto`, which
+# runs entirely against the GitHub API.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -16,7 +22,28 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     steps:
+      # Fetch Dependabot's own classification of the PR (update type,
+      # dependency type, semver impact). We gate auto-merge on this so
+      # major version bumps and runtime-dep minor bumps still require
+      # manual review — auto-merge is reserved for the safest changes.
+      - name: Fetch Dependabot metadata
+        id: meta
+        uses: dependabot/fetch-metadata@21025c705c08248db411dc16f3619e6b5f9ea21a  # v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      # Auto-merge only if ALL of:
+      #   - Update type is patch OR minor (NEVER auto-merge major bumps)
+      #   - For minor bumps: dep is direct:development (dev-dep / build-dep)
+      #     OR ecosystem is github-actions (CI tooling, no runtime impact)
+      # Patch bumps auto-merge regardless of dep type — by semver
+      # contract they fix bugs without behavior change.
       - name: Enable auto-merge (squash — linear history)
+        if: |
+          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          (steps.meta.outputs.update-type == 'version-update:semver-minor' &&
+           (steps.meta.outputs.dependency-type == 'direct:development' ||
+            steps.meta.outputs.package-ecosystem == 'github_actions'))
         # --auto merges once all required status checks pass — CI is the gate.
         run: gh pr merge --auto --squash "$PR_URL"
         env:
