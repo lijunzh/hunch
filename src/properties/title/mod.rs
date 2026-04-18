@@ -17,7 +17,8 @@ use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::TokenStream;
 use crate::zone_map::ZoneMap;
 use clean::{
-    clean_title, is_abbreviated, is_likely_extension, pick_better_casing, strip_extension,
+    clean_title, clean_title_preserve_dashes, is_abbreviated, is_likely_extension,
+    pick_better_casing, strip_extension,
 };
 
 /// Characters we strip from title boundaries.
@@ -168,6 +169,29 @@ pub fn absorb_reclaimable(title: &MatchSpan, matches: &mut Vec<MatchSpan>) {
             return true;
         }
         // Drop if this match falls within the title span.
+        !(m.start >= title.start && m.end <= title.end)
+    });
+}
+
+/// Remove `Part` matches whose byte range falls inside the title span.
+///
+/// In anime bracket releases like
+/// `[Group] Show - San no Shou Part 2 - 13 [tags].mkv`, "Part 2" belongs to
+/// the title rather than being a standalone part property. Once the title
+/// extractor has claimed those bytes, drop the redundant Part match.
+///
+/// Only fires when there's also an `Episode` match present, which is what
+/// distinguishes anime episode files from movie-style "Filename Part 3"
+/// where Part really is the part property.
+pub fn absorb_part_into_title(title: &MatchSpan, matches: &mut Vec<MatchSpan>) {
+    let has_episode = matches.iter().any(|m| m.property == Property::Episode);
+    if !has_episode {
+        return;
+    }
+    matches.retain(|m| {
+        if m.property != Property::Part {
+            return true;
+        }
         !(m.start >= title.start && m.end <= title.end)
     });
 }
@@ -509,9 +533,18 @@ fn extract_after_bracket_group(
 
     let title_start_abs = filename_start + pos;
 
+    // Anime bracket releases follow `[Group] <Title> - <epnum> [tags]`. When an
+    // Episode match exists later in the filename, the " - <epnum>" pair is the
+    // structural boundary; any `Part N` *inside* the title (e.g.
+    // "San no Shou Part 2") must not pre-empt it. See issue #124.
+    let has_episode_after = matches.iter().any(|m| {
+        m.property == Property::Episode && m.start >= title_start_abs && m.start < filename_end
+    });
+
     let next_match = matches
         .iter()
         .filter(|m| m.start >= title_start_abs && m.start < filename_end && !m.is_extension)
+        .filter(|m| !(has_episode_after && m.property == Property::Part))
         .min_by_key(|m| m.start);
 
     let title_end_abs = match next_match {
@@ -537,13 +570,27 @@ fn extract_after_bracket_group(
 
     let raw = &input[title_start_abs..title_end_abs];
 
-    // Apply structural boundary detection (" - ", "--", "(").
-    let title_end_abs = find_title_boundary(raw)
-        .map(|offset| title_start_abs + offset)
-        .unwrap_or(title_end_abs);
+    // When the next match is the Episode (anime `Title - Ep` pattern),
+    // the structural boundary is the " - " right before the episode number.
+    // Trim trailing separators rather than letting find_title_boundary chop at
+    // the *first* in-title " - " — that would lose multi-segment titles like
+    // "Enen no Shouboutai - San no Shou Part 2".
+    let is_anime_episode_boundary = next_match.map(|m| m.property) == Some(Property::Episode);
+    let title_end_abs = if is_anime_episode_boundary {
+        let trimmed = raw.trim_end_matches([' ', '.', '_', '-']);
+        title_start_abs + trimmed.len()
+    } else {
+        find_title_boundary(raw)
+            .map(|offset| title_start_abs + offset)
+            .unwrap_or(title_end_abs)
+    };
     let raw = &input[title_start_abs..title_end_abs];
 
-    let cleaned = clean_title(raw);
+    let cleaned = if is_anime_episode_boundary {
+        clean_title_preserve_dashes(raw)
+    } else {
+        clean_title(raw)
+    };
     if cleaned.is_empty() {
         return None;
     }

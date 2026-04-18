@@ -12,6 +12,27 @@ pub(super) fn clean_episode_title(raw: &str) -> String {
     clean_title_inner(trimmed, false)
 }
 
+/// Clean up a raw title while preserving internal `" - "` (and equivalents)
+/// as literal `" - "` separators, and without stripping trailing `Part N`
+/// keywords.
+///
+/// Use this when the title boundary has already been correctly identified
+/// by upstream logic (e.g., anime bracket releases
+/// `[Group] Show - Sub Part 2 - 13 [tags]`) and the dashes/`Part N` are
+/// genuinely part of the title.
+pub(super) fn clean_title_preserve_dashes(raw: &str) -> String {
+    // Stash structural separators behind sentinels that cannot collide with
+    // any real input character, then run the standard pipeline (with the
+    // trailing-keyword stripper disabled), then restore them.
+    const PLACEHOLDER: &str = "\u{F8FF}DASH\u{F8FF}";
+    let protected = raw
+        .replace(" - ", PLACEHOLDER)
+        .replace("_-_", PLACEHOLDER)
+        .replace(".-.", PLACEHOLDER);
+    let cleaned = clean_title_inner(&protected, false);
+    cleaned.replace(PLACEHOLDER, " - ")
+}
+
 fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
     let mut s = raw.to_string();
 
@@ -401,6 +422,27 @@ mod tests {
     #[test]
     fn test_strip_paren_year() {
         assert_eq!(clean_title("Movie Name (2005)"), "Movie Name");
+    }
+
+    #[test]
+    fn preserve_dashes_keeps_inner_separator() {
+        // Standard clean_title collapses " - " into a single space.
+        assert_eq!(clean_title("Show - Subtitle"), "Show Subtitle");
+        // The preserve variant keeps the structural separator literal.
+        assert_eq!(
+            clean_title_preserve_dashes("Show - Subtitle"),
+            "Show - Subtitle"
+        );
+        // And it does not strip a trailing "Part N" (which is genuine title content).
+        assert_eq!(
+            clean_title_preserve_dashes("San no Shou Part 2"),
+            "San no Shou Part 2"
+        );
+        // "_-_" and ".-." should normalize to " - " too.
+        assert_eq!(
+            clean_title_preserve_dashes("Show_-_Sub_-_Final"),
+            "Show - Sub - Final"
+        );
     }
 
     // ── is_generic_dir ──────────────────────────────────────────────
