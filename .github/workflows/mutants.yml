@@ -1,0 +1,133 @@
+name: Mutation Tests
+
+# Mutation testing complements line/region coverage by checking whether
+# the test suite would actually *catch* a bug — a mutation that changes
+# behavior but doesn't break any test signals a weak assertion.
+#
+# Slow by nature: ~13 seconds per mutant (rebuild + test the whole crate)
+# means a full crate-wide run (~2,876 mutants as of v1.1.8) is ~10 hours.
+# So we DON'T run on every PR. This workflow runs nightly against the
+# two highest-value targets identified in the epic (#146):
+#   - src/pipeline/mod.rs   (~57 mutants, the orchestration core)
+#   - src/properties/title/clean.rs   (~99 mutants, the busiest property)
+#
+# Future PRs in the epic expand scope — see docs/mutation-baseline.md.
+
+on:
+  schedule:
+    # Nightly at 03:14 UTC — well clear of crates.io publish windows
+    # and after the daily Dependabot wave.
+    - cron: "14 3 * * *"
+  workflow_dispatch:
+    # Allows manual trigger from the Actions UI (e.g., to re-run after
+    # a coverage-improving PR lands).
+
+concurrency:
+  # Only one mutation run at a time — they're slow and the artifact
+  # naming would collide.
+  group: mutants
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutants:
+    name: cargo-mutants (high-value targets)
+    runs-on: ubuntu-latest
+    # 90 min hard cap. Local single-threaded estimate for the two scoped
+    # files is ~35 min; with --jobs 4 on the GH runner we expect 12–15 min.
+    # The cap exists to fail loud if cargo-mutants regresses or the test
+    # suite gets dramatically slower.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+        with:
+          key: mutants
+      - name: Install cargo-mutants
+        uses: taiki-e/install-action@58e862542551f667fa44c8a2a4a1d64ad477c96a  # v2
+        with:
+          tool: cargo-mutants
+
+      - name: Run cargo-mutants on high-value targets
+        # --no-shuffle: deterministic mutation order makes diffing
+        #               outcomes between runs trivially possible.
+        # --jobs 4:    parallelism cap matches GH ubuntu-latest's
+        #              practical CPU concurrency. Higher values
+        #              start fighting over the test runner.
+        # --in-place:  mutate in the working copy (faster than
+        #              cargo-mutants' default temp-dir-per-mutant).
+        # || true:     surviving mutants must NOT fail the workflow —
+        #              this job is an *advisory* signal that gets
+        #              triaged via docs/mutation-baseline.md, not a
+        #              hard merge gate. Real failures (build errors,
+        #              tool crashes) still surface in the artifact.
+        run: |
+          cargo mutants \
+            --no-shuffle \
+            --jobs 4 \
+            --in-place \
+            --file src/pipeline/mod.rs \
+            --file src/properties/title/clean.rs \
+            || true
+
+      - name: Generate Job Summary
+        if: always()
+        run: |
+          # Pretty-print the per-category counts to the GH Job Summary
+          # so reviewers don't have to download the artifact for a
+          # quick health check. Uses jq (preinstalled on ubuntu-latest)
+          # to keep the YAML free of nested heredoc escaping.
+          {
+            echo "# 🧬 Mutation Test Results"
+            echo ""
+            echo "**Targets**: \`src/pipeline/mod.rs\`, \`src/properties/title/clean.rs\`"
+            echo ""
+            if [ -f mutants.out/outcomes.json ]; then
+              CAUGHT=$(jq -r '.caught // 0' mutants.out/outcomes.json)
+              MISSED=$(jq -r '.missed // 0' mutants.out/outcomes.json)
+              TIMEOUT=$(jq -r '.timeout // 0' mutants.out/outcomes.json)
+              UNVIABLE=$(jq -r '.unviable // 0' mutants.out/outcomes.json)
+              TOTAL=$(jq -r '.total_mutants // 0' mutants.out/outcomes.json)
+              # awk handles the divide-by-zero case + float math without
+              # bringing in python or bc.
+              RATE=$(awk -v c="$CAUGHT" -v t="$TOTAL" 'BEGIN{ if(t==0) print "n/a"; else printf "%.1f", c*100/t }')
+              echo "| Outcome | Count |"
+              echo "|---|---|"
+              echo "| ✅ Caught (test killed mutant) | $CAUGHT |"
+              echo "| ⚠️ Missed (mutant survived) | $MISSED |"
+              echo "| ⏱️ Timeout | $TIMEOUT |"
+              echo "| 🚫 Unviable (didn't compile) | $UNVIABLE |"
+              echo "| **Total** | **$TOTAL** |"
+              echo ""
+              echo "**Kill rate**: ${RATE}% (target: ≥ 80%)"
+              echo ""
+              if [ -s mutants.out/missed.txt ]; then
+                echo "## Surviving mutants (triage these)"
+                echo ""
+                echo '```'
+                cat mutants.out/missed.txt
+                echo '```'
+                echo ""
+                echo "See [docs/mutation-baseline.md](../blob/main/docs/mutation-baseline.md) for triage guidance."
+              else
+                echo "## 🎉 No surviving mutants — every mutation was caught by a test."
+              fi
+            else
+              echo "⚠️ \`mutants.out/outcomes.json\` not found — see job logs."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload mutants.out artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: mutants-out
+          path: mutants.out/
+          if-no-files-found: warn
+          retention-days: 30

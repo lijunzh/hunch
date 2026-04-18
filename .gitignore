@@ -1,4 +1,7 @@
 /target/
+# cargo-mutants output (see docs/mutation-baseline.md)
+/mutants.out/
+/mutants.out.old/
 *.db
 *.sqlite
 *.csv
