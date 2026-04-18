@@ -1,42 +1,96 @@
-//! Title string cleaning — separator replacement, bracket stripping, etc.
+//! Title string cleaning — composed from small, single-purpose transforms.
+//!
+//! ## Design
+//!
+//! Title cleaning is a pipeline. Each step does *one* thing and returns a
+//! `String`. The public entry points (`clean_title`, `clean_episode_title`,
+//! `clean_title_preserve_dashes`) compose these steps.
+//!
+//! Steps (in pipeline order):
+//!
+//! 1. [`strip_leading_brackets`] — drop `[XCT]`, `[阿维达]`, ... at the start.
+//! 2. [`strip_paren_year`] — drop a trailing `(YYYY)`.
+//! 3. [`strip_paren_groups`] — drop all `(...)` groups, with empty fallback.
+//! 4. [`normalize_separators`] — convert `.`, `_`, `+`, brackets, `*` to
+//!    spaces. Dash handling is parameterized by [`DashPolicy`].
+//! 5. [`trim_trailing_punct`] — drop stray `:-,;` at the end.
+//! 6. [`strip_trailing_keywords`] — drop trailing `Part N`, `Season N`,
+//!    `Episode`, `-xNN` bonus markers (caller opt-in).
+//!
+//! See `D10: Refactor before accreting` in `docs/design.md` — this module
+//! exists because we hit the "2nd cleaning mode + bool flag" tripwire.
 
 use super::{BRACKETS, SEPS};
 
-/// Clean up a raw title: replace separators with spaces, strip brackets, trim.
+use std::sync::LazyLock;
+
+// ── Public composers ───────────────────────────────────────────────────────
+
+/// Standard title cleaning: separators → spaces, brackets stripped,
+/// trailing `Part N` / `Season N` / bonus markers removed.
 pub(super) fn clean_title(raw: &str) -> String {
-    clean_title_inner(raw, true)
+    let s = strip_leading_brackets(raw);
+    let s = strip_paren_year(&s);
+    let s = strip_paren_groups(&s);
+    let s = normalize_separators(&s, DashPolicy::WordDashOnly);
+    let s = trim_trailing_punct(&s);
+    strip_trailing_keywords(&s)
 }
 
+/// Episode-title cleaning: same as [`clean_title`] but keeps trailing
+/// `Part N` / `Season N` (those words are valid episode-title content)
+/// and trims leading separator junk first.
 pub(super) fn clean_episode_title(raw: &str) -> String {
     let trimmed = raw.trim_start_matches(['.', '_', ' ', '-']);
-    clean_title_inner(trimmed, false)
+    let s = strip_leading_brackets(trimmed);
+    let s = strip_paren_year(&s);
+    let s = strip_paren_groups(&s);
+    let s = normalize_separators(&s, DashPolicy::WordDashOnly);
+    trim_trailing_punct(&s)
 }
 
-/// Clean up a raw title while preserving internal `" - "` (and equivalents)
-/// as literal `" - "` separators, and without stripping trailing `Part N`
-/// keywords.
+/// Clean a raw title while preserving internal `" - "` (and equivalents
+/// `_-_`, `.-.`) as literal `" - "` separators, and without stripping
+/// trailing `Part N` keywords.
 ///
 /// Use this when the title boundary has already been correctly identified
 /// by upstream logic (e.g., anime bracket releases
-/// `[Group] Show - Sub Part 2 - 13 [tags]`) and the dashes/`Part N` are
-/// genuinely part of the title.
+/// `[Group] Show - Sub Part 2 - 13 [tags]`) and the dashes / `Part N`
+/// are genuinely part of the title.
+///
+/// Composition: same pipeline as [`clean_title`] but with
+/// [`DashPolicy::PreserveStructuralDash`] and no trailing-keyword strip.
 pub(super) fn clean_title_preserve_dashes(raw: &str) -> String {
-    // Stash structural separators behind sentinels that cannot collide with
-    // any real input character, then run the standard pipeline (with the
-    // trailing-keyword stripper disabled), then restore them.
-    const PLACEHOLDER: &str = "\u{F8FF}DASH\u{F8FF}";
-    let protected = raw
-        .replace(" - ", PLACEHOLDER)
-        .replace("_-_", PLACEHOLDER)
-        .replace(".-.", PLACEHOLDER);
-    let cleaned = clean_title_inner(&protected, false);
-    cleaned.replace(PLACEHOLDER, " - ")
+    let s = strip_leading_brackets(raw);
+    let s = strip_paren_year(&s);
+    let s = strip_paren_groups(&s);
+    let s = normalize_separators(&s, DashPolicy::PreserveStructuralDash);
+    trim_trailing_punct(&s)
 }
 
-fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
-    let mut s = raw.to_string();
+// ── DashPolicy ─────────────────────────────────────────────────────────────
 
-    // Strip leading bracket groups: [XCT], [阿维达], etc.
+/// How [`normalize_separators`] handles `-` characters.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum DashPolicy {
+    /// Keep `-` only between alphanumerics (e.g. `Spider-Man`); convert
+    /// every other dash to a space. This is the standard mode used by
+    /// [`clean_title`] and [`clean_episode_title`].
+    WordDashOnly,
+    /// Keep `-` between alphanumerics, AND preserve a separator-flanked
+    /// dash (e.g. `_-_`, ` - `, `.-.`) as a literal ` - ` (space-dash-space)
+    /// in the output. Used when the structural separator carries title
+    /// content that would otherwise be lost (anime
+    /// `[Group] Title - Sub - Ep [tags]` where `Sub` belongs to the title).
+    PreserveStructuralDash,
+}
+
+// ── Step 1: leading brackets ───────────────────────────────────────────────
+
+/// Strip `[…]` groups at the start (and any trailing separators) until the
+/// string no longer begins with `[`.
+pub(super) fn strip_leading_brackets(raw: &str) -> String {
+    let mut s = raw.to_string();
     while s.starts_with('[') {
         if let Some(end) = s.find(']') {
             s = s[end + 1..].to_string();
@@ -45,36 +99,66 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
             break;
         }
     }
+    s
+}
 
-    // Strip parenthesized year at the end: "Movie (2005)" → "Movie"
-    let re_paren_year = regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap();
-    if let Some(m) = re_paren_year.find(&s) {
-        s = s[..m.start()].to_string();
+// ── Step 2: trailing parenthesized year ────────────────────────────────────
+
+static RE_PAREN_YEAR: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap());
+
+/// Strip a trailing `(YYYY)`: `Movie Name (2005)` → `Movie Name`.
+pub(super) fn strip_paren_year(s: &str) -> String {
+    if let Some(m) = RE_PAREN_YEAR.find(s) {
+        s[..m.start()].to_string()
+    } else {
+        s.to_string()
     }
+}
 
-    // Strip all parenthesized groups (alternative titles, countries, etc.).
-    let re_paren = regex::Regex::new(r"\s*\([^)]*\)\s*").unwrap();
-    let before_paren_strip = s.clone();
-    s = re_paren.replace_all(&s, " ").to_string();
-    if s.trim().is_empty() {
-        s = before_paren_strip;
+// ── Step 3: parenthesized groups ───────────────────────────────────────────
+
+static RE_PAREN_GROUP: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\s*\([^)]*\)\s*").unwrap());
+
+/// Strip all `(...)` groups (alternative titles, country tags, etc.).
+///
+/// If stripping would empty the string, the original is returned — a title
+/// that is *only* a parenthesized phrase is better than nothing.
+pub(super) fn strip_paren_groups(s: &str) -> String {
+    let stripped = RE_PAREN_GROUP.replace_all(s, " ").into_owned();
+    if stripped.trim().is_empty() {
+        s.to_string()
+    } else {
+        stripped
     }
+}
 
-    // Replace separators with spaces, preserving hyphens between letters
-    // and dot-acronyms like S.H.I.E.L.D.
-    let dot_acronym_re =
-        regex::Regex::new(r"(?:^|[\s._])([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)").unwrap();
+// ── Step 4: separator normalization ────────────────────────────────────────
 
-    let mut protected_ranges: Vec<(usize, usize)> = Vec::new();
-    for m in dot_acronym_re.find_iter(&s) {
-        let actual_start =
-            if m.start() > 0 && matches!(s.as_bytes()[m.start()], b' ' | b'\t' | b'.' | b'_') {
-                m.start() + 1
-            } else {
-                m.start()
-            };
-        protected_ranges.push((actual_start, m.end()));
-    }
+static RE_DOT_ACRONYM: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(?:^|[\s._])([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)").unwrap()
+});
+
+/// Replace separators (`.`, `_`, `+`, brackets, `*`) with spaces, with
+/// dash handling controlled by [`DashPolicy`].
+///
+/// Preserves dot-acronyms like `S.H.I.E.L.D.` by computing protected
+/// byte ranges before the per-char rewrite.
+pub(super) fn normalize_separators(s: &str, dash: DashPolicy) -> String {
+    // Find dot-acronym byte ranges to protect from dot→space conversion.
+    let protected_ranges: Vec<(usize, usize)> = RE_DOT_ACRONYM
+        .find_iter(s)
+        .map(|m| {
+            let actual_start =
+                if m.start() > 0 && matches!(s.as_bytes()[m.start()], b' ' | b'\t' | b'.' | b'_') {
+                    m.start() + 1
+                } else {
+                    m.start()
+                };
+            (actual_start, m.end())
+        })
+        .collect();
 
     let in_protected =
         |pos: usize| -> bool { protected_ranges.iter().any(|(s, e)| pos >= *s && pos < *e) };
@@ -87,88 +171,118 @@ fn clean_title_inner(raw: &str, strip_season_part: bool) -> String {
         byte_pos += c.len_utf8();
     }
 
-    let cleaned: String = chars
-        .iter()
-        .enumerate()
-        .map(|(i, &c)| {
-            if c == '-' {
-                let prev_alnum = i > 0 && chars[i - 1].is_alphanumeric();
-                let next_alnum = i + 1 < chars.len() && chars[i + 1].is_alphanumeric();
-                if prev_alnum && next_alnum { '-' } else { ' ' }
-            } else if c == '.' && in_protected(byte_positions[i]) {
-                '.'
-            } else if SEPS.contains(&c) || BRACKETS.contains(&c) || c == '*' {
-                ' '
-            } else {
-                c
+    let mut out = String::with_capacity(s.len());
+    for (i, &c) in chars.iter().enumerate() {
+        match c {
+            '-' => {
+                let kind = classify_dash(&chars, i);
+                match (kind, dash) {
+                    (DashKind::WordDash, _) => out.push('-'),
+                    (DashKind::SeparatorFlanked, DashPolicy::PreserveStructuralDash) => {
+                        // Collapse any trailing space we just emitted so we
+                        // don't get "  - " / " -  ". `collapse_spaces` at the
+                        // end will normalize any remaining doubles, but emit
+                        // exactly " - " here for clarity.
+                        if out.ends_with(' ') {
+                            out.pop();
+                        }
+                        out.push_str(" - ");
+                    }
+                    _ => out.push(' '),
+                }
             }
-        })
-        .collect();
-
-    let mut result = collapse_spaces(&cleaned);
-
-    // Strip trailing punctuation that leaks from separator boundaries.
-    result = result
-        .trim_end_matches([':', '-', ',', ';'])
-        .trim()
-        .to_string();
-
-    if strip_season_part {
-        result = strip_trailing_keywords(&result);
-    }
-
-    result
-}
-
-/// Strip trailing Part, Season, Episode keywords and bonus markers from titles.
-fn strip_trailing_keywords(result: &str) -> String {
-    let mut result = result.to_string();
-
-    // Strip trailing "Part" + optional roman/number.
-    let re_part =
-        regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$").unwrap();
-    if let Some(m) = re_part.find(&result) {
-        let stripped = result[..m.start()].to_string();
-        if !stripped.trim().is_empty() {
-            result = stripped;
+            '.' if in_protected(byte_positions[i]) => out.push('.'),
+            ch if SEPS.contains(&ch) || BRACKETS.contains(&ch) || ch == '*' => out.push(' '),
+            ch => out.push(ch),
         }
     }
+    collapse_spaces(&out)
+}
 
-    // Strip trailing season words.
-    let re_season_word = regex::Regex::new(
+/// Classification of a `-` character based on the chars immediately
+/// surrounding it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DashKind {
+    /// Both neighbors are alphanumerics. Always preserved as `-`
+    /// regardless of policy. Example: `Spider-Man`.
+    WordDash,
+    /// Both neighbors are filename separators (`.`, `_`, `+`, ` `). This
+    /// is the structural " - " form. Preserved by
+    /// [`DashPolicy::PreserveStructuralDash`], collapsed otherwise.
+    SeparatorFlanked,
+    /// Anything else (start/end of string, mixed neighbors, brackets, ...).
+    /// Always collapsed to a space.
+    Other,
+}
+
+fn classify_dash(chars: &[char], i: usize) -> DashKind {
+    let prev = if i > 0 { Some(chars[i - 1]) } else { None };
+    let next = chars.get(i + 1).copied();
+    let is_alnum = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric());
+    let is_sep = |c: Option<char>| c.is_some_and(|c| SEPS.contains(&c));
+    if is_alnum(prev) && is_alnum(next) {
+        DashKind::WordDash
+    } else if is_sep(prev) && is_sep(next) {
+        DashKind::SeparatorFlanked
+    } else {
+        DashKind::Other
+    }
+}
+
+// (legacy `rewrite_dash` removed — logic now lives in `classify_dash`
+//  + the per-char match in `normalize_separators`.)
+
+// ── Step 5: trailing punctuation ───────────────────────────────────────────
+
+/// Strip trailing punctuation that leaks from separator boundaries.
+pub(super) fn trim_trailing_punct(s: &str) -> String {
+    s.trim_end_matches([':', '-', ',', ';']).trim().to_string()
+}
+
+// ── Step 6: trailing keywords ──────────────────────────────────────────────
+
+static RE_TRAILING_PART: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$").unwrap()
+});
+
+static RE_TRAILING_SEASON: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(
         r"(?i)\s+(?:Saison|Temporada|Stagione|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
-    ).unwrap();
-    if let Some(m) = re_season_word.find(&result) {
-        let stripped = result[..m.start()].to_string();
-        if !stripped.trim().is_empty() {
-            result = stripped;
-        }
-    }
+    ).unwrap()
+});
 
-    // Strip trailing episode keywords.
-    let re_ep_word = regex::Regex::new(r"(?i)\s+(?:Episodes?|Ep\.?)\s*$").unwrap();
-    if let Some(m) = re_ep_word.find(&result) {
-        let stripped = result[..m.start()].to_string();
-        if !stripped.trim().is_empty() {
-            result = stripped;
-        }
-    }
+static RE_TRAILING_EP: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?i)\s+(?:Episodes?|Ep\.?)\s*$").unwrap());
 
-    // Strip trailing bonus markers.
-    let re_bonus = regex::Regex::new(r"(?i)[-]x\d{1,3}\s*$").unwrap();
-    if let Some(m) = re_bonus.find(&result) {
-        let stripped = result[..m.start()].to_string();
-        if !stripped.trim().is_empty() {
-            result = stripped;
-        }
-    }
+static RE_TRAILING_BONUS: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"(?i)[-]x\d{1,3}\s*$").unwrap());
 
-    result
+/// Strip trailing `Part`, `Season`, `Episode` keywords and `-xNN` bonus
+/// markers from titles. Each strip is skipped if it would empty the title.
+pub(super) fn strip_trailing_keywords(input: &str) -> String {
+    let mut s = input.to_string();
+    s = strip_if_nonempty(&s, &RE_TRAILING_PART);
+    s = strip_if_nonempty(&s, &RE_TRAILING_SEASON);
+    s = strip_if_nonempty(&s, &RE_TRAILING_EP);
+    s = strip_if_nonempty(&s, &RE_TRAILING_BONUS);
+    s
 }
+
+fn strip_if_nonempty(s: &str, re: &regex::Regex) -> String {
+    if let Some(m) = re.find(s) {
+        let stripped = &s[..m.start()];
+        if !stripped.trim().is_empty() {
+            return stripped.to_string();
+        }
+    }
+    s.to_string()
+}
+
+// ── Whitespace utilities (used by other modules in the title subsystem) ───
 
 /// Collapse multiple spaces into one and trim.
 pub(super) fn collapse_spaces(s: &str) -> String {
-    let mut result = String::new();
+    let mut result = String::with_capacity(s.len());
     let mut prev_space = true;
     for c in s.chars() {
         if c == ' ' {
@@ -404,6 +518,8 @@ pub(crate) fn is_generic_dir(name: &str) -> bool {
 mod tests {
     use super::*;
 
+    // ── Pipeline integration ─────────────────────────────────────────
+
     #[test]
     fn test_clean_title_dots() {
         assert_eq!(clean_title("The.Matrix"), "The Matrix");
@@ -422,6 +538,72 @@ mod tests {
     #[test]
     fn test_strip_paren_year() {
         assert_eq!(clean_title("Movie Name (2005)"), "Movie Name");
+    }
+
+    // ── Per-step unit tests ──────────────────────────────────────────
+
+    #[test]
+    fn step_strip_leading_brackets_drops_multiple() {
+        assert_eq!(strip_leading_brackets("[A][B] Show"), "Show");
+        assert_eq!(strip_leading_brackets("[XCT].Le.Prestige"), "Le.Prestige");
+    }
+
+    #[test]
+    fn step_strip_leading_brackets_unclosed_passes_through() {
+        // No closing ']' → leave the input alone (don't loop forever).
+        assert_eq!(strip_leading_brackets("[unclosed Show"), "[unclosed Show");
+    }
+
+    #[test]
+    fn step_strip_paren_year_only_at_end() {
+        // The regex consumes leading whitespace before `(YYYY)`.
+        assert_eq!(strip_paren_year("Movie (2005)"), "Movie");
+        // Year in the middle is preserved (only trailing year is stripped).
+        assert_eq!(strip_paren_year("(2005) Movie"), "(2005) Movie");
+    }
+
+    #[test]
+    fn step_strip_paren_groups_empty_fallback() {
+        // Stripping all parens would empty the string → return the original.
+        assert_eq!(strip_paren_groups("(only paren)"), "(only paren)");
+        // Otherwise strip them.
+        assert_eq!(strip_paren_groups("Movie (alt)"), "Movie ");
+    }
+
+    #[test]
+    fn step_normalize_preserves_word_dash() {
+        let out = normalize_separators("Spider-Man.2002", DashPolicy::WordDashOnly);
+        assert_eq!(out, "Spider-Man 2002");
+    }
+
+    #[test]
+    fn step_normalize_drops_separator_flanked_dash() {
+        // Default policy: " - " becomes a single space.
+        let out = normalize_separators("Show - Sub", DashPolicy::WordDashOnly);
+        assert_eq!(out, "Show Sub");
+    }
+
+    #[test]
+    fn step_normalize_preserves_separator_flanked_dash_in_preserve_mode() {
+        // PreserveStructuralDash keeps space-flanked, dot-flanked, and
+        // underscore-flanked dashes as a literal " - ".
+        assert_eq!(
+            normalize_separators("Show - Sub", DashPolicy::PreserveStructuralDash),
+            "Show - Sub"
+        );
+        assert_eq!(
+            normalize_separators("Show_-_Sub_-_Final", DashPolicy::PreserveStructuralDash),
+            "Show - Sub - Final"
+        );
+        assert_eq!(
+            normalize_separators("Show.-.Sub", DashPolicy::PreserveStructuralDash),
+            "Show - Sub"
+        );
+        // But word-dashes still survive even in preserve mode.
+        assert_eq!(
+            normalize_separators("Spider-Man", DashPolicy::PreserveStructuralDash),
+            "Spider-Man"
+        );
     }
 
     #[test]
@@ -443,6 +625,50 @@ mod tests {
             clean_title_preserve_dashes("Show_-_Sub_-_Final"),
             "Show - Sub - Final"
         );
+    }
+
+    #[test]
+    fn step_normalize_preserves_dot_acronyms() {
+        let out = normalize_separators("Agents.of.S.H.I.E.L.D.S01", DashPolicy::WordDashOnly);
+        assert!(out.contains("S.H.I.E.L.D"), "got: {out}");
+    }
+
+    #[test]
+    fn step_trim_trailing_punct() {
+        assert_eq!(trim_trailing_punct("Title -"), "Title");
+        assert_eq!(trim_trailing_punct("Title:,;"), "Title");
+        assert_eq!(trim_trailing_punct("Title"), "Title");
+    }
+
+    #[test]
+    fn step_strip_trailing_keywords() {
+        // The Part / Season / Episode regexes start with `\s+` so they
+        // consume the space before the keyword. The bonus regex starts
+        // with `[-]` so it does NOT eat the leading space — the trailing
+        // space remains in the result. This matches pre-refactor behavior
+        // exactly; trimming is the caller's job.
+        assert_eq!(strip_trailing_keywords("Show Part 2"), "Show");
+        assert_eq!(strip_trailing_keywords("Show Season 3"), "Show");
+        assert_eq!(strip_trailing_keywords("Show Episode"), "Show");
+        assert_eq!(strip_trailing_keywords("Show -x05"), "Show ");
+        // Empty fallback: don't strip if the result would be empty.
+        assert_eq!(strip_trailing_keywords("Part 2"), "Part 2");
+    }
+
+    #[test]
+    fn episode_title_keeps_part_n() {
+        // clean_episode_title must NOT strip trailing "Part N" — that's
+        // valid episode-title content.
+        assert_eq!(
+            clean_episode_title("The Battle Part 2"),
+            "The Battle Part 2"
+        );
+    }
+
+    #[test]
+    fn episode_title_trims_leading_seps() {
+        assert_eq!(clean_episode_title(" - The Battle"), "The Battle");
+        assert_eq!(clean_episode_title(".._The Battle"), "The Battle");
     }
 
     // ── is_generic_dir ──────────────────────────────────────────────
