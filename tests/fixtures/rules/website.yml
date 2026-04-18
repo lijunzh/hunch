@@ -24,3 +24,10 @@
 
 ? www.4MovieRulz.be - Ginny Weds Sunny (2020) 1080p Hindi Proper HDRip x264 DD5.1 - 2.4GB ESub.mkv
 : website: www.4MovieRulz.be
+
+# Regression for #163: language abbreviations like `.rus`, `.deu`, etc. must
+# not be misread as ccTLD websites by the inline matcher.
+? -Community.s02e20.rus.eng.720p.Kybik.v.Kybe
+  -Movie.s01e02.deu.eng.1080p.WEB-GROUP
+  -Show.s03e04.fra.eng.720p.HDTV-GROUP
+: website: s02e20.ru
