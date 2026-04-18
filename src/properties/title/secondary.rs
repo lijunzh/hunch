@@ -1,7 +1,7 @@
 //! Secondary title extractors — episode title, film title, alternative title.
 
 use super::clean::{clean_episode_title, clean_title};
-use super::find_title_boundary;
+use super::find_first_structural_separator;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::TokenStream;
 
@@ -277,7 +277,7 @@ pub fn extract_film_title(
         return None;
     }
 
-    let title_end = find_title_boundary(&title_cleaned)
+    let title_end = find_first_structural_separator(&title_cleaned)
         .map(|offset| title_cleaned[..offset].trim().to_string())
         .unwrap_or(title_cleaned);
 
@@ -334,7 +334,7 @@ pub fn extract_alternative_titles(
     }
 
     let raw_title = &input[filename_start..title_end_abs];
-    let boundary_offset = match find_title_boundary(raw_title) {
+    let boundary_offset = match find_first_structural_separator(raw_title) {
         Some(offset) => offset,
         None => return Vec::new(),
     };

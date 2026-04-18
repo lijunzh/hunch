@@ -105,7 +105,7 @@ pub fn extract_title(
     let raw_title = &input[filename_start..title_end_abs];
 
     // Truncate at structural separators (" - ", "--", "(").
-    let title_end_abs = find_title_boundary(raw_title)
+    let title_end_abs = find_first_structural_separator(raw_title)
         .map(|offset| filename_start + offset)
         .unwrap_or(title_end_abs);
     let raw_title = &input[filename_start..title_end_abs];
@@ -282,18 +282,49 @@ fn has_parent_dir(input: &str) -> bool {
     input.contains('/') || input.contains('\\')
 }
 
-/// Find the first structural separator in a raw title span.
+/// Return the byte offset of the **first** structural separator in `raw`,
+/// or `None` if the input has no separator that qualifies (or one occurs
+/// inside the leading 3 bytes — too short to be a real title prefix).
 ///
-/// Returns the byte offset within `raw` where the title should be truncated.
-pub(super) fn find_title_boundary(raw: &str) -> Option<usize> {
-    let min_title_len = 3;
+/// "Structural separators" are the punctuation patterns release-naming
+/// conventions use to split a title from its trailing metadata: `" ("`,
+/// `" - "`, `"--"`, and their `_`/`.`-flanked equivalents.
+///
+/// # Semantics: first wins
+///
+/// **All current callers want this**: a parenthesized year, alt-title,
+/// or `" - "` segment marks the *end* of the canonical title; everything
+/// after it is metadata or a sub-title. So the function returns the
+/// EARLIEST qualifying offset (`min` over per-separator `find` results).
+///
+/// # When NOT to use this
+///
+/// Some inputs legitimately contain `" - "` *inside* the title:
+///
+/// - Anime multi-segment releases:
+///   `[Group] Show - Sub-arc Part 2 - 13 [tags].mkv` — here the first
+///   `" - "` separates two title segments, NOT title from metadata.
+/// - Spider-style hyphenated names that survive `normalize_separators`
+///   are a separate concern (they keep the `-`, no surrounding spaces).
+///
+/// In those cases the caller already knows the boundary structurally
+/// (e.g. an Episode `MatchSpan` after the title) and should compute the
+/// trim point directly rather than asking this function. See
+/// `strategies::AfterBracketGroup` for the canonical example: it skips
+/// `find_first_structural_separator` on the anime-episode branch and
+/// trims trailing separators by hand instead. See also #124 / #127.
+pub(super) fn find_first_structural_separator(raw: &str) -> Option<usize> {
+    /// Minimum length the title prefix must have for a separator to count.
+    /// Guards against pathological inputs like `"a - b"` where `" - "`
+    /// at offset 1 would yield an empty title.
+    const MIN_TITLE_LEN: usize = 3;
 
-    // Find the earliest structural separator across all types.
-    let separators: &[&str] = &[" (", "_(", ".(", " - ", "_-_", ".-.", "--"];
+    // The earliest hit across any separator wins.
+    const SEPARATORS: &[&str] = &[" (", "_(", ".(", " - ", "_-_", ".-.", "--"];
 
-    separators
+    SEPARATORS
         .iter()
-        .filter_map(|sep| raw.find(sep).filter(|&pos| pos >= min_title_len))
+        .filter_map(|sep| raw.find(sep).filter(|&pos| pos >= MIN_TITLE_LEN))
         .min()
 }
 
@@ -310,6 +341,54 @@ mod tests {
 
     fn test_ts(input: &str) -> tokenizer::TokenStream {
         tokenizer::tokenize(input)
+    }
+
+    // ── find_first_structural_separator ──────────────────────────
+    //
+    // These tests pin the "first wins" semantic. They exist so that
+    // anyone tempted to change `min` to `max` (or to add an EpisodeAware
+    // mode without a use case) reads this comment first. See the rustdoc
+    // on the function for the rationale.
+
+    #[test]
+    fn first_separator_wins_picks_earliest_offset() {
+        // " - " at offset 4 wins over " (" at offset 12.
+        assert_eq!(
+            find_first_structural_separator("Show - Subtitle (2020)"),
+            Some(4)
+        );
+    }
+
+    #[test]
+    fn first_separator_skips_too_short_prefix() {
+        // "a - b": " - " at offset 1 < MIN_TITLE_LEN, so None.
+        assert_eq!(find_first_structural_separator("a - b"), None);
+        // "abc - d": offset 3 ≥ MIN_TITLE_LEN, accepted.
+        assert_eq!(find_first_structural_separator("abc - d"), Some(3));
+    }
+
+    #[test]
+    fn first_separator_returns_none_on_separatorless_input() {
+        assert_eq!(
+            find_first_structural_separator("PlainTitleNoSeparator"),
+            None
+        );
+    }
+
+    #[test]
+    fn first_separator_caveat_anime_multi_segment() {
+        // KNOWN LIMITATION (documented on the function): for anime-style
+        // multi-segment titles, the FIRST " - " is INSIDE the title, not at
+        // the boundary. Callers facing this case must NOT use this function.
+        // This test pins the limitation so a future "fix" doesn't silently
+        // break `strategies::AfterBracketGroup`'s anime-episode branch.
+        let raw = "Enen no Shouboutai - San no Shou Part 2";
+        assert_eq!(
+            find_first_structural_separator(raw),
+            Some(18),
+            "function returns the first \" - \"; AfterBracketGroup must \
+             bypass it on the anime-episode branch (#124 / #127)"
+        );
     }
 
     #[test]
