@@ -74,7 +74,7 @@ hunch --batch /path/to/tv/ -r -j
 | Document | Audience | Content |
 |---|---|---|
 | [**User Manual**](docs/user_manual.md) | Users | Install, CLI, library API, all 49 properties, FAQ |
-| [**Design**](docs/design.md) | Contributors | Principles, architecture, key decisions |
+| [**Design**](DESIGN.md) | Contributors | Principles, architecture, key decisions |
 | [**Compatibility**](docs/compatibility.md) | Everyone | guessit test suite pass rates by property |
 | [**API Reference**](https://docs.rs/hunch) | Developers | Full Rust API docs |
 | [**Changelog**](CHANGELOG.md) | Everyone | Version history |

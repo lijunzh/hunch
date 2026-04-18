@@ -67,7 +67,7 @@ cargo clippy -- -D warnings
 
 - `cargo fmt` before committing
 - `cargo clippy` with zero warnings
-- Follow the design principles in [docs/design.md](docs/design.md)
+- Follow the design principles in [DESIGN.md](DESIGN.md)
 - Prefer context over heuristics (Principle 3)
 
 ## License
