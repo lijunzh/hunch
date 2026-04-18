@@ -117,6 +117,52 @@ jobs:
         # want to enforce zero-yanks; we tolerate dev-dep yanks today.
         run: cargo audit
 
+  coverage:
+    name: Coverage
+    # Single-OS by design: line/region coverage of pure-Rust code is
+    # platform-agnostic, and running this on the cross-OS matrix would
+    # triple CI time for zero additional signal. Platform-conditional
+    # branches (cfg(unix) symlink tests, Windows path code) are
+    # already covered by the cross-OS `test` matrix above; coverage
+    # tracking the *aggregate* % is the goal here.
+    #
+    # ADVISORY for now (no PR-time gate): this PR establishes the
+    # baseline + tooling. A follow-up PR (#145 epic) will add the
+    # "fail if coverage drops more than X% below baseline" gate once
+    # the baseline has settled across a few merges.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+        with:
+          key: coverage
+      - name: Install cargo-llvm-cov
+        # taiki-e/install-action downloads a prebuilt binary in seconds
+        # vs ~3 min for `cargo install`. Pinned to a commit SHA per
+        # this repo's supply-chain hardening convention.
+        uses: taiki-e/install-action@58e862542551f667fa44c8a2a4a1d64ad477c96a  # v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Generate coverage (LCOV + summary)
+        run: |
+          # LCOV for downstream tooling (Codecov / Coveralls in a
+          # follow-up PR), summary printed to the job log for
+          # at-a-glance review.
+          cargo llvm-cov --workspace --lcov --output-path lcov.info
+          cargo llvm-cov report --summary-only | tee coverage-summary.txt
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: coverage-report
+          path: |
+            lcov.info
+            coverage-summary.txt
+          if-no-files-found: error
+          retention-days: 30
+
   semver:
     name: Semver Checks
     # Detects SemVer-incompatible changes to the public Rust API
