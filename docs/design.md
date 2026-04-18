@@ -255,6 +255,48 @@ level (one directory, own tests), not the function level.
 
 Examples: title, release_group, episode_title, alternative_title.
 
+### D10: Refactor before accreting (P1)
+
+The pattern that turned guessit hard to reason about was not any single
+bad decision — it was accretion. One callback, one validator, one tag,
+and suddenly the engine has fifteen features and three ways to do
+everything.
+
+Hunch resists this by treating certain shapes as **tripwires**: when
+they appear, refactor *before* adding the next instance. The cost of
+refactoring at three is low; the cost at ten is high.
+
+**Tripwires:**
+
+- **6th `extract_*` strategy in title extraction.** If you would add a
+  6th, first unify the existing five behind a shared interface
+  (`TitleStrategy` + `TitleRegion` + one `extract_from_region` core).
+- **3rd cleaning mode for any property.** If `clean_X` and
+  `clean_X_preserve_Y` exist and you need a third variant, decompose
+  `clean_X` into composable transforms instead.
+- **3rd post-hoc `absorb_*` corrector.** Post-hoc absorption is a
+  symptom that the matcher produced a match it shouldn't have. Prefer
+  marking the underlying match `reclaimable` (which is the principled
+  mechanism `MatchSpan` already supports) so the existing
+  `absorb_reclaimable` step handles it generically.
+- **2nd boolean flag on a function.** If a function gains a second
+  `bool` parameter to switch behavior, it's two functions wearing one
+  hat. Split it.
+- **2nd context-dependent semantic for a shared helper.** If a helper
+  like `find_title_boundary` is correct for some callers and wrong for
+  others, either parameterize the semantic explicitly
+  (`BoundaryStrategy::First | Last | EpisodeAware`) or inline the logic
+  at each call site.
+
+The rule is not "never add a 6th extractor" — sometimes there really
+are six distinct strategies. The rule is: at the moment you would add
+the Nth, stop and ask whether the existing N-1 should share more
+structure first. If they should, refactor; *then* add the Nth on the
+new foundation.
+
+This principle is enforced in code review, not by tooling. Reviewers
+flagging tripwire violations is the load-bearing mechanism.
+
 ---
 
 ## Architecture Overview
