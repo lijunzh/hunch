@@ -173,29 +173,6 @@ pub fn absorb_reclaimable(title: &MatchSpan, matches: &mut Vec<MatchSpan>) {
     });
 }
 
-/// Remove `Part` matches whose byte range falls inside the title span.
-///
-/// In anime bracket releases like
-/// `[Group] Show - San no Shou Part 2 - 13 [tags].mkv`, "Part 2" belongs to
-/// the title rather than being a standalone part property. Once the title
-/// extractor has claimed those bytes, drop the redundant Part match.
-///
-/// Only fires when there's also an `Episode` match present, which is what
-/// distinguishes anime episode files from movie-style "Filename Part 3"
-/// where Part really is the part property.
-pub fn absorb_part_into_title(title: &MatchSpan, matches: &mut Vec<MatchSpan>) {
-    let has_episode = matches.iter().any(|m| m.property == Property::Episode);
-    if !has_episode {
-        return;
-    }
-    matches.retain(|m| {
-        if m.property != Property::Part {
-            return true;
-        }
-        !(m.start >= title.start && m.end <= title.end)
-    });
-}
-
 /// Handle the case where title_end_abs <= filename_start (empty title zone).
 fn handle_empty_title(
     input: &str,
