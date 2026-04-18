@@ -60,21 +60,39 @@ jobs:
         # --jobs 4:    parallelism cap matches GH ubuntu-latest's
         #              practical CPU concurrency. Higher values
         #              start fighting over the test runner.
-        # --in-place:  mutate in the working copy (faster than
-        #              cargo-mutants' default temp-dir-per-mutant).
-        # || true:     surviving mutants must NOT fail the workflow —
-        #              this job is an *advisory* signal that gets
-        #              triaged via docs/mutation-baseline.md, not a
-        #              hard merge gate. Real failures (build errors,
-        #              tool crashes) still surface in the artifact.
+        #              (Mutually exclusive with --in-place since
+        #              parallel workers would conflict on shared
+        #              source files; cargo-mutants instead copies
+        #              the source to per-worker scratch dirs.)
+        #
+        # Exit-code handling: cargo-mutants returns
+        #   0 = all mutants caught (great)
+        #   1 = some mutants survived (interesting; expected; not a build failure)
+        #   2 = mutants timed out (also not a build failure)
+        #   3 = unviable mutations (rare; not a build failure)
+        #   other = real error (usage error, build broke, tool crashed)
+        # We only swallow 0–3. A usage error must still fail the job
+        # so we don't repeat the silent-no-op problem from the first
+        # run after #169 (the original `|| true` masked an --in-place
+        # / --jobs incompatibility for the entire run).
         run: |
+          set +e
           cargo mutants \
             --no-shuffle \
             --jobs 4 \
-            --in-place \
             --file src/pipeline/mod.rs \
-            --file src/properties/title/clean.rs \
-            || true
+            --file src/properties/title/clean.rs
+          status=$?
+          set -e
+          case "$status" in
+            0|1|2|3)
+              echo "cargo-mutants completed (exit $status — mutants survived/timed-out is expected)"
+              ;;
+            *)
+              echo "::error::cargo-mutants failed with unexpected exit $status (likely a usage error or tool crash)"
+              exit $status
+              ;;
+          esac
 
       - name: Generate Job Summary
         if: always()
