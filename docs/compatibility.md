@@ -8,7 +8,7 @@ But guessit compatibility is no longer the primary optimization target.
 Hunch is tuned first for **real-world media-library accuracy**, with guessit
 compatibility used as a reference point rather than a product goal.
 
-> **Last updated:** 2026-03-23 (`main` after #108)
+> **Last updated:** 2026-04-17 (`main` after #135, pre-v1.1.8 release prep)
 
 ---
 
@@ -17,12 +17,12 @@ compatibility used as a reference point rather than a product goal.
 Latest compatibility rerun:
 
 ```bash
-cargo test compatibility_report -- --ignored --nocapture
+cargo test compatibility_report --release -- --ignored --nocapture
 ```
 
 Results:
 
-- **1,071 / 1,309** cases passed
+- **1,071 / 1,310** cases passed
 - **81.8%** overall compatibility
 - **49 / 49** properties implemented
 - **3 intentional divergences**
@@ -30,10 +30,10 @@ Results:
 A few examples of still-strong property areas:
 
 - `source`: **96.1%**
-- `title`: **92.1%**
+- `type`: **93.7%**
+- `title`: **91.8%**
 - `episode`: **90.6%**
 - `release_group`: **90.4%**
-- `type`: **93.7%**
 
 ---
 
@@ -86,8 +86,8 @@ That is the benchmark we optimize for first.
 
 ```bash
 # Full compatibility snapshot
-cargo test compatibility_report -- --ignored --nocapture
+cargo test compatibility_report --release -- --ignored --nocapture
 
 # Include sampled failure details
-HUNCH_DUMP_FAILURES=50 cargo test compatibility_report -- --ignored --nocapture
+HUNCH_DUMP_FAILURES=50 cargo test compatibility_report --release -- --ignored --nocapture
 ```
