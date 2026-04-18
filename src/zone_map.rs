@@ -1,7 +1,7 @@
 //! Zone map: structural analysis of filename zones.
 //!
 //! Identifies zones *before* full matching runs, inverting the v0.2
-//! "match-then-prune" flow. See docs/design.md D4 for rationale.
+//! "match-then-prune" flow. See DESIGN.md D4 for rationale.
 //!
 //! # Two-phase anchor detection
 //!
@@ -331,7 +331,7 @@ fn build_dir_zones(input: &str, token_stream: &TokenStream) -> Vec<SegmentZone> 
 ///
 /// ⚠️ **Heuristic fallback** (D6) — the "last candidate = year" rule is
 /// a positional heuristic. The principled solution is cross-file context
-/// (docs/design.md, Cross-file context): if siblings share "2001" in the same position,
+/// (DESIGN.md, Cross-file context): if siblings share "2001" in the same position,
 /// it's title, not year. This fallback is acceptable until context-based
 /// year resolution is implemented.
 fn disambiguate_years(input: &str, fn_start: usize, _tech_zone_start: usize) -> Option<YearInfo> {

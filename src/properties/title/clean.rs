@@ -17,7 +17,7 @@
 //! 6. [`strip_trailing_keywords`] — drop trailing `Part N`, `Season N`,
 //!    `Episode`, `-xNN` bonus markers (caller opt-in).
 //!
-//! See `D10: Refactor before accreting` in `docs/design.md` — this module
+//! See `D10: Refactor before accreting` in `DESIGN.md` — this module
 //! exists because we hit the "2nd cleaning mode + bool flag" tripwire.
 
 use super::{BRACKETS, SEPS};

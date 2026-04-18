@@ -18,8 +18,8 @@
 //! Group 5 (digit decomposition) and parts of Group 4 (anime detection
 //! via `filename.starts_with('[')`) are **fragile heuristics** that
 //! guess based on position and format conventions. These should be
-//! superseded by cross-file context when available (see docs/design.md
-//! context when available (see docs/design.md, Cross-file context).
+//! superseded by cross-file context when available (see DESIGN.md
+//! context when available (see DESIGN.md, Cross-file context).
 //! Until then, they run at low priority as last-resort fallbacks.
 
 mod patterns;
@@ -900,7 +900,7 @@ fn try_cjk_episode_marker(input: &str, matches: &mut Vec<MatchSpan>) {
 /// The `is_anime_style` check (`filename.starts_with('[')`) is also
 /// fragile — it assumes bracket-prefixed filenames are anime.
 ///
-/// **Principled fix:** Use cross-file context (docs/design.md, Cross-file context) to
+/// **Principled fix:** Use cross-file context (DESIGN.md, Cross-file context) to
 /// detect episode numbering patterns across siblings instead of guessing
 /// from digit positions in a single filename.
 fn try_digit_decomposition(input: &str, matches: &mut Vec<MatchSpan>) {
