@@ -9,90 +9,24 @@ mod invariance;
 mod matching;
 mod pass2_helpers;
 mod proper_count;
+mod rule_registry;
 pub(crate) mod token_context;
 mod zone_rules;
 
 use crate::hunch_result::HunchResult;
 use crate::matcher::engine;
-use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::{self, TokenStream};
 use crate::zone_map::{self, ZoneMap};
 use matching::MatchContext;
+use rule_registry::{LegacyMatcherFn, SegmentScope, TomlRule};
 
 use log::{debug, trace};
-use std::sync::LazyLock;
 
 use crate::priority;
-
-// ── TOML rule sets (embedded at compile time) ──────────────────────────────
-
-static VIDEO_CODEC_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_codec.toml")));
-static COLOR_DEPTH_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/color_depth.toml")));
-static COUNTRY_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/country.toml")));
-static STREAMING_SERVICE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/streaming_service.toml")));
-static VIDEO_PROFILE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_profile.toml")));
-static EPISODE_DETAILS_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/episode_details.toml")));
-static ANIME_BONUS_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/anime_bonus.toml")));
-static EDITION_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/edition.toml")));
-static AUDIO_CODEC_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_codec.toml")));
-static AUDIO_PROFILE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_profile.toml")));
-static AUDIO_CHANNELS_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_channels.toml")));
-static OTHER_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other.toml")));
-static OTHER_POSITIONAL_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other_positional.toml")));
-static VIDEO_API_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_api.toml")));
-static SOURCE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/source.toml")));
-static SCREEN_SIZE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/screen_size.toml")));
-static CONTAINER_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/container.toml")));
-static FRAME_RATE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/frame_rate.toml")));
-static LANGUAGE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/language.toml")));
-static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/subtitle_language.toml")));
-static EPISODE_FORMAT_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/episode_format.toml")));
-
-// ── Legacy matchers (not yet migrated to TOML) ─────────────────────────────
-
+use crate::properties::part;
+use crate::properties::release_group;
 use crate::properties::title;
-use crate::properties::{
-    aspect_ratio, bit_rate, bonus, crc32, date, episode_count, episodes, language, part,
-    release_group, size, subtitle_language, uuid, version, website, year,
-};
-
-/// A legacy matcher function: takes raw input, returns property matches.
-type LegacyMatcherFn = fn(&str) -> Vec<MatchSpan>;
-
-/// Whether a TOML rule set should match tokens from directory segments.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SegmentScope {
-    /// Match only filename tokens. Use for tech properties (source, codec, etc.)
-    /// where directory names like "TV Shows" or "HD" would cause false positives.
-    FilenameOnly,
-    /// Match tokens from all path segments. Directory matches receive a priority
-    /// penalty (`DIR_PRIORITY_PENALTY`) so filename matches always win in conflicts.
-    /// Use for contextual properties (season, year, language) where directories
-    /// carry genuine metadata ("Season 01/", "(2008)/", "VF/").
-    AllSegments,
-}
 
 /// The two-pass parsing pipeline.
 ///
@@ -104,9 +38,9 @@ enum SegmentScope {
 /// [`hunch`](crate::hunch) / [`hunch_with_context`](crate::hunch_with_context)
 /// for convenience.
 pub struct Pipeline {
-    /// TOML-driven rule sets: (rules, property, priority, segment_scope).
-    toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)>,
-    /// Legacy matchers that run against raw input (to be migrated).
+    /// TOML-driven rule sets registered in [`rule_registry::build_toml_rules`].
+    toml_rules: Vec<TomlRule>,
+    /// Legacy matchers registered in [`rule_registry::build_legacy_matchers`].
     legacy_matchers: Vec<LegacyMatcherFn>,
 }
 
@@ -123,188 +57,9 @@ impl Pipeline {
     /// Construct a `Pipeline` directly when you want to reuse the same
     /// configuration across many inputs.
     pub fn new() -> Self {
-        let toml_rules: Vec<(&'static LazyLock<RuleSet>, Property, i32, SegmentScope)> = vec![
-            // Tech properties: unambiguous tokens safe for all segments.
-            // These were previously scanned across full paths by legacy matchers.
-            // Tokens like XviD, x264, 720p, AAC are unambiguous in directory names.
-            (
-                &VIDEO_CODEC_RULES,
-                Property::VideoCodec,
-                priority::DEFAULT,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &COLOR_DEPTH_RULES,
-                Property::ColorDepth,
-                priority::DEFAULT,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &AUDIO_CODEC_RULES,
-                Property::AudioCodec,
-                priority::DEFAULT,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &AUDIO_PROFILE_RULES,
-                Property::AudioProfile,
-                priority::VOCABULARY,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &AUDIO_CHANNELS_RULES,
-                Property::AudioChannels,
-                priority::HEURISTIC,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &FRAME_RATE_RULES,
-                Property::FrameRate,
-                priority::DEFAULT,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &SCREEN_SIZE_RULES,
-                Property::ScreenSize,
-                priority::DEFAULT,
-                SegmentScope::AllSegments,
-            ),
-            // Tech properties: ambiguous tokens, filename only.
-            // Short tokens (HD, DV, TV, TS) would false-positive in dir names.
-            (
-                &STREAMING_SERVICE_RULES,
-                Property::StreamingService,
-                priority::VOCABULARY,
-                SegmentScope::FilenameOnly,
-            ),
-            (
-                &VIDEO_PROFILE_RULES,
-                Property::VideoProfile,
-                priority::POSITIONAL,
-                SegmentScope::FilenameOnly,
-            ),
-            (
-                &EPISODE_DETAILS_RULES,
-                Property::EpisodeDetails,
-                priority::HEURISTIC,
-                SegmentScope::FilenameOnly,
-            ),
-            (
-                &ANIME_BONUS_RULES,
-                Property::EpisodeDetails,
-                priority::HEURISTIC,
-                SegmentScope::FilenameOnly,
-            ),
-            (
-                &EPISODE_FORMAT_RULES,
-                Property::EpisodeFormat,
-                priority::HEURISTIC,
-                SegmentScope::FilenameOnly,
-            ),
-            (
-                &EDITION_RULES,
-                Property::Edition,
-                priority::DEFAULT,
-                SegmentScope::AllSegments,
-            ),
-            // Other: AllSegments with dir priority penalty.
-            // Per-directory zone maps filter false positives in title zones.
-            (
-                &OTHER_RULES,
-                Property::Other,
-                priority::DEFAULT,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &OTHER_POSITIONAL_RULES,
-                Property::Other,
-                priority::POSITIONAL,
-                SegmentScope::FilenameOnly,
-            ),
-            (
-                &VIDEO_API_RULES,
-                Property::VideoApi,
-                priority::DEFAULT,
-                SegmentScope::FilenameOnly,
-            ),
-            (
-                &SOURCE_RULES,
-                Property::Source,
-                priority::DEFAULT,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &CONTAINER_RULES,
-                Property::Container,
-                priority::STRUCTURAL,
-                SegmentScope::FilenameOnly,
-            ),
-            // Contextual properties: match all segments (dirs carry real metadata)
-            // NOTE: Language, SubtitleLanguage, and Country are kept FilenameOnly
-            // for now because directory names contain title words that false-match
-            // language patterns (e.g., "Por" → Portuguese, "Fr" → French).
-            // Directory-level language/season/year extraction is handled by the
-            // legacy algorithmic matchers (language.rs, episodes.rs, year.rs)
-            // which run on the raw input string.
-            // When those legacy matchers are retired, we'll need segment-aware
-            // zone rules to filter directory title words from language matches.
-            (
-                &COUNTRY_RULES,
-                Property::Country,
-                priority::POSITIONAL,
-                SegmentScope::FilenameOnly,
-            ),
-            (
-                &LANGUAGE_RULES,
-                Property::Language,
-                priority::HEURISTIC,
-                SegmentScope::AllSegments,
-            ),
-            (
-                &SUBTITLE_LANGUAGE_RULES,
-                Property::SubtitleLanguage,
-                priority::HEURISTIC,
-                SegmentScope::FilenameOnly,
-            ),
-        ];
-
-        // Legacy matchers — algorithmic patterns that need Rust.
-        //
-        // **Algorithmic** (genuinely need Rust — branching, state, or position):
-        //   episodes, date, language, subtitle_language, episode_count,
-        //   release_group (Pass 2), part, website, aspect_ratio, bit_rate
-        //
-        // **Migration candidates** (could be expressed as TOML rules):
-        //   crc32     — single regex, bracket context expressible via zone_scope
-        //   uuid      — two regex patterns, no boundary logic beyond TOML's
-        //   version   — two regexes + CharClass boundaries (needs D8 extension)
-        //   size      — regex + unit parse (needs value normalization in TOML)
-        //   bonus     — regex + boundary check (borderline)
-        //
-        // NOTE: source is now fully TOML (source.toml with side_effects).
-        // audio_profile is handled entirely by audio_profile.toml.
-        let legacy_matchers: Vec<LegacyMatcherFn> = vec![
-            aspect_ratio::find_matches,
-            year::find_matches,
-            date::find_matches,
-            episodes::find_matches,
-            episode_count::find_matches,
-            language::find_matches,
-            subtitle_language::find_matches,
-            crc32::find_matches,
-            uuid::find_matches,
-            website::find_matches,
-            size::find_matches,
-            bit_rate::find_matches,
-            part::find_matches,
-            bonus::find_matches,
-            version::find_matches,
-            // NOTE: release_group is NOT here — it runs in Pass 2 (post-resolution).
-        ];
-
         Self {
-            toml_rules,
-            legacy_matchers,
+            toml_rules: rule_registry::build_toml_rules(),
+            legacy_matchers: rule_registry::build_legacy_matchers(),
         }
     }
 
@@ -786,20 +541,20 @@ impl Pipeline {
         // Each rule set declares its SegmentScope:
         //   FilenameOnly  → skip directory segments entirely
         //   AllSegments   → match dirs too, but with a priority penalty
-        for (rule_set, property, priority, scope) in &self.toml_rules {
+        for rule in &self.toml_rules {
             for (seg_idx, segment) in token_stream.segments.iter().enumerate() {
                 let is_dir = segment.kind == tokenizer::SegmentKind::Directory;
 
                 // Skip directory segments for filename-only rules.
-                if is_dir && *scope == SegmentScope::FilenameOnly {
+                if is_dir && rule.scope == SegmentScope::FilenameOnly {
                     continue;
                 }
 
                 // Directory matches get a priority penalty so filename wins in conflicts.
                 let effective_priority = if is_dir {
-                    *priority + priority::DIR_PENALTY
+                    rule.priority + priority::DIR_PENALTY
                 } else {
-                    *priority
+                    rule.priority
                 };
 
                 // Use per-directory zone map for directory segments.
@@ -817,8 +572,8 @@ impl Pipeline {
                     &MatchContext {
                         input,
                         tokens,
-                        rule_set,
-                        property: *property,
+                        rule_set: rule.rules,
+                        property: rule.property,
                         priority: effective_priority,
                         zone_map,
                         dir_zone,
@@ -915,17 +670,6 @@ fn is_path_dir_name(input: &str, title: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_toml_rules_load() {
-        // Smoke test: all TOML rule sets parse and have entries.
-        assert!(VIDEO_CODEC_RULES.exact_count() >= 10);
-        assert!(COLOR_DEPTH_RULES.exact_count() >= 3);
-        assert!(STREAMING_SERVICE_RULES.exact_count() >= 10);
-        assert!(VIDEO_PROFILE_RULES.exact_count() >= 2);
-        assert!(EPISODE_DETAILS_RULES.exact_count() >= 4);
-        assert!(EDITION_RULES.exact_count() >= 10);
-    }
 
     #[test]
     fn test_is_path_dir_name() {
