@@ -35,9 +35,13 @@ static WEBSITE_FROM: LazyLock<Regex> = LazyLock::new(|| {
 
 /// Unbracketed website in filename: MkvCage.com, www.divx-overnet.com
 /// Excludes common file extensions and requires a boundary before the domain.
+///
+/// The trailing `\b` is critical: without it, `.ru` would false-positive inside
+/// language abbreviations like `.rus` (Russian), producing nonsense like
+/// `website: "s02e20.ru"` for `Community.s02e20.rus.eng.720p...` (issue #163).
 static WEBSITE_INLINE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-    r"(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.(?:com|org|net|info|tv|io|ru|cc))"
+    r"(?P<site>(?:www\.)?[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.(?:com|org|net|info|tv|io|ru|cc))\b"
     ).unwrap()
 });
 
@@ -156,5 +160,48 @@ mod tests {
         assert!(has_known_tld("wawa.co.uk"));
         assert!(!has_known_tld("ready.player.one"));
         assert!(!has_known_tld("some.thing.movie"));
+    }
+
+    /// Regression for #163: inline website matcher must not match `.ru` inside
+    /// the Russian language abbreviation `.rus`. Bug surfaced from the
+    /// parse-torrent-name corpus triage in PR #157.
+    #[test]
+    fn test_no_false_positive_on_language_abbrev_rus() {
+        let m = find_matches("Community.s02e20.rus.eng.720p.Kybik.v.Kybe");
+        assert!(
+            m.is_empty(),
+            "`.ru` inside `.rus` (Russian abbrev) must not match as a website, got: {:?}",
+            m.iter().map(|x| &x.value).collect::<Vec<_>>()
+        );
+    }
+
+    /// Genuine `.ru` domains must still be detected — fix shouldn't regress
+    /// real ccTLD matches.
+    #[test]
+    fn test_genuine_ru_domain_still_matches() {
+        let m = find_matches("Movie.tracker.ru.x264.mkv");
+        assert!(
+            m.iter().any(|x| x.value == "tracker.ru"),
+            "genuine `.ru` domain should still match, got: {:?}",
+            m.iter().map(|x| &x.value).collect::<Vec<_>>()
+        );
+    }
+
+    /// Word-boundary guard should also reject other letter-extended TLDs:
+    /// `.com` inside `.community`, `.net` inside `.network`, etc.
+    #[test]
+    fn test_no_false_positive_on_extended_tld_suffixes() {
+        for sample in [
+            "Show.s01e01.community.center.720p",
+            "Show.s01e01.networking.event.720p",
+            "Show.s01e01.organic.farm.720p",
+        ] {
+            let m = find_matches(sample);
+            assert!(
+                m.is_empty(),
+                "TLD-as-prefix-of-word must not match for {sample:?}, got: {:?}",
+                m.iter().map(|x| &x.value).collect::<Vec<_>>()
+            );
+        }
     }
 }
