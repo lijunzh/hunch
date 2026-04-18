@@ -7,12 +7,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-04-17
+
+### Changed
+
+- **`--batch -r` now bounds recursion depth and skips symlinks.** Recursive
+  directory walks (`hunch --batch <dir> -r`) cap at 32 levels deep and
+  silently skip symbolic links — both regular files and directories.
+  Defends against denial-of-service via deeply nested trees (stack
+  overflow) and symlink loops (infinite recursion). Users with curated
+  libraries that rely on symlinks (e.g., a `Movies/` directory built from
+  NAS symlinks) will see fewer or zero results in v1.1.8 — either follow
+  the symlinks before invoking hunch, or run hunch on the original
+  directory tree. (#137)
+
 ### Fixed
 
 - **Anime titles containing `" - "` and `"Part N"`** — in `[Group] Show - Sub
   Part 2 - 13 [tags]` style filenames, the title is now extracted as the full
   `Show - Sub Part 2`. Previously the parser truncated at the first `" - "`
-  and incorrectly extracted `Part 2` as a standalone `part` property. (#124)
+  and incorrectly extracted `Part 2` as a standalone `part` property.
+  (#124, #127)
+
+### Refactored
+
+- **Pipeline `rule_registry` extracted** from `pipeline/mod.rs` into its own
+  module. Centralizes the legacy / TOML rule registration so the pipeline
+  orchestration stays at the orchestration layer of abstraction. (#134)
+- **Title `find_title_boundary` renamed** for clarity, with documented
+  semantics and a pinned caveat preventing accidental re-introduction of the
+  pre-rename behavior. (#128 Debt #4, #133)
+- **Title fallback extractors unified** behind a new `TitleStrategy` trait.
+  The 5–6 ad-hoc extractor functions are now first-class strategy types in
+  `properties/title/strategies/`, registered in a single ordered fallback
+  list. (#128 Debt #1, #132)
+- **Part reclaimable when Episode present.** `Part N` matches in the same
+  set as an `Episode` match are now marked reclaimable so the existing
+  title-absorption step can fold them into the title uniformly. Replaces
+  the bespoke `absorb_part_into_title` post-hoc corrector (in line with the
+  D10 "no post-hoc correctors" tripwire). (#128 Debt #3, #131)
+- **`clean_title` decomposed** into composable transforms (`strip_*`,
+  `normalize_separators`, `trim_trailing_punct`, `strip_trailing_keywords`,
+  `clean_title_preserve_dashes`, `DashPolicy`). Each transform is
+  individually testable and composable; `clean_title` becomes a thin
+  orchestrator. (#128 Debt #2, #130)
+- **`mark_reclaimable_when_episode_present` visibility tightened** from
+  `pub` to `pub(crate)`. Internal-only helper; never intended as part of
+  the public API surface. (release-prep)
+
+### Tests
+
+- **Three regression scenarios pinned** as named tests in dedicated files:
+  flat-batch warning hint, parent-context propagation, and wrong-type path
+  inference. Prevents silent regression of behaviors that previously had
+  only ad-hoc coverage. (#138)
+- **`tests/cli_walk_dir_safety.rs`** added alongside #137 with four
+  scenarios: deep-tree depth bound (40 levels, control file at depth 1);
+  realistic-depth happy path (depth 6); `cfg(unix)` symlink-loop containment
+  (counts occurrences to prove non-following); outside-root symlink-escape
+  rejection. (#137)
+
+### Docs
+
+- **`SECURITY.md` added** at repo root with threat model, vulnerability
+  reporting procedure (private GitHub Security Advisories), and explicit
+  in-scope / out-of-scope categorization. (#139)
+- **API Stability Policy** added to `CONTRIBUTING.md` documenting the hard
+  vs. soft public-API contract: `hunch::Pipeline`, `HunchResult`, `MediaType`,
+  `Confidence`, `Property`, and the top-level `hunch()` / `hunch_with_context()`
+  functions are SemVer-stable; `properties::*` submodules are explicitly
+  unstable. (#139)
+- **`DESIGN.md` promoted** to a root-level document (was `docs/design.md`).
+  Adds D10 "Refactor before accreting" with three concrete tripwire rules:
+  no post-hoc correctors, no parallel matchers, no growing dispatchers.
+  (#129, #135)
+- **`docs/user_manual.md`** updated to document `-r` recursion behavior:
+  symlinks are skipped (loop-safe), traversal stops at 32 levels deep.
+  (release-prep, paired with #137)
+- **Doc drift cleanup** — README, CONTRIBUTING, user_manual, and
+  compatibility cross-references audited and refreshed against current
+  source state. (#136)
+- **Compatibility report** refreshed: 1072 / 1311 fixtures pass (81.8%),
+  up from 1071 / 1309 in v1.1.7 (two fixtures added, one new pass).
+  (release-prep)
+
+### CI
+
+- **`cargo-semver-checks` PR-time gate** added. Detects accidental
+  SemVer-incompatible changes to the public Rust API by comparing PR head
+  against the latest crates.io release. Blocks breaking changes within a
+  major version line. (#142)
+- **Cross-OS PR matrix** — `Check` and `Test` jobs now run on
+  ubuntu-latest, macos-latest, and windows-latest. Catches
+  platform-conditional compile errors and path-handling differences before
+  release time. (#141)
+- **Security hardening of CI workflows.** All third-party actions SHA-pinned
+  with version comments (defends against tag-republishing supply-chain
+  attacks). `cargo audit` now hard-fails on RUSTSEC vulnerabilities (was
+  silenced by `|| true`). Dependabot auto-merge metadata-gated to
+  patches-only and dev/CI-tooling minor bumps; major bumps and runtime-dep
+  minor bumps now require manual review. Two yanked transitive dev-deps
+  refreshed (`js-sys 0.3.88` → `0.3.95`, `wasm-bindgen 0.2.111` →
+  `0.2.118`). Default `permissions: contents: read` on `ci.yml`. (#140)
+
+### Repository governance
+
+- **`.gitignore` hardened** with broad patterns for accidental secret /
+  credential commits (`.env*`, `*.pem`, `*.key`, `id_rsa*`, `secrets*`,
+  `credentials.json`, `service-account*.json`). (#139)
 
 ## [1.1.7] - 2026-03-23
 
@@ -691,6 +793,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[1.1.8]: https://github.com/lijunzh/hunch/releases/tag/v1.1.8
 [1.1.7]: https://github.com/lijunzh/hunch/releases/tag/v1.1.7
 [1.1.6]: https://github.com/lijunzh/hunch/releases/tag/v1.1.6
 [1.1.5]: https://github.com/lijunzh/hunch/releases/tag/v1.1.5

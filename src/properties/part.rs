@@ -190,7 +190,7 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
 ///
 /// For movie-style files (`Movie.Part.3.mkv`) there is no Episode match,
 /// so Part stays confident and remains the title boundary.
-pub fn mark_reclaimable_when_episode_present(matches: &mut [MatchSpan]) {
+pub(crate) fn mark_reclaimable_when_episode_present(matches: &mut [MatchSpan]) {
     let has_episode = matches.iter().any(|m| m.property == Property::Episode);
     if !has_episode {
         return;

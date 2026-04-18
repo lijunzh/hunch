@@ -8,7 +8,7 @@ But guessit compatibility is no longer the primary optimization target.
 Hunch is tuned first for **real-world media-library accuracy**, with guessit
 compatibility used as a reference point rather than a product goal.
 
-> **Last updated:** 2026-04-17 (`main` after #135, pre-v1.1.8 release prep)
+> **Last updated:** 2026-04-17 (v1.1.8 release)
 
 ---
 

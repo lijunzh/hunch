@@ -94,7 +94,7 @@ hunch --batch /path/to/movies/ -r -j
 |---|---|
 | `--context <DIR>` | Use sibling files for better title detection |
 | `--batch <DIR>` | Parse all media files in a directory |
-| `-r`, `--recursive` | Recurse into subdirectories (with `--batch`) |
+| `-r`, `--recursive` | Recurse into subdirectories (with `--batch`). Symlinks are skipped (loop-safe, sandbox-safe), and traversal stops at 32 levels deep. |
 | `-j`, `--json` | Compact JSON output (default is pretty-printed) |
 | `-v`, `--verbose` | Enable debug logging |
 

@@ -86,7 +86,7 @@ All 49 guessit properties implemented. Validated against guessit's
 
 | Metric | Value |
 |---|---|
-| Pass rate | **81.8%** (1,071 / 1,309) |
+| Pass rate | **81.8%** (1,072 / 1,311) |
 | Properties at 95%+ | 22 |
 | Properties at 100% | 16 |
 
