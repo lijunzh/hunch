@@ -685,6 +685,9 @@ impl Pipeline {
             );
             // Remove reclaimable matches absorbed into the title.
             title::absorb_reclaimable(&title_match, all_matches);
+            // Drop Part matches that ended up inside the title (e.g. anime
+            // titles containing "Part N").
+            title::absorb_part_into_title(&title_match, all_matches);
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **Anime titles containing `" - "` and `"Part N"`** — in `[Group] Show - Sub
+  Part 2 - 13 [tags]` style filenames, the title is now extracted as the full
+  `Show - Sub Part 2`. Previously the parser truncated at the first `" - "`
+  and incorrectly extracted `Part 2` as a standalone `part` property. (#124)
+
 ## [1.1.7] - 2026-03-23
 
 ### Fixed

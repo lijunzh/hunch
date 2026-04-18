@@ -4722,6 +4722,20 @@
   container: mkv
   type: episode
 
+# Issue #124: anime title containing " - " and "Part N" must not be truncated.
+? '[Erai-raws] Enen no Shouboutai - San no Shou Part 2 - 13 [1080p CR WEB-DL AVC AAC][MultiSub][7FF9B816].mkv'
+: release_group: Erai-raws
+  title: Enen no Shouboutai - San no Shou Part 2
+  episode: 13
+  screen_size: 1080p
+  source: Web
+  video_codec: H.264
+  audio_codec: AAC
+  subtitle_language: und
+  crc32: 7FF9B816
+  container: mkv
+  type: episode
+
 ? Mom.S06E08.Jell-O.Shots.and.the.Truth.About.Santa.1080p.AMZN.WEB-DL.DDP5.1.H.264-NTb.mkv
 : title: Mom
   season: 6
