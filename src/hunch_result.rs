@@ -95,6 +95,20 @@ impl HunchResult {
                 values.push(m.value.clone());
             }
         }
+
+        // Derive Mimetype from Container (#158). This is a pure mapping —
+        // no parsing — so it lives at result-build time rather than as a
+        // matcher. Done after the dedup pass so we read the canonical
+        // container value that survived.
+        if let Some(container) = props.get(&Property::Container).and_then(|v| v.first())
+            && let Some(mime) = container_to_mimetype(container)
+        {
+            props
+                .entry(Property::Mimetype)
+                .or_default()
+                .push(mime.to_string());
+        }
+
         Self {
             props,
             confidence: Confidence::Medium, // default; pipeline sets the real value
@@ -158,6 +172,35 @@ impl HunchResult {
     /// Audio codec (e.g., "AAC", "DTS").
     pub fn audio_codec(&self) -> Option<&str> {
         self.first(Property::AudioCodec)
+    }
+
+    /// Audio bit rate (e.g., `"320Kbps"`, `"448Kbps"`).
+    ///
+    /// All bit-rate matches with `Kbps` units are routed here. See
+    /// [`Property::AudioBitRate`] for the unit-based disambiguation rationale.
+    pub fn audio_bit_rate(&self) -> Option<&str> {
+        self.first(Property::AudioBitRate)
+    }
+
+    /// Video bit rate (e.g., `"1.5Mbps"`, `"19.1Mbps"`).
+    ///
+    /// All bit-rate matches with `Mbps` units are routed here. See
+    /// [`Property::VideoBitRate`] for the unit-based disambiguation rationale.
+    pub fn video_bit_rate(&self) -> Option<&str> {
+        self.first(Property::VideoBitRate)
+    }
+
+    /// MIME type derived from the file container (e.g., `"video/mp4"`).
+    ///
+    /// This is a derived getter — the MIME type is not parsed from the
+    /// filename but mapped from [`container`](Self::container) using a fixed
+    /// table of common video/audio/subtitle containers. Returns `None` if
+    /// the container is unknown or unmapped.
+    ///
+    /// The mapping is populated when the [`HunchResult`] is built so that
+    /// callers don't have to maintain their own container → MIME table.
+    pub fn mimetype(&self) -> Option<&str> {
+        self.first(Property::Mimetype)
     }
 
     /// Audio channels (e.g., "5.1", "7.1").
@@ -378,6 +421,50 @@ impl std::fmt::Display for HunchResult {
     }
 }
 
+/// Map a normalized container value (e.g., `"mp4"`, `"mkv"`) to its IANA
+/// MIME type. Returns `None` for unknown containers (defensive default —
+/// the alternative would be to fabricate a `application/octet-stream`
+/// fallback, but a missing mimetype is more honest than a wrong one).
+///
+/// The table covers the containers actually emitted by hunch's parser
+/// (see `src/properties/container.rs`) plus a few common aliases. Add
+/// entries here if a new container is supported upstream.
+fn container_to_mimetype(container: &str) -> Option<&'static str> {
+    // Lower-case lookup so callers don't have to normalize. The values
+    // returned are canonical IANA registrations where they exist; for
+    // formats without an IANA entry (e.g., .mkv) we use the de-facto
+    // standard MIME type widely accepted by browsers and players.
+    match container.to_ascii_lowercase().as_str() {
+        // Video containers.
+        "mp4" | "m4v" => Some("video/mp4"),
+        "mkv" => Some("video/x-matroska"),
+        "avi" => Some("video/x-msvideo"),
+        "mov" | "qt" => Some("video/quicktime"),
+        "webm" => Some("video/webm"),
+        "flv" => Some("video/x-flv"),
+        "wmv" => Some("video/x-ms-wmv"),
+        "mpg" | "mpeg" => Some("video/mpeg"),
+        "ts" | "m2ts" | "mts" => Some("video/mp2t"),
+        "vob" => Some("video/dvd"),
+        "3gp" => Some("video/3gpp"),
+        // Audio containers.
+        "mp3" => Some("audio/mpeg"),
+        "flac" => Some("audio/flac"),
+        "m4a" => Some("audio/mp4"),
+        "ogg" | "oga" => Some("audio/ogg"),
+        "wav" => Some("audio/wav"),
+        "wma" => Some("audio/x-ms-wma"),
+        "aac" => Some("audio/aac"),
+        // Subtitle containers.
+        "srt" => Some("application/x-subrip"),
+        "ass" | "ssa" => Some("text/x-ssa"),
+        "vtt" => Some("text/vtt"),
+        "sub" => Some("text/plain"),
+        "idx" => Some("application/x-vobsub"),
+        // Unknown container — return None rather than guess.
+        _ => None,
+    }
+}
 #[cfg(test)]
 mod tests {
     //! Unit tests for typed-accessor helpers added on top of the [`MediaType`]

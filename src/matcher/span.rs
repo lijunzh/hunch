@@ -149,6 +149,12 @@ define_properties! {
     /// File size (e.g., `"1.4 GB"`, `"700 MB"`).
     Size => "size",
     /// Audio or video bit rate (e.g., `"320Kbps"`, `"1.5Mbps"`).
+    ///
+    /// **Deprecated**: bit rate matches are now disambiguated at parse time
+    /// into [`AudioBitRate`](Self::AudioBitRate) (`Kbps`) and
+    /// [`VideoBitRate`](Self::VideoBitRate) (`Mbps`). This variant is retained
+    /// for enum-API stability (downstream `match` arms continue to compile)
+    /// but no parser produces it as of the bit-rate split (#158).
     BitRate => "bit_rate",
     /// CD / disc number within a multi-disc set (e.g., `"1"` from `CD1`).
     Cd => "cd",
@@ -192,6 +198,37 @@ define_properties! {
     SeasonCount => "season_count",
     /// Video API / framework (e.g., `"DXVA"`).
     VideoApi => "video_api",
+    /// MIME type derived from the file container (e.g., `"video/mp4"`,
+    /// `"video/x-matroska"`).
+    ///
+    /// This is a derived property: it is computed from
+    /// [`Container`](Self::Container) at result-build time rather than parsed
+    /// from the input string. The mapping is fixed (mp4→video/mp4, mkv→
+    /// video/x-matroska, etc.) so downstream consumers don't have to maintain
+    /// their own container→MIME table.
+    ///
+    /// (Appended to the end of the enum to keep the
+    /// discriminants of pre-existing variants stable.)
+    Mimetype => "mimetype",
+    /// Audio bit rate (e.g., `"320Kbps"`, `"448Kbps"`).
+    ///
+    /// All bit-rate matches with `Kbps` units are emitted under this property.
+    /// Audio data rates are universally in the kilobit range (typically
+    /// 96–512 Kbps), making the unit a near-perfect signal for the audio /
+    /// video distinction.
+    ///
+    /// (Appended to the end of the enum to keep the
+    /// discriminants of pre-existing variants stable.)
+    AudioBitRate => "audio_bit_rate",
+    /// Video bit rate (e.g., `"1.5Mbps"`, `"19.1Mbps"`).
+    ///
+    /// All bit-rate matches with `Mbps` units are emitted under this property.
+    /// Video data rates are universally in the megabit range (typically
+    /// 1–50 Mbps).
+    ///
+    /// (Appended to the end of the enum to keep the
+    /// discriminants of pre-existing variants stable.)
+    VideoBitRate => "video_bit_rate",
 }
 
 /// A single match found in the input string.

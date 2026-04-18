@@ -1,8 +1,22 @@
 //! Bit rate detection.
 //!
 //! Detects audio/video bit rates: 320Kbps, 448Kbps, 19.1Mbps, etc.
-//! Hunch emits a single `bit_rate` property (not split into audio/video).
-//! See COMPATIBILITY.md for rationale.
+//!
+//! Bit-rate matches are disambiguated at parse time using the unit as the
+//! signal:
+//!
+//! - `Kbps` (kilobits per second) → [`Property::AudioBitRate`].
+//!   Audio data rates are universally in the kilobit range (typically
+//!   96–512 Kbps for compressed formats; rarely above 1024 Kbps even for
+//!   lossless).
+//! - `Mbps` (megabits per second) → [`Property::VideoBitRate`].
+//!   Video data rates are universally in the megabit range (typically
+//!   1–50 Mbps for compressed formats).
+//!
+//! This unit-based heuristic matches guessit's behavior and reflects how the
+//! values appear in real-world filenames. The legacy [`Property::BitRate`]
+//! variant is retained on the enum for back-compat with downstream `match`
+//! arms but is no longer produced by this matcher.
 
 use regex::Regex;
 
@@ -10,9 +24,21 @@ use crate::matcher::regex_utils::{BoundarySpec, CharClass, check_boundary};
 use crate::matcher::span::{MatchSpan, Property};
 use std::sync::LazyLock;
 
-/// Matches: 320Kbps, 448 Kbps, 19.1Mbps, 1.5 Mbps, etc.
+/// Matches: 320Kbps, 448 Kbps, 19.1Mbps, 1.5 Mbps, 384kbit, 5Mbit, etc.
+///
+/// Accepts the long suffix (`bps` = bits per second), the short suffix
+/// (`bit`), or the plural short suffix (`bits` — seen in some anime
+/// release notations like `19.1mbits`). All three normalize to `bps` at
+/// output for a single canonical form.
+///
+/// The decimal portion is intentionally bounded to 1–2 digits. Real-world
+/// bit-rate values are almost never specified to higher precision, and the
+/// loose `\d+` form caused greedy collisions with adjacent decimals like
+/// audio-channel notation (`DD5.1.448kbps` would match `1.448Kbps` instead
+/// of `448Kbps`). The bounded form lets the regex backtrack cleanly to the
+/// next integer match in such cases.
 static BIT_RATE_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>[KkMm]bps)")
+    Regex::new(r"(?i)(?P<num>\d+(?:\.\d{1,2})?)\s*(?P<unit>[KkMm])(?:bps|bits?)")
         .expect("BIT_RATE regex is valid")
 });
 
@@ -54,18 +80,32 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
             .expect("unit group always present in BIT_RATE")
             .as_str();
 
-        // Normalize unit casing: "kbps" → "Kbps", "mbps" → "Mbps".
+        // Normalize unit prefix casing: "k" → "K", "m" → "M".
+        // The trailing suffix is always normalized to "bps" regardless of
+        // whether the input said "bps" or "bit" — single canonical form.
         let normalized_unit = match unit.to_ascii_lowercase().as_str() {
-            "kbps" => "Kbps",
-            "mbps" => "Mbps",
-            _ => unit,
+            "k" => "Kbps",
+            "m" => "Mbps",
+            // Fallback: shouldn't occur given the regex character class.
+            _ => "Kbps",
         };
 
         // Output without spaces: "320Kbps", "19.1Mbps".
         let value = format!("{num}{normalized_unit}");
 
+        // Disambiguate by unit (#158): Kbps → audio, Mbps → video.
+        // The unit alone is a near-perfect signal in real-world filenames.
+        let property = match normalized_unit {
+            "Kbps" => Property::AudioBitRate,
+            "Mbps" => Property::VideoBitRate,
+            // Fallback: shouldn't happen given the regex, but keep the
+            // legacy BitRate variant as the safety net rather than
+            // panicking on an unexpected unit (defensive).
+            _ => Property::BitRate,
+        };
+
         matches.push(
-            MatchSpan::new(abs_start, abs_end, Property::BitRate, &value)
+            MatchSpan::new(abs_start, abs_end, property, &value)
                 .with_priority(crate::priority::VOCABULARY),
         );
 
@@ -85,6 +125,8 @@ mod tests {
         let m = find_matches("Music.Track.320Kbps.mp3");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "320Kbps");
+        // Kbps must always be classified as AudioBitRate (#158).
+        assert_eq!(m[0].property, Property::AudioBitRate);
     }
 
     #[test]
@@ -92,6 +134,7 @@ mod tests {
         let m = find_matches("Music [320 Kbps].mp3");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "320Kbps");
+        assert_eq!(m[0].property, Property::AudioBitRate);
     }
 
     #[test]
@@ -99,6 +142,8 @@ mod tests {
         let m = find_matches("Show.Name.19.1Mbps.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "19.1Mbps");
+        // Mbps must always be classified as VideoBitRate (#158).
+        assert_eq!(m[0].property, Property::VideoBitRate);
     }
 
     #[test]
@@ -106,6 +151,7 @@ mod tests {
         let m = find_matches("Show.Name.20Mbps.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "20Mbps");
+        assert_eq!(m[0].property, Property::VideoBitRate);
     }
 
     #[test]
@@ -113,6 +159,7 @@ mod tests {
         let m = find_matches("Title Name [480p][1.5Mbps][.mp4]");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "1.5Mbps");
+        assert_eq!(m[0].property, Property::VideoBitRate);
     }
 
     #[test]
@@ -121,6 +168,7 @@ mod tests {
         let m = find_matches("H264.384Kbps.mkv");
         assert_eq!(m.len(), 1);
         assert_eq!(m[0].value, "384Kbps");
+        assert_eq!(m[0].property, Property::AudioBitRate);
     }
 
     #[test]
