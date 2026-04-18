@@ -1,5 +1,7 @@
 # 🔍 Hunch
 
+[![Coverage](https://img.shields.io/badge/coverage-94.34%25-brightgreen)](docs/coverage.md)
+
 **A fast, offline media filename parser for Rust — extract title, year, season,
 episode, codec, language, and 49 properties from messy filenames.**
 
