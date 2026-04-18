@@ -3,6 +3,12 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  push:
+    # Run CI on pushes to release prep branches so semver-checks, audit, and
+    # cross-OS results are visible BEFORE the release PR is opened (#150).
+    # `main` itself is excluded because it's already exercised by the PR-time
+    # workflow that runs against every PR targeting it.
+    branches: ["release/**"]
   workflow_call:
 
 concurrency:
