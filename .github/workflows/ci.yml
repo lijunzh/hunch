@@ -110,3 +110,23 @@ jobs:
         # shouldn't block PRs. Use --deny yanked here only if you
         # want to enforce zero-yanks; we tolerate dev-dep yanks today.
         run: cargo audit
+
+  semver:
+    name: Semver Checks
+    # Detects accidental SemVer-incompatible changes to the public Rust
+    # API (anything `pub use`d from src/lib.rs). Catches the easy-to-miss
+    # cases that CONTRIBUTING.md's API Stability Policy enumerates:
+    # removed/renamed pub items, signature changes, new non-defaulted
+    # variants on pub enums, tightened trait bounds, etc.
+    #
+    # Compares the PR head's public API against the latest release on
+    # crates.io. Hard-fails on any breaking change — if the change is
+    # intentional and warrants a major-version bump, the PR author
+    # bumps Cargo.toml `version` to N+1.0.0 and this job becomes a
+    # no-op (semver-checks only flags breakage WITHIN a major).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+      - uses: obi1kenobi/cargo-semver-checks-action@5b298c9520f7096a4683c0bd981a7ac5a7e249ae  # v2.8
