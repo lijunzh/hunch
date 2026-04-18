@@ -106,3 +106,50 @@ pub(super) fn run_fallback_ladder(ctx: &StrategyContext<'_>) -> Option<MatchSpan
     }
     None
 }
+
+#[cfg(test)]
+mod tests {
+    //! Pin the [`FALLBACK_STRATEGIES`] registration order against accidental
+    //! shuffling. The module-level rationale comment explains why the order
+    //! matters; this test ensures a future refactor that re-orders the
+    //! ladder — intentionally or accidentally — forces the author to also
+    //! update the rationale and acknowledge the change. (#154)
+    //!
+    //! If you genuinely need to change the order, update BOTH the
+    //! rationale comment above [`FALLBACK_STRATEGIES`] AND this test in
+    //! the same commit — atomic intent.
+
+    use super::*;
+
+    #[test]
+    fn fallback_ladder_order_is_pinned() {
+        let names: Vec<&'static str> = FALLBACK_STRATEGIES.iter().map(|s| s.name()).collect();
+        assert_eq!(
+            names,
+            vec![
+                "cjk_bracket",         // 1. most specific
+                "after_bracket_group", // 2. anime
+                "unclaimed_bracket",   // 3. broader bracket fallback
+                "parent_dir",          // 4. last resort
+            ],
+            "FALLBACK_STRATEGIES order changed without updating this test. \
+             If intentional, update the rationale comment above the static \
+             AND this assertion in the same commit (atomic intent)."
+        );
+    }
+
+    #[test]
+    fn fallback_ladder_count_is_pinned() {
+        // A separate, narrower assert so the failure message is unambiguous
+        // when someone APPENDS a strategy (the order test would also fail,
+        // but with a confusing diff). Adding a 5th strategy is the common
+        // case per the module docs — update both this expected count and
+        // the order assertion above.
+        assert_eq!(
+            FALLBACK_STRATEGIES.len(),
+            4,
+            "Number of fallback strategies changed. If you added one, \
+             update both this count and the order test above."
+        );
+    }
+}
