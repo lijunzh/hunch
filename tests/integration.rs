@@ -283,30 +283,26 @@ fn crc32_in_brackets() {
 #[test]
 fn bit_rate_kbps() {
     let r = hunch("Chuck Berry The Very Best Of Chuck Berry(2010)[320 Kbps]");
-    assert_eq!(
-        r.first(hunch::matcher::span::Property::BitRate),
-        Some("320Kbps")
-    );
+    // Kbps must be classified as audio (#158): the unit is the disambiguator.
+    assert_eq!(r.audio_bit_rate(), Some("320Kbps"));
+    assert_eq!(r.video_bit_rate(), None);
     assert_eq!(r.year(), Some(2010));
 }
 
 #[test]
 fn bit_rate_mbps() {
     let r = hunch("Title Name [480p][1.5Mbps][.mp4]");
-    assert_eq!(
-        r.first(hunch::matcher::span::Property::BitRate),
-        Some("1.5Mbps")
-    );
+    // Mbps must be classified as video (#158).
+    assert_eq!(r.video_bit_rate(), Some("1.5Mbps"));
+    assert_eq!(r.audio_bit_rate(), None);
     assert_eq!(r.screen_size(), Some("480p"));
 }
 
 #[test]
 fn bit_rate_after_codec() {
     let r = hunch("Show.Name.S01E01.H264.384Kbps.mkv");
-    assert_eq!(
-        r.first(hunch::matcher::span::Property::BitRate),
-        Some("384Kbps")
-    );
+    // 384Kbps is audio (Kbps unit), regardless of being adjacent to H264.
+    assert_eq!(r.audio_bit_rate(), Some("384Kbps"));
     assert_eq!(r.video_codec(), Some("H.264"));
 }
 
@@ -815,4 +811,60 @@ fn dvd_region_r5_does_not_break_classic_brave_fixture() {
     assert_eq!(r.video_codec(), Some("Xvid"));
     assert_eq!(r.release_group(), Some("UNiQUE"));
     assert!(r.other().contains(&"Region 5"));
+}
+
+// ── #158 regression pins: bit_rate split + mimetype derivation ────────────
+
+#[test]
+fn mimetype_derived_from_mp4_container() {
+    // mp4 → video/mp4 — the universal video container.
+    let r = hunch("Movie.2024.1080p.WEB-DL.x264.mp4");
+    assert_eq!(r.container(), Some("mp4"));
+    assert_eq!(r.mimetype(), Some("video/mp4"));
+}
+
+#[test]
+fn mimetype_derived_from_mkv_container() {
+    // mkv → video/x-matroska — de facto MIME for Matroska.
+    let r = hunch("Movie.2024.1080p.BluRay.x265.mkv");
+    assert_eq!(r.container(), Some("mkv"));
+    assert_eq!(r.mimetype(), Some("video/x-matroska"));
+}
+
+#[test]
+fn mimetype_none_when_container_unknown() {
+    // Unknown container → None (never fabricate a fallback MIME).
+    let r = hunch("Movie.2024.1080p.WEB-DL.x264.weirdext");
+    assert_eq!(r.container(), None);
+    assert_eq!(r.mimetype(), None);
+}
+
+#[test]
+fn bit_rate_kbps_lowercase_with_channel_collision() {
+    // Pin the regression where "DD5.1.448kbps" was being parsed as
+    // bit_rate "1.448Kbps" because the regex greedily absorbed the
+    // fractional channel digit. Now bounded decimals (\d{1,2}) force
+    // the regex to backtrack to the next valid match.
+    let r = hunch("Hotel.Hell.S01E01.720p.DD5.1.448kbps-ALANiS");
+    assert_eq!(r.audio_bit_rate(), Some("448Kbps"));
+    assert_eq!(r.audio_channels(), Some("5.1"));
+    assert_eq!(r.audio_codec(), Some("Dolby Digital"));
+}
+
+#[test]
+fn bit_rate_kbit_short_suffix() {
+    // Pin the `bit` short-suffix support added in #158. Older filenames
+    // (especially anime) use `kbit` instead of `kbps` — both must yield
+    // the same canonical "Kbps" output.
+    let r = hunch("Show.Name.S01E01.H264-384kbit_AAC.mp4");
+    assert_eq!(r.audio_bit_rate(), Some("384Kbps"));
+}
+
+#[test]
+fn bit_rate_mbits_plural_suffix() {
+    // Pin the `bits` plural-short-suffix support added in #158. Some
+    // anime-release notations (e.g. "19.1mbits") use this form.
+    let r = hunch("[HorribleSubs] Overlord II - 01 [1080p] 19.1mbits - 120fps.mkv");
+    assert_eq!(r.video_bit_rate(), Some("19.1Mbps"));
+    assert_eq!(r.frame_rate(), Some("120fps"));
 }
