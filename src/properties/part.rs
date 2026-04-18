@@ -177,6 +177,31 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     matches
 }
 
+/// Mark every `Part` match as reclaimable when an `Episode` match is also
+/// present in the same set.
+///
+/// In anime bracket releases like
+/// `[Group] Show - San no Shou Part 2 - 13 [tags].mkv`, the `Part 2` is
+/// title content rather than a standalone part property. The Episode is
+/// the real structural boundary. Marking Part as reclaimable lets the
+/// existing `title::absorb_reclaimable` step handle absorption uniformly
+/// — no custom post-hoc corrector needed (see #128 D10 tripwire on
+/// post-hoc correctors).
+///
+/// For movie-style files (`Movie.Part.3.mkv`) there is no Episode match,
+/// so Part stays confident and remains the title boundary.
+pub fn mark_reclaimable_when_episode_present(matches: &mut [MatchSpan]) {
+    let has_episode = matches.iter().any(|m| m.property == Property::Episode);
+    if !has_episode {
+        return;
+    }
+    for m in matches.iter_mut() {
+        if m.property == Property::Part {
+            m.reclaimable = true;
+        }
+    }
+}
+
 /// Parse disc number string with ranges and separators.
 /// "2" → [2], "2.3-5" → [2, 3, 4, 5], "2&4-6&8" → [2, 4, 5, 6, 8]
 fn parse_disc_nums(s: &str) -> Vec<u32> {
@@ -238,5 +263,49 @@ mod tests {
             m.iter()
                 .any(|x| x.property == Property::Film && x.value == "21")
         );
+    }
+
+    // ── mark_reclaimable_when_episode_present ────────────────
+
+    #[test]
+    fn mark_reclaimable_no_episode_keeps_part_confident() {
+        // `Movie.Part.3.mkv` style: no Episode → Part stays the title boundary.
+        let mut matches = vec![MatchSpan::new(6, 12, Property::Part, "3")];
+        mark_reclaimable_when_episode_present(&mut matches);
+        assert!(
+            !matches[0].reclaimable,
+            "Part must NOT be reclaimable when no Episode is present"
+        );
+    }
+
+    #[test]
+    fn mark_reclaimable_with_episode_marks_all_parts() {
+        // Anime-style: Episode + Part both present → Part becomes reclaimable
+        // so the title absorber will pull "Part N" into the title span.
+        let mut matches = vec![
+            MatchSpan::new(20, 26, Property::Part, "2"),
+            MatchSpan::new(30, 32, Property::Episode, "13"),
+        ];
+        mark_reclaimable_when_episode_present(&mut matches);
+        assert!(matches[0].reclaimable, "Part should be reclaimable");
+        assert!(
+            !matches[1].reclaimable,
+            "Episode itself must remain confident"
+        );
+    }
+
+    #[test]
+    fn mark_reclaimable_leaves_other_properties_alone() {
+        // Only Part is touched; other properties (Disc, Cd, Film, ...) keep
+        // whatever reclaimable bit they had.
+        let mut matches = vec![
+            MatchSpan::new(0, 5, Property::Disc, "1"),
+            MatchSpan::new(10, 15, Property::Part, "2"),
+            MatchSpan::new(20, 25, Property::Episode, "3"),
+        ];
+        mark_reclaimable_when_episode_present(&mut matches);
+        assert!(!matches[0].reclaimable, "Disc should not be touched");
+        assert!(matches[1].reclaimable, "Part should be reclaimable");
+        assert!(!matches[2].reclaimable, "Episode should not be touched");
     }
 }

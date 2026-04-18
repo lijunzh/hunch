@@ -596,6 +596,13 @@ impl Pipeline {
             pre_zone_count,
             all_matches.len()
         );
+
+        // Step 4b: Mark Part reclaimable when an Episode is present so
+        // the standard title absorption flow handles anime titles
+        // containing "Part N" (see #128 Debt #3, replaces the post-hoc
+        // `absorb_part_into_title` corrector).
+        part::mark_reclaimable_when_episode_present(&mut all_matches);
+
         for m in &all_matches {
             trace!(
                 "  resolved: {:?}={} at {}..{}",
@@ -684,10 +691,10 @@ impl Pipeline {
                 title_match.value, title_match.start, title_match.end
             );
             // Remove reclaimable matches absorbed into the title.
+            // (This is also where Part matches inside anime titles like
+            // "Show Part 2 - 13" get dropped — they were marked reclaimable
+            // in pass1 step 4b when an Episode was present.)
             title::absorb_reclaimable(&title_match, all_matches);
-            // Drop Part matches that ended up inside the title (e.g. anime
-            // titles containing "Part N").
-            title::absorb_part_into_title(&title_match, all_matches);
             all_matches.push(title_match);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
