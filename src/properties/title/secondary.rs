@@ -56,7 +56,7 @@ pub fn extract_episode_title(
         .collect();
 
     // Deepest first: prefer closer-to-leaf segments.
-    anchor_segments.sort_by(|a, b| b.0.cmp(&a.0));
+    anchor_segments.sort_by_key(|s| std::cmp::Reverse(s.0));
 
     for (seg_start, seg_end) in &anchor_segments {
         if let Some(result) = extract_episode_title_in_segment(input, matches, *seg_start, *seg_end)
