@@ -22,8 +22,13 @@ use crate::matcher::span::{MatchSpan, Property};
 ///
 /// Computed from structural signals like the number of tech anchors found,
 /// whether a title was extracted, and whether cross-file context was used.
+///
+/// `#[non_exhaustive]` so future variants (e.g. a `VeryHigh` for context-
+/// resolved cross-file matches) can be added in minor releases without a
+/// SemVer break. Downstream `match`es must include a wildcard arm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum Confidence {
     /// Few or no properties extracted; title may be wrong.
     Low,

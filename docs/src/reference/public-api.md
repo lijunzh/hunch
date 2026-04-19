@@ -85,13 +85,13 @@ rustup toolchain install nightly --profile minimal
 cargo install cargo-public-api --locked
 
 # Capture the current public API:
-cargo public-api --simplified > docs/public-api.txt
+cargo +nightly public-api --simplified 2>/dev/null > docs/src/reference/public-api.txt
 
 # Verify the diff matches what you intended:
-git diff docs/public-api.txt
+git diff docs/src/reference/public-api.txt
 ```
 
-Commit `docs/public-api.txt` together with the API change in the same PR.
+Commit `docs/src/reference/public-api.txt` together with the API change in the same PR.
 The diff in the PR review should make the API delta easy for reviewers
 to scan.
 

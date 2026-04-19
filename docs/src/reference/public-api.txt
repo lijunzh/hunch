@@ -456,7 +456,7 @@ impl core::marker::Unpin for hunch::tokenizer::BracketKind
 impl core::marker::UnsafeUnpin for hunch::tokenizer::BracketKind
 impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::BracketKind
 impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::BracketKind
-pub enum hunch::tokenizer::SegmentKind
+#[non_exhaustive] pub enum hunch::tokenizer::SegmentKind
 pub hunch::tokenizer::SegmentKind::Directory
 pub hunch::tokenizer::SegmentKind::Filename
 impl core::clone::Clone for hunch::tokenizer::SegmentKind
@@ -650,7 +650,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for hunch::zone_map::ZoneMap
 impl core::panic::unwind_safe::UnwindSafe for hunch::zone_map::ZoneMap
 pub fn hunch::zone_map::build_zone_map(input: &str, token_stream: &hunch::tokenizer::TokenStream) -> hunch::zone_map::ZoneMap
 pub fn hunch::zone_map::is_tier2_token(text: &str) -> bool
-pub enum hunch::Confidence
+#[non_exhaustive] pub enum hunch::Confidence
 pub hunch::Confidence::High
 pub hunch::Confidence::Low
 pub hunch::Confidence::Medium
