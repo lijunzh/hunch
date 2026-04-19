@@ -69,6 +69,41 @@ Output: `bench-output/parse.txt` (full criterion log) + `bench-output/parse-summ
 
 **Currently advisory only**: no PR-time comparison, no comment, no fail. See "Roadmap" below for why.
 
+## History storage — decision (#177)
+
+**Choice: [`github-action-benchmark`](https://github.com/benchmark-action/github-action-benchmark) committing data to a `gh-pages` branch.**
+
+Three real options were considered (full tradeoff table in [#177](https://github.com/lijunzh/hunch/issues/177)):
+
+| Option | UX | Trust model | Cost | Picked? |
+|---|---|---|---|---|
+| **A: bencher.dev** (cloud SaaS) | Best (prebuilt charts, alerts) | External account + API token | Free for OSS | ❌ |
+| **B: github-action-benchmark** (gh-pages) | Adequate (Chart.js dashboard) | In-repo, no external service | Free | ✅ |
+| **C: Self-hosted runner** | N/A (storage-orthogonal) | Internal | High (someone owns a machine) | ❌ |
+
+### Why Option B
+
+1. **In-repo, no external deps** — matches the project's stewardship ethos (same as how [`mutation-baseline.md`](./mutation-baseline.md) and [`fuzzing.md`](./fuzzing.md) keep their data in-tree).
+2. **No vendor lock-in** — `data.js` on `gh-pages` is just a JSON-array-shaped file; if we outgrow it, exporting to bencher.dev later is straightforward.
+3. **No org-secret friction** — zero coordination with Walmart secret-management to get a token provisioned per-fork.
+4. **Negligible maintenance** — the action auto-commits to `gh-pages` on every push to `main`; no manual touch.
+5. **PR comments are built-in** — the action ships a `comment-on-alert` flag that posts deltas back to PRs once we wire it up in [#178](https://github.com/lijunzh/hunch/issues/178).
+
+### Infrastructure created by this decision
+
+- **`gh-pages` branch** seeded with a placeholder `index.html` (commit `2916df7`). The action will populate it with `data.js` + an interactive Chart.js dashboard on the next push to `main`.
+- The dashboard will be live at `https://lijunzh.github.io/hunch/` once GitHub Pages is enabled in repo settings (Settings → Pages → Source: `gh-pages` branch / `/` root). **Manual one-time toggle required.**
+
+### Migration path if Option B disappoints
+
+If the dashboard UX or noise-handling proves inadequate after a few months of real-world use, migrating to bencher.dev is mechanical:
+
+1. Enable bencher.dev account, generate API token, store as repo secret.
+2. Replace the `github-action-benchmark` step in `benchmark.yml` with `bencherdev/bencher@v0.x`.
+3. Optionally backfill: `data.js` on `gh-pages` is a JSON array; bencher.dev supports CSV import.
+
+No code change to the bench harness itself (`benches/parse.rs`) is needed in either direction.
+
 ## Local usage
 
 Run the full bench suite:
@@ -101,13 +136,10 @@ Criterion will print "Performance has improved" / "Performance has regressed" wi
 
 This first slice intentionally does **not** implement the full epic [DoD](https://github.com/lijunzh/hunch/issues/148). Why each piece is deferred:
 
-- [ ] **PR-time comparison + comment**: needs a comparison strategy that handles GitHub-hosted runner noise. Naive PR-vs-main comparisons produce false positives (5-10% noise floor on shared CPU). Without statistical rigor, devs would learn to ignore the comment, killing the signal. Better to gather baseline history first.
-- [ ] **Hard-fail at >20% slower with p<0.01**: per the epic DoD, but only meaningful once we have a baseline that establishes the noise floor. Adding a gate before knowing real variance = guaranteed flake.
-- [ ] **Per-release baseline snapshot committed to the repo**: useful for showing perf trajectory in `CHANGELOG.md` per release. Trivial follow-up once we pick a comparison tool.
-- [ ] **Decision: bencher.dev (cloud) vs github-action-benchmark (gh-pages) vs self-hosted runner**: this is a stewardship/vendor decision the repo owner should make, not something to slip into a tooling PR. Each option has tradeoffs:
-  - **bencher.dev**: best UX, free for OSS, requires API token + account
-  - **github-action-benchmark**: in-repo (gh-pages branch), simpler trust model, less polished UI
-  - **Self-hosted runner**: lowest noise (dedicated CPU), highest maintenance cost
+- [x] **Decision: bencher.dev (cloud) vs github-action-benchmark (gh-pages) vs self-hosted runner** — resolved in [#177](https://github.com/lijunzh/hunch/issues/177). See "History storage — decision" above.
+- [ ] **PR-time comparison + comment** ([#178](https://github.com/lijunzh/hunch/issues/178)): wire up `github-action-benchmark`'s comparison mode. Now unblocked by the storage decision; needs a noise-floor characterization first to pick a sensible alert-threshold (default 200% is too permissive; <120% would flake on shared-runner CPU jitter).
+- [ ] **Hard-fail at >20% slower with p<0.01**: per the epic DoD, but only meaningful once we have a baseline that establishes the noise floor. Adding a gate before knowing real variance = guaranteed flake. Tracked under [#178](https://github.com/lijunzh/hunch/issues/178).
+- [ ] **Per-release baseline snapshot committed to the repo** ([#179](https://github.com/lijunzh/hunch/issues/179)): useful for showing perf trajectory in `CHANGELOG.md` per release. Trivial follow-up once the storage substrate exists.
 - [ ] **Differential vs guessit**: out of epic scope per #148 ("interesting but apples-to-oranges").
 - [ ] **Memory profiling**: out of epic scope per #148 (criterion is wall-clock).
 
