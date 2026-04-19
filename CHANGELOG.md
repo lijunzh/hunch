@@ -43,6 +43,32 @@ Release prep checklist (per #179):
 
 ### Changed
 
+- **⚠️ BREAKING: removed `Property::BitRate` variant.** Deprecated in
+  this same release wave (#165) and unreachable from any parser path
+  since the bit-rate split landed: the regex captures `[KkMm]` and both
+  branches map to `Property::AudioBitRate` (Kbps) or
+  `Property::VideoBitRate` (Mbps). The previous "defensive fallback"
+  was dead code. Removing it now (under the v2.0.0 major bump) avoids
+  forcing a v3.0.0 just to delete one variant later.
+
+  **Migration:** if your code matches on `Property::BitRate`, switch to
+  the unit-typed variants. The `#[non_exhaustive]` annotation already
+  requires a wildcard arm, so the diff is usually a one-liner:
+
+  ```rust
+  match prop {
+      // Before:
+      Property::BitRate       => handle_either(value),
+      // After:
+      Property::AudioBitRate  => handle_audio(value),
+      Property::VideoBitRate  => handle_video(value),
+      _ => {}
+  }
+  ```
+
+  The matching `bit_rate` JSON output key is also gone; downstream JSON
+  consumers should read `audio_bit_rate` / `video_bit_rate`. (#144, #165)
+
 - **⚠️ BREAKING: public module surface dramatically reduced.** Four
   sub-modules were demoted from `pub mod` to `pub(crate) mod`:
   `matcher`, `properties`, `tokenizer`, `zone_map`. The intended public
@@ -120,13 +146,6 @@ Release prep checklist (per #179):
 - **`DD5.1.448kbps`-style filenames** no longer mis-parse the leading
   digits as part of the bit-rate (regex bound tightened to `\d{1,2}`).
   (#165)
-
-### Deprecated
-
-- **`Property::BitRate` variant** — superseded by the
-  `AudioBitRate`/`VideoBitRate` split in #165. The variant is retained
-  for enum-API stability but no parser path produces it. Callers should
-  migrate to the unit-typed variants.
 
 ### Internal / Infrastructure
 

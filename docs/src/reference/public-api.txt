@@ -55,7 +55,6 @@ pub hunch::Property::AudioBitRate
 pub hunch::Property::AudioChannels
 pub hunch::Property::AudioCodec
 pub hunch::Property::AudioProfile
-pub hunch::Property::BitRate
 pub hunch::Property::Bonus
 pub hunch::Property::BonusTitle
 pub hunch::Property::Cd

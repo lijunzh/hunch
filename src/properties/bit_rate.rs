@@ -14,9 +14,7 @@
 //!   1–50 Mbps for compressed formats).
 //!
 //! This unit-based heuristic matches guessit's behavior and reflects how the
-//! values appear in real-world filenames. The legacy [`Property::BitRate`]
-//! variant is retained on the enum for back-compat with downstream `match`
-//! arms but is no longer produced by this matcher.
+//! values appear in real-world filenames.
 
 use regex::Regex;
 
@@ -83,26 +81,22 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         // Normalize unit prefix casing: "k" → "K", "m" → "M".
         // The trailing suffix is always normalized to "bps" regardless of
         // whether the input said "bps" or "bit" — single canonical form.
-        let normalized_unit = match unit.to_ascii_lowercase().as_str() {
-            "k" => "Kbps",
-            "m" => "Mbps",
-            // Fallback: shouldn't occur given the regex character class.
-            _ => "Kbps",
+        // Disambiguate by unit (#158): Kbps → audio, Mbps → video.
+        // The unit alone is a near-perfect signal in real-world filenames.
+        let (normalized_unit, property) = match unit.to_ascii_lowercase().as_str() {
+            "k" => ("Kbps", Property::AudioBitRate),
+            "m" => ("Mbps", Property::VideoBitRate),
+            // The regex character class is `[KkMm]`, so this is genuinely
+            // unreachable. Use `unreachable!` rather than a defensive
+            // fallback so a future regex change that breaks this contract
+            // fails loudly in tests instead of producing silently-wrong
+            // output. (Pre-v2.0.0 used a `Property::BitRate` fallback;
+            // that variant was removed in v2.0.0 — see CHANGELOG.)
+            _ => unreachable!("BIT_RATE regex captures only [KkMm] for the unit group"),
         };
 
         // Output without spaces: "320Kbps", "19.1Mbps".
         let value = format!("{num}{normalized_unit}");
-
-        // Disambiguate by unit (#158): Kbps → audio, Mbps → video.
-        // The unit alone is a near-perfect signal in real-world filenames.
-        let property = match normalized_unit {
-            "Kbps" => Property::AudioBitRate,
-            "Mbps" => Property::VideoBitRate,
-            // Fallback: shouldn't happen given the regex, but keep the
-            // legacy BitRate variant as the safety net rather than
-            // panicking on an unexpected unit (defensive).
-            _ => Property::BitRate,
-        };
 
         matches.push(
             MatchSpan::new(abs_start, abs_end, property, &value)
