@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776613326183,
+  "lastUpdate": 1776614022385,
   "repoUrl": "https://github.com/lijunzh/hunch",
   "entries": {
     "hunch criterion benches": [
@@ -119,6 +119,60 @@ window.BENCHMARK_DATA = {
             "name": "minimal",
             "value": 22913,
             "range": "± 280",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lijunzh@users.noreply.github.com",
+            "name": "Lijun Zhu",
+            "username": "lijunzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73b1ebb6f3cabb6410b5eaa58ce4e435c7bf441e",
+          "message": "perf(bench): drop the `minimal` bench (closes #191) (#192)\n\nSurfaced by the first PR after the regression gate landed\n(#190 ran on a docs-only change yet the gate fired with ratio 1.37\non `minimal`).\n\n## Diagnosis\n\n`bench_minimal` parsed only \"movie.mkv\" \\u2014 the shortest possible input,\nrunning at 16-22 \\u00b5s on ubuntu-latest. Two consecutive #190 runs both\nreported ~22.7 \\u00b5s consistently, vs 16.6 \\u00b5s baseline from #189's merge.\n\nPattern: a roughly constant ~6 \\u00b5s delta hit *every* bench between the\ntwo runs. For larger benches (~100 \\u00b5s) that's a 5-8% ratio. For\n`minimal` (~17 \\u00b5s) it's 37%. This is a runner-hardware shift, not\nruntime jitter and not a parser regression.\n\n`minimal` was a noise generator: at 17 \\u00b5s total it primarily measured\nfunction-call overhead, not parser logic. The other 5 benches cover\nthe parse paths that actually matter (60-240 \\u00b5s on the runner).\n\n## Changes\n\n  - benches/parse.rs: removed `bench_minimal` and its\n    `criterion_group!` entry. Replaced with a comment explaining\n    why for future spelunkers.\n  - docs/src/reference/benchmarks.md: dropped the `minimal` row from\n    three tables (bench inventory, local baseline numbers, CI\n    estimates) and updated the \"run just one bench\" example to use\n    `movie_basic` instead.\n\n## Effect on the bench dashboard\n\nThe bench data file on gh-pages contains `minimal` in its history.\nAfter this merge, the next push-to-main bench run will record a new\nentry without `minimal`. The dashboard chart for `minimal` becomes a\nflat line that ends \\u2014 acceptable archaeology.\n\n## Verification\n\n  - cargo bench --bench parse --no-run: compiles cleanly\n  - mdbook build docs: clean, no warnings\n  - cargo test --lib: 339 passed (no behavior change)",
+          "timestamp": "2026-04-19T10:52:21-05:00",
+          "tree_id": "246ba547e1c8d2276f1bfe815c8a7a0a417f2ed9",
+          "url": "https://github.com/lijunzh/hunch/commit/73b1ebb6f3cabb6410b5eaa58ce4e435c7bf441e"
+        },
+        "date": 1776614021874,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "movie_basic",
+            "value": 73898,
+            "range": "± 818",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "movie_complex",
+            "value": 200843,
+            "range": "± 1586",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_sxxexx",
+            "value": 81701,
+            "range": "± 1133",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_with_path",
+            "value": 78719,
+            "range": "± 533",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "anime_bracket",
+            "value": 63002,
+            "range": "± 456",
             "unit": "ns/iter"
           }
         ]
