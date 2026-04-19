@@ -17,11 +17,79 @@ A nightly GitHub Actions workflow ([`.github/workflows/mutants.yml`](../.github/
 runs `cargo mutants` against the highest-value targets at 03:14 UTC and
 publishes results as a Job Summary + downloadable `mutants-out` artifact.
 
-The job is **advisory** (`|| true` on the run step) — surviving mutants
-do not fail CI. They get triaged here and addressed in follow-up PRs.
+The job is **advisory** — surviving mutants do not fail CI. They get
+triaged here and addressed in follow-up PRs. Tool-level failures
+(usage errors, build broken, crash) DO fail the job, via an explicit
+exit-code allowlist (0–3 = expected) added in #170 after the original
+`|| true` masked an `--in-place`/`--jobs` incompatibility for an
+entire run.
 
 You can also trigger it on demand from the Actions UI via
 **Run workflow** → **Mutation Tests**.
+
+## First nightly run results (2026-04-18)
+
+First real run after #169/#170 landed: [run 24615983143](https://github.com/lijunzh/hunch/actions/runs/24615983143).
+12 minutes wall-clock on `ubuntu-latest` with `--jobs 4`.
+
+| Outcome | Count |
+|---|---|
+| ✅ Caught | 115 |
+| ⚠️ Missed | 30 |
+| ⏱️ Timeout | 0 |
+| 🚫 Unviable | 11 |
+| **Total** | **156** |
+
+**Overall kill rate: 73.7%** (target: ≥ 80%) — below baseline but with
+a clear story.
+
+### Per-file breakdown
+
+| File | Caught | Missed | Unviable | Kill rate |
+|---|---|---|---|---|
+| `src/properties/title/clean.rs` | 82 | 16 | 1 | **83.7%** ✅ already over target |
+| `src/pipeline/mod.rs` | 33 | 14 | 10 | **70.2%** ⚠️ drags the average |
+
+`title/clean.rs` already exceeds the 80% target — the [PR-C #138](https://github.com/lijunzh/hunch/pull/138)
+kitchen-sink coverage was effective. `pipeline/mod.rs` is the laggard;
+the 14 surviving mutants there are the highest-leverage triage target
+for the next coverage-improvement loop.
+
+### Categories of the 30 surviving mutants
+
+Grouped by mutation kind for batch-fixing efficiency:
+
+| Category | Count | Examples | Likely fix |
+|---|---|---|---|
+| Comparison-operator boundaries (`<` ↔ `<=`, `>` ↔ `>=`) | 13 | `pipeline/mod.rs:333:39`, `title/clean.rs:154:30` | Add fixtures at boundary values |
+| Logical operator (`&&` ↔ `\|\|`) | 4 | `title/clean.rs:154:34`, `:225:28`, `:306:27`, `:492:9` | Test both branches independently |
+| Arithmetic (`+`/`-`/`*`) | 4 | `title/clean.rs:304:26`, `pipeline/mod.rs:422:33`, `:555:35` | Assert exact computed values, not just non-zero |
+| Logical negation deletion (`delete !`) | 2 | `pipeline/mod.rs:325:16`, `:391:12` | Test the inverse-condition path |
+| Function-stub replacements (returns 0, 1, -1, `""`) | 5 | `title/clean.rs:372:9` (`casing_score` 3×), `:303:5` (`strip_extension`) | Assert specific return values, not just non-empty/non-zero |
+| Equality (`==` ↔ `!=`) | 2 | `pipeline/mod.rs:565:51`, `title/clean.rs:502:65` | Test the negative case |
+
+Full surviving-mutant list is in `mutants.out/missed.txt` (downloadable
+as the [`mutants-out` artifact](https://github.com/lijunzh/hunch/actions/runs/24615983143)).
+
+### Hot spot: `pick_better_casing::casing_score`
+
+Three mutations to this function survived (all three function-stub
+replacements: return `0`, return `1`, return `-1`). Plus its caller
+at `:388:24` lost its `>=` boundary check. **The function's tests
+don't actually pin its return value** — they presumably check that
+the right branch is selected downstream, but never assert what the
+score IS. This is the single highest-leverage fix in the surviving
+set: pinning `casing_score`'s output for half a dozen representative
+inputs would kill 4 mutants in one tiny PR.
+
+### Triage actions (deferred to follow-up PRs)
+
+- [ ] Pin `casing_score` return values — kills 4 mutants in one PR
+- [ ] Add boundary-value fixtures for `pipeline/mod.rs` Pass 1/Pass 2
+      `<`/`>` checks — kills ~6 mutants
+- [ ] Independent-branch tests for the four `&&` survivors — kills 4
+- [ ] Assertion-tightening pass on `strip_extension` (assert exact
+      output, not just non-empty) — kills 4
 
 ## Scope (first slice)
 
