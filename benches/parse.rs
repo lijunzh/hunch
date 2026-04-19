@@ -52,9 +52,12 @@ fn bench_anime(c: &mut Criterion) {
     });
 }
 
-fn bench_minimal(c: &mut Criterion) {
-    c.bench_function("minimal", |b| b.iter(|| hunch(black_box("movie.mkv"))));
-}
+// `bench_minimal` was removed in #191 — it parsed only "movie.mkv" so it
+// primarily measured function-call overhead, not parser logic, and its
+// 16-22 µs baseline made it hyper-sensitive to ubuntu-latest runner-
+// hardware shifts (a flat ~6 µs offset showed up as a 37% ratio —
+// enough to fire the regression gate on innocuous PRs). The other 5
+// benches cover the parse paths that actually matter.
 
 criterion_group!(
     benches,
@@ -63,6 +66,5 @@ criterion_group!(
     bench_episode,
     bench_episode_with_path,
     bench_anime,
-    bench_minimal
 );
 criterion_main!(benches);

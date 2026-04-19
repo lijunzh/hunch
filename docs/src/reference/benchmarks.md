@@ -21,7 +21,6 @@ Six benchmarks in `benches/parse.rs` cover the main parse paths:
 
 | Bench | Input | What it stresses |
 |---|---|---|
-| `minimal` | `movie.mkv` | The parser fast path; baseline for "do nothing useful" cost |
 | `movie_basic` | `The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv` | Standard movie filename |
 | `movie_complex` | `Blade.Runner.2049.2017.2160p.UHD.BluRay.REMUX.HDR.HEVC.DTS-HD.MA.7.1.Atmos-EPSiLON.mkv` | Loaded movie with many tags (codec, source, audio, HDR, atmos) |
 | `episode_sxxexx` | `The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv` | Standard episode with `SxxExx` marker |
@@ -33,10 +32,8 @@ Coverage matches what [PR #138](https://github.com/lijunzh/hunch/pull/138) pinne
 ## Initial baseline (2026-04-18)
 
 Captured on local M-class hardware, criterion default (100 samples, 5s collection):
-
 | Bench | Median time | Iterations to fill 5 s |
 |---|---|---|
-| `minimal` | **11.5 µs** | 444k |
 | `anime_bracket` | **62.5 µs** | 81k |
 | `movie_basic` | **74.8 µs** | 67k |
 | `episode_with_path` | **78.5 µs** | 64k |
@@ -49,7 +46,6 @@ GitHub-hosted ubuntu-latest runners are **~2-3× slower** with significantly noi
 
 | Bench | CI estimate (rough) |
 |---|---|
-| `minimal` | 25-40 µs |
 | `movie_complex` | 400-600 µs |
 | Others | 150-250 µs |
 
@@ -129,7 +125,7 @@ cargo bench --bench parse
 Run just one bench:
 
 ```bash
-cargo bench --bench parse -- minimal
+cargo bench --bench parse -- movie_basic
 ```
 
 Use criterion's baseline-comparison mode to detect regressions across two commits:
