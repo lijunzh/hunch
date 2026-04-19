@@ -1,0 +1,15 @@
+# Default cargo-fuzz ignores. See ../docs/fuzzing.md for the full story.
+#
+# `corpus/` is ignored to keep the mutator's discoveries (hex-named files
+# generated during local fuzz runs) out of git noise. The hand-curated
+# SEED corpus IS tracked — it was committed via `git add -f` and stays in
+# git history. To add a new seed: place it in corpus/<target>/<descriptive-name>
+# and `git add -f path/to/it`.
+#
+# CI nightly runs persist the accumulated corpus via actions/cache (see
+# .github/workflows/fuzz.yml), so coverage compounds across nights without
+# polluting the repo.
+target
+corpus
+artifacts
+coverage

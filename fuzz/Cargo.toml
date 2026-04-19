@@ -1,0 +1,34 @@
+[package]
+name = "hunch-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.hunch]
+path = ".."
+
+# Note: using `package.metadata.cargo-fuzz` rather than top-level [profile.release]
+# overrides — cargo-fuzz manages instrumentation flags automatically; we don't
+# need to override them. Adding panic = "abort" here would fight the fuzzer's
+# own crash-detection harness.
+
+[[bin]]
+name = "parse_filename"
+path = "fuzz_targets/parse_filename.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_with_context"
+path = "fuzz_targets/parse_with_context.rs"
+test = false
+doc = false
+bench = false
