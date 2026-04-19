@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776614022385,
+  "lastUpdate": 1776619378201,
   "repoUrl": "https://github.com/lijunzh/hunch",
   "entries": {
     "hunch criterion benches": [
@@ -173,6 +173,60 @@ window.BENCHMARK_DATA = {
             "name": "anime_bracket",
             "value": 63002,
             "range": "± 456",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lijunzh@users.noreply.github.com",
+            "name": "Lijun Zhu",
+            "username": "lijunzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "83ced808b9903bad49071edf8ec8926ee6aa33ee",
+          "message": "feat(ci): per-release benchmark snapshots (closes #179) (#194)\n\nCloses the #148 epic by adding the final piece: permanent\nper-release performance snapshots. Builds on #178 (gate),\n#188 (mdbook), and the gh-pages substrate from #186 + #190.\n\n## What this does\n\nOn every \\`v*\\` tag push, the Benchmarks workflow now ALSO:\n\n  1. Runs the same bench harness it runs on every PR/main push\n  2. Parses the bencher-format output into a structured JSON file\n  3. Pushes the file to gh-pages/release-snapshots/<tag>.json via\n     peaceiris/actions-gh-pages with destination_dir + keep_files\n\nThe snapshot format is intentionally minimal:\n\n    {\n      \"tag\": \"v1.1.9\",\n      \"sha\": \"<commit>\",\n      \"date\": \"2026-04-19T...Z\",\n      \"runner\": \"Linux-X64\",\n      \"benches\": [\n        { \"name\": \"movie_basic\", \"value\": 99013, \"unit\": \"ns/iter\",\n          \"variance\": 1877 },\n        ...\n      ]\n    }\n\nWhy a separate format from dev/bench/data.js (which already records\nper-commit history):\n\n  - data.js is the rolling per-commit history, mutable in scope —\n    benches may be added/removed (see #191's removal of \\`minimal\\`)\n  - release-snapshots/<tag>.json is the immutable per-release record;\n    consumers can diff v1.1.8.json vs v1.2.0.json without worrying\n    about history rewrites or schema changes\n\n## New mdbook page\n\ndocs/src/reference/release-trajectory.md — fetches the listed\nsnapshot JSONs in parallel, renders two tables:\n\n  1. Per-bench comparison (rows = benches, cols = release tags)\n  2. Snapshot metadata (tag, date, SHA, runner)\n\nThe list of release tags lives in a JS const at the top of the page.\nThis is a deliberate trade-off: GitHub Pages can't list directories,\nand a workflow-maintained manifest file would create race conditions\nwith the bench workflow's own pushes. Manual list update is one line\nduring release prep — already enumerated in the new CHANGELOG.md\nrelease-prep checklist comment.\n\n## CHANGELOG.md template\n\nAdded a release-prep checklist (HTML comment, invisible in rendered\nmarkdown) at the top so future maintainers know to:\n\n  - Bump version in Cargo.toml\n  - Move [Unreleased] entries\n  - Add the new tag to release-trajectory.md's RELEASE_TAGS array\n  - Optionally add a 'Performance' subsection linking to the trajectory page\n  - Tag + push\n\n## What this enables\n\n  - Maintainer narrative: 'we shipped v1.2.0 with a 15% parser speedup'\n    becomes verifiable from the trajectory page, not vibes\n  - Downstream consumer audit: 'did upgrading from v1.1.8 to v1.2.0\n    change perf?' answerable by fetching two JSON files\n  - Closes the #148 epic completely (the last DoD item)\n\n## Verification done locally\n\n  - jq snippet tested with sample bencher-format input — produces\n    correct JSON shape (no parsing edge cases hit)\n  - mdbook build docs: clean, no warnings, trajectory page renders\n  - cargo fmt + clippy: clean\n  - YAML validated for benchmark.yml — 8 steps total, last 2 gated\n    on \\`startsWith(github.ref, 'refs/tags/v')\\`\n\n## Verification deferred to first real release\n\nThe tag-push code path won't actually run until someone pushes a\n\\`v*\\` tag (the next release). Suggested first-release smoke test:\n\n  - [ ] Push a test tag like \\`v1.1.8.1-test\\` (or the next real release)\n  - [ ] Confirm bench workflow runs ~3 min after the tag push\n  - [ ] Confirm gh-pages/release-snapshots/<tag>.json appears\n  - [ ] Add the tag to release-trajectory.md's RELEASE_TAGS array\n  - [ ] Confirm the page renders the snapshot\n\nIf anything breaks, the snapshot generation is gated to tag push only\nso it can't affect normal PR/main bench runs.",
+          "timestamp": "2026-04-19T12:21:44-05:00",
+          "tree_id": "115cb5b57b5af4cb2a1d23249431e5fa2edad0fd",
+          "url": "https://github.com/lijunzh/hunch/commit/83ced808b9903bad49071edf8ec8926ee6aa33ee"
+        },
+        "date": 1776619377817,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "movie_basic",
+            "value": 91788,
+            "range": "± 389",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "movie_complex",
+            "value": 214526,
+            "range": "± 977",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_sxxexx",
+            "value": 99256,
+            "range": "± 3089",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_with_path",
+            "value": 95091,
+            "range": "± 1994",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "anime_bracket",
+            "value": 79768,
+            "range": "± 781",
             "unit": "ns/iter"
           }
         ]
