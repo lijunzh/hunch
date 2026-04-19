@@ -162,6 +162,8 @@ The automated triage steps live in "Triage when the gate fires" above. This sect
 
 ## References
 
+- [Live Dashboard](./benchmark-dashboard.md) — per-commit history (Pattern B chart)
+- [Release Trajectory](./release-trajectory.md) — per-released-version snapshots
 - [criterion.rs book](https://bheisler.github.io/criterion.rs/book/) — methodology, statistical model
 - [`benches/parse.rs`](https://github.com/lijunzh/hunch/blob/main/benches/parse.rs) — the bench harness itself
 - Sibling docs: [Coverage](../contributor-guide/coverage.md), [Mutation Testing](../contributor-guide/mutation-baseline.md), [Fuzzing](../contributor-guide/fuzzing.md), [Public API](./public-api.md)

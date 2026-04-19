@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+<!--
+Release prep checklist (per #179):
+  1. Bump `version` in Cargo.toml
+  2. Move "[Unreleased]" entries below into a new "[X.Y.Z] - YYYY-MM-DD" section
+  3. Add the new tag to the RELEASE_TAGS array in
+     docs/src/reference/release-trajectory.md (top of list)
+  4. (Optional) Add a "### Performance" subsection to the new release with
+     a one-liner like:
+     - See <https://lijunzh.github.io/hunch/reference/release-trajectory.html>
+       for bench numbers compared to vX.Y.Z-1.
+  5. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
+  6. The Benchmarks workflow auto-publishes the snapshot to
+     gh-pages/release-snapshots/vX.Y.Z.json (~3 min after the tag push)
+-->
+
 ## [Unreleased]
 
 ## [1.1.8] - 2026-04-17
