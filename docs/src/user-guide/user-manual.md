@@ -184,9 +184,62 @@ fn main() {
         Confidence::High   => println!("Confident parse"),
         Confidence::Medium => println!("Reasonable parse"),
         Confidence::Low    => println!("Consider using --context"),
+        // `Confidence` is `#[non_exhaustive]` so future variants land
+        // without forcing a major-version bump. Add a wildcard arm to
+        // your `match`es:
+        _                  => println!("Unknown confidence level"),
     }
 }
 ```
+
+### Media-type checks (added in v2.0.0)
+
+Three convenience helpers route a result to the right downstream lookup
+(e.g., TMDb for movies vs. TVDb for episodes) without an explicit
+`MediaType` import:
+
+```rust
+use hunch::hunch;
+
+fn main() {
+    let r = hunch("Breaking.Bad.S05E16.720p.BluRay.x264-DEMAND.mkv");
+    if r.is_episode() {
+        // route to TVDb
+    }
+    if r.is_movie() {
+        // route to TMDb
+    }
+    if r.is_extra() {
+        // bonus content / specials / NCOP / NCED — may not have a DB entry
+    }
+}
+```
+
+All three return `false` when the media type is unknown (rather than
+defaulting to a guess). Callers that need to distinguish "definitely
+not X" from "unknown" should use
+[`media_type()`](https://docs.rs/hunch/latest/hunch/struct.HunchResult.html#method.media_type)
+directly.
+
+### Bit rate and MIME type (added in v2.0.0)
+
+The `bit_rate` property is split by unit (`Kbps` → audio, `Mbps` →
+video); MIME type is derived from the container extension:
+
+```rust
+use hunch::hunch;
+
+fn main() {
+    let r = hunch("Movie.2024.DD5.1.448Kbps.x264.5500Kbps.mp4");
+    assert_eq!(r.audio_bit_rate(), Some("448Kbps"));
+    assert_eq!(r.video_bit_rate(), Some("5500Kbps"));
+    assert_eq!(r.mimetype(),       Some("video/mp4"));
+}
+```
+
+MIME type returns `None` when the container is unknown rather than
+fabricating a value — callers that need a fallback should provide it
+at the call site.
 
 ### Full API reference
 

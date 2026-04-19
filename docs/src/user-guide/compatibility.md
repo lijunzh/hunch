@@ -8,7 +8,7 @@ But guessit compatibility is no longer the primary optimization target.
 Hunch is tuned first for **real-world media-library accuracy**, with guessit
 compatibility used as a reference point rather than a product goal.
 
-> **Last updated:** 2026-04-17 (v1.1.8 release)
+> **Last updated:** 2026-04-19 (pre-v2.0.0)
 
 ---
 
@@ -55,17 +55,15 @@ behavior that is more accurate and maintainable for actual media libraries.
 
 ## Intentional divergences
 
-Hunch intentionally does not mirror guessit in a few places:
+Hunch intentionally does not mirror guessit in a few places. The list is
+smaller than it used to be — several earlier divergences (notably the
+bit_rate split and mimetype derivation) were resolved in v2.0.0 (#165)
+because real-world filenames turned out to provide enough signal after
+all.
 
-- **`audio_bit_rate` / `video_bit_rate`**
-  - guessit splits these into separate properties
-  - hunch emits a single `bit_rate`, because filenames rarely contain enough
-    reliable context to disambiguate audio vs video bit rate cleanly
-
-- **`mimetype`**
-  - guessit derives MIME type from the file extension
-  - hunch does not emit it, because that is a trivial container lookup better
-    handled by the consumer
+*Active divergences as of v2.0.0: none worth listing.* If you find one,
+please file an issue — the goal is for divergences to be deliberate and
+documented, not accidental.
 
 ---
 

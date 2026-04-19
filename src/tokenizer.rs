@@ -88,7 +88,12 @@ pub enum Separator {
 }
 
 /// Which part of the path a segment represents.
+///
+/// `#[non_exhaustive]` so future variants (e.g. `Volume` for disk-image
+/// roots, `Archive` for in-archive paths) can be added in minor releases
+/// without a SemVer break. Downstream `match`es must include a wildcard arm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum SegmentKind {
     /// A directory component (e.g., "Movies", "Season 01").
     Directory,
