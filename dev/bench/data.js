@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776619378201,
+  "lastUpdate": 1776628993791,
   "repoUrl": "https://github.com/lijunzh/hunch",
   "entries": {
     "hunch criterion benches": [
@@ -227,6 +227,60 @@ window.BENCHMARK_DATA = {
             "name": "anime_bracket",
             "value": 79768,
             "range": "± 781",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lijunzh@users.noreply.github.com",
+            "name": "Lijun Zhu",
+            "username": "lijunzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62015b9cd4d94f72d91c827252097bd9b9c0cba3",
+          "message": "chore: pre-v2.0.0 polish (non_exhaustive coverage + doc accuracy) (#196)\n\nPR-2a of the v2.0.0 close-out plan. Three small cleanups that\nare 'free' under the v2.0.0 major bump but would each cost a\nseparate major bump if deferred. Plus two documentation drift\nfixes that real users would hit immediately.\n\n## API hygiene (free under v2.0.0; locks in future minor-safe extension)\n\n- src/hunch_result.rs: \\\\\\`Confidence\\\\\\` enum now \\\\\\`#[non_exhaustive]\\\\\\`.\n  This enum appears in user-facing examples (in user-manual.md and\n  the rustdoc) so its match-exhaustiveness contract is load-bearing.\n  Marking it now means future variants like a hypothetical\n  \\\\\\`Confidence::VeryHigh\\\\\\` (for context-resolved cross-file matches)\n  can land in a v2.x minor instead of forcing v3.0.0.\n\n- src/tokenizer.rs: \\\\\\`SegmentKind\\\\\\` enum now \\\\\\`#[non_exhaustive]\\\\\\`.\n  Less user-facing than \\\\\\`Confidence\\\\\\` but still in the public surface\n  per docs/src/reference/public-api.txt (line 459). Same logic:\n  future variants like \\\\\\`Volume\\\\\\` (disk-image roots) or \\\\\\`Archive\\\\\\`\n  (in-archive paths) can land in minor versions.\n\n- docs/src/reference/public-api.txt: refreshed to reflect the two\n  new \\\\\\`#[non_exhaustive]\\\\\\` annotations. Surgical 2-line diff at\n  lines 459 + 653 \\u2014 no other API changes snuck in.\n\nThis brings the project into full alignment on the documented API\nStability Policy: every \\\\\\`pub enum\\\\\\` in the public surface is now\n\\\\\\`#[non_exhaustive]\\\\\\`.\n\n## Documentation drift fixes\n\n- docs/src/user-guide/compatibility.md: removed the stale 'Intentional\n  divergences' entries for \\\\\\`audio_bit_rate\\\\\\`/\\\\\\`video_bit_rate\\\\\\` and\n  \\\\\\`mimetype\\\\\\`. PR #165 implemented all three (with the bit-rate split\n  classified by unit \\u2014 Kbps \\u2192 audio, Mbps \\u2192 video \\u2014 and mimetype as a\n  pure container-extension lookup), so claiming hunch doesn't emit them\n  is no longer true. Replaced with a brief 'no active divergences worth\n  listing' note. Also bumped the 'Last updated' stamp to 2026-04-19.\n\n- docs/src/user-guide/user-manual.md: extended the Library API section\n  with three new subsections covering the v2.0.0 API additions:\n  - 'Media-type checks' \\u2014 is_movie/is_episode/is_extra\n  - 'Bit rate and MIME type' \\u2014 audio_bit_rate/video_bit_rate/mimetype\n  Also added the wildcard arm to the Confidence \\\\\\`match\\\\\\` example so it\n  compiles against the now-non_exhaustive enum.\n\n## Path typo fix in the tripwire docs\n\n- docs/src/reference/public-api.md: the regenerate-the-baseline\n  instructions referenced \\\\\\`docs/public-api.txt\\\\\\` (legacy path from\n  before the mdbook port #190). Updated to the actual current\n  path \\\\\\`docs/src/reference/public-api.txt\\\\\\`. Also corrected the\n  invocation to \\\\\\`cargo +nightly public-api ... 2>/dev/null\\\\\\` which\n  is what actually works (the version without 2>/dev/null bleeds\n  cargo-build progress lines into the snapshot, as discovered while\n  regenerating for this PR).\n\n## Verification\n\n  - cargo test --lib: 339 passed (no internal exhaustive matches broke\n    \\u2014 our own internal handling already uses wildcards or is\n    non_exhaustive-aware)\n  - cargo clippy --all-targets: clean\n  - cargo fmt --check: clean\n  - mdbook build docs: clean\n  - public-api diff is exactly the 2 expected lines (Confidence +\n    SegmentKind \\\\\\`#[non_exhaustive]\\\\\\`)\n\n## What this PR explicitly does NOT do\n\n  - No version bump (saves that for PR-2c, the actual release commit)\n  - No #144 API audit work (that's PR-2b: a separate triage of the\n    853-line public surface to demote items that shouldn't be public).\n    The current refresh is a mechanical re-snapshot, not an audit.\n  - No CHANGELOG move (still in [Unreleased])\n\nRefs: #144, #165, #172. Pre-cursor to v2.0.0 release.",
+          "timestamp": "2026-04-19T15:01:54-05:00",
+          "tree_id": "742191be677ce5828e5186980a88734bc3c50134",
+          "url": "https://github.com/lijunzh/hunch/commit/62015b9cd4d94f72d91c827252097bd9b9c0cba3"
+        },
+        "date": 1776628992965,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "movie_basic",
+            "value": 105421,
+            "range": "± 2590",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "movie_complex",
+            "value": 246509,
+            "range": "± 9260",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_sxxexx",
+            "value": 111898,
+            "range": "± 9538",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_with_path",
+            "value": 109281,
+            "range": "± 1793",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "anime_bracket",
+            "value": 92386,
+            "range": "± 565",
             "unit": "ns/iter"
           }
         ]
