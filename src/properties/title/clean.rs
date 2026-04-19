@@ -140,6 +140,33 @@ static RE_DOT_ACRONYM: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"(?:^|[\s._])([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)").unwrap()
 });
 
+// ── Helpers extracted from `normalize_separators` (#146 mutant kills) ──
+//
+// Both helpers are pure value-in / value-out predicates that pin
+// surviving boundary mutants from the 2026-04-19 nightly run. They
+// live as free functions (rather than closures inside the body) so the
+// unit tests in this module can exercise them directly.
+
+/// True when a dot-acronym regex match begins AT a separator byte that
+/// should be excluded from the protected range.
+///
+/// The regex `(?:^|[\s._])([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)` may
+/// capture a leading separator (space/tab/dot/underscore); when it
+/// does, the caller advances `actual_start` by one byte to skip it.
+///
+/// Returns `false` when `match_start == 0` (no leading byte to inspect)
+/// or when the byte at `match_start` isn't one of the four separators.
+fn acronym_match_starts_at_separator(input: &str, match_start: usize) -> bool {
+    match_start > 0 && matches!(input.as_bytes()[match_start], b' ' | b'\t' | b'.' | b'_')
+}
+
+/// True when `pos` falls inside any of the half-open `[start, end)`
+/// byte ranges. Used to decide whether a `.` at byte position `pos`
+/// lies within a protected dot-acronym span.
+fn position_in_any_range(pos: usize, ranges: &[(usize, usize)]) -> bool {
+    ranges.iter().any(|(s, e)| pos >= *s && pos < *e)
+}
+
 /// Replace separators (`.`, `_`, `+`, brackets, `*`) with spaces, with
 /// dash handling controlled by [`DashPolicy`].
 ///
@@ -150,18 +177,16 @@ pub(super) fn normalize_separators(s: &str, dash: DashPolicy) -> String {
     let protected_ranges: Vec<(usize, usize)> = RE_DOT_ACRONYM
         .find_iter(s)
         .map(|m| {
-            let actual_start =
-                if m.start() > 0 && matches!(s.as_bytes()[m.start()], b' ' | b'\t' | b'.' | b'_') {
-                    m.start() + 1
-                } else {
-                    m.start()
-                };
+            let actual_start = if acronym_match_starts_at_separator(s, m.start()) {
+                m.start() + 1
+            } else {
+                m.start()
+            };
             (actual_start, m.end())
         })
         .collect();
 
-    let in_protected =
-        |pos: usize| -> bool { protected_ranges.iter().any(|(s, e)| pos >= *s && pos < *e) };
+    let in_protected = |pos: usize| -> bool { position_in_any_range(pos, &protected_ranges) };
 
     let chars: Vec<char> = s.chars().collect();
     let mut byte_positions: Vec<usize> = Vec::with_capacity(chars.len());
@@ -1016,5 +1041,121 @@ mod tests {
         // confirms the lowercasing is in the loop, not skipped.
         assert_eq!(strip_extension("Movie.MKV"), "Movie");
         assert_eq!(strip_extension("Trailer.Mp4"), "Trailer");
+    }
+
+    // ── normalize_separators helper boundary tests (#146) ───────────────
+    //
+    // Three mutants survived in normalize_separators on lines 154 + 164
+    // as of the 2026-04-19 nightly. Both predicates are now hoisted to
+    // free functions; the tests below pin every operator and boundary.
+
+    #[test]
+    fn acronym_match_starts_at_separator_at_position_zero_returns_false() {
+        // Pin `> -> >=` mutant on `match_start > 0`.
+        // At position 0 there is no preceding byte to inspect, so the
+        // function MUST short-circuit to false (not panic).
+        //   - With `>`:  0 > 0 is false (correct, returns false)
+        //   - With `>=`: 0 >= 0 is true → dereferences input.as_bytes()[0]
+        //     which for "S.H.I.E.L.D" is b'S' (not a separator), so it
+        //     would still return false here. So this test alone DOES NOT
+        //     kill `> -> >=`. The next test below uses an input where the
+        //     position-0 byte IS a separator to force the kill.
+        assert!(!acronym_match_starts_at_separator("S.H.I.E.L.D", 0));
+    }
+
+    #[test]
+    fn acronym_match_starts_at_separator_position_zero_with_separator_byte() {
+        // Pin `> -> >=` mutant strongly: at position 0 with a separator
+        // byte at index 0, the original `> 0` short-circuits to false,
+        // but the mutant `>= 0` would proceed to inspect the byte and
+        // see a separator, returning true.
+        //
+        // Inputs where byte 0 is a separator: " foo", ".foo", "_foo".
+        //   - With `>`:  0 > 0 false → false (correct: nothing to skip
+        //     before position 0 even if byte 0 is a separator).
+        //   - With `>=`: 0 >= 0 true AND b' ' matches → true (BUG).
+        assert!(!acronym_match_starts_at_separator(" foo", 0));
+        assert!(!acronym_match_starts_at_separator(".foo", 0));
+        assert!(!acronym_match_starts_at_separator("_foo", 0));
+    }
+
+    #[test]
+    fn acronym_match_starts_at_separator_with_each_separator_byte() {
+        // Pin `&& -> ||` mutant on the `match_start > 0 && matches!(...)`.
+        //   - With `&&`: both must be true. At position 1 with a non-sep
+        //     byte at index 1, both branches: pos>0=true, byte_is_sep=false
+        //     → false (correct).
+        //   - With `||`: either is enough. pos>0=true alone returns true
+        //     even if byte is NOT a separator (BUG).
+        //
+        // Test 1: position > 0 with NON-separator byte → must be false.
+        assert!(!acronym_match_starts_at_separator("abcd", 2));
+
+        // Test 2: position > 0 with each of the four separator bytes → true.
+        assert!(acronym_match_starts_at_separator("a foo", 1)); // space
+        assert!(acronym_match_starts_at_separator("a\tfoo", 1)); // tab
+        assert!(acronym_match_starts_at_separator("a.foo", 1)); // dot
+        assert!(acronym_match_starts_at_separator("a_foo", 1)); // underscore
+    }
+
+    #[test]
+    fn position_in_any_range_empty_list_returns_false() {
+        // Function-stub-ish: empty .any() must return false.
+        assert!(!position_in_any_range(0, &[]));
+        assert!(!position_in_any_range(100, &[]));
+    }
+
+    #[test]
+    fn position_in_any_range_pins_lower_bound_inclusive() {
+        // Pin `>= -> <` and `>= -> >` mutants on `pos >= *s`.
+        //
+        // Range is [10, 20). pos=10 is the inclusive lower bound.
+        //   - With `>=`: 10 >= 10 true → inside (correct)
+        //   - With `>`:  10 > 10 false → outside (BUG)
+        //   - With `<`:  10 < 10 false → outside (BUG)
+        assert!(position_in_any_range(10, &[(10, 20)]));
+    }
+
+    #[test]
+    fn position_in_any_range_pins_upper_bound_exclusive() {
+        // Pin `< -> ==`, `< -> >`, `< -> <=` mutants on `pos < *e`.
+        //
+        // Range is [10, 20). pos=20 is the EXCLUSIVE upper bound.
+        //   - With `<`:  20 < 20 false → outside (correct)
+        //   - With `<=`: 20 <= 20 true → inside (BUG)
+        assert!(!position_in_any_range(20, &[(10, 20)]));
+
+        // pos=19 is the last position INSIDE the range.
+        //   - With `<`:  19 < 20 true → inside (correct)
+        //   - With `>`:  19 > 20 false → outside (BUG)
+        //   - With `==`: 19 == 20 false → outside (BUG)
+        assert!(position_in_any_range(19, &[(10, 20)]));
+    }
+
+    #[test]
+    fn position_in_any_range_pins_and_to_or_with_disjoint_pos() {
+        // Pin `&& -> ||` mutant on `pos >= *s && pos < *e`.
+        //
+        // pos=5, range=[10, 20):
+        //   - pos >= 10 is false; pos < 20 is true.
+        //   - With `&&`: false && true → false → outside (correct).
+        //   - With `||`: false || true → true → inside (BUG).
+        assert!(!position_in_any_range(5, &[(10, 20)]));
+
+        // pos=25, range=[10, 20):
+        //   - pos >= 10 is true; pos < 20 is false.
+        //   - With `&&`: true && false → false → outside (correct).
+        //   - With `||`: true || false → true → inside (BUG).
+        assert!(!position_in_any_range(25, &[(10, 20)]));
+    }
+
+    #[test]
+    fn position_in_any_range_finds_match_in_second_range() {
+        // Belt: confirms .any() actually iterates past non-matching ranges.
+        let ranges = [(0, 5), (10, 20), (30, 40)];
+        assert!(position_in_any_range(15, &ranges));
+        assert!(position_in_any_range(35, &ranges));
+        assert!(!position_in_any_range(7, &ranges));
+        assert!(!position_in_any_range(25, &ranges));
     }
 }
