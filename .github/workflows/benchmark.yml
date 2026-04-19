@@ -1,0 +1,115 @@
+name: Benchmarks
+
+# Performance regression tracking via criterion (the existing benches/ harness).
+#
+# First slice of the perf regression CI epic (#148). Honest scope:
+#
+#   - Runs `cargo bench` on weekly schedule + manual dispatch
+#   - Captures bencher-format output as an artifact (90-day retention)
+#   - **Advisory only** — does NOT compare against a baseline yet,
+#     does NOT comment on PRs, does NOT fail on regression
+#
+# Why this minimal first slice (vs the full epic DoD):
+#
+#   - GitHub-hosted runners are *noisy* (shared CPU). Naive PR-vs-main
+#     comparisons produce false positives that train people to ignore
+#     the signal entirely. Statistical-rigorous comparison needs care.
+#   - Setting up bencher.dev (the cloud option) requires picking a
+#     vendor, creating an account, configuring an API token. That's a
+#     repo-owner decision, not something to slip in via PR.
+#   - benchmark-action/github-action-benchmark needs a gh-pages branch
+#     for trend storage. That's a workspace structural change.
+#   - For now, accumulating a *history* of artifact runs lets us
+#     observe the noise floor and inform the comparison-strategy
+#     decision in the next slice. Honest first slice > flaky gate.
+#
+# Roadmap (deferred to follow-up PRs within #148):
+#   - PR-time job that runs benches on PR + main + posts a delta table
+#   - Hard-fail at >20% slower with p<0.01 (per epic DoD)
+#   - Per-release baseline snapshots committed to the repo
+#   - Decision on bencher.dev vs self-hosted noise filtering
+#
+# See docs/benchmarks.md for methodology + baseline numbers + roadmap.
+
+on:
+  schedule:
+    # Weekly Sunday 05:14 UTC. Weekly (not nightly) because:
+    #   - Benches are stable; running daily creates noise without signal
+    #   - Stagger position: 05:14 = 2 hours after fuzz nightly (03:14)
+    #     and 1 hour after mutation nightly (04:14). No runner contention.
+    - cron: "14 5 * * 0"
+  workflow_dispatch:
+    # Manual trigger for ad-hoc baselines (e.g., before/after a perf PR).
+  push:
+    branches: [main]
+    # Run on every push to main so we accumulate a baseline history.
+    # Path filter: skip docs-only and CI-only changes that can't move
+    # parser perf.
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'benches/**'
+      - '.github/workflows/benchmark.yml'
+
+concurrency:
+  # Only one bench run at a time — multiple runs would fight for the
+  # runner's already-noisy CPU and produce garbage numbers. Don't
+  # cancel in-progress runs; we want every triggered run to complete
+  # so the history is contiguous.
+  group: benchmark
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  bench:
+    name: cargo bench (advisory)
+    runs-on: ubuntu-latest
+    # 30 min cap. Local M-class hardware completes in ~70s; ubuntu-latest
+    # is ~2-3× slower so estimate 3-4 min. The cap exists to fail loud
+    # if the bench harness regresses badly or hangs.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+        with:
+          # Separate cache key — benches use --release which produces
+          # different artifacts than the default dev profile cache.
+          key: bench
+
+      - name: Run benches (bencher output format)
+        # --output-format bencher: machine-parseable line-oriented format,
+        #   compatible with most third-party comparison tools (handy for
+        #   future slices that wire up bencher.dev / github-action-benchmark
+        #   without re-running the benches).
+        # --noplot: skip gnuplot/HTML report generation; we don't have
+        #   gnuplot installed and HTML is heavy for an artifact.
+        # 2>&1 + tee: capture both criterion's progress on stderr and
+        #   the result lines on stdout into one file.
+        run: |
+          mkdir -p bench-output
+          cargo bench --bench parse -- --output-format bencher --noplot \
+            2>&1 | tee bench-output/parse.txt
+          # Extract just the bencher-format result lines for easy diffing.
+          grep '^test ' bench-output/parse.txt > bench-output/parse-summary.txt || true
+          echo ""
+          echo "=== Summary ==="
+          cat bench-output/parse-summary.txt
+
+      - name: Upload bench results
+        # Always upload — even on cancellation we want partial data.
+        # 90-day retention so we have a multi-month rolling history
+        # when the next slice lands.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: bench-results-${{ github.sha }}
+          path: bench-output/
+          if-no-files-found: error
+          retention-days: 90
