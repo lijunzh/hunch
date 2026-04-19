@@ -2,49 +2,47 @@ name: Benchmarks
 
 # Performance regression tracking via criterion (the existing benches/ harness).
 #
-# First slice of the perf regression CI epic (#148). Honest scope:
+# Second slice of the perf regression CI epic (#148, after #176 + #177):
 #
-#   - Runs `cargo bench` on weekly schedule + manual dispatch
-#   - Captures bencher-format output as an artifact (90-day retention)
-#   - **Advisory only** — does NOT compare against a baseline yet,
-#     does NOT comment on PRs, does NOT fail on regression
+#   - Runs `cargo bench` on weekly schedule, push-to-main, AND pull_request
+#   - On PRs: comments delta table, FAILS if any bench >120% of main baseline
+#   - On main pushes: appends to gh-pages history (per #177 storage decision)
+#   - On schedule/manual: still produces an artifact (legacy; useful belt)
 #
-# Why this minimal first slice (vs the full epic DoD):
+# Threshold rationale (from #178):
+#   - alert-threshold: 120% → fail when any bench is >20% slower than baseline
+#   - Deliberately permissive to filter the 5-10% noise floor on shared runners
+#   - Tighten once we have ~4 weeks of data to characterize real variance
 #
-#   - GitHub-hosted runners are *noisy* (shared CPU). Naive PR-vs-main
-#     comparisons produce false positives that train people to ignore
-#     the signal entirely. Statistical-rigorous comparison needs care.
-#   - Setting up bencher.dev (the cloud option) requires picking a
-#     vendor, creating an account, configuring an API token. That's a
-#     repo-owner decision, not something to slip in via PR.
-#   - benchmark-action/github-action-benchmark needs a gh-pages branch
-#     for trend storage. That's a workspace structural change.
-#   - For now, accumulating a *history* of artifact runs lets us
-#     observe the noise floor and inform the comparison-strategy
-#     decision in the next slice. Honest first slice > flaky gate.
+# Storage strategy (per #177): github-action-benchmark commits results to
+# the `gh-pages` branch under `dev/bench/`. The action's stock Chart.js
+# dashboard lives at `dev/bench/index.html` for now; the future mdbook
+# refactor (separate issue) will own the chrome via Pattern B and let
+# the action keep ownership of `data.js` only.
 #
-# Roadmap (deferred to follow-up PRs within #148):
-#   - PR-time job that runs benches on PR + main + posts a delta table
-#   - Hard-fail at >20% slower with p<0.01 (per epic DoD)
-#   - Per-release baseline snapshots committed to the repo
-#   - Decision on bencher.dev vs self-hosted noise filtering
-#
-# See docs/benchmarks.md for methodology + baseline numbers + roadmap.
+# See docs/benchmarks.md for methodology + baseline numbers + threshold tuning.
 
 on:
   schedule:
-    # Weekly Sunday 05:14 UTC. Weekly (not nightly) because:
-    #   - Benches are stable; running daily creates noise without signal
-    #   - Stagger position: 05:14 = 2 hours after fuzz nightly (03:14)
-    #     and 1 hour after mutation nightly (04:14). No runner contention.
+    # Weekly Sunday 05:14 UTC. Stagger position: 05:14 = 2 hours after
+    # fuzz nightly (03:14) and 1 hour after mutation nightly (04:14).
     - cron: "14 5 * * 0"
   workflow_dispatch:
     # Manual trigger for ad-hoc baselines (e.g., before/after a perf PR).
   push:
     branches: [main]
-    # Run on every push to main so we accumulate a baseline history.
-    # Path filter: skip docs-only and CI-only changes that can't move
-    # parser perf.
+    # Run on every push to main so we accumulate baseline history on
+    # gh-pages. Path filter: skip docs-only and CI-only changes that
+    # can't move parser perf.
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'benches/**'
+      - '.github/workflows/benchmark.yml'
+  pull_request:
+    # Run on PRs to compare against the latest main baseline and gate.
+    # Same path filter — docs/CI-only PRs skip the bench cycle entirely.
     paths:
       - 'src/**'
       - 'Cargo.toml'
@@ -53,14 +51,15 @@ on:
       - '.github/workflows/benchmark.yml'
 
 concurrency:
-  # Only one bench run at a time — multiple runs would fight for the
-  # runner's already-noisy CPU and produce garbage numbers. Don't
-  # cancel in-progress runs; we want every triggered run to complete
-  # so the history is contiguous.
-  group: benchmark
-  cancel-in-progress: false
+  # Only one bench run per ref at a time — multiple PR pushes shouldn't
+  # fight for the runner's already-noisy CPU. Don't cancel in-progress
+  # runs on main pushes (we want every triggered run to complete so
+  # gh-pages history is contiguous); DO cancel for PRs (latest commit wins).
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
+  # Default to read; bumped to write only for the comment + gh-pages push.
   contents: read
 
 env:
@@ -68,12 +67,18 @@ env:
 
 jobs:
   bench:
-    name: cargo bench (advisory)
+    name: cargo bench (with regression gate)
     runs-on: ubuntu-latest
     # 30 min cap. Local M-class hardware completes in ~70s; ubuntu-latest
-    # is ~2-3× slower so estimate 3-4 min. The cap exists to fail loud
-    # if the bench harness regresses badly or hangs.
+    # is ~2-3× slower so estimate 3-4 min. Cap exists to fail loud if the
+    # bench harness regresses badly or hangs.
     timeout-minutes: 30
+    permissions:
+      # Per-job overrides:
+      #   - contents: write — needed to push results to gh-pages on main
+      #   - pull-requests: write — needed to comment delta table on PRs
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
@@ -85,9 +90,7 @@ jobs:
 
       - name: Run benches (bencher output format)
         # --output-format bencher: machine-parseable line-oriented format,
-        #   compatible with most third-party comparison tools (handy for
-        #   future slices that wire up bencher.dev / github-action-benchmark
-        #   without re-running the benches).
+        #   directly consumed by github-action-benchmark with `tool: cargo`.
         # --noplot: skip gnuplot/HTML report generation; we don't have
         #   gnuplot installed and HTML is heavy for an artifact.
         # 2>&1 + tee: capture both criterion's progress on stderr and
@@ -102,10 +105,10 @@ jobs:
           echo "=== Summary ==="
           cat bench-output/parse-summary.txt
 
-      - name: Upload bench results
+      - name: Upload bench results (artifact)
         # Always upload — even on cancellation we want partial data.
         # 90-day retention so we have a multi-month rolling history
-        # when the next slice lands.
+        # backstop independent of gh-pages.
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
@@ -113,3 +116,40 @@ jobs:
           path: bench-output/
           if-no-files-found: error
           retention-days: 90
+
+      - name: Compare vs baseline + gate (github-action-benchmark)
+        # Per #178:
+        #   - On PR runs: comment the delta table, FAIL if any bench >120%
+        #     of the latest main baseline (= >20% slower).
+        #   - On main pushes: append to the gh-pages history under
+        #     dev/bench/, no comment, no fail (history accumulation only).
+        #   - On schedule/dispatch: skip entirely (no PR to comment on,
+        #     no main push to record).
+        #
+        # The action consumes bench-output/parse.txt directly via tool: cargo
+        # (cargo bench's bencher format is one of its native input modes).
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        uses: benchmark-action/github-action-benchmark@a60cea5bc7b49e15c1f58f411161f99e0df48372  # v1.22.0
+        with:
+          name: hunch criterion benches
+          tool: cargo
+          output-file-path: bench-output/parse.txt
+          # Per #177: gh-pages branch, dev/bench subdir (mdbook-friendly).
+          gh-repository: github.com/${{ github.repository }}
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Push to gh-pages ONLY on main (not on PRs).
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          # Always comment on PRs so dev sees the delta inline.
+          comment-always: ${{ github.event_name == 'pull_request' }}
+          # Threshold: 120% = fail when any bench is >20% slower than baseline.
+          # Permissive on purpose; tighten after noise-floor data accumulates.
+          alert-threshold: '120%'
+          # Fail the job on regression (PRs only). Main pushes record
+          # history but never fail — a regression that lands shouldn't
+          # block subsequent main commits.
+          fail-on-alert: ${{ github.event_name == 'pull_request' }}
+          # Belt-and-suspenders: also @-mention on alert (CC the PR author).
+          comment-on-alert: ${{ github.event_name == 'pull_request' }}
+          alert-comment-cc-users: '@lijunzh'

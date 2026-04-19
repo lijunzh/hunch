@@ -59,15 +59,27 @@ These ranges will tighten once we have a multi-month CI history to characterize 
 
 [`.github/workflows/benchmark.yml`](../.github/workflows/benchmark.yml) — triggered on:
 
-| Trigger | Why |
+| Trigger | Behavior |
 |---|---|
-| Weekly Sunday 05:14 UTC | Track long-term perf trajectory without daily noise |
-| Push to `main` (source/bench/Cargo paths only) | Catch the SHA where any regression entered |
-| Manual dispatch | Ad-hoc baselines (e.g., before/after a perf-targeted PR) |
+| Pull request (paths: `src/`, `benches/`, `Cargo.*`, workflow file) | Compare vs latest `main` baseline; **comment delta table** on PR; **fail if any bench >120% of baseline** |
+| Push to `main` (same paths) | Append results to `gh-pages/dev/bench/data.js`; no comment, no fail |
+| Weekly Sunday 05:14 UTC | Produce artifact only (legacy belt) |
+| Manual dispatch | Produce artifact only |
 
-Output: `bench-output/parse.txt` (full criterion log) + `bench-output/parse-summary.txt` (one bencher-format line per bench), uploaded as the `bench-results-<sha>` artifact with **90-day retention**.
+Output on every run: `bench-output/parse.txt` (full criterion log) + `bench-output/parse-summary.txt` (one bencher-format line per bench), uploaded as the `bench-results-<sha>` artifact with **90-day retention** — independent backstop in case the gh-pages history gets corrupted.
 
-**Currently advisory only**: no PR-time comparison, no comment, no fail. See "Roadmap" below for why.
+### Threshold rationale
+
+- **`alert-threshold: '120%'`** — fail when any bench is **>20% slower** than the latest main baseline.
+- Deliberately permissive to filter the typical 5–10% noise floor on shared GitHub-hosted runners. A tighter threshold without statistical-significance handling would flake constantly.
+- Tighten once we have ~4 weeks of weekly-run data to characterize real variance — tracked in [#178](https://github.com/lijunzh/hunch/issues/178)'s comments.
+
+### Triage when the gate fires
+
+1. **Don't immediately revert.** Confirm by re-running the bench job (CPU jitter on shared runners is real). If the second run still flags it, you have a real signal.
+2. Pull the bench artifact from both the PR run and the most recent `main` run; eyeball the absolute numbers (the action's comment shows %-delta, but absolute µs tells you whether it's a hot-path concern or a 100ns blip on a 10µs bench).
+3. If real, profile locally with `cargo bench --bench parse -- --profile-time 10` (criterion's built-in flamegraph mode) or `samply` for deeper drill-down.
+4. **Override path**: if the regression is intentional (perf traded for correctness or feature), document the rationale in `CHANGELOG.md` and use the `[skip-bench-gate]` label (TODO once we hit the first justified override) — for now, accept the failure and discuss in PR review.
 
 ## History storage — decision (#177)
 
@@ -137,17 +149,15 @@ Criterion will print "Performance has improved" / "Performance has regressed" wi
 This first slice intentionally does **not** implement the full epic [DoD](https://github.com/lijunzh/hunch/issues/148). Why each piece is deferred:
 
 - [x] **Decision: bencher.dev (cloud) vs github-action-benchmark (gh-pages) vs self-hosted runner** — resolved in [#177](https://github.com/lijunzh/hunch/issues/177). See "History storage — decision" above.
-- [ ] **PR-time comparison + comment** ([#178](https://github.com/lijunzh/hunch/issues/178)): wire up `github-action-benchmark`'s comparison mode. Now unblocked by the storage decision; needs a noise-floor characterization first to pick a sensible alert-threshold (default 200% is too permissive; <120% would flake on shared-runner CPU jitter).
-- [ ] **Hard-fail at >20% slower with p<0.01**: per the epic DoD, but only meaningful once we have a baseline that establishes the noise floor. Adding a gate before knowing real variance = guaranteed flake. Tracked under [#178](https://github.com/lijunzh/hunch/issues/178).
-- [ ] **Per-release baseline snapshot committed to the repo** ([#179](https://github.com/lijunzh/hunch/issues/179)): useful for showing perf trajectory in `CHANGELOG.md` per release. Trivial follow-up once the storage substrate exists.
+- [x] **PR-time comparison + comment + regression gate** — resolved in [#178](https://github.com/lijunzh/hunch/issues/178). See "How it runs in CI" above.
+- [ ] **Tighten alert threshold from 120% to something stricter** — needs ~4 weeks of post-#178 data to characterize the noise floor on shared runners. Tracked in #178's comments.
+- [ ] **Per-release baseline snapshot committed to the repo** ([#179](https://github.com/lijunzh/hunch/issues/179)): useful for showing perf trajectory in `CHANGELOG.md` per release. Trivial follow-up now that the storage substrate exists.
 - [ ] **Differential vs guessit**: out of epic scope per #148 ("interesting but apples-to-oranges").
 - [ ] **Memory profiling**: out of epic scope per #148 (criterion is wall-clock).
 
-## Triage protocol — when CI shows a regression
+## Triage protocol — manual deep-dive when the gate fires
 
-Until PR-time comparison lands, regression detection is **manual**: review the artifact from the latest `main` push and eyeball it against the previous one (or local baseline).
-
-If you spot a > 20% slowdown:
+The automated triage steps live in "Triage when the gate fires" above. This section covers the deeper-dive workflow once you've decided a regression is real.
 
 1. **Reproduce locally** with `cargo bench --bench parse` — confirm it's not just CI noise (re-run the workflow if numbers look wild).
 2. **Bisect** with `cargo bench --bench parse -- --save-baseline X` at suspect commits, then `--baseline X` at the next one to find the introducing SHA.
