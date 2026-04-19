@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>hunch — benchmark history</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 720px; margin: 4rem auto; padding: 0 1.5rem; line-height: 1.5; color: #1c1c1c; }
+    h1 { color: #0053e2; margin-bottom: 0.5rem; }
+    code { background: #f3f3f3; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.95em; }
+    a { color: #0053e2; }
+    .pending { background: #fff7d6; border-left: 4px solid #ffc220; padding: 1rem 1.25rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>hunch — benchmark history</h1>
+  <p>
+    This branch hosts the rolling performance history for
+    <a href="https://github.com/lijunzh/hunch">lijunzh/hunch</a>,
+    captured by criterion via the
+    <a href="https://github.com/.github/workflows/benchmark.yml">benchmark workflow</a>.
+  </p>
+
+  <div class="pending">
+    <strong>No data yet.</strong> The
+    <a href="https://github.com/benchmark-action/github-action-benchmark"><code>github-action-benchmark</code></a>
+    action will populate this branch with <code>data.js</code> + an
+    interactive Chart.js dashboard on the next push to <code>main</code>
+    (or weekly Sunday run).
+  </p>
+
+  <h2>See also</h2>
+  <ul>
+    <li><a href="https://github.com/lijunzh/hunch/blob/main/docs/benchmarks.md">docs/benchmarks.md</a> — methodology, baselines, triage protocol</li>
+    <li><a href="https://github.com/lijunzh/hunch/issues/148">Issue #148</a> — the parent epic for this CI work</li>
+    <li><a href="https://github.com/lijunzh/hunch/issues/177">Issue #177</a> — why this branch exists (storage strategy decision)</li>
+  </ul>
+</body>
+</html>
