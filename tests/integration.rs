@@ -263,19 +263,13 @@ fn streaming_service() {
 #[test]
 fn color_depth_10bit() {
     let r = hunch("Movie.2024.10bit.1080p.BluRay.x265.mkv");
-    assert_eq!(
-        r.first(hunch::matcher::span::Property::ColorDepth),
-        Some("10-bit")
-    );
+    assert_eq!(r.first(hunch::Property::ColorDepth), Some("10-bit"));
 }
 
 #[test]
 fn crc32_in_brackets() {
     let r = hunch("[SubGroup] Anime Title - 01 [720p] [ABCD1234].mkv");
-    assert_eq!(
-        r.first(hunch::matcher::span::Property::Crc),
-        Some("ABCD1234")
-    );
+    assert_eq!(r.first(hunch::Property::Crc), Some("ABCD1234"));
 }
 
 // ─── Bit Rate ─────────────────────────────────────────────────────────────
@@ -313,10 +307,7 @@ fn episode_format_minisode() {
     let r = hunch(
         "Series/Breaking Bad/Minisodes/Breaking.Bad.(Minisodes).01.Good.Cop.Bad.Cop.WEBRip.XviD.avi",
     );
-    assert_eq!(
-        r.first(hunch::matcher::span::Property::EpisodeFormat),
-        Some("Minisode")
-    );
+    assert_eq!(r.first(hunch::Property::EpisodeFormat), Some("Minisode"));
     assert_eq!(r.title(), Some("Breaking Bad"));
     assert_eq!(r.episode(), Some(1));
 }
@@ -326,7 +317,7 @@ fn episode_format_minisode() {
 #[test]
 fn week_in_episode_context() {
     let r = hunch("Show Name - S32-Week 45-Ep 6478");
-    assert_eq!(r.first(hunch::matcher::span::Property::Week), Some("45"));
+    assert_eq!(r.first(hunch::Property::Week), Some("45"));
     assert_eq!(r.season(), Some(32));
     assert_eq!(r.episode(), Some(6478));
 }
@@ -335,7 +326,7 @@ fn week_in_episode_context() {
 // Regression tests for CJK fansub bracket format:
 //   [Group][Title][Episode][Resolution][Codec]...
 
-use hunch::matcher::span::Property;
+use hunch::Property;
 
 #[test]
 fn cjk_yamada_full_path() {

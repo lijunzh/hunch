@@ -29,6 +29,12 @@ pub struct ZoneMap {
 
     /// The tech zone: tokens from the first anchor to the release group.
     /// All matchers are active here.
+    /// Currently unused by any consumer (matchers query `title_zone` for
+    /// the suppression boundary; everything outside is implicitly tech).
+    /// Retained because every constructor populates it and removal
+    /// cascades through the zone-map builder. Flagged dead under
+    /// `pub(crate)` after the v2.0.0 module demotion (#144).
+    #[allow(dead_code)]
     pub tech_zone: Range<usize>,
 
     /// Whether any Tier 1/2 anchors were found.
@@ -53,6 +59,8 @@ pub struct SegmentZone {
     /// Title zone within this segment.
     pub title_zone: Range<usize>,
     /// Tech zone within this segment.
+    /// See `ZoneMap::tech_zone` for why this is retained.
+    #[allow(dead_code)]
     pub tech_zone: Range<usize>,
     /// Whether this segment has anchors.
     pub has_anchors: bool,
@@ -65,7 +73,11 @@ pub struct YearInfo {
     pub value: u32,
     /// Byte offset start of the year in the input.
     pub start: usize,
-    /// Byte offset end of the year in the input.
+    /// Byte offset end (exclusive) of the year in the input.
+    /// Currently unused; retained for symmetry with `start` and to allow
+    /// future range-based callers without breaking the field shape.
+    /// Flagged dead under `pub(crate)` after the v2.0.0 module demotion (#144).
+    #[allow(dead_code)]
     pub end: usize,
     /// Year candidates that were classified as title content (not metadata).
     pub title_years: Vec<TitleYear>,
@@ -75,6 +87,11 @@ pub struct YearInfo {
 #[derive(Debug, Clone)]
 pub struct TitleYear {
     /// The 4-digit year number (e.g., `2001`).
+    /// Currently unused by any consumer (callers use `start`/`end` to
+    /// extract from the input directly). Retained because the
+    /// disambiguator populates it for every classified candidate.
+    /// Flagged dead under `pub(crate)` after the v2.0.0 module demotion (#144).
+    #[allow(dead_code)]
     pub value: u32,
     /// Byte offset start in the original input.
     pub start: usize,

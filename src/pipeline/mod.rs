@@ -619,7 +619,7 @@ impl Pipeline {
             let ext_start = input.len() - ext.len();
             matches.push(
                 MatchSpan::new(ext_start, input.len(), Property::Container, ext.as_str())
-                    .as_extension()
+                    .with_extension()
                     .with_priority(priority::EXTENSION),
             );
         }

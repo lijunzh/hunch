@@ -92,7 +92,7 @@
 //! 2. **Zone map** — detect anchors (SxxExx, 720p, x264) to establish
 //!    title-zone vs tech-zone boundaries
 //! 3. **Pass 1: Match & Resolve** — 20 TOML rule files + algorithmic
-//!    matchers produce [`MatchSpan`](matcher::span::MatchSpan)s; conflict
+//!    matchers produce internal match spans; conflict
 //!    resolution keeps higher-priority / longer matches
 //! 4. **Pass 2: Extract** — release group, title, episode title run with
 //!    access to resolved match positions from Pass 1
@@ -118,11 +118,17 @@ pub(crate) const CODEC_NUMBERS: &[u32] = &[264, 265, 128];
 /// in the cross-file context module where full paths are analyzed.
 pub(crate) const FILENAME_SEPS: &[char] = &['.', ' ', '_', '-', '+'];
 
-pub mod matcher;
+// Internal modules. v2.0.0 demoted these from `pub mod` to `pub(crate) mod`
+// because the only items downstream consumers should reach are the curated
+// re-exports below (`Property`, `HunchResult`, etc.). The 188-item public
+// surface that the `pub mod` declarations were leaking was almost entirely
+// internal helpers (regex builders, zone-map state, internal property
+// matchers) that should not be part of the SemVer contract. See #144.
+pub(crate) mod matcher;
 pub(crate) mod priority;
-pub mod properties;
-pub mod tokenizer;
-pub mod zone_map;
+pub(crate) mod properties;
+pub(crate) mod tokenizer;
+pub(crate) mod zone_map;
 
 mod hunch_result;
 mod pipeline;

@@ -403,7 +403,7 @@ fn try_season_patterns(input: &str, matches: &mut Vec<MatchSpan>) {
             let season = parse_num(&cap, "season");
             matches.push(
                 MatchSpan::new(full.start(), full.end(), Property::Season, season)
-                    .as_path_based()
+                    .with_path_based()
                     .with_priority(crate::priority::POSITIONAL),
             );
         }

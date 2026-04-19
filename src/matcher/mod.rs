@@ -13,5 +13,6 @@ pub mod regex_utils;
 pub mod rule_loader;
 pub mod span;
 
-pub use engine::resolve_conflicts;
-pub use span::{MatchSpan, Property};
+// v2.0.0 (#144): removed `pub use engine::resolve_conflicts;` and
+// `pub use span::{MatchSpan, Property};` — the only re-export anyone
+// actually needed is now done at the crate root in src/lib.rs.

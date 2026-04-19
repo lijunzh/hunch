@@ -146,7 +146,7 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
                 let span = MatchSpan::new(win_start, win_end, ctx.property, token_match.value)
                     .with_priority(ctx.priority);
                 let span = if reclaimable {
-                    span.as_reclaimable()
+                    span.with_reclaimable()
                 } else {
                     span
                 };
