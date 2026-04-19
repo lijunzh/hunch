@@ -785,6 +785,94 @@ mod tests {
         assert!(is_generic_dir("4K"));
     }
 
+    // ── #146 closer: kill the last 2 surviving mutants ────────────────
+    //
+    // The 2026-04-19 nightly surfaced two single-mutant clusters in
+    // this file that no test pinned. These tests close them out and
+    // complete the #173 triage roadmap.
+
+    #[test]
+    fn generic_dir_recognizes_all_season_prefix_synonyms() {
+        // Pin `|| -> &&` mutants on the prefix-match chain at
+        // is_generic_dir lines 514-519. Each `lower.starts_with(...)`
+        // OR-arm must be exercised by at least one assertion: with
+        // `|| -> &&` on any single arm, the chain becomes a giant AND
+        // that returns false for any single-prefix input.
+        //
+        // Existing tests covered "Season" / "Saison" / "Disc" / "Disk".
+        // Missing coverage: "Temporada" (PT), "Stagione" (IT), "DVD".
+        // Adding these kills the surviving line-516 mutant and pins
+        // every remaining || in the chain for free.
+        assert!(
+            is_generic_dir("Temporada 2"),
+            "Portuguese 'Temporada' (Season) prefix"
+        );
+        assert!(
+            is_generic_dir("Stagione 1"),
+            "Italian 'Stagione' (Season) prefix"
+        );
+        assert!(is_generic_dir("DVD9"), "DVD prefix (e.g., DVD5, DVD9)");
+        assert!(is_generic_dir("dvdrip"), "DVD prefix is case-insensitive");
+    }
+
+    #[test]
+    fn classify_dash_word_dash_when_both_flanks_alphanumeric() {
+        // Happy path: "Spider-Man" — alnum on both sides → WordDash.
+        let chars: Vec<char> = "Spider-Man".chars().collect();
+        let dash_idx = chars.iter().position(|&c| c == '-').unwrap();
+        assert_eq!(classify_dash(&chars, dash_idx), DashKind::WordDash);
+    }
+
+    #[test]
+    fn classify_dash_separator_flanked_when_both_sides_are_separators() {
+        // Pin the SeparatorFlanked branch: space-dash-space.
+        // Required to confirm the branch is reachable before pinning the
+        // && -> || mutant in the next test.
+        let chars: Vec<char> = "Show - Title".chars().collect();
+        let dash_idx = chars.iter().position(|&c| c == '-').unwrap();
+        assert_eq!(classify_dash(&chars, dash_idx), DashKind::SeparatorFlanked);
+    }
+
+    #[test]
+    fn classify_dash_other_when_only_one_flank_is_separator() {
+        // Pin `&& -> ||` mutant on `is_sep(prev) && is_sep(next)`.
+        //
+        // Asymmetric flanks: separator on ONE side, non-alnum non-sep on
+        // the other. With the original `&&`, both must be separators →
+        // returns Other (correct). With the mutant `||`, EITHER being a
+        // separator suffices → returns SeparatorFlanked (BUG).
+        //
+        // "Foo -[Bar" — the dash has a space before (separator) but '[// after, which is neither alnum nor a SEPS member. Both alnum
+        // checks fail, so the alnum branch doesn't fire. Then the sep
+        // check: prev=' ' is sep, next='[' is NOT a sep → the original
+        // returns Other; the mutant would return SeparatorFlanked.
+        let chars: Vec<char> = "Foo -[Bar".chars().collect();
+        let dash_idx = chars.iter().position(|&c| c == '-').unwrap();
+        assert_eq!(classify_dash(&chars, dash_idx), DashKind::Other);
+
+        // Mirror case: '[' before, separator after.
+        let chars: Vec<char> = "[- Bar".chars().collect();
+        let dash_idx = chars.iter().position(|&c| c == '-').unwrap();
+        assert_eq!(classify_dash(&chars, dash_idx), DashKind::Other);
+    }
+
+    #[test]
+    fn classify_dash_at_boundaries() {
+        // Belt: dash at index 0 (no prev) and at last index (no next).
+        // Pins the `i > 0` boundary check at the top of classify_dash.
+        let chars: Vec<char> = "-Foo".chars().collect();
+        // prev=None, next='F' (alnum). is_alnum(None)=false, so the
+        // alnum branch is false; is_sep(None)=false, so sep branch false
+        // → Other.
+        assert_eq!(classify_dash(&chars, 0), DashKind::Other);
+
+        let chars: Vec<char> = "Foo-".chars().collect();
+        let last = chars.len() - 1;
+        // prev='o' (alnum), next=None. alnum branch needs both → false;
+        // sep branch needs both → false → Other.
+        assert_eq!(classify_dash(&chars, last), DashKind::Other);
+    }
+
     #[test]
     fn generic_dir_subtitles_and_audio() {
         assert!(is_generic_dir("Subs"));
