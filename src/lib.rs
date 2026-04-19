@@ -92,7 +92,7 @@
 //! 2. **Zone map** — detect anchors (SxxExx, 720p, x264) to establish
 //!    title-zone vs tech-zone boundaries
 //! 3. **Pass 1: Match & Resolve** — 20 TOML rule files + algorithmic
-//!    matchers produce [`MatchSpan`](matcher::span::MatchSpan)s; conflict
+//!    matchers produce internal match spans; conflict
 //!    resolution keeps higher-priority / longer matches
 //! 4. **Pass 2: Extract** — release group, title, episode title run with
 //!    access to resolved match positions from Pass 1
