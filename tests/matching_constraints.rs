@@ -59,7 +59,7 @@ fn requires_nearby_satisfied() {
     // "DTS-HD.MA" should produce audio_profile: "Master Audio".
     let r = hunch("Movie.DTS-HD.MA.1080p.BluRay.mkv");
     assert_eq!(r.audio_codec(), Some("DTS-HD"));
-    let ap = r.first(hunch::matcher::Property::AudioProfile);
+    let ap = r.first(hunch::Property::AudioProfile);
     assert_eq!(ap, Some("Master Audio"));
 }
 
@@ -90,7 +90,7 @@ fn compound_three_token_match() {
     // "DTS-HD.MA" is a 3-token compound (DTS + HD + MA).
     let r = hunch("Movie.1080p.DTS-HD.MA.BluRay.x264-GROUP.mkv");
     assert_eq!(r.audio_codec(), Some("DTS-HD"));
-    let ap = r.first(hunch::matcher::Property::AudioProfile);
+    let ap = r.first(hunch::Property::AudioProfile);
     assert_eq!(ap, Some("Master Audio"));
 }
 

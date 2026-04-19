@@ -113,6 +113,10 @@ pub enum ZoneScope {
 #[derive(Debug)]
 pub struct RuleSet {
     /// The property this rule set matches (e.g., "video_codec").
+    /// Only read by debug-print paths and the rule-loader itself; flagged
+    /// dead under `pub(crate)` after the v2.0.0 module demotion (#144).
+    /// Kept because every loaded RuleSet stores it for diagnostics.
+    #[allow(dead_code)]
     pub property: String,
     /// Zone scope for this rule set.
     pub zone_scope: ZoneScope,
@@ -279,11 +283,13 @@ impl RuleSet {
     }
 
     /// Number of exact entries.
+    #[cfg(test)]
     pub fn exact_count(&self) -> usize {
         self.exact.len()
     }
 
     /// Number of regex patterns.
+    #[cfg(test)]
     pub fn pattern_count(&self) -> usize {
         self.patterns.len()
     }

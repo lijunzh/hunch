@@ -54,16 +54,6 @@ impl Token {
     pub fn lower(&self) -> &str {
         &self.lower
     }
-
-    /// Byte length of the token text.
-    pub fn len(&self) -> usize {
-        self.text.len()
-    }
-
-    /// Whether the token is empty.
-    pub fn is_empty(&self) -> bool {
-        self.text.is_empty()
-    }
 }
 
 /// The separator that preceded a token.
@@ -113,6 +103,11 @@ pub struct PathSegment {
     /// Byte offset where this segment ends (exclusive) in the original input.
     pub end: usize,
     /// Depth from root (0 = first segment, increases toward filename).
+    /// Currently unused by any consumer — retained because every
+    /// `PathSegment` constructor sets it and removal would cascade through
+    /// all tokenizer call-sites. Flagged dead under `pub(crate)` after the
+    /// v2.0.0 module demotion (#144).
+    #[allow(dead_code)]
     pub depth: usize,
 }
 
@@ -135,15 +130,10 @@ pub struct BracketGroup {
 }
 
 impl BracketGroup {
-    /// Byte range of the entire bracket group including delimiters.
-    pub fn span(&self) -> std::ops::Range<usize> {
-        self.open..self.close + 1
-    }
-
-    /// Byte range of the content only (excluding delimiters).
-    pub fn content_span(&self) -> std::ops::Range<usize> {
-        self.open + 1..self.close
-    }
+    // v2.0.0 (#144): removed unused `span()` and `content_span()` methods.
+    // The byte-range fields (`open`, `close`) are still public for direct
+    // access — callers that need a `Range<usize>` can construct one
+    // inline (`open..close + 1`).
 }
 
 /// The type of bracket delimiter.
@@ -165,6 +155,11 @@ pub enum BracketKind {
 #[derive(Debug, Clone)]
 pub struct TokenStream {
     /// The original input string.
+    /// Currently unused by any consumer (matchers receive the raw input
+    /// string directly). Retained because every constructor sets it and
+    /// removal cascades through all tokenizer call-sites. Flagged dead
+    /// under `pub(crate)` after the v2.0.0 module demotion (#144).
+    #[allow(dead_code)]
     pub input: String,
     /// Flattened view of ALL tokens across all segments, ordered by byte position.
     pub tokens: Vec<Token>,

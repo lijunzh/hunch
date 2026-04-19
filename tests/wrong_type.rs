@@ -5,7 +5,7 @@
 //! 2. Vocabulary: Anime bonus tokens (NCOP/NCED/PV/CM) → EpisodeDetails → Extra
 //! 3. Architectural: Path-based type inference (tv/ → episode)
 
-use hunch::matcher::span::Property;
+use hunch::Property;
 use hunch::{MediaType, hunch};
 
 // ── Layer 1: CJK episode markers (structural pattern) ───────────────────

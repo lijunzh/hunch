@@ -443,7 +443,7 @@ mod tests {
     #[test]
     fn test_reclaimable_absorbed_into_title() {
         let input = "Harold.And.Kumar.3D.Christmas.mkv";
-        let reclaimable_3d = MatchSpan::new(17, 19, Property::Other, "3D").as_reclaimable();
+        let reclaimable_3d = MatchSpan::new(17, 19, Property::Other, "3D").with_reclaimable();
         let mut matches = vec![reclaimable_3d];
         let zm = test_zone_map(input);
         let ts = test_ts(input);

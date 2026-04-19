@@ -118,11 +118,17 @@ pub(crate) const CODEC_NUMBERS: &[u32] = &[264, 265, 128];
 /// in the cross-file context module where full paths are analyzed.
 pub(crate) const FILENAME_SEPS: &[char] = &['.', ' ', '_', '-', '+'];
 
-pub mod matcher;
+// Internal modules. v2.0.0 demoted these from `pub mod` to `pub(crate) mod`
+// because the only items downstream consumers should reach are the curated
+// re-exports below (`Property`, `HunchResult`, etc.). The 188-item public
+// surface that the `pub mod` declarations were leaking was almost entirely
+// internal helpers (regex builders, zone-map state, internal property
+// matchers) that should not be part of the SemVer contract. See #144.
+pub(crate) mod matcher;
 pub(crate) mod priority;
-pub mod properties;
-pub mod tokenizer;
-pub mod zone_map;
+pub(crate) mod properties;
+pub(crate) mod tokenizer;
+pub(crate) mod zone_map;
 
 mod hunch_result;
 mod pipeline;

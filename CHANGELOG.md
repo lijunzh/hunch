@@ -43,10 +43,56 @@ Release prep checklist (per #179):
 
 ### Changed
 
+- **⚠️ BREAKING: public module surface dramatically reduced.** Four
+  sub-modules were demoted from `pub mod` to `pub(crate) mod`:
+  `matcher`, `properties`, `tokenizer`, `zone_map`. The intended public
+  API — `hunch()`, `hunch_with_context()`, `Pipeline`, `HunchResult`,
+  `Confidence`, `MediaType`, `Property` — is unchanged and remains
+  reachable at the crate root via the existing `pub use` re-exports in
+  `src/lib.rs`.
+
+  **What this breaks:** any downstream code using deep import paths like
+  `use hunch::matcher::span::Property;` or `use hunch::tokenizer::Token;`.
+
+  **Migration:** switch deep imports to the crate-root re-exports:
+
+  ```rust
+  // Before (v1.x):
+  use hunch::matcher::span::Property;
+  use hunch::matcher::span::MatchSpan;  // no longer reachable
+
+  // After (v2.0.0):
+  use hunch::Property;                  // re-exported at crate root
+  // MatchSpan is now internal — use HunchResult accessors instead
+  ```
+
+  **Public surface impact:** 853 lines → 202 lines (76% reduction).
+  Internal helpers like `matcher::engine::resolve_conflicts`,
+  `regex_utils::{CharClass, BoundarySpec, BoundedRegex}`,
+  `tokenizer::{Token, Segment, BracketGroup}`, and `zone_map::ZoneMap`
+  are no longer part of the SemVer contract.
+
+  Why: the `pub mod` declarations were leaking ~188 internal items into
+  the public API by accident. Locking these in as v2.0.0 commitments
+  would have made every internal refactor a SemVer hazard. The audit
+  also surfaced legitimate dead code (4 unused methods, 2 unused
+  re-exports, 6 unused fields) which is removed or marked
+  `#[allow(dead_code)]` with an explanatory note. (#144)
+
+- **⚠️ BREAKING: `MatchSpan` builder methods renamed `as_*` → `with_*`.**
+  `as_extension` → `with_extension`, `as_path_based` → `with_path_based`,
+  `as_reclaimable` → `with_reclaimable`. These were never user-facing
+  (now `pub(crate)`) so the rename only affects internal callers; no
+  migration needed for downstream code. The rename brings them in line
+  with the existing `with_priority` / `with_source` builders and
+  resolves the `clippy::wrong_self_convention` lint (consuming builders
+  conventionally use `with_*`). (#144)
+
 - **⚠️ BREAKING: public enums now carry `#[non_exhaustive]`.** Affected
-  enums: `Property`, `MediaType`, `Confidence`, `OutputFormat` (and any
-  others reachable from `pub use src/lib.rs`). Downstream code that
-  matches exhaustively on these enums **must** add a wildcard arm:
+  enums: `Property`, `MediaType`, `Confidence`, `SegmentKind`, `Source`,
+  `ZoneScope`, `Separator`, `BracketKind`, `CharClass` (every public
+  enum reachable from the crate). Downstream code that matches
+  exhaustively on these enums **must** add a wildcard arm:
 
   ```rust
   match prop {
@@ -58,7 +104,9 @@ Release prep checklist (per #179):
 
   Why: this lets future minor releases add new variants (the bit-rate
   split in #165 was the immediate trigger) without re-breaking the API
-  every time. (#172)
+  every time. `Confidence` and `SegmentKind` were caught by the v2.0.0
+  prerelease audit (#196) — every `pub enum` in the crate is now
+  consistently `#[non_exhaustive]`. (#172, #196)
 
 ### Fixed
 

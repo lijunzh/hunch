@@ -47,7 +47,7 @@ impl fmt::Display for Source {
 ///
 /// ```rust
 /// use hunch::hunch;
-/// use hunch::matcher::span::Property;
+/// use hunch::Property;
 ///
 /// let r = hunch("The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv");
 /// assert_eq!(r.first(Property::Title), Some("The Matrix"));
@@ -79,7 +79,7 @@ macro_rules! define_properties {
             /// # Example
             ///
             /// ```rust
-            /// use hunch::matcher::span::Property;
+            /// use hunch::Property;
             ///
             /// assert_eq!(Property::from_name("video_codec"), Some(Property::VideoCodec));
             /// assert_eq!(Property::from_name("unknown"), None);
@@ -249,8 +249,13 @@ define_properties! {
 ///
 /// # Example
 ///
-/// ```rust
-/// use hunch::matcher::span::{MatchSpan, Property};
+/// `MatchSpan` is an internal type as of v2.0.0 (#144) — it is no longer
+/// part of the public API surface. The example below is for crate-internal
+/// reference only and is marked `ignore` because the types are not
+/// reachable from outside the crate.
+///
+/// ```ignore
+/// use crate::matcher::span::{MatchSpan, Property};
 ///
 /// let span = MatchSpan::new(11, 15, Property::Year, "1999")
 ///     .with_priority(1);
@@ -301,14 +306,14 @@ impl MatchSpan {
     /// Extension-based matches (e.g., `.mkv` → `Container`) are excluded
     /// from title boundary calculations.
     #[must_use]
-    pub fn as_extension(mut self) -> Self {
+    pub fn with_extension(mut self) -> Self {
         self.is_extension = true;
         self
     }
 
     /// Mark this match as originating from a path component (directory name).
     #[must_use]
-    pub fn as_path_based(mut self) -> Self {
+    pub fn with_path_based(mut self) -> Self {
         self.is_path_based = true;
         self
     }
@@ -325,7 +330,7 @@ impl MatchSpan {
 
     /// Mark this match as reclaimable by the title extractor.
     #[must_use]
-    pub fn as_reclaimable(mut self) -> Self {
+    pub fn with_reclaimable(mut self) -> Self {
         self.reclaimable = true;
         self
     }
@@ -345,11 +350,6 @@ impl MatchSpan {
     /// The raw length of this match in bytes.
     pub fn len(&self) -> usize {
         self.end - self.start
-    }
-
-    /// Whether this match span is zero-length.
-    pub fn is_empty(&self) -> bool {
-        self.start == self.end
     }
 }
 
