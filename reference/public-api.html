@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-8430e0eb.js";
+            window.path_to_searchindex_js = "../searchindex-abd6dd68.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-d3f9349e.js"></script>
@@ -272,12 +272,12 @@ rustup toolchain install nightly --profile minimal
 cargo install cargo-public-api --locked
 
 # Capture the current public API:
-cargo public-api --simplified &gt; docs/public-api.txt
+cargo +nightly public-api --simplified 2&gt;/dev/null &gt; docs/src/reference/public-api.txt
 
 # Verify the diff matches what you intended:
-git diff docs/public-api.txt
+git diff docs/src/reference/public-api.txt
 </code></pre>
-<p>Commit <code>docs/public-api.txt</code> together with the API change in the same PR.
+<p>Commit <code>docs/src/reference/public-api.txt</code> together with the API change in the same PR.
 The diff in the PR review should make the API delta easy for reviewers
 to scan.</p>
 <h2 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h2>

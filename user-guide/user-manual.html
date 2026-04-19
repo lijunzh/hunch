@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-8430e0eb.js";
+            window.path_to_searchindex_js = "../searchindex-abd6dd68.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-d3f9349e.js"></script>
@@ -329,8 +329,49 @@ fn main() {
         Confidence::High   =&gt; println!("Confident parse"),
         Confidence::Medium =&gt; println!("Reasonable parse"),
         Confidence::Low    =&gt; println!("Consider using --context"),
+        // `Confidence` is `#[non_exhaustive]` so future variants land
+        // without forcing a major-version bump. Add a wildcard arm to
+        // your `match`es:
+        _                  =&gt; println!("Unknown confidence level"),
     }
 }</code></pre>
+<h3 id="media-type-checks-added-in-v200"><a class="header" href="#media-type-checks-added-in-v200">Media-type checks (added in v2.0.0)</a></h3>
+<p>Three convenience helpers route a result to the right downstream lookup
+(e.g., TMDb for movies vs. TVDb for episodes) without an explicit
+<code>MediaType</code> import:</p>
+<pre class="playground"><code class="language-rust">use hunch::hunch;
+
+fn main() {
+    let r = hunch("Breaking.Bad.S05E16.720p.BluRay.x264-DEMAND.mkv");
+    if r.is_episode() {
+        // route to TVDb
+    }
+    if r.is_movie() {
+        // route to TMDb
+    }
+    if r.is_extra() {
+        // bonus content / specials / NCOP / NCED — may not have a DB entry
+    }
+}</code></pre>
+<p>All three return <code>false</code> when the media type is unknown (rather than
+defaulting to a guess). Callers that need to distinguish “definitely
+not X” from “unknown” should use
+<a href="https://docs.rs/hunch/latest/hunch/struct.HunchResult.html#method.media_type"><code>media_type()</code></a>
+directly.</p>
+<h3 id="bit-rate-and-mime-type-added-in-v200"><a class="header" href="#bit-rate-and-mime-type-added-in-v200">Bit rate and MIME type (added in v2.0.0)</a></h3>
+<p>The <code>bit_rate</code> property is split by unit (<code>Kbps</code> → audio, <code>Mbps</code> →
+video); MIME type is derived from the container extension:</p>
+<pre class="playground"><code class="language-rust">use hunch::hunch;
+
+fn main() {
+    let r = hunch("Movie.2024.DD5.1.448Kbps.x264.5500Kbps.mp4");
+    assert_eq!(r.audio_bit_rate(), Some("448Kbps"));
+    assert_eq!(r.video_bit_rate(), Some("5500Kbps"));
+    assert_eq!(r.mimetype(),       Some("video/mp4"));
+}</code></pre>
+<p>MIME type returns <code>None</code> when the container is unknown rather than
+fabricating a value — callers that need a fallback should provide it
+at the call site.</p>
 <h3 id="full-api-reference"><a class="header" href="#full-api-reference">Full API reference</a></h3>
 <p>See <strong><a href="https://docs.rs/hunch">docs.rs/hunch</a></strong> for all 49
 <a href="https://docs.rs/hunch/latest/hunch/matcher/span/enum.Property.html"><code>Property</code></a>

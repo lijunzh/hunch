@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-8430e0eb.js";
+            window.path_to_searchindex_js = "../searchindex-abd6dd68.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-d3f9349e.js"></script>
@@ -188,7 +188,7 @@ against guessit’s test suite as a <strong>secondary benchmark</strong>.</p>
 Hunch is tuned first for <strong>real-world media-library accuracy</strong>, with guessit
 compatibility used as a reference point rather than a product goal.</p>
 <blockquote>
-<p><strong>Last updated:</strong> 2026-04-17 (v1.1.8 release)</p>
+<p><strong>Last updated:</strong> 2026-04-19 (pre-v2.0.0)</p>
 </blockquote>
 <hr>
 <h2 id="current-snapshot"><a class="header" href="#current-snapshot">Current snapshot</a></h2>
@@ -224,25 +224,14 @@ truth. When compatibility and real-world behavior disagree, hunch prefers the
 behavior that is more accurate and maintainable for actual media libraries.</p>
 <hr>
 <h2 id="intentional-divergences"><a class="header" href="#intentional-divergences">Intentional divergences</a></h2>
-<p>Hunch intentionally does not mirror guessit in a few places:</p>
-<ul>
-<li>
-<p><strong><code>audio_bit_rate</code> / <code>video_bit_rate</code></strong></p>
-<ul>
-<li>guessit splits these into separate properties</li>
-<li>hunch emits a single <code>bit_rate</code>, because filenames rarely contain enough
-reliable context to disambiguate audio vs video bit rate cleanly</li>
-</ul>
-</li>
-<li>
-<p><strong><code>mimetype</code></strong></p>
-<ul>
-<li>guessit derives MIME type from the file extension</li>
-<li>hunch does not emit it, because that is a trivial container lookup better
-handled by the consumer</li>
-</ul>
-</li>
-</ul>
+<p>Hunch intentionally does not mirror guessit in a few places. The list is
+smaller than it used to be — several earlier divergences (notably the
+bit_rate split and mimetype derivation) were resolved in v2.0.0 (#165)
+because real-world filenames turned out to provide enough signal after
+all.</p>
+<p><em>Active divergences as of v2.0.0: none worth listing.</em> If you find one,
+please file an issue — the goal is for divergences to be deliberate and
+documented, not accidental.</p>
 <hr>
 <h2 id="real-world-accuracy-matters-more"><a class="header" href="#real-world-accuracy-matters-more">Real-world accuracy matters more</a></h2>
 <p>The main quality signal for hunch is behavior on real media libraries, not
