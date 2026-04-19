@@ -67,7 +67,11 @@ impl Token {
 }
 
 /// The separator that preceded a token.
+///
+/// `#[non_exhaustive]` so future separator kinds (e.g. `Comma`, `Tab`) can
+/// be added in minor releases without a SemVer break.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum Separator {
     /// No separator (start of input, or inside a compound token).
     None,
@@ -138,7 +142,11 @@ impl BracketGroup {
 }
 
 /// The type of bracket delimiter.
+///
+/// `#[non_exhaustive]` so future bracket kinds (e.g. `Angle` `<...>`) can
+/// be added in minor releases without a SemVer break.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum BracketKind {
     /// `[...]`
     Square,

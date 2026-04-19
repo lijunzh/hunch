@@ -3,7 +3,7 @@ pub mod hunch::matcher
 pub mod hunch::matcher::engine
 pub fn hunch::matcher::engine::resolve_conflicts(matches: &mut alloc::vec::Vec<hunch::matcher::span::MatchSpan>)
 pub mod hunch::matcher::regex_utils
-pub enum hunch::matcher::regex_utils::CharClass
+#[non_exhaustive] pub enum hunch::matcher::regex_utils::CharClass
 pub hunch::matcher::regex_utils::CharClass::Alpha
 pub hunch::matcher::regex_utils::CharClass::AlphaDigit
 pub hunch::matcher::regex_utils::CharClass::Custom(alloc::vec::Vec<(u8, u8)>)
@@ -51,7 +51,7 @@ impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::regex_utils::Bound
 pub fn hunch::matcher::regex_utils::captures_iter_bounded<'a>(re: &'a regex::regex::string::Regex, input: &'a str, boundary: &hunch::matcher::regex_utils::BoundarySpec) -> alloc::vec::Vec<regex::regex::string::Captures<'a>>
 pub fn hunch::matcher::regex_utils::check_boundary(input: &[u8], start: usize, end: usize, spec: &hunch::matcher::regex_utils::BoundarySpec) -> bool
 pub mod hunch::matcher::rule_loader
-pub enum hunch::matcher::rule_loader::ZoneScope
+#[non_exhaustive] pub enum hunch::matcher::rule_loader::ZoneScope
 pub hunch::matcher::rule_loader::ZoneScope::AfterAnchor
 pub hunch::matcher::rule_loader::ZoneScope::TechOnly
 pub hunch::matcher::rule_loader::ZoneScope::Unrestricted
@@ -132,7 +132,7 @@ impl<'a> core::marker::UnsafeUnpin for hunch::matcher::rule_loader::TokenMatch<'
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::rule_loader::TokenMatch<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for hunch::matcher::rule_loader::TokenMatch<'a>
 pub mod hunch::matcher::span
-pub enum hunch::matcher::span::Property
+#[non_exhaustive] pub enum hunch::matcher::span::Property
 pub hunch::matcher::span::Property::AbsoluteEpisode
 pub hunch::matcher::span::Property::AlternativeTitle
 pub hunch::matcher::span::Property::AspectRatio
@@ -212,7 +212,7 @@ impl core::marker::Unpin for hunch::matcher::span::Property
 impl core::marker::UnsafeUnpin for hunch::matcher::span::Property
 impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::span::Property
 impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::span::Property
-pub enum hunch::matcher::span::Source
+#[non_exhaustive] pub enum hunch::matcher::span::Source
 pub hunch::matcher::span::Source::Context
 pub hunch::matcher::span::Source::Heuristic
 pub hunch::matcher::span::Source::Structural
@@ -269,7 +269,7 @@ impl core::marker::Unpin for hunch::matcher::span::MatchSpan
 impl core::marker::UnsafeUnpin for hunch::matcher::span::MatchSpan
 impl core::panic::unwind_safe::RefUnwindSafe for hunch::matcher::span::MatchSpan
 impl core::panic::unwind_safe::UnwindSafe for hunch::matcher::span::MatchSpan
-pub enum hunch::matcher::Property
+#[non_exhaustive] pub enum hunch::matcher::Property
 pub hunch::matcher::Property::AbsoluteEpisode
 pub hunch::matcher::Property::AlternativeTitle
 pub hunch::matcher::Property::AspectRatio
@@ -436,7 +436,7 @@ pub fn hunch::properties::website::find_matches(input: &str) -> alloc::vec::Vec<
 pub mod hunch::properties::year
 pub fn hunch::properties::year::find_matches(input: &str) -> alloc::vec::Vec<hunch::matcher::span::MatchSpan>
 pub mod hunch::tokenizer
-pub enum hunch::tokenizer::BracketKind
+#[non_exhaustive] pub enum hunch::tokenizer::BracketKind
 pub hunch::tokenizer::BracketKind::Curly
 pub hunch::tokenizer::BracketKind::Round
 pub hunch::tokenizer::BracketKind::Square
@@ -475,7 +475,7 @@ impl core::marker::Unpin for hunch::tokenizer::SegmentKind
 impl core::marker::UnsafeUnpin for hunch::tokenizer::SegmentKind
 impl core::panic::unwind_safe::RefUnwindSafe for hunch::tokenizer::SegmentKind
 impl core::panic::unwind_safe::UnwindSafe for hunch::tokenizer::SegmentKind
-pub enum hunch::tokenizer::Separator
+#[non_exhaustive] pub enum hunch::tokenizer::Separator
 pub hunch::tokenizer::Separator::Dash
 pub hunch::tokenizer::Separator::Dot
 pub hunch::tokenizer::Separator::None
@@ -676,7 +676,7 @@ impl core::marker::Unpin for hunch::Confidence
 impl core::marker::UnsafeUnpin for hunch::Confidence
 impl core::panic::unwind_safe::RefUnwindSafe for hunch::Confidence
 impl core::panic::unwind_safe::UnwindSafe for hunch::Confidence
-pub enum hunch::MediaType
+#[non_exhaustive] pub enum hunch::MediaType
 pub hunch::MediaType::Episode
 pub hunch::MediaType::Extra
 pub hunch::MediaType::Movie
@@ -698,7 +698,7 @@ impl core::marker::Unpin for hunch::MediaType
 impl core::marker::UnsafeUnpin for hunch::MediaType
 impl core::panic::unwind_safe::RefUnwindSafe for hunch::MediaType
 impl core::panic::unwind_safe::UnwindSafe for hunch::MediaType
-pub enum hunch::Property
+#[non_exhaustive] pub enum hunch::Property
 pub hunch::Property::AbsoluteEpisode
 pub hunch::Property::AlternativeTitle
 pub hunch::Property::AspectRatio

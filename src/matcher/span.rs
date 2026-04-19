@@ -13,7 +13,11 @@ use std::fmt;
 /// This tag is purely informational: it feeds logging (`[CONTEXT]`,
 /// `[HEURISTIC]` prefixes) and confidence scoring. It does **not** affect
 /// conflict resolution — priority is still the authority there.
+///
+/// `#[non_exhaustive]` so future provenance categories (e.g. ML-derived) can
+/// be added in minor releases without a SemVer break.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[non_exhaustive]
 pub enum Source {
     /// Matched by a deterministic structural rule (SxxExx, parenthesized year,
     /// codec keyword, etc.). This is the default and "happy path".
@@ -56,7 +60,12 @@ macro_rules! define_properties {
         /// Each variant corresponds to one metadata field in the final
         /// [`HunchResult`](crate::HunchResult). Use [`Property::from_name`] to parse
         /// from a string, or [`fmt::Display`] to convert back.
+        ///
+        /// `#[non_exhaustive]` so new property kinds (e.g. `Mimetype`,
+        /// `AudioBitRate`) can be added in minor releases without a SemVer
+        /// break. Downstream `match`es must include a wildcard arm.
         #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[non_exhaustive]
         pub enum Property {
             $( $(#[$meta])* $variant ),*
         }

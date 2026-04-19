@@ -111,7 +111,11 @@ PRs:
   the property modules) en masse.
 - **`#[non_exhaustive]`** on the public enums (`Confidence`,
   `HunchResult` field types) so future variant additions aren't
-  SemVer-major.
+  SemVer-major. _Partially landed in #172: `Property`, `MediaType`,
+  `Source`, `Separator`, `BracketKind`, `ZoneScope`, `CharClass` now
+  bear the attribute. `Confidence` and `SegmentKind` deliberately
+  excluded — they're conceptually saturated (Low/Med/High and
+  Directory/Filename respectively)._
 - **Promote the CI job from advisory → blocking** once the surface has
   stabilised post-audit.
 
