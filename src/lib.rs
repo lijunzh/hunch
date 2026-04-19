@@ -5,7 +5,7 @@
 //!
 //! Hunch parses messy media filenames and release names into structured
 //! metadata: title, year, season, episode, video codec, audio codec,
-//! resolution, and **49 properties** in total.
+//! resolution, and **50 properties** in total.
 //!
 //! ## Quick Start
 //!
@@ -96,7 +96,7 @@
 //!    resolution keeps higher-priority / longer matches
 //! 4. **Pass 2: Extract** — release group, title, episode title run with
 //!    access to resolved match positions from Pass 1
-//! 5. **Result** — [`HunchResult`] with 49 typed property accessors
+//! 5. **Result** — [`HunchResult`] with 50 typed property accessors
 //!
 //! All regex patterns use the [`regex`] crate only (linear-time, ReDoS-immune).
 //! TOML rule files are embedded at compile time via `include_str!` — no

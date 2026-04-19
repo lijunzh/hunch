@@ -318,7 +318,7 @@ Input: "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
   ├─ 2. Zone map     → title_zone: [0..3], tech_zone: [3..end]
   │
   ══ PASS 1: Match & Resolve ══════════════════════════════════
-  ├─ 3. TOML rules   → match tokens against 20 rule files
+  ├─ 3. TOML rules   → match tokens against 21 rule files
   ├─ 4. Algorithmic  → episodes, dates, years (Rust code)
   ├─ 5. Conflicts    → priority + length tiebreaking
   ├─ 6. Zone filter  → suppress ambiguous matches in title zone
@@ -467,7 +467,7 @@ src/
 │   ├── token_context.rs # Structure-aware disambiguation
 │   └── zone_rules.rs   # Post-match zone filtering
 ├── matcher/
-│   ├── span.rs         # MatchSpan + Property enum (49 variants)
+│   ├── span.rs         # MatchSpan + Property enum (50 variants)
 │   ├── engine.rs       # Conflict resolution (priority + length)
 │   ├── rule_loader.rs  # TOML → RuleSet parser
 │   └── regex_utils.rs  # BoundedRegex (strips lookarounds)
@@ -477,7 +477,7 @@ src/
     ├── release_group/  # Positional heuristics (algorithmic)
     └── ...             # year, date, language, etc.
 
-rules/                  # 20 TOML data files (compile-time embedded)
+rules/                  # 21 TOML data files (compile-time embedded)
 tests/                  # Integration + regression + constraint tests
 benches/                # Criterion benchmarks
 ```

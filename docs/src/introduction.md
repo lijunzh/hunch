@@ -1,6 +1,6 @@
 # hunch
 
-> A fast, accurate media-filename parser for Rust. Extracts 49 properties
+> A fast, accurate media-filename parser for Rust. Extracts 50 properties
 > from movie/TV/anime release names with high accuracy on real-world
 > libraries.
 

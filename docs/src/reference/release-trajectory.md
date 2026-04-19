@@ -31,7 +31,7 @@ How hunch's parser performance has evolved across released versions.
 <script>
 const RELEASE_TAGS = [
   // Newest first. Add new entries to the TOP per the checklist above.
-  // (Empty until the first post-#179 release lands.)
+  'v2.0.0',
 ];
 
 (async function () {

@@ -22,6 +22,31 @@ Release prep checklist (per #179):
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-04-19
+
+First major release. Three breaking changes ship together to clean up
+the public API surface in one go (avoiding a v3.0.0 forced by deferred
+deprecations later). All migrations are mechanical with clear error
+messages; downstream callers using only the documented API
+(`hunch()`, `Property`, `HunchResult`, etc.) are largely unaffected.
+
+Highlights:
+- **Public API surface shrunk 853 → 201 lines (76% reduction)** via
+  module demotion (#197) — future internal refactors no longer require
+  major bumps.
+- **`#[non_exhaustive]` on all public enums** (#172, #196) — future
+  variants land as minor releases.
+- **Bit-rate split into `AudioBitRate` (Kbps) + `VideoBitRate` (Mbps)**
+  with deprecated `Property::BitRate` removed (#165, #198).
+- **New properties**: `Mimetype` (derived from container), DVD region
+  codes R0–R6, audio/video bit-rate accessors. **3 properties moved
+  from 0% → 100% accuracy** on the compatibility corpus.
+- **Massive CI investment**: code coverage, mutation testing, fuzz
+  baseline, public API tripwire, continuous benchmarking, mdbook docs
+  portal, hardened release pipeline.
+- **Compatibility pass rate: 81.8% → 82.4%** (1,072 → 1,080 of 1,311
+  cases).
+
 ### Added
 
 - **`HunchResult::is_movie()`, `is_episode()`, `is_extra()` convenience
@@ -964,6 +989,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[2.0.0]: https://github.com/lijunzh/hunch/releases/tag/v2.0.0
 [1.1.8]: https://github.com/lijunzh/hunch/releases/tag/v1.1.8
 [1.1.7]: https://github.com/lijunzh/hunch/releases/tag/v1.1.7
 [1.1.6]: https://github.com/lijunzh/hunch/releases/tag/v1.1.6

@@ -20,12 +20,16 @@ and symlink-skipping. See the rustdoc on
 ## Supported Versions
 
 Security fixes are applied to the **latest minor release** on the
-`1.x` line. Older minor releases are not patched — please upgrade.
+current major line. The previous major line receives security-only
+fixes for **6 months after the next major's release** (per
+<https://semver.org/> and common Rust ecosystem practice), then
+reaches end-of-life.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.1.x   | :white_check_mark: |
-| < 1.1   | :x:                |
+| Version | Supported          | Notes                                  |
+| ------- | ------------------ | -------------------------------------- |
+| 2.0.x   | :white_check_mark: | Current. Active development.           |
+| 1.1.x   | :warning:          | Security fixes only, EOL 2026-10-19.   |
+| < 1.1   | :x:                |                                        |
 
 ## Reporting a Vulnerability
 

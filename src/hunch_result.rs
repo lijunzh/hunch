@@ -4,7 +4,7 @@
 //! [`hunch_with_context`](crate::hunch_with_context). It holds all properties extracted
 //! from a media filename, with typed accessors for common fields and
 //! generic [`first`](HunchResult::first) / [`all`](HunchResult::all)
-//! methods for the full 49-property set.
+//! methods for the full 50-property set.
 //!
 //! # Display
 //!

@@ -22,9 +22,9 @@ cargo test compatibility_report --release -- --ignored --nocapture
 
 Results:
 
-- **1,071 / 1,310** cases passed
+- **1,080 / 1,311** cases passed
 - **81.8%** overall compatibility
-- **49 / 49** properties implemented
+- **50 / 50** properties implemented
 - **3 intentional divergences**
 
 A few examples of still-strong property areas:

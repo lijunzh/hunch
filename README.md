@@ -3,7 +3,7 @@
 [![Coverage](https://img.shields.io/badge/coverage-94.34%25-brightgreen)](https://lijunzh.github.io/hunch/contributor-guide/coverage.html)
 
 **A fast, offline media filename parser for Rust — extract title, year, season,
-episode, codec, language, and 49 properties from messy filenames.**
+episode, codec, language, and 50 properties from messy filenames.**
 
 Hunch is a Rust rewrite of Python's [guessit](https://github.com/guessit-io/guessit).
 Pure, deterministic, single-binary, linear-time regex only (ReDoS-immune).
@@ -77,7 +77,7 @@ hunch --batch /path/to/tv/ -r -j
 
 | Document | Audience | Content |
 |---|---|---|
-| [**User Manual**](https://lijunzh.github.io/hunch/user-guide/user-manual.html) | Users | Install, CLI, library API, all 49 properties, FAQ |
+| [**User Manual**](https://lijunzh.github.io/hunch/user-guide/user-manual.html) | Users | Install, CLI, library API, all 50 properties, FAQ |
 | [**Design**](DESIGN.md) | Contributors | Principles, architecture, key decisions |
 | [**Compatibility**](https://lijunzh.github.io/hunch/user-guide/compatibility.html) | Everyone | guessit test suite pass rates by property |
 | [**Benchmark Dashboard**](https://lijunzh.github.io/hunch/reference/benchmark-dashboard.html) | Maintainers | Live perf trends per commit |
@@ -86,12 +86,13 @@ hunch --batch /path/to/tv/ -r -j
 
 ## guessit Compatibility
 
-All 49 guessit properties implemented. Validated against guessit's
+All 50 hunch properties (49 derived from guessit + `mimetype` derived
+from container). Validated against guessit's
 1,309-case test suite.
 
 | Metric | Value |
 |---|---|
-| Pass rate | **81.8%** (1,072 / 1,311) |
+| Pass rate | **82.4%** (1,080 / 1,311) |
 | Properties at 95%+ | 22 |
 | Properties at 100% | 16 |
 

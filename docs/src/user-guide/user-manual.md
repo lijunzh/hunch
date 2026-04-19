@@ -1,6 +1,6 @@
 # User Manual — Hunch
 
-> Installation, CLI usage, library API, and all 49 properties.
+> Installation, CLI usage, library API, and all 50 properties.
 
 ---
 
