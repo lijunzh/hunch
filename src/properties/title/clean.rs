@@ -366,25 +366,49 @@ pub(super) fn is_abbreviated(title: &str) -> bool {
     }) && title.len() <= 20
 }
 
-/// Pick the string with better casing when two titles match case-insensitively.
-pub(super) fn pick_better_casing<'a>(a: &'a str, b: &'a str) -> &'a str {
-    fn casing_score(s: &str) -> i32 {
-        if s.chars()
-            .filter(|c| c.is_alphabetic())
-            .all(|c| c.is_uppercase())
-        {
-            return -10;
-        }
-        if s.chars()
-            .filter(|c| c.is_alphabetic())
-            .all(|c| c.is_lowercase())
-        {
-            return -5;
-        }
-        s.split_whitespace()
-            .filter(|w| w.starts_with(|c: char| c.is_uppercase()))
-            .count() as i32
+/// Score a string by casing quality. Higher = better casing.
+///
+/// Hoisted out of `pick_better_casing` to be directly unit-testable, so
+/// each branch's exact return value gets pinned (rather than only being
+/// observable through the comparison in `pick_better_casing`). This
+/// shape was the highest-leverage mutation-testing finding from the
+/// first nightly run — see docs/mutation-baseline.md, three function-
+/// stub mutants survived because no test pinned the actual scores.
+///
+/// Scoring rationale:
+/// - All-uppercase letters (`-10`): SHOUTING titles are usually a
+///   poor source compared to anything mixed-case.
+/// - All-lowercase (`-5`): less bad than SHOUTING but still poor.
+///   Note: a string with no alphabetic chars (e.g. "123") trivially
+///   satisfies the all-uppercase predicate (vacuous truth on an
+///   empty filter) and scores `-10`. Acceptable: such strings rarely
+///   make it to this point as titles.
+/// - Otherwise: count of whitespace-separated words starting with an
+///   uppercase letter (Title Case scores higher than lower).
+#[inline]
+pub(super) fn casing_score(s: &str) -> i32 {
+    if s.chars()
+        .filter(|c| c.is_alphabetic())
+        .all(|c| c.is_uppercase())
+    {
+        return -10;
     }
+    if s.chars()
+        .filter(|c| c.is_alphabetic())
+        .all(|c| c.is_lowercase())
+    {
+        return -5;
+    }
+    s.split_whitespace()
+        .filter(|w| w.starts_with(|c: char| c.is_uppercase()))
+        .count() as i32
+}
+
+/// Pick the string with better casing when two titles match case-insensitively.
+///
+/// Ties go to `a` (left-hand argument), via `>=`. Callers rely on this
+/// stable choice when the scores are identical.
+pub(super) fn pick_better_casing<'a>(a: &'a str, b: &'a str) -> &'a str {
     if casing_score(a) >= casing_score(b) {
         a
     } else {
@@ -814,5 +838,89 @@ mod tests {
         assert!(!is_generic_dir("Transformers 1984"));
         assert!(!is_generic_dir("Breaking Bad"));
         assert!(!is_generic_dir("十二国記"));
+    }
+
+    // ── casing_score: pin every branch's exact return value ────────
+    //
+    // Designed against the surviving mutants reported in the first
+    // mutation nightly (run 24615983143). Three function-stub mutants
+    // (return 0, return 1, return -1) survived because no test pinned
+    // the exact score — only the downstream comparison was observed.
+    // These tests assert the precise integer to slam that door shut.
+    // See docs/mutation-baseline.md for the full triage write-up.
+
+    #[test]
+    fn casing_score_all_uppercase_returns_minus_ten() {
+        assert_eq!(casing_score("THE MATRIX"), -10);
+        assert_eq!(casing_score("AVENGERS"), -10);
+        // Single all-upper letter: still all-uppercase.
+        assert_eq!(casing_score("X"), -10);
+    }
+
+    #[test]
+    fn casing_score_all_lowercase_returns_minus_five() {
+        assert_eq!(casing_score("the matrix"), -5);
+        assert_eq!(casing_score("avengers"), -5);
+        assert_eq!(casing_score("x"), -5);
+    }
+
+    #[test]
+    fn casing_score_title_case_counts_capitalized_words() {
+        assert_eq!(casing_score("The Matrix"), 2);
+        assert_eq!(casing_score("Star Wars Episode IV"), 4);
+        // Single capitalized word.
+        assert_eq!(casing_score("Matrix"), 1);
+    }
+
+    #[test]
+    fn casing_score_mixed_case_only_caps_starts_count() {
+        // "the Matrix" → 1 (only "Matrix" starts uppercase)
+        assert_eq!(casing_score("the Matrix"), 1);
+        // "The matrix Reloaded" → 2 ("The" and "Reloaded")
+        assert_eq!(casing_score("The matrix Reloaded"), 2);
+    }
+
+    #[test]
+    fn casing_score_no_alphabetic_treats_as_all_upper() {
+        // Documented edge case: vacuous truth on the empty alphabetic
+        // filter means an all-digit string short-circuits to -10.
+        // Pinning this so the contract survives future refactors.
+        assert_eq!(casing_score(""), -10);
+        assert_eq!(casing_score("123"), -10);
+        assert_eq!(casing_score("   "), -10);
+    }
+
+    // ── pick_better_casing: covers the >= boundary mutation ─────────
+    //
+    // The fourth surviving mutant from #146 was at the `>=` comparison
+    // (line :388 in the pre-hoist version). The tie test below pins
+    // left-bias on equal scores; if `>=` is mutated to `>`, ties would
+    // swap to `b` and the test fails. The strict-inequality cases also
+    // catch other comparator mutations (`<`, `<=`, `==`, `!=`).
+
+    #[test]
+    fn pick_better_casing_picks_higher_score() {
+        // a > b: "The Matrix" (2) beats "the matrix" (-5)
+        assert_eq!(pick_better_casing("The Matrix", "the matrix"), "The Matrix");
+        // b > a: "the matrix" (-5) loses to "The Matrix" (2)
+        assert_eq!(pick_better_casing("the matrix", "The Matrix"), "The Matrix");
+        // SHOUTING (-10) loses to anything mixed-case.
+        assert_eq!(pick_better_casing("THE MATRIX", "The Matrix"), "The Matrix");
+        // SHOUTING (-10) loses to lowercase (-5) too.
+        assert_eq!(pick_better_casing("THE MATRIX", "the matrix"), "the matrix");
+    }
+
+    #[test]
+    fn pick_better_casing_tie_returns_left() {
+        // Both score 2 ("Title Case" two-word strings). The `>=` makes
+        // ties go to `a`. Mutating `>=` to `>` would flip this to `b`.
+        assert_eq!(pick_better_casing("The Matrix", "Star Wars"), "The Matrix");
+        assert_eq!(pick_better_casing("Star Wars", "The Matrix"), "Star Wars");
+        // Both score -5 (all-lowercase): also tie → left.
+        assert_eq!(pick_better_casing("the matrix", "star wars"), "the matrix");
+        // Both score -10 (all-uppercase): also tie → left.
+        assert_eq!(pick_better_casing("THE MATRIX", "STAR WARS"), "THE MATRIX");
+        // Identical inputs: trivially tie → left.
+        assert_eq!(pick_better_casing("Same", "Same"), "Same");
     }
 }
