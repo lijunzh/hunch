@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-abd6dd68.js";
+            window.path_to_searchindex_js = "../searchindex-5cc25b36.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-d3f9349e.js"></script>
@@ -227,10 +227,54 @@ limit false positives on niche release-group tokens. (#156)</li>
 <h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
 <ul>
 <li>
+<p><strong>⚠️ BREAKING: public module surface dramatically reduced.</strong> Four
+sub-modules were demoted from <code>pub mod</code> to <code>pub(crate) mod</code>:
+<code>matcher</code>, <code>properties</code>, <code>tokenizer</code>, <code>zone_map</code>. The intended public
+API — <code>hunch()</code>, <code>hunch_with_context()</code>, <code>Pipeline</code>, <code>HunchResult</code>,
+<code>Confidence</code>, <code>MediaType</code>, <code>Property</code> — is unchanged and remains
+reachable at the crate root via the existing <code>pub use</code> re-exports in
+<code>src/lib.rs</code>.</p>
+<p><strong>What this breaks:</strong> any downstream code using deep import paths like
+<code>use hunch::matcher::span::Property;</code> or <code>use hunch::tokenizer::Token;</code>.</p>
+<p><strong>Migration:</strong> switch deep imports to the crate-root re-exports:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Before (v1.x):
+use hunch::matcher::span::Property;
+use hunch::matcher::span::MatchSpan;  // no longer reachable
+
+// After (v2.0.0):
+use hunch::Property;                  // re-exported at crate root
+// MatchSpan is now internal — use HunchResult accessors instead
+<span class="boring">}</span></code></pre>
+<p><strong>Public surface impact:</strong> 853 lines → 202 lines (76% reduction).
+Internal helpers like <code>matcher::engine::resolve_conflicts</code>,
+<code>regex_utils::{CharClass, BoundarySpec, BoundedRegex}</code>,
+<code>tokenizer::{Token, Segment, BracketGroup}</code>, and <code>zone_map::ZoneMap</code>
+are no longer part of the SemVer contract.</p>
+<p>Why: the <code>pub mod</code> declarations were leaking ~188 internal items into
+the public API by accident. Locking these in as v2.0.0 commitments
+would have made every internal refactor a SemVer hazard. The audit
+also surfaced legitimate dead code (4 unused methods, 2 unused
+re-exports, 6 unused fields) which is removed or marked
+<code>#[allow(dead_code)]</code> with an explanatory note. (#144)</p>
+</li>
+<li>
+<p><strong>⚠️ BREAKING: <code>MatchSpan</code> builder methods renamed <code>as_*</code> → <code>with_*</code>.</strong>
+<code>as_extension</code> → <code>with_extension</code>, <code>as_path_based</code> → <code>with_path_based</code>,
+<code>as_reclaimable</code> → <code>with_reclaimable</code>. These were never user-facing
+(now <code>pub(crate)</code>) so the rename only affects internal callers; no
+migration needed for downstream code. The rename brings them in line
+with the existing <code>with_priority</code> / <code>with_source</code> builders and
+resolves the <code>clippy::wrong_self_convention</code> lint (consuming builders
+conventionally use <code>with_*</code>). (#144)</p>
+</li>
+<li>
 <p><strong>⚠️ BREAKING: public enums now carry <code>#[non_exhaustive]</code>.</strong> Affected
-enums: <code>Property</code>, <code>MediaType</code>, <code>Confidence</code>, <code>OutputFormat</code> (and any
-others reachable from <code>pub use src/lib.rs</code>). Downstream code that
-matches exhaustively on these enums <strong>must</strong> add a wildcard arm:</p>
+enums: <code>Property</code>, <code>MediaType</code>, <code>Confidence</code>, <code>SegmentKind</code>, <code>Source</code>,
+<code>ZoneScope</code>, <code>Separator</code>, <code>BracketKind</code>, <code>CharClass</code> (every public
+enum reachable from the crate). Downstream code that matches
+exhaustively on these enums <strong>must</strong> add a wildcard arm:</p>
 <pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
 </span><span class="boring">fn main() {
 </span>match prop {
@@ -241,7 +285,9 @@ matches exhaustively on these enums <strong>must</strong> add a wildcard arm:</p
 <span class="boring">}</span></code></pre>
 <p>Why: this lets future minor releases add new variants (the bit-rate
 split in #165 was the immediate trigger) without re-breaking the API
-every time. (#172)</p>
+every time. <code>Confidence</code> and <code>SegmentKind</code> were caught by the v2.0.0
+prerelease audit (#196) — every <code>pub enum</code> in the crate is now
+consistently <code>#[non_exhaustive]</code>. (#172, #196)</p>
 </li>
 </ul>
 <h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
