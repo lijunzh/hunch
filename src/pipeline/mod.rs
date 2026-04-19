@@ -583,18 +583,12 @@ impl Pipeline {
                 }
 
                 // Directory matches get a priority penalty so filename wins in conflicts.
-                let effective_priority = if is_dir {
-                    rule.priority + priority::DIR_PENALTY
-                } else {
-                    rule.priority
-                };
+                let effective_priority =
+                    matching::effective_priority_for_segment(rule.priority, is_dir);
 
                 // Use per-directory zone map for directory segments.
                 let dir_zone = if is_dir {
-                    zone_map
-                        .dir_zones
-                        .iter()
-                        .find(|dz| dz.segment_idx == seg_idx)
+                    matching::find_dir_zone_for_segment(&zone_map.dir_zones, seg_idx)
                 } else {
                     None
                 };
