@@ -157,14 +157,6 @@ define_properties! {
     Other => "other",
     /// File size (e.g., `"1.4 GB"`, `"700 MB"`).
     Size => "size",
-    /// Audio or video bit rate (e.g., `"320Kbps"`, `"1.5Mbps"`).
-    ///
-    /// **Deprecated**: bit rate matches are now disambiguated at parse time
-    /// into [`AudioBitRate`](Self::AudioBitRate) (`Kbps`) and
-    /// [`VideoBitRate`](Self::VideoBitRate) (`Mbps`). This variant is retained
-    /// for enum-API stability (downstream `match` arms continue to compile)
-    /// but no parser produces it as of the bit-rate split (#158).
-    BitRate => "bit_rate",
     /// CD / disc number within a multi-disc set (e.g., `"1"` from `CD1`).
     Cd => "cd",
     /// Bonus content number (e.g., `"2"` from `-x02`).

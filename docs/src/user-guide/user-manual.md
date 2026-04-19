@@ -284,7 +284,8 @@ accessors.
 | `audio_codec` | AAC | `AAC` |
 | `audio_channels` | 5.1 | `5.1ch` |
 | `audio_profile` | HD MA | `DTS-HD.MA` |
-| `bit_rate` | 320kbps | `320kbps` |
+| `audio_bit_rate` | 320Kbps | `320kbps` |
+| `video_bit_rate` | 19.1Mbps | `19.1mbps` |
 
 ### Source & Edition
 
