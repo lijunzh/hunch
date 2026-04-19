@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776611200147,
+  "lastUpdate": 1776613326183,
   "repoUrl": "https://github.com/lijunzh/hunch",
   "entries": {
     "hunch criterion benches": [
@@ -59,6 +59,66 @@ window.BENCHMARK_DATA = {
             "name": "minimal",
             "value": 16588,
             "range": "± 57",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lijunzh@users.noreply.github.com",
+            "name": "Lijun Zhu",
+            "username": "lijunzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "97667d1b9d1c2bde8d87963715598b78b54c434d",
+          "message": "refactor(docs): port docs/ to mdbook with three-section layout (#188) (#190)\n\n* refactor(docs): port docs/ to mdbook with three-section layout (#188)\n\nCloses #188.\n\n## Why\n\nHunch's docs/ had grown to 7 markdown files / ~1,256 lines covering\nboth end-user content (user_manual, compatibility) and contributor-\nfacing infra (mutation-baseline, fuzzing, coverage, benchmarks,\npublic-api). Rendered only as raw GitHub markdown — no search, no\nnested navigation, no thematic grouping.\n\nSister project koda recently adopted mdbook for the same surface and\nthe result is significantly nicer. ~3-hour port estimated; this commit\ndelivers it.\n\n## What changes\n\n### New mdbook scaffolding\n\n  - docs/book.toml             \\xe2\\x80\\x94 mdbook config (theme, edit URLs, search)\n  - docs/src/SUMMARY.md         \\xe2\\x80\\x94 sidebar nav (3 sections)\n  - docs/src/introduction.md    \\xe2\\x80\\x94 landing page with audience-table\n  - docs/src/reference/benchmark-dashboard.md \\xe2\\x80\\x94 NEW Pattern B page\n    that loads /dev/bench/data.js (committed by the benchmark workflow)\n    and renders Chart.js line charts per bench, per commit. Unifies\n    the perf dashboard into the docs site instead of forking a second\n    Chart.js page at /dev/bench/index.html.\n\n### Existing docs moved (git mv \\xe2\\x86\\x92 history preserved)\n\n  docs/user_manual.md         \\xe2\\x86\\x92 docs/src/user-guide/user-manual.md\n  docs/compatibility.md       \\xe2\\x86\\x92 docs/src/user-guide/compatibility.md\n  docs/benchmarks.md          \\xe2\\x86\\x92 docs/src/reference/benchmarks.md\n  docs/public-api.md          \\xe2\\x86\\x92 docs/src/reference/public-api.md\n  docs/public-api.txt         \\xe2\\x86\\x92 docs/src/reference/public-api.txt\n  docs/coverage.md            \\xe2\\x86\\x92 docs/src/contributor-guide/coverage.md\n  docs/mutation-baseline.md   \\xe2\\x86\\x92 docs/src/contributor-guide/mutation-baseline.md\n  docs/fuzzing.md             \\xe2\\x86\\x92 docs/src/contributor-guide/fuzzing.md\n\nCross-refs rewritten:\n  - Repo-root files (../.github/workflows/*, ../CONTRIBUTING.md,\n    ../SECURITY.md, ../benches/parse.rs) \\xe2\\x86\\x92 absolute github.com URLs\n    so they work in BOTH the rendered HTML and any GitHub-direct view.\n  - Sibling-doc refs (./other.md) \\xe2\\x86\\x92 mdbook-relative paths (e.g.\n    ../contributor-guide/coverage.md from a reference/ page).\n\n### Backwards-compat stubs\n\nOld top-level docs/*.md paths preserved as one-line stubs pointing\nto the new deployed-site URLs. Every issue, PR, crates.io page, and\nexternal link to the old paths still resolves. Slated for removal\nonce inbound traffic dies down (per #188 DoD).\n\n### CI: new docs deploy workflow\n\n  .github/workflows/docs.yml \\xe2\\x80\\x94 builds mdbook on push-to-main when\n  docs/** or the workflow itself changes; deploys to gh-pages branch\n  via peaceiris/actions-gh-pages with KEEP_FILES: TRUE.\n\n  The keep_files flag is critical: the benchmark workflow ALSO pushes\n  to gh-pages (into /dev/bench/). Without keep_files, every docs deploy\n  would wipe the bench dashboard data. With it, the two workflows\n  co-exist cleanly \\xe2\\x80\\x94 mdbook owns the site root + section dirs;\n  benchmark-action owns /dev/bench/.\n\n### Touch-ups\n\n  - README.md: doc table now points to the deployed mdbook URLs;\n    coverage badge link updated; new \"Benchmark Dashboard\" row added.\n  - src/properties/title/clean.rs: two doc comments updated to point\n    at the new docs/src/contributor-guide/mutation-baseline.md path.\n  - .gitignore: ignore docs/book/ (mdbook output); update two comments.\n\n## Verification done locally\n\n  - mdbook v0.5.2 (matches MDBOOK_VERSION pin in workflow)\n  - mdbook build docs: clean, no warnings\n  - cargo fmt --check: clean\n  - cargo clippy --all-targets: clean\n  - cargo test --lib: 339 passed\n  - YAML for docs.yml validated\n  - Visually previewed in browser \\xe2\\x80\\x94 nav, search, and edit-on-GitHub\n    links all work\n\n## One-time GitHub Pages admin step (post-merge)\n\nAfter this PR merges, set:\n  Settings \\xe2\\x86\\x92 Pages \\xe2\\x86\\x92 Build and deployment\n    \\xe2\\x86\\x92 Source: \"Deploy from a branch\"\n    \\xe2\\x86\\x92 Branch: gh-pages / (root)\n\nThen trigger the docs.yml workflow manually (workflow_dispatch) to do\nthe first deploy. Subsequent deploys are automatic on docs/ pushes.\n\nThe stub-file URLs will 404 until that admin click happens \\xe2\\x80\\x94 fine,\nsince the source content lives in the repo regardless.\n\n## Out of scope (intentionally)\n\n  - Rewriting any prose. Ports are content-preserving.\n  - Adding new chapters (e.g., contributor \"Getting started\").\n  - Translating to non-English.\n\nCo-authored-by: code-puppy-1d34f9 <code-puppy@users.noreply.github.com>\n\n* fix(ci): update file paths after #188 mdbook move\n\nTwo CI workflows + one CONTRIBUTING.md ref still pointed at the old\ndocs/<name>.md flat layout, surfaced by PR #190's first run:\n\n  - .github/workflows/ci.yml: 'Public API Surface' job hard-codes\n    docs/public-api.txt as its baseline path. Updated to\n    docs/src/reference/public-api.txt (where the file actually lives\n    now). Same for two job-summary echo lines that mention\n    docs/public-api.md.\n\n  - .github/workflows/benchmark.yml: docs comment pointing at\n    docs/benchmarks.md. Updated to docs/src/reference/benchmarks.md.\n\n  - CONTRIBUTING.md: ref to docs/compatibility.md. Updated.\n\nThese references all SHOULD have been caught when I rewrote the moved\nfiles' cross-refs, but I didn't grep CI/config/CONTRIBUTING.md for\nreferences back into docs/. Lesson logged.\n\nThe backwards-compat stubs at the OLD paths exist for *external* link\npreservation (issues, PRs, crates.io); for *internal* CI references,\nwe want to point at the canonical location to avoid the indirection.\n\n---------\n\nCo-authored-by: code-puppy-1d34f9 <code-puppy@users.noreply.github.com>",
+          "timestamp": "2026-04-19T10:40:40-05:00",
+          "tree_id": "4ba150455bd0dc66cf0a32b23e0e7104fdef344b",
+          "url": "https://github.com/lijunzh/hunch/commit/97667d1b9d1c2bde8d87963715598b78b54c434d"
+        },
+        "date": 1776613325699,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "movie_basic",
+            "value": 108770,
+            "range": "± 577",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "movie_complex",
+            "value": 243439,
+            "range": "± 4491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_sxxexx",
+            "value": 113520,
+            "range": "± 3439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_with_path",
+            "value": 110093,
+            "range": "± 1437",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "anime_bracket",
+            "value": 92976,
+            "range": "± 844",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "minimal",
+            "value": 22913,
+            "range": "± 280",
             "unit": "ns/iter"
           }
         ]
