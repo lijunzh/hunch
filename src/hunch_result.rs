@@ -34,8 +34,13 @@ pub enum Confidence {
 }
 
 /// The type of media detected.
+///
+/// `#[non_exhaustive]` so future variants (e.g. `Music`, `TVMovie`) can be
+/// added in minor releases without a SemVer break. Downstream `match`es must
+/// include a wildcard arm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 pub enum MediaType {
     /// A standalone movie / film.
     Movie,

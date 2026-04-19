@@ -91,7 +91,11 @@ struct PatternRule {
 ///
 /// Controls whether matches are suppressed based on their position
 /// relative to the title zone boundary. See DESIGN.md D4.
+///
+/// `#[non_exhaustive]` so future scope policies can be added in minor
+/// releases without a SemVer break.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[non_exhaustive]
 pub enum ZoneScope {
     /// Match in all zones (default, backwards-compatible).
     /// Use for unambiguous tech tokens: codecs, suffixed resolutions.

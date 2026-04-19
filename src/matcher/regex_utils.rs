@@ -15,7 +15,12 @@ pub struct BoundarySpec {
 }
 
 /// A character class for boundary checking.
+///
+/// `#[non_exhaustive]` so future built-in classes can be added in minor
+/// releases without a SemVer break. The escape hatch `Custom(Vec<(u8, u8)>)`
+/// already exists for arbitrary byte-range predicates.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum CharClass {
     /// `[a-z]`
     Lower,
