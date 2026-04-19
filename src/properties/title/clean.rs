@@ -923,4 +923,98 @@ mod tests {
         // Identical inputs: trivially tie → left.
         assert_eq!(pick_better_casing("Same", "Same"), "Same");
     }
+
+    // ── strip_extension boundary tests ────────────────────────
+    //
+    // Five mutants survived in strip_extension as of the 2026-04-19
+    // nightly (#146). Each test below is named for the specific
+    // mutation it kills. The function is small (8 lines) but
+    // semantically dense — every operator and condition matters.
+
+    #[test]
+    fn strip_extension_no_dot_returns_input_unchanged() {
+        // Pins the function-stub mutant `replace strip_extension -> &str
+        // with ""`. With the mutation, this would return "" instead of
+        // "NoExtensionHere", which is plainly wrong.
+        assert_eq!(strip_extension("NoExtensionHere"), "NoExtensionHere");
+    }
+
+    #[test]
+    fn strip_extension_known_extension_strips_dot_and_ext() {
+        // Pins the function-stub mutant for the happy path — confirms
+        // the function returns the actual prefix, not "".
+        assert_eq!(strip_extension("The.Matrix.mkv"), "The.Matrix");
+        assert_eq!(strip_extension("movie.mp4"), "movie");
+    }
+
+    #[test]
+    fn strip_extension_dot_plus_one_indexing_is_correct() {
+        // Pins `+ -> -` and `+ -> *` in `dot + 1..`.
+        //
+        // For "foo.mkv" (dot at index 3):
+        //   - dot + 1 = 4 → ext = "mkv" (correct, is_likely_extension=true)
+        //   - dot - 1 = 2 → ext = "o.mkv" (5 chars, but not a known
+        //     extension → returns whole input unchanged)
+        //   - dot * 1 = 3 → ext = ".mkv" (4 chars, not a known extension
+        //     because of the leading dot → returns whole input unchanged)
+        //
+        // Either mutation produces "foo.mkv" instead of "foo".
+        assert_eq!(strip_extension("foo.mkv"), "foo");
+    }
+
+    #[test]
+    fn strip_extension_unknown_short_extension_keeps_input() {
+        // Pins `&& -> ||` in `ext.len() <= 5 && is_likely_extension(...)`.
+        //
+        // "foo.xyzab" has a 5-char extension that satisfies len <= 5
+        // but is_likely_extension("xyzab") returns false.
+        //   - With `&&`: false → return whole input "foo.xyzab"
+        //   - With `||`: true (length OK) → strip → "foo"  (BUG)
+        //
+        // Asserting the input survives kills the `||` mutation.
+        assert_eq!(strip_extension("foo.xyzab"), "foo.xyzab");
+    }
+
+    #[test]
+    fn strip_extension_long_known_lookalike_keeps_input() {
+        // Belt-and-suspenders for `<= -> >`. While none of our recognized
+        // extensions happen to be exactly 5 chars, this test pins the
+        // length gate against "too long to be plausible":
+        //
+        // "sample.notarealextension" — ext is 17 chars.
+        //   - With `<=`: 17 <= 5 false → return whole input (correct)
+        //   - With `>`:  17 > 5 true → fall to is_likely_extension
+        //     (returns false for "notarealextension") → still returns
+        //     whole input. Equivalent for this case alone.
+        //
+        // The kill for `<= -> >` actually comes from the test below.
+        assert_eq!(
+            strip_extension("sample.notarealextension"),
+            "sample.notarealextension"
+        );
+    }
+
+    #[test]
+    fn strip_extension_known_three_char_extension_pins_le_boundary() {
+        // Pins `<= -> >` in `ext.len() <= 5`.
+        //
+        // "clip.mkv" — ext is 3 chars, is_likely_extension("mkv")=true.
+        //   - With `<=`: 3 <= 5 true → AND with is_likely=true → strip → "clip"
+        //   - With `>`:  3 > 5 false → return whole input "clip.mkv" (BUG)
+        //
+        // Asserting the strip happens kills `<= -> >` (and reinforces
+        // the function-stub mutant kill from above).
+        assert_eq!(strip_extension("clip.mkv"), "clip");
+        // Also exercise a 4-char known extension ("webm"):
+        assert_eq!(strip_extension("video.webm"), "video");
+    }
+
+    #[test]
+    fn strip_extension_case_insensitive_match() {
+        // Documented behaviour: extension matching uses to_lowercase.
+        // Belt for the `is_likely_extension(&ext_lower)` call site —
+        // confirms the lowercasing is in the loop, not skipped.
+        assert_eq!(strip_extension("Movie.MKV"), "Movie");
+        assert_eq!(strip_extension("Trailer.Mp4"), "Trailer");
+    }
 }
