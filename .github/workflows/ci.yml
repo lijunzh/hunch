@@ -192,7 +192,7 @@ jobs:
     name: Public API Surface
     # Detects accidental additions to the public Rust API surface by
     # diffing the current `cargo public-api` listing against the
-    # baseline snapshot at docs/public-api.txt.
+    # baseline snapshot at docs/src/reference/public-api.txt.
     #
     # Complements `Semver Checks` above: that job catches signature /
     # behaviour breakage; this one catches *additive* drift
@@ -200,7 +200,7 @@ jobs:
     #
     # ADVISORY (continue-on-error): the diff in the Job Summary makes
     # drift impossible to miss in code review, but doesn't block merge.
-    # See docs/public-api.md for the regenerate-the-baseline workflow
+    # See docs/src/reference/public-api.md for the regenerate-the-baseline workflow
     # and the upcoming audit roadmap (#144).
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -232,11 +232,11 @@ jobs:
           # so reviewers can confirm at a glance "yep, no drift today".
           # All Summary writes are wrapped in a single { ... } >> for
           # one open/close instead of N (shellcheck SC2129).
-          if diff -u docs/public-api.txt /tmp/api-current.txt > /tmp/api.diff; then
+          if diff -u docs/src/reference/public-api.txt /tmp/api-current.txt > /tmp/api.diff; then
             {
               echo "# 🏛️ Public API Surface"
               echo ""
-              echo "Baseline: \`docs/public-api.txt\` ($(wc -l < docs/public-api.txt) lines)"
+              echo "Baseline: \`docs/src/reference/public-api.txt\` ($(wc -l < docs/src/reference/public-api.txt) lines)"
               echo "Current:  \`cargo public-api --simplified\` ($(wc -l < /tmp/api-current.txt) lines)"
               echo ""
               echo "✅ **No drift** — public API matches the committed baseline."
@@ -247,12 +247,12 @@ jobs:
             {
               echo "# 🏛️ Public API Surface"
               echo ""
-              echo "Baseline: \`docs/public-api.txt\` ($(wc -l < docs/public-api.txt) lines)"
+              echo "Baseline: \`docs/src/reference/public-api.txt\` ($(wc -l < docs/src/reference/public-api.txt) lines)"
               echo "Current:  \`cargo public-api --simplified\` ($(wc -l < /tmp/api-current.txt) lines)"
               echo ""
               echo "⚠️ **API surface drift detected** — $ADDED additions, $REMOVED removals"
               echo ""
-              echo "If intentional, regenerate the baseline per [docs/public-api.md](../blob/main/docs/public-api.md#regenerating-the-baseline) and commit \`docs/public-api.txt\` in this PR."
+              echo "If intentional, regenerate the baseline per [docs/src/reference/public-api.md](../blob/main/docs/src/reference/public-api.md#regenerating-the-baseline) and commit \`docs/src/reference/public-api.txt\` in this PR."
               echo ""
               echo "## Diff"
               echo '```diff'

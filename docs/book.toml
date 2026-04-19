@@ -1,0 +1,18 @@
+[book]
+title       = "hunch — Documentation"
+authors     = ["Lijun Zhu"]
+language    = "en"
+src         = "src"
+description = "Complete reference for the hunch media-filename parser: user manual, benchmarks, and contributor guides."
+
+[output.html]
+default-theme       = "navy"
+git-repository-url  = "https://github.com/lijunzh/hunch"
+edit-url-template   = "https://github.com/lijunzh/hunch/edit/main/docs/src/{path}"
+additional-css      = []
+no-section-label    = false
+
+[output.html.search]
+enable             = true
+limit-results      = 20
+teaser-word-count  = 30

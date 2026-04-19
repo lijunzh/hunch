@@ -397,7 +397,7 @@ pub(super) fn is_abbreviated(title: &str) -> bool {
 /// each branch's exact return value gets pinned (rather than only being
 /// observable through the comparison in `pick_better_casing`). This
 /// shape was the highest-leverage mutation-testing finding from the
-/// first nightly run — see docs/mutation-baseline.md, three function-
+/// first nightly run — see docs/src/contributor-guide/mutation-baseline.md, three function-
 /// stub mutants survived because no test pinned the actual scores.
 ///
 /// Scoring rationale:
@@ -960,7 +960,7 @@ mod tests {
     // (return 0, return 1, return -1) survived because no test pinned
     // the exact score — only the downstream comparison was observed.
     // These tests assert the precise integer to slam that door shut.
-    // See docs/mutation-baseline.md for the full triage write-up.
+    // See docs/src/contributor-guide/mutation-baseline.md for the full triage write-up.
 
     #[test]
     fn casing_score_all_uppercase_returns_minus_ten() {

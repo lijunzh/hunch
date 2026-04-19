@@ -20,7 +20,7 @@ name: Benchmarks
 # refactor (separate issue) will own the chrome via Pattern B and let
 # the action keep ownership of `data.js` only.
 #
-# See docs/benchmarks.md for methodology + baseline numbers + threshold tuning.
+# See docs/src/reference/benchmarks.md for methodology + baseline numbers + threshold tuning.
 
 on:
   schedule:

@@ -120,7 +120,7 @@ What does **not** count ("soft API" — free to change in a minor):
 - CLI human-readable output formatting (column widths, wording of
   hints, color choices).
 - The contents of `tests/fixtures/*.yml` and the
-  `docs/compatibility.md` numbers — these are diagnostic, not API.
+  `docs/src/user-guide/compatibility.md` numbers — these are diagnostic, not API.
 
 What is **soft-but-still-careful**:
 
