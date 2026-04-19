@@ -21,3 +21,10 @@
 - [Code Coverage](./contributor-guide/coverage.md)
 - [Mutation Testing](./contributor-guide/mutation-baseline.md)
 - [Fuzzing](./contributor-guide/fuzzing.md)
+
+# About
+
+- [Contributing](./about/contributing.md)
+- [Security Policy](./about/security.md)
+- [Design](./about/design.md)
+- [Changelog](./about/changelog.md)

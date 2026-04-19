@@ -22,6 +22,95 @@ Release prep checklist (per #179):
 
 ## [Unreleased]
 
+### Added
+
+- **`HunchResult::is_movie()`, `is_episode()`, `is_extra()` convenience
+  methods.** Pure derived getters over the existing `media_type()` typed
+  accessor. All three return `false` when media type is unknown rather
+  than defaulting to a guess — callers needing to distinguish "definitely
+  not X" from "unknown" should still use `media_type()` directly. (#156)
+- **`Property::AudioBitRate`, `Property::VideoBitRate`, `Property::Mimetype`
+  variants** with matching `HunchResult::audio_bit_rate()`,
+  `video_bit_rate()`, `mimetype()` accessors. The bit-rate split is
+  classified by unit (`Kbps` → audio, `Mbps` → video); mimetype is a
+  pure derivation from container extension (mp4 → video/mp4, mkv →
+  video/x-matroska, etc.; unknown → `None`, never fabricated). All three
+  properties moved from 0% to 100% accuracy on the compatibility corpus.
+  (#158, #165)
+- **DVD region codes R0–R6** in the property exact-match table.
+  Previously only R5 was recognized. R7–R9 are intentionally omitted to
+  limit false positives on niche release-group tokens. (#156)
+
+### Changed
+
+- **⚠️ BREAKING: public enums now carry `#[non_exhaustive]`.** Affected
+  enums: `Property`, `MediaType`, `Confidence`, `OutputFormat` (and any
+  others reachable from `pub use src/lib.rs`). Downstream code that
+  matches exhaustively on these enums **must** add a wildcard arm:
+
+  ```rust
+  match prop {
+      Property::Title => ...,
+      // ... existing arms ...
+      _ => ...,  // ← now required
+  }
+  ```
+
+  Why: this lets future minor releases add new variants (the bit-rate
+  split in #165 was the immediate trigger) without re-breaking the API
+  every time. (#172)
+
+### Fixed
+
+- **Website false-positives on country-code TLDs inside language
+  abbreviations.** Filenames like `Community.s02e20.rus.eng.720p.mkv`
+  no longer extract `s02e20.ru` as a website. The TLD alternation now
+  requires a trailing word boundary, so `.ru` cannot match inside
+  `.rus`, `.com` inside `.community`, etc. (#163, #167)
+- **Anime-release bit-rate notation** (`kbit`, `mbits`) now parsed
+  correctly via suffix alternation. (#165)
+- **`DD5.1.448kbps`-style filenames** no longer mis-parse the leading
+  digits as part of the bit-rate (regex bound tightened to `\d{1,2}`).
+  (#165)
+
+### Deprecated
+
+- **`Property::BitRate` variant** — superseded by the
+  `AudioBitRate`/`VideoBitRate` split in #165. The variant is retained
+  for enum-API stability but no parser path produces it. Callers should
+  migrate to the unit-typed variants.
+
+### Internal / Infrastructure
+
+This release lands a substantial CI and documentation investment
+motivated by the project moving from "experimental, no users" to
+"users filing real bug reports." None of the items below change
+parser behavior, but they meaningfully improve the project's
+ability to catch regressions before they ship:
+
+- **Code coverage tracking** via `cargo-llvm-cov` (advisory). (#145, #168)
+- **Mutation testing baseline** via `cargo-mutants` nightly, with
+  29 surviving mutants triaged and killed across
+  #175, #180, #181, #182, #183, #184, #185. (#146, #169, #170, #173)
+- **Fuzz baseline** via `cargo-fuzz` with two targets (single-string
+  parse + multi-segment path) and nightly CI. (#147, #174)
+- **Public API surface tripwire** that fails CI on accidental changes
+  to `pub use src/lib.rs` items. (#144, #171)
+- **Continuous benchmarking** via `criterion` + `github-action-benchmark`,
+  with PR-time regression gating (>120% threshold), per-commit history
+  on a live dashboard, and per-release immutable snapshots. See the
+  [Benchmarks reference](https://lijunzh.github.io/hunch/reference/benchmarks.html)
+  and [Release Trajectory](https://lijunzh.github.io/hunch/reference/release-trajectory.html).
+  (#148, #176, #177, #178, #179, #186, #189, #191, #192, #194)
+- **Documentation portal** at <https://lijunzh.github.io/hunch/>
+  built with mdbook. (#188, #190)
+- **Release pipeline hardening** — PR-time CI now also runs on release
+  branches; release workflow is more defensive. (#150, #151, #152, #159)
+- **Misc test additions** pinning behaviors against future regressions:
+  `TitleStrategy` fallback ordering (#154, #161), `cli_walk_dir`
+  safety boundaries (#153, #162), parse-torrent-name corpus pins
+  (#157, #164).
+
 ## [1.1.8] - 2026-04-17
 
 ### Changed
