@@ -40,6 +40,11 @@ on:
       - 'Cargo.lock'
       - 'benches/**'
       - '.github/workflows/benchmark.yml'
+    # Per #179: ALSO trigger on version-tag push so each release gets
+    # a permanent named snapshot at gh-pages/release-snapshots/<tag>.json.
+    # No path filter on tag push — we always want the snapshot.
+    tags:
+      - 'v*'
   pull_request:
     # Run on PRs to compare against the latest main baseline and gate.
     # Same path filter — docs/CI-only PRs skip the bench cycle entirely.
@@ -153,3 +158,72 @@ jobs:
           # Belt-and-suspenders: also @-mention on alert (CC the PR author).
           comment-on-alert: ${{ github.event_name == 'pull_request' }}
           alert-comment-cc-users: '@lijunzh'
+
+      - name: Build release snapshot JSON (tag push only)
+        # Per #179: on every version-tag push, capture a permanent snapshot
+        # of the bench numbers so they can be referenced from CHANGELOG.md
+        # and the docs/src/reference/release-trajectory.md page.
+        #
+        # Why a separate format from dev/bench/data.js:
+        #   - data.js is the rolling per-commit history (mutable scope ─ may
+        #     drop benches as the suite evolves, see #191's removal of `minimal`)
+        #   - release-snapshots/<tag>.json is the immutable per-release record;
+        #     consumers can diff `v1.1.8.json` vs `v1.2.0.json` without
+        #     worrying about history rewrites
+        #
+        # Format is intentionally simple (no schema versioning yet) so that
+        # the trajectory page's JS reader stays trivial. If this ever needs
+        # to evolve, add a `schema_version` field and ship readers that
+        # handle both.
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          mkdir -p snapshot-output
+          TAG="${GITHUB_REF#refs/tags/}"
+          # Build the JSON via jq from the bencher-format output.
+          # Each `test <name> ... bench: <ns> ns/iter (+/- <variance>)` line
+          # becomes one entry in the `benches` array.
+          jq -n \
+            --arg tag "$TAG" \
+            --arg sha "$GITHUB_SHA" \
+            --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg runner "${RUNNER_OS}-${RUNNER_ARCH}" \
+            --rawfile raw bench-output/parse.txt \
+            '{
+              tag: $tag,
+              sha: $sha,
+              date: $date,
+              runner: $runner,
+              benches: (
+                $raw
+                | split("\n")
+                | map(select(startswith("test ")))
+                | map(
+                    capture("test (?<name>\\S+)\\s+\\.\\.\\. bench:\\s+(?<value>[0-9,]+)\\s+(?<unit>\\S+)\\s+\\(\\+/- (?<variance>[0-9,]+)\\)")
+                    | {
+                        name: .name,
+                        value: (.value | gsub(","; "") | tonumber),
+                        unit: .unit,
+                        variance: (.variance | gsub(","; "") | tonumber)
+                      }
+                  )
+              )
+            }' > "snapshot-output/${TAG}.json"
+          echo "=== Snapshot for ${TAG} ==="
+          cat "snapshot-output/${TAG}.json"
+
+      - name: Push release snapshot to gh-pages (tag push only)
+        # peaceiris with destination_dir + keep_files is the cleanest way
+        # to add ONE file to a subdir without touching anything else on
+        # gh-pages (notably: leaves dev/bench/data.js + the mdbook deploy
+        # alone, per the keep_files lessons learned in #190).
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e  # v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: snapshot-output
+          destination_dir: release-snapshots
+          keep_files: true
+          commit_message: 'bench: snapshot for ${{ github.ref_name }}'
+          user_name: 'github-actions[bot]'
+          user_email: '41898282+github-actions[bot]@users.noreply.github.com'

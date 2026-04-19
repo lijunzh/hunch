@@ -13,6 +13,7 @@
 
 - [Benchmarks](./reference/benchmarks.md)
 - [Benchmark Dashboard](./reference/benchmark-dashboard.md)
+- [Release Performance Trajectory](./reference/release-trajectory.md)
 - [Public API Surface](./reference/public-api.md)
 
 # Contributor Guide
