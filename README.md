@@ -1,6 +1,6 @@
 # 🔍 Hunch
 
-[![Coverage](https://img.shields.io/badge/coverage-94.34%25-brightgreen)](docs/coverage.md)
+[![Coverage](https://img.shields.io/badge/coverage-94.34%25-brightgreen)](https://lijunzh.github.io/hunch/contributor-guide/coverage.html)
 
 **A fast, offline media filename parser for Rust — extract title, year, season,
 episode, codec, language, and 49 properties from messy filenames.**
@@ -73,11 +73,14 @@ hunch --batch /path/to/tv/ -r -j
 
 ## Documentation
 
+📖 **Full documentation site:** <https://lijunzh.github.io/hunch>
+
 | Document | Audience | Content |
 |---|---|---|
-| [**User Manual**](docs/user_manual.md) | Users | Install, CLI, library API, all 49 properties, FAQ |
+| [**User Manual**](https://lijunzh.github.io/hunch/user-guide/user-manual.html) | Users | Install, CLI, library API, all 49 properties, FAQ |
 | [**Design**](DESIGN.md) | Contributors | Principles, architecture, key decisions |
-| [**Compatibility**](docs/compatibility.md) | Everyone | guessit test suite pass rates by property |
+| [**Compatibility**](https://lijunzh.github.io/hunch/user-guide/compatibility.html) | Everyone | guessit test suite pass rates by property |
+| [**Benchmark Dashboard**](https://lijunzh.github.io/hunch/reference/benchmark-dashboard.html) | Maintainers | Live perf trends per commit |
 | [**API Reference**](https://docs.rs/hunch) | Developers | Full Rust API docs |
 | [**Changelog**](CHANGELOG.md) | Everyone | Version history |
 
@@ -92,7 +95,7 @@ All 49 guessit properties implemented. Validated against guessit's
 | Properties at 95%+ | 22 |
 | Properties at 100% | 16 |
 
-See [docs/compatibility.md](docs/compatibility.md) for per-property breakdowns.
+See [the compatibility report](https://lijunzh.github.io/hunch/user-guide/compatibility.html) for per-property breakdowns.
 
 ## Known Limitations
 
