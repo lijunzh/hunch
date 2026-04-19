@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776632668827,
+  "lastUpdate": 1776633489833,
   "repoUrl": "https://github.com/lijunzh/hunch",
   "entries": {
     "hunch criterion benches": [
@@ -335,6 +335,60 @@ window.BENCHMARK_DATA = {
             "name": "anime_bracket",
             "value": 92360,
             "range": "± 474",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lijunzh@users.noreply.github.com",
+            "name": "Lijun Zhu",
+            "username": "lijunzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "93032450275ea32eda790994ac030ba406db128b",
+          "message": "feat!: remove deprecated Property::BitRate variant for v2.0.0 (#198)\n\nPR-2c of the v2.0.0 close-out plan. Honors the deprecation\ndeferred to the next major bump (#165) by actually removing the\nvariant now \\u2014 same logic that justified shipping #[non_exhaustive]\nand the module demotion under v2.0.0:\n\n  Deferring a known breaking change forces the next major bump\n  later. Bundling all known-breaking work into one major version\n  is strictly better than spreading it across multiple.\n\n## What changed\n\n- src/matcher/span.rs: removed the BitRate variant from the\n  define_properties! macro. The variant's docstring already said\n  'no parser produces it as of the bit-rate split (#158)'.\n\n- src/properties/bit_rate.rs: replaced the convoluted\n  match-then-match (normalize_unit -> property) with a single\n  match that returns both pieces. The unreachable defensive\n  fallback that previously emitted Property::BitRate is replaced\n  by unreachable!() with an explanatory message.\n\n  Why unreachable!() rather than another fallback variant:\n    - The regex character class is literally [KkMm], so reaching\n      the fallback requires a regex change that breaks the unit\n      contract.\n    - With unreachable!(), such a regex change fails loudly in\n      tests instead of producing silently-wrong output (an audio\n      bit rate labeled as video, or vice versa).\n    - The Zen: 'Errors should never pass silently. Unless\n      explicitly silenced.' We are not silencing.\n\n- docs/src/user-guide/user-manual.md: replaced the 'bit_rate' row\n  in the Audio properties table with separate 'audio_bit_rate'\n  and 'video_bit_rate' rows that match the actual emitted\n  properties.\n\n- CHANGELOG.md:\n  - Promoted the entry from ### Deprecated to ### Changed with the\n    BREAKING marker, including a migration snippet showing how to\n    convert exhaustive Property::BitRate match arms to the\n    AudioBitRate/VideoBitRate split.\n  - Removed the now-empty ### Deprecated subsection \\u2014 there are\n    no other deprecations in [Unreleased].\n\n- docs/src/reference/public-api.txt: refreshed. Surface goes from\n  202 lines to 201 (one variant removed).\n\n## Verification\n\n  - cargo build --all-targets: clean (zero warnings)\n  - cargo test: 339+ integration tests pass, 12 doctests pass\n  - cargo clippy --all-targets: clean\n  - cargo fmt --check: clean\n  - public-api diff: exactly one removal (Property::BitRate);\n    AudioBitRate and VideoBitRate still present\n  - grep BitRate in src/: only AudioBitRate and VideoBitRate remain\n\n## What this PR explicitly does NOT do\n\n  - No version bump (saves that for the actual release commit)\n nges to the bit_rate module name (the file is still\n    src/properties/bit_rate.rs because both AudioBitRate and\n    VideoBitRate are produced by it; renaming the module would be\n    pure churn)\n\nRefs: #144, #158, #165. Final pre-release cleanup before v2.0.0.",
+          "timestamp": "2026-04-19T16:16:47-05:00",
+          "tree_id": "b6ac92974469c32ca9d5d882ff583ca0cefe7c4c",
+          "url": "https://github.com/lijunzh/hunch/commit/93032450275ea32eda790994ac030ba406db128b"
+        },
+        "date": 1776633488741,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "movie_basic",
+            "value": 72660,
+            "range": "± 746",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "movie_complex",
+            "value": 201741,
+            "range": "± 5236",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_sxxexx",
+            "value": 81415,
+            "range": "± 1278",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_with_path",
+            "value": 78184,
+            "range": "± 470",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "anime_bracket",
+            "value": 62878,
+            "range": "± 181",
             "unit": "ns/iter"
           }
         ]
