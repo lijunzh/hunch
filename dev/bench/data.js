@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776628993791,
+  "lastUpdate": 1776632668827,
   "repoUrl": "https://github.com/lijunzh/hunch",
   "entries": {
     "hunch criterion benches": [
@@ -281,6 +281,60 @@ window.BENCHMARK_DATA = {
             "name": "anime_bracket",
             "value": 92386,
             "range": "± 565",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lijunzh@users.noreply.github.com",
+            "name": "Lijun Zhu",
+            "username": "lijunzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3dfd88c7a1e3c7343a820c0be7c52ccd215fc565",
+          "message": "feat!: shrink public API surface 853 → 202 lines via module demotion (closes #144) (#197)\n\n* feat!: shrink public API surface 853 → 202 lines via module demotion (closes #144)\n\nPR-2b of the v2.0.0 close-out plan. Aggressive scope per the\n'Polish + API audit' decision: demote all four leaked sub-modules\nto pub(crate), then clean up the dead-code findings the demotion\nexposed. 76% reduction in the SemVer-contracted public surface,\nzero behavior change.\n\n## The core change (src/lib.rs)\n\nFour module declarations changed:\n\n  -pub mod matcher;\n  -pub mod properties;\n  -pub mod tokenizer;\n  -pub mod zone_map;\n  +pub(crate) mod matcher;\n  +pub(crate) mod properties;\n  +pub(crate) mod tokenizer;\n  +pub(crate) mod zone_map;\n\nExisting pub use re-exports (Property, Confidence, MediaType,\nHunchResult, Pipeline) remain at the crate root and continue to\nwork for downstream callers using the documented import paths.\n\n## Public surface impact\n\n  Before:  853 lines (188 leaked internal items)\n  After:   202 lines (6 intended types + their impls/derives)\n  Reduction: 76%\n\nThe new surface is exactly the 6 user-facing types documented in\nthe User Manual:\n  - hunch() + hunch_with_context() entry points\n  - Pipeline (constructor + 3 run methods)\n  - HunchResult (struct + 41 typed accessors)\n  - Property (49 variants)\n  - Confidence (3 variants, non_exhaustive)\n  - MediaType (3 variants, non_exhaustive)\n\nItems removed from the public surface (no longer reachable):\n  - matcher::engine::resolve_conflicts\n  - matcher::regex_utils::{CharClass, BoundarySpec, BoundedRegex}\n  - matcher::rule_loader::{RuleSet, ZoneScope, PatternRule, ...}\n  - matcher::span::{MatchSpan, Source}\n  - tokenizer::{Token, Segment, BracketGroup, BracketKind, ...}\n  - zone_map::{ZoneMap, SegmentZone, YearInfo, TitleYear, ...}\n  - properties::* (all internal property matchers)\n\n## Internal cleanup the audit surfaced\n\nThe demotion let the dead-code lint reach previously-shielded items.\nTriage results:\n\nTruly dead, deleted:\n  - src/matcher/mod.rs: 2 unused re-exports (engine::resolve_conflicts,\n    span::{MatchSpan, Property}) \\u2014 lib.rs already re-exports Property\n    directly; the others were never reached\n  - src/matcher/span.rs: MatchSpan::is_empty (4 lines)\n  - src/tokenizer.rs: Token::{len, is_empty} + BracketGroup::{span,\n    content_span} (15 lines combined)\n\nTest-only, gated with #[cfg(test)]:\n  - src/matcher/rule_loader.rs: exact_count + pattern_count are only\n    called from #[cfg(test)] blocks (rule_registry.rs smoke tests +\n    rule_loader.rs unit tests)\n\nConstructor-set-but-never-read fields, marked #[allow(dead_code)]\nwith explanatory comment pointing to #144 and explaining the\nconstructor-cascade reason for not removing them outright:\n  - matcher::rule_loader::RuleSet::property\n  - tokenizer::PathSegment::depth\n  - tokenizer::TokenStream::input\n  - zone_map::ZoneMap::tech_zone\n  - zone_map::SegmentZone::tech_zone\n  - zone_map::YearInfo::end\n  - zone_map::TitleYear::value\n\nThese deserve a follow-up cleanup pass to actually remove them and\ntheir cascading construction sites, but that's a separate PR (this\none is scoped to 'audit + module demotion').\n\n## Builder-method rename (clippy::wrong_self_convention)\n\nThree consuming-builder methods on MatchSpan were renamed to follow\nRust convention (with_* for consuming builders that return Self,\nnot as_*):\n  - as_extension    → with_extension\n  - as_path_based   → with_path_based\n  - as_reclaimable  → with_reclaimable\n\nThese methods were public before this PR (because pub mod matcher\nre-exported them) but in practice never used by external callers \\u2014\nthe rename only affects 4 internal call-sites in src/. Brings them\nin line with the existing with_priority and with_source builders\non the same type.\n\nThe clippy lint was flagging these all along; we just couldn't act\non it without a major bump because the methods were technically\npublic. The audit unlocks the fix.\n\n## Test/doctest updates\n\nTests that used deep-path imports were updated to the re-exports:\n  - tests/integration.rs:    hunch::matcher::span::Property → hunch::Property\n  - tests/wrong_type.rs:     same\n  - tests/matching_constraints.rs: hunch::matcher::Property → hunch::Property\n\nDoctests in src/matcher/span.rs were updated:\n  - Property::from_name doctest: deep path → hunch::Property\n  - define_properties doctest: deep path → hunch::Property\n  - MatchSpan doctest: marked 'ignore' since MatchSpan is now\n    pub(crate) (still rendered in private rustdoc; just not run as\n    an external doctest, which would fail to resolve the import)\n\n## CHANGELOG.md updates\n\nTwo new BREAKING entries added to [Unreleased] → ### Changed:\n\n  1. The module surface reduction itself, with a Before/After\n     migration snippet showing how to switch from\n     'use hunch::matcher::span::Property;' to 'use hunch::Property;'.\n\n  2. The MatchSpan builder-method rename. Marked BREAKING for\n     paranoia (the methods were technically public before) but\n     migration is a no-op for any realistic downstream caller \\u2014\n     the methods aren't documented in the User Manual or rustdoc\n     examples.\n\nAlso corrected the existing non_exhaustive entry to list all 9\naffected enums (was previously 'Property, MediaType, Confidence,\nOutputFormat (and others)' \\u2014 wrong: there is no OutputFormat;\nthe actual set is Property, MediaType, Confidence, SegmentKind,\nSource, ZoneScope, Separator, BracketKind, CharClass).\n\n## Verification\n\n  - cargo build --all-targets: clean (zero warnings)\n  - cargo test: 12 doctests passed (2 ignored: priority module +\n    new MatchSpan-as-pub(crate) example), all 339+ integration tests\n    passed\n  - cargo clippy --all-targets: clean\n  - cargo fmt --check: clean\n  - cargo +nightly public-api --simplified: 202 lines\n    (matches new docs/src/reference/public-api.txt baseline exactly)\n\n## What this PR explicitly does NOT do\n\n  - No version bump (saves that for PR-2c)\n  - No removal of #[allow(dead_code)] fields \\u2014 deserves its own\n    follow-up because removing them cascades through every\n    constructor and would inflate this PR's diff considerably\n  - No deprecation warnings on the demoted items \\u2014 they're\n    pub(crate) now, so deprecation is moot. Downstream callers\n    using deep paths will get a hard E0603 'module is private'\n    error at compile time, which is the clearest possible signal.\n\nCloses #144.\n\n* fix(docs): drop intra-doc link to now-private MatchSpan\n\nThe crate-level docstring at src/lib.rs:95 referenced\n[MatchSpan](matcher::span::MatchSpan) as part of the architecture\noverview. Since PR-2b's module demotion made matcher pub(crate),\nthat path is no longer reachable from public docs and rustdoc fails\nthe build under -Dwarnings (rustdoc::private_intra_doc_links lint).\n\nReplaced the intra-doc link with the prose 'internal match spans' \\u2014\nthe architecture overview is for orientation, not API surface, and\nlinking to a private type from public docs would just leak the same\ninternal name we just removed from the SemVer contract.\n\nDiscovered by the Docs job on PR #197. Trivial follow-up to PR-2b's\ncore demotion work.",
+          "timestamp": "2026-04-19T16:03:14-05:00",
+          "tree_id": "8a300fd806a3e26ac97f2fec39f71e6f7c6dcf82",
+          "url": "https://github.com/lijunzh/hunch/commit/3dfd88c7a1e3c7343a820c0be7c52ccd215fc565"
+        },
+        "date": 1776632668296,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "movie_basic",
+            "value": 106081,
+            "range": "± 1733",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "movie_complex",
+            "value": 245564,
+            "range": "± 3340",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_sxxexx",
+            "value": 112745,
+            "range": "± 905",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_with_path",
+            "value": 108994,
+            "range": "± 1557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "anime_bracket",
+            "value": 92360,
+            "range": "± 474",
             "unit": "ns/iter"
           }
         ]
