@@ -17,9 +17,36 @@ use crate::hunch_result::HunchResult;
 use crate::matcher::engine;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::tokenizer::{self, TokenStream};
-use crate::zone_map::{self, ZoneMap};
+use crate::zone_map::{self, TitleYear, ZoneMap};
 use matching::MatchContext;
 use rule_registry::{LegacyMatcherFn, SegmentScope, TomlRule};
+
+/// Returns true if a `[start, end)` byte range overlaps any of the
+/// `title_years` ranges.
+///
+/// Hoisted out of `Pipeline::pass1` so the boundary semantics can be
+/// pinned by unit tests directly. Uses **half-open interval** logic
+/// (`m.start < ty.end && m.end > ty.start`):
+///
+/// - Touching ranges do NOT overlap (`m.end == ty.start` is NOT overlap;
+///   `m.start == ty.end` is NOT overlap). This matches Rust's `Range<usize>`
+///   convention used everywhere else in the matcher.
+/// - The match must have at least one byte inside `[ty.start, ty.end)`
+///   for the predicate to return true.
+/// - An empty `title_years` slice always returns false (vacuous "any").
+///
+/// Used by year disambiguation: when the title contains year-like numbers
+/// (e.g., "Blade Runner 2049"), those byte ranges are recorded as
+/// `title_years` so we don't ALSO extract them as the release year.
+pub(super) fn match_overlaps_any_title_year(
+    match_start: usize,
+    match_end: usize,
+    title_years: &[TitleYear],
+) -> bool {
+    title_years
+        .iter()
+        .any(|ty| match_start < ty.end && match_end > ty.start)
+}
 
 use log::{debug, trace};
 
@@ -321,16 +348,18 @@ impl Pipeline {
         }
 
         // Step 2b: Year disambiguation using ZoneMap.
-        if let Some(ref yi) = zone_map.year
-            && !yi.title_years.is_empty()
-        {
+        //
+        // The `match_overlaps_any_title_year` helper returns false for an
+        // empty `title_years` slice, so we don't need a separate
+        // `!is_empty()` guard — the retain becomes a no-op for year
+        // matches when there's nothing to compare against. Removing the
+        // guard also eliminates a mutation hot spot (no `!` to delete).
+        if let Some(ref yi) = zone_map.year {
             all_matches.retain(|m| {
                 if m.property != Property::Year {
                     return true;
                 }
-                !yi.title_years
-                    .iter()
-                    .any(|ty| m.start < ty.end && m.end > ty.start)
+                !match_overlaps_any_title_year(m.start, m.end, &yi.title_years)
             });
         }
 
@@ -388,15 +417,18 @@ impl Pipeline {
     ) -> HunchResult {
         // Step 5a: Release group (post-resolution — can see claimed positions).
         let rg_matches = release_group::find_matches(input, all_matches, zone_map, token_stream);
-        if !rg_matches.is_empty() {
-            debug!(
-                "step 5a: release group — found {:?}",
-                rg_matches
-                    .iter()
-                    .map(|m| m.value.as_str())
-                    .collect::<Vec<_>>()
-            );
-        }
+        // Always log — the `debug!` macro lazily evaluates its args only
+        // when debug-level logging is enabled, so the empty-list case
+        // costs nothing in release builds. Removing the previous
+        // `if !rg_matches.is_empty()` guard eliminates a mutant whose
+        // only effect was to gate the log line (equivalent mutation).
+        debug!(
+            "step 5a: release group — found {:?}",
+            rg_matches
+                .iter()
+                .map(|m| m.value.as_str())
+                .collect::<Vec<_>>()
+        );
         all_matches.extend(rg_matches);
 
         // Step 5a.1: Zone rules that depend on release group positions.
@@ -707,5 +739,103 @@ mod tests {
         assert!(!is_path_dir_name("A/B/C/file.mkv", "D E"));
         // Mixed: one part is a dir, the other isn't.
         assert!(!is_path_dir_name("A/B/C/file.mkv", "A D"));
+    }
+
+    // ---- match_overlaps_any_title_year ----
+    //
+    // These tests pin the half-open interval boundaries directly.
+    // The original code used `m.start < ty.end && m.end > ty.start`
+    // and 5 boundary mutants survived because no test exercised the
+    // touching/equal cases. Each test below is named for the mutation
+    // it kills.
+
+    fn ty(start: usize, end: usize) -> TitleYear {
+        TitleYear {
+            value: 2049, // arbitrary; not under test here
+            start,
+            end,
+        }
+    }
+
+    #[test]
+    fn overlap_empty_title_years_returns_false() {
+        // Vacuous "any": no ranges to compare against.
+        // (The early-return guard at the call site relies on this.)
+        assert!(!match_overlaps_any_title_year(0, 100, &[]));
+    }
+
+    #[test]
+    fn overlap_match_fully_inside_title_year_returns_true() {
+        // Sanity: the obvious overlap case.
+        // ty=[10,14), match=[11,13) — fully contained.
+        assert!(match_overlaps_any_title_year(11, 13, &[ty(10, 14)]));
+    }
+
+    #[test]
+    fn overlap_match_fully_contains_title_year_returns_true() {
+        // ty=[10,14), match=[5,20) — match strictly larger.
+        assert!(match_overlaps_any_title_year(5, 20, &[ty(10, 14)]));
+    }
+
+    #[test]
+    fn overlap_match_disjoint_before_returns_false() {
+        // ty=[10,14), match=[0,5) — no overlap, gap of 5.
+        // Pins `<` against `==`/`<=` and `>` against `<`.
+        assert!(!match_overlaps_any_title_year(0, 5, &[ty(10, 14)]));
+    }
+
+    #[test]
+    fn overlap_match_disjoint_after_returns_false() {
+        // ty=[10,14), match=[20,25) — no overlap, gap of 6.
+        // Pins `>` against `==`/`>=`.
+        assert!(!match_overlaps_any_title_year(20, 25, &[ty(10, 14)]));
+    }
+
+    #[test]
+    fn overlap_match_touching_at_left_returns_false() {
+        // ty=[10,14), match=[5,10) — touching but NOT overlapping.
+        // m.end (10) == ty.start (10), so `m.end > ty.start` is false.
+        // This kills `>` -> `>=` (which would falsely return true).
+        // This kills `>` -> `==` (false at 10>0 vs 10==0).
+        assert!(!match_overlaps_any_title_year(5, 10, &[ty(10, 14)]));
+    }
+
+    #[test]
+    fn overlap_match_touching_at_right_returns_false() {
+        // ty=[10,14), match=[14,20) — touching but NOT overlapping.
+        // m.start (14) == ty.end (14), so `m.start < ty.end` is false.
+        // This kills `<` -> `<=` (which would falsely return true).
+        // This kills `<` -> `==` (15<14 false vs 15==14 false; but 14==14 differs).
+        assert!(!match_overlaps_any_title_year(14, 20, &[ty(10, 14)]));
+    }
+
+    #[test]
+    fn overlap_match_one_byte_inside_at_right_edge_returns_true() {
+        // ty=[10,14), match=[13,20) — one byte (index 13) inside.
+        // m.start (13) < ty.end (14) → true; m.end (20) > ty.start (10) → true.
+        // Pins `<` against `==` (13==14 false vs 13<14 true).
+        assert!(match_overlaps_any_title_year(13, 20, &[ty(10, 14)]));
+    }
+
+    #[test]
+    fn overlap_match_one_byte_inside_at_left_edge_returns_true() {
+        // ty=[10,14), match=[5,11) — one byte (index 10) inside.
+        // m.end (11) > ty.start (10) → true; m.start (5) < ty.end (14) → true.
+        // Pins `>` against `==` (11==10 false vs 11>10 true).
+        assert!(match_overlaps_any_title_year(5, 11, &[ty(10, 14)]));
+    }
+
+    #[test]
+    fn overlap_with_multiple_title_years_returns_true_if_any_match() {
+        // Three ranges; only the third overlaps.
+        let years = vec![ty(0, 4), ty(10, 14), ty(20, 24)];
+        assert!(match_overlaps_any_title_year(22, 23, &years));
+    }
+
+    #[test]
+    fn overlap_with_multiple_title_years_returns_false_if_none_match() {
+        // Three ranges; match sits in the gap between two.
+        let years = vec![ty(0, 4), ty(10, 14), ty(20, 24)];
+        assert!(!match_overlaps_any_title_year(15, 19, &years));
     }
 }
