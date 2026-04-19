@@ -451,10 +451,11 @@ impl Pipeline {
                 .and_then(|r| r.title_start)
                 .or_else(|| input.find(override_title));
             if let Some(start) = title_start {
-                let end = start + override_title.len();
-                // Clamp end to input length to avoid out-of-bounds when
-                // the title text is normalized (different length than raw).
-                let end = end.min(input.len());
+                let (start, end) = pass2_helpers::compute_override_title_span(
+                    start,
+                    override_title.len(),
+                    input.len(),
+                );
                 let title_match = MatchSpan::new(start, end, Property::Title, override_title);
                 debug!(
                     "step 5b: title override — \"{}\" at {}..{}",
@@ -507,12 +508,9 @@ impl Pipeline {
                     return true;
                 }
                 // Drop RG if it's fully inside or substantially overlaps the episode title.
-                let overlap_start = m.start.max(ep_start);
-                let overlap_end = m.end.min(ep_end);
-                let overlap = overlap_end.saturating_sub(overlap_start);
-                let rg_len = m.end.saturating_sub(m.start).max(1);
-                // If ≥50% of the release_group span is inside the episode title, drop it.
-                overlap * 2 < rg_len
+                !pass2_helpers::release_group_overlaps_episode_title(
+                    m.start, m.end, ep_start, ep_end,
+                )
             });
             all_matches.push(ep_title);
         }
