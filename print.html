@@ -1,0 +1,1604 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>hunch — Documentation</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="Complete reference for the hunch media-filename parser: user manual, benchmarks, and contributor guides.">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "navy";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-09928b96.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-54a5f23b.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">hunch — Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+                        <a href="https://github.com/lijunzh/hunch" title="Git repository" aria-label="Git repository">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="hunch"><a class="header" href="#hunch">hunch</a></h1>
+<blockquote>
+<p>A fast, accurate media-filename parser for Rust. Extracts 49 properties
+from movie/TV/anime release names with high accuracy on real-world
+libraries.</p>
+</blockquote>
+<p>This site is the canonical home for hunch’s user-facing documentation,
+release-engineering reports, and contributor guides. The source lives in
+<a href="https://github.com/lijunzh/hunch/tree/main/docs/src"><code>docs/src/</code></a> — every
+page has an “edit this page” link in the top right.</p>
+<h2 id="where-to-start"><a class="header" href="#where-to-start">Where to start</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>You are…</th><th>Start here</th></tr>
+</thead>
+<tbody>
+<tr><td>A user (CLI or library)</td><td><a href="#user-manual--hunch">User Manual</a></td></tr>
+<tr><td>Evaluating accuracy vs guessit</td><td><a href="#hunch-vs-guessit--compatibility">guessit Compatibility</a></td></tr>
+<tr><td>Curious about performance</td><td><a href="#benchmarks">Benchmarks</a> → <a href="#benchmark-dashboard">Live Dashboard</a></td></tr>
+<tr><td>Auditing the public API surface</td><td><a href="#public-api-surface">Public API Surface</a></td></tr>
+<tr><td>Contributing tests</td><td><a href="#mutation-testing-baseline">Mutation Testing</a>, <a href="#code-coverage">Coverage</a></td></tr>
+<tr><td>Contributing crash-shape work</td><td><a href="#fuzzing">Fuzzing</a></td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="how-the-quality-stack-fits-together"><a class="header" href="#how-the-quality-stack-fits-together">How the quality stack fits together</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Layer</th><th>Catches</th><th>Where</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Coverage</strong> (<a href="https://github.com/lijunzh/hunch/issues/168">#168</a>)</td><td>Which lines are exercised at all</td><td><a href="#code-coverage">coverage.md</a></td></tr>
+<tr><td><strong>Mutation testing</strong> (<a href="https://github.com/lijunzh/hunch/issues/146">#146</a>)</td><td>Whether tests actually catch bugs</td><td><a href="#mutation-testing-baseline">mutation-baseline.md</a></td></tr>
+<tr><td><strong>Fuzzing</strong> (<a href="https://github.com/lijunzh/hunch/issues/147">#147</a>)</td><td>Crash-shape bugs on adversarial inputs</td><td><a href="#fuzzing">fuzzing.md</a></td></tr>
+<tr><td><strong>Public API surface</strong> (<a href="https://github.com/lijunzh/hunch/issues/145">#145</a>)</td><td>SemVer-relevant public-surface drift</td><td><a href="#public-api-surface">public-api.md</a></td></tr>
+<tr><td><strong>Performance</strong> (<a href="https://github.com/lijunzh/hunch/issues/148">#148</a>)</td><td>Parse-time regressions</td><td><a href="#benchmarks">benchmarks.md</a></td></tr>
+</tbody>
+</table>
+</div>
+<p>Each layer is independently honest: coverage tells you what code runs,
+but a 100%-covered codebase can still have zero meaningful assertions —
+that’s what mutation testing exists for. Fuzzing finds the inputs that
+the other three layers never thought to test.</p>
+<h2 id="project-links"><a class="header" href="#project-links">Project links</a></h2>
+<ul>
+<li>🐙 <strong>Repository</strong>: <a href="https://github.com/lijunzh/hunch">https://github.com/lijunzh/hunch</a></li>
+<li>📦 <strong>crates.io</strong>: <a href="https://crates.io/crates/hunch">https://crates.io/crates/hunch</a></li>
+<li>📚 <strong>Rust API docs</strong>: <a href="https://docs.rs/hunch">https://docs.rs/hunch</a></li>
+<li>📝 <strong>Changelog</strong>: <a href="https://github.com/lijunzh/hunch/blob/main/CHANGELOG.md">CHANGELOG.md</a></li>
+<li>🏗️ <strong>Design notes</strong>: <a href="https://github.com/lijunzh/hunch/blob/main/DESIGN.md">DESIGN.md</a></li>
+<li>🔒 <strong>Security policy</strong>: <a href="https://github.com/lijunzh/hunch/blob/main/SECURITY.md">SECURITY.md</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="user-manual--hunch"><a class="header" href="#user-manual--hunch">User Manual — Hunch</a></h1>
+<blockquote>
+<p>Installation, CLI usage, library API, and all 49 properties.</p>
+</blockquote>
+<hr>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<h3 id="homebrew-macos--linux"><a class="header" href="#homebrew-macos--linux">Homebrew (macOS / Linux)</a></h3>
+<pre><code class="language-bash">brew install lijunzh/hunch/hunch
+</code></pre>
+<h3 id="cargo-from-source"><a class="header" href="#cargo-from-source">Cargo (from source)</a></h3>
+<pre><code class="language-bash">cargo install hunch
+</code></pre>
+<h3 id="pre-built-binaries"><a class="header" href="#pre-built-binaries">Pre-built binaries</a></h3>
+<p>Download from <a href="https://github.com/lijunzh/hunch/releases">GitHub Releases</a>.
+Also supports <a href="https://github.com/cargo-bins/cargo-binstall"><code>cargo-binstall</code></a>:</p>
+<pre><code class="language-bash">cargo binstall hunch
+</code></pre>
+<h3 id="as-a-library"><a class="header" href="#as-a-library">As a library</a></h3>
+<pre><code class="language-bash">cargo add hunch
+</code></pre>
+<hr>
+<h2 id="cli-usage"><a class="header" href="#cli-usage">CLI Usage</a></h2>
+<h3 id="basic"><a class="header" href="#basic">Basic</a></h3>
+<pre><code class="language-bash">$ hunch "The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv"
+{
+  "container": "mkv",
+  "episode": 3,
+  "release_group": "DEMAND",
+  "screen_size": "720p",
+  "season": 5,
+  "source": "Blu-ray",
+  "title": "The Walking Dead",
+  "type": "episode",
+  "video_codec": "H.264"
+}
+</code></pre>
+<p>Multiple files:</p>
+<pre><code class="language-bash">hunch "Movie.2024.1080p.mkv" "Show.S01E01.mkv"
+</code></pre>
+<h3 id="cross-file-context"><a class="header" href="#cross-file-context">Cross-file context</a></h3>
+<p>For CJK, anime, or ambiguous filenames, sibling files improve accuracy:</p>
+<pre><code class="language-bash"># Single file with context from its directory
+hunch --context ./Season1/ "(BD)十二国記 第13話「月の影 影の海　終章」(1440x1080 x264-10bpp flac).mkv"
+
+# Batch mode: parse all files in a directory (mutual context)
+hunch --batch ./Season1/ --json
+
+# Recursive batch: parse an entire media library (RECOMMENDED)
+hunch --batch /path/to/tv/ -r -j
+hunch --batch /path/to/movies/ -r -j
+</code></pre>
+<blockquote>
+<p><strong>💡 Important:</strong> For media libraries, always use <code>--batch -r</code> from the
+library root (e.g., <code>tv/</code>, <code>movies/</code>) rather than running <code>--batch</code> on
+each subdirectory individually. The <code>-r</code> flag preserves full relative
+paths like <code>tv/Anime/Show/Extra/Menu.mkv</code>, which gives the parser
+critical context from directory names (<code>tv/</code>, <code>Anime/</code>, <code>Season 1/</code>)
+for accurate type detection and title extraction.</p>
+<p>Without <code>-r</code>, files in deep subdirectories lose their path context.
+For example, <code>Extra/Menu 1-1.mkv</code> would be classified as a movie,
+but <code>tv/Anime/Show/Extra/Menu 1-1.mkv</code> is correctly classified as
+an episode because the parser sees the <code>tv/</code> and <code>Anime/</code> components.</p>
+</blockquote>
+<h3 id="options"><a class="header" href="#options">Options</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Flag</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td><code>--context &lt;DIR&gt;</code></td><td>Use sibling files for better title detection</td></tr>
+<tr><td><code>--batch &lt;DIR&gt;</code></td><td>Parse all media files in a directory</td></tr>
+<tr><td><code>-r</code>, <code>--recursive</code></td><td>Recurse into subdirectories (with <code>--batch</code>). Symlinks are skipped (loop-safe, sandbox-safe), and traversal stops at 32 levels deep.</td></tr>
+<tr><td><code>-j</code>, <code>--json</code></td><td>Compact JSON output (default is pretty-printed)</td></tr>
+<tr><td><code>-v</code>, <code>--verbose</code></td><td>Enable debug logging</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="logging"><a class="header" href="#logging">Logging</a></h3>
+<p>Hunch uses the <a href="https://docs.rs/log"><code>log</code></a> crate for diagnostic output.
+This is invaluable for debugging misparses.</p>
+<pre><code class="language-bash"># Debug level via --verbose
+hunch -v "Movie.2024.1080p.BluRay.x264-GROUP.mkv"
+
+# Fine-grained control via RUST_LOG
+RUST_LOG=hunch=trace hunch "Movie.2024.1080p.mkv"
+</code></pre>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Level</th><th>What it shows</th></tr>
+</thead>
+<tbody>
+<tr><td><code>debug</code></td><td>Pipeline stage transitions, match counts, title decisions</td></tr>
+<tr><td><code>trace</code></td><td>Every match span, conflict evictions, zone rule filtering</td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="library-api"><a class="header" href="#library-api">Library API</a></h2>
+<h3 id="basic-usage"><a class="header" href="#basic-usage">Basic usage</a></h3>
+<pre class="playground"><code class="language-rust">use hunch::hunch;
+
+fn main() {
+    let result = hunch("The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv");
+    assert_eq!(result.title(), Some("The Walking Dead"));
+    assert_eq!(result.season(), Some(5));
+    assert_eq!(result.episode(), Some(3));
+    assert_eq!(result.source(), Some("Blu-ray"));
+    assert_eq!(result.video_codec(), Some("H.264"));
+    assert_eq!(result.release_group(), Some("DEMAND"));
+    assert_eq!(result.container(), Some("mkv"));
+}</code></pre>
+<h3 id="cross-file-context-1"><a class="header" href="#cross-file-context-1">Cross-file context</a></h3>
+<pre class="playground"><code class="language-rust">use hunch::hunch_with_context;
+
+fn main() {
+    let result = hunch_with_context(
+        "(BD)十二国記 第13話「月の影 影の海　終章」(1440x1080 x264-10bpp flac).mkv",
+        &amp;[
+            "(BD)十二国記 第01話「月の影 影の海　一章」(1440x1080 x264-10bpp flac).mkv",
+            "(BD)十二国記 第02話「月の影 影の海　二章」(1440x1080 x264-10bpp flac).mkv",
+        ],
+    );
+    assert_eq!(result.title(), Some("十二国記"));
+}</code></pre>
+<h3 id="pipeline-reuse"><a class="header" href="#pipeline-reuse">Pipeline reuse</a></h3>
+<p>For batch processing, reuse the <code>Pipeline</code> to avoid re-compiling
+TOML rules on each call:</p>
+<pre class="playground"><code class="language-rust">use hunch::Pipeline;
+
+fn main() {
+    let pipeline = Pipeline::new();
+    let filenames = vec!["Movie.2024.mkv", "Show.S01E01.mkv"];
+
+    for name in filenames {
+        let result = pipeline.run(name);
+        println!("{}: {}", name, result.to_json());
+    }
+}</code></pre>
+<h3 id="confidence"><a class="header" href="#confidence">Confidence</a></h3>
+<pre class="playground"><code class="language-rust">use hunch::{hunch, Confidence};
+
+fn main() {
+    let result = hunch("ambiguous_file.mkv");
+    match result.confidence() {
+        Confidence::High   =&gt; println!("Confident parse"),
+        Confidence::Medium =&gt; println!("Reasonable parse"),
+        Confidence::Low    =&gt; println!("Consider using --context"),
+    }
+}</code></pre>
+<h3 id="full-api-reference"><a class="header" href="#full-api-reference">Full API reference</a></h3>
+<p>See <strong><a href="https://docs.rs/hunch">docs.rs/hunch</a></strong> for all 49
+<a href="https://docs.rs/hunch/latest/hunch/matcher/span/enum.Property.html"><code>Property</code></a>
+variants and
+<a href="https://docs.rs/hunch/latest/hunch/struct.HunchResult.html"><code>HunchResult</code></a>
+accessors.</p>
+<hr>
+<h2 id="all-49-properties"><a class="header" href="#all-49-properties">All 49 Properties</a></h2>
+<h3 id="structural-always-unambiguous"><a class="header" href="#structural-always-unambiguous">Structural (always unambiguous)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Example value</th><th>Example input</th></tr>
+</thead>
+<tbody>
+<tr><td><code>title</code></td><td>The Walking Dead</td><td><code>The.Walking.Dead.S05E03</code></td></tr>
+<tr><td><code>season</code></td><td>5</td><td><code>S05E03</code></td></tr>
+<tr><td><code>episode</code></td><td>3</td><td><code>S05E03</code></td></tr>
+<tr><td><code>year</code></td><td>2024</td><td><code>Movie.2024.1080p</code></td></tr>
+<tr><td><code>date</code></td><td>2024-03-15</td><td><code>Show.2024.03.15</code></td></tr>
+<tr><td><code>container</code></td><td>mkv</td><td><code>movie.mkv</code></td></tr>
+<tr><td><code>type</code></td><td>episode / movie</td><td>(inferred)</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="video"><a class="header" href="#video">Video</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Example value</th><th>Example input</th></tr>
+</thead>
+<tbody>
+<tr><td><code>video_codec</code></td><td>H.264</td><td><code>x264</code></td></tr>
+<tr><td><code>screen_size</code></td><td>1080p</td><td><code>1080p</code></td></tr>
+<tr><td><code>frame_rate</code></td><td>23.976fps</td><td><code>23.976fps</code></td></tr>
+<tr><td><code>color_depth</code></td><td>10-bit</td><td><code>10bit</code></td></tr>
+<tr><td><code>video_profile</code></td><td>High 10</td><td><code>Hi10P</code></td></tr>
+<tr><td><code>video_api</code></td><td>DXVA</td><td><code>DXVA</code></td></tr>
+<tr><td><code>aspect_ratio</code></td><td>16:9</td><td><code>16x9</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="audio"><a class="header" href="#audio">Audio</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Example value</th><th>Example input</th></tr>
+</thead>
+<tbody>
+<tr><td><code>audio_codec</code></td><td>AAC</td><td><code>AAC</code></td></tr>
+<tr><td><code>audio_channels</code></td><td>5.1</td><td><code>5.1ch</code></td></tr>
+<tr><td><code>audio_profile</code></td><td>HD MA</td><td><code>DTS-HD.MA</code></td></tr>
+<tr><td><code>bit_rate</code></td><td>320kbps</td><td><code>320kbps</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="source--edition"><a class="header" href="#source--edition">Source &amp; Edition</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Example value</th><th>Example input</th></tr>
+</thead>
+<tbody>
+<tr><td><code>source</code></td><td>Blu-ray</td><td><code>BluRay</code></td></tr>
+<tr><td><code>streaming_service</code></td><td>Netflix</td><td><code>NF</code></td></tr>
+<tr><td><code>edition</code></td><td>Director’s Cut</td><td><code>Directors.Cut</code></td></tr>
+<tr><td><code>other</code></td><td>Proper, Repack, 3D, …</td><td><code>PROPER</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="release-metadata"><a class="header" href="#release-metadata">Release metadata</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Example value</th><th>Example input</th></tr>
+</thead>
+<tbody>
+<tr><td><code>release_group</code></td><td>DEMAND</td><td><code>-DEMAND</code></td></tr>
+<tr><td><code>website</code></td><td>rarbg.to</td><td><code>[rarbg.to]</code></td></tr>
+<tr><td><code>crc32</code></td><td>ABCD1234</td><td><code>[ABCD1234]</code></td></tr>
+<tr><td><code>uuid</code></td><td>…</td><td><code>{uuid}</code></td></tr>
+<tr><td><code>size</code></td><td>1.4 GB</td><td><code>1.4GB</code></td></tr>
+<tr><td><code>proper_count</code></td><td>1</td><td><code>PROPER</code></td></tr>
+<tr><td><code>version</code></td><td>2</td><td><code>v2</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="episode-details"><a class="header" href="#episode-details">Episode details</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Example value</th><th>Example input</th></tr>
+</thead>
+<tbody>
+<tr><td><code>episode_title</code></td><td>The Brain In The Bot</td><td>(text after episode marker)</td></tr>
+<tr><td><code>film_title</code></td><td>…</td><td>(multi-film sets)</td></tr>
+<tr><td><code>alternative_title</code></td><td>…</td><td>(AKA titles)</td></tr>
+<tr><td><code>bonus</code></td><td>1</td><td><code>x01</code></td></tr>
+<tr><td><code>bonus_title</code></td><td>…</td><td>(bonus feature title)</td></tr>
+<tr><td><code>episode_details</code></td><td>Special</td><td><code>Special</code></td></tr>
+<tr><td><code>episode_format</code></td><td>Miniseries</td><td><code>Miniseries</code></td></tr>
+<tr><td><code>episode_count</code></td><td>24</td><td><code>24eps</code></td></tr>
+<tr><td><code>season_count</code></td><td>5</td><td><code>5seasons</code></td></tr>
+<tr><td><code>absolute_episode</code></td><td>45</td><td>(anime absolute numbering)</td></tr>
+<tr><td><code>week</code></td><td>12</td><td><code>Week.12</code></td></tr>
+<tr><td><code>film</code></td><td>2</td><td><code>Film.2</code></td></tr>
+<tr><td><code>disc</code></td><td>1</td><td><code>Disc.1</code></td></tr>
+<tr><td><code>cd</code></td><td>2</td><td><code>CD2</code></td></tr>
+<tr><td><code>cd_count</code></td><td>3</td><td><code>3CDs</code></td></tr>
+<tr><td><code>part</code></td><td>1</td><td><code>Part.1</code></td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="language"><a class="header" href="#language">Language</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Example value</th><th>Example input</th></tr>
+</thead>
+<tbody>
+<tr><td><code>language</code></td><td>English</td><td><code>English</code></td></tr>
+<tr><td><code>subtitle_language</code></td><td>French</td><td><code>sub.French</code></td></tr>
+<tr><td><code>country</code></td><td>US</td><td><code>US</code></td></tr>
+</tbody>
+</table>
+</div>
+<hr>
+<h2 id="faq"><a class="header" href="#faq">FAQ</a></h2>
+<h3 id="why-is-the-title-wrong"><a class="header" href="#why-is-the-title-wrong">Why is the title wrong?</a></h3>
+<p>Title extraction is the hardest problem. The engine finds the gap before
+the first tech anchor — if it can’t find anchors, the title boundary is
+a guess. Use <code>--context</code> to provide sibling files for structural evidence.</p>
+<p>For batch processing, use <code>--batch -r</code> from the library root to give
+the parser full path context. See <a href="#cross-file-context">Cross-file context</a>.</p>
+<h3 id="why-is-the-year-detected-as-title-content"><a class="header" href="#why-is-the-year-detected-as-title-content">Why is the year detected as title content?</a></h3>
+<p>Year-like numbers (e.g., “2001” in “2001.A.Space.Odyssey.1968”) are
+ambiguous. With <code>--context</code>, siblings reveal which numbers are invariant
+(title) vs variant (metadata).</p>
+<h3 id="how-fast-is-it"><a class="header" href="#how-fast-is-it">How fast is it?</a></h3>
+<p>Single-file parsing: ~50–150µs. Batch mode with 100 files: ~5–15ms.
+All regex is linear-time (Thompson NFA). No backtracking, ever.</p>
+<h3 id="does-it-work-with-non-latin-scripts"><a class="header" href="#does-it-work-with-non-latin-scripts">Does it work with non-Latin scripts?</a></h3>
+<p>Yes. CJK, Cyrillic, Arabic filenames all work. Cross-file context
+(<code>--context</code> / <code>--batch</code>) significantly improves CJK title extraction.</p>
+<h3 id="how-do-i-debug-a-misparse"><a class="header" href="#how-do-i-debug-a-misparse">How do I debug a misparse?</a></h3>
+<pre><code class="language-bash">hunch -v "problematic.filename.mkv"
+# or for maximum detail:
+RUST_LOG=hunch=trace hunch "problematic.filename.mkv"
+</code></pre>
+<p>The trace output shows every match, eviction, and decision.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="hunch-vs-guessit--compatibility"><a class="header" href="#hunch-vs-guessit--compatibility">Hunch vs guessit — Compatibility</a></h1>
+<p>Hunch started as a Rust port inspired by Python’s
+<a href="https://github.com/guessit-io/guessit">guessit</a>, and we still run hunch
+against guessit’s test suite as a <strong>secondary benchmark</strong>.</p>
+<p>But guessit compatibility is no longer the primary optimization target.
+Hunch is tuned first for <strong>real-world media-library accuracy</strong>, with guessit
+compatibility used as a reference point rather than a product goal.</p>
+<blockquote>
+<p><strong>Last updated:</strong> 2026-04-17 (v1.1.8 release)</p>
+</blockquote>
+<hr>
+<h2 id="current-snapshot"><a class="header" href="#current-snapshot">Current snapshot</a></h2>
+<p>Latest compatibility rerun:</p>
+<pre><code class="language-bash">cargo test compatibility_report --release -- --ignored --nocapture
+</code></pre>
+<p>Results:</p>
+<ul>
+<li><strong>1,071 / 1,310</strong> cases passed</li>
+<li><strong>81.8%</strong> overall compatibility</li>
+<li><strong>49 / 49</strong> properties implemented</li>
+<li><strong>3 intentional divergences</strong></li>
+</ul>
+<p>A few examples of still-strong property areas:</p>
+<ul>
+<li><code>source</code>: <strong>96.1%</strong></li>
+<li><code>type</code>: <strong>93.7%</strong></li>
+<li><code>title</code>: <strong>91.8%</strong></li>
+<li><code>episode</code>: <strong>90.6%</strong></li>
+<li><code>release_group</code>: <strong>90.4%</strong></li>
+</ul>
+<hr>
+<h2 id="how-to-interpret-this"><a class="header" href="#how-to-interpret-this">How to interpret this</a></h2>
+<p>guessit compatibility is useful for:</p>
+<ul>
+<li>spotting regressions against a large public fixture set</li>
+<li>finding parser blind spots we may have missed</li>
+<li>measuring broad behavior drift over time</li>
+</ul>
+<p>It is <strong>not</strong> the final definition of correctness.</p>
+<p>Some guessit fixtures encode parser-specific conventions rather than universal
+truth. When compatibility and real-world behavior disagree, hunch prefers the
+behavior that is more accurate and maintainable for actual media libraries.</p>
+<hr>
+<h2 id="intentional-divergences"><a class="header" href="#intentional-divergences">Intentional divergences</a></h2>
+<p>Hunch intentionally does not mirror guessit in a few places:</p>
+<ul>
+<li>
+<p><strong><code>audio_bit_rate</code> / <code>video_bit_rate</code></strong></p>
+<ul>
+<li>guessit splits these into separate properties</li>
+<li>hunch emits a single <code>bit_rate</code>, because filenames rarely contain enough
+reliable context to disambiguate audio vs video bit rate cleanly</li>
+</ul>
+</li>
+<li>
+<p><strong><code>mimetype</code></strong></p>
+<ul>
+<li>guessit derives MIME type from the file extension</li>
+<li>hunch does not emit it, because that is a trivial container lookup better
+handled by the consumer</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="real-world-accuracy-matters-more"><a class="header" href="#real-world-accuracy-matters-more">Real-world accuracy matters more</a></h2>
+<p>The main quality signal for hunch is behavior on real media libraries, not
+perfect reproduction of guessit’s opinions.</p>
+<p>As of the latest audit referenced in the README, hunch achieved <strong>99.8%</strong>
+accuracy on a real-world library of 7,838 files, with the remaining edge cases
+tracked as known limitations.</p>
+<p>That is the benchmark we optimize for first.</p>
+<hr>
+<h2 id="reproducing-the-report"><a class="header" href="#reproducing-the-report">Reproducing the report</a></h2>
+<pre><code class="language-bash"># Full compatibility snapshot
+cargo test compatibility_report --release -- --ignored --nocapture
+
+# Include sampled failure details
+HUNCH_DUMP_FAILURES=50 cargo test compatibility_report --release -- --ignored --nocapture
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="benchmarks"><a class="header" href="#benchmarks">Benchmarks</a></h1>
+<p>Hunch uses <a href="https://bheisler.github.io/criterion.rs/book/">criterion</a>
+to track parsing performance via <code>benches/parse.rs</code>. The
+<a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/benchmark.yml">Benchmarks workflow</a> runs them
+weekly + on every push to <code>main</code> to accumulate a performance history.</p>
+<h2 id="how-this-fits-in-the-quality-stack"><a class="header" href="#how-this-fits-in-the-quality-stack">How this fits in the quality stack</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Layer</th><th>Catches</th><th>Where</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Coverage</strong> (#168)</td><td>Which lines are exercised at all</td><td><a href="#code-coverage">Coverage</a></td></tr>
+<tr><td><strong>Mutation testing</strong> (#146)</td><td>Whether tests actually catch bugs</td><td><a href="#mutation-testing-baseline">Mutation Testing</a></td></tr>
+<tr><td><strong>Fuzzing</strong> (#147)</td><td>Crash-shape bugs on adversarial inputs</td><td><a href="#fuzzing">Fuzzing</a></td></tr>
+<tr><td><strong>Public API surface</strong> (#145)</td><td>SemVer-relevant public-surface drift</td><td><a href="#public-api-surface">Public API</a></td></tr>
+<tr><td><strong>Performance</strong> (this doc, #148)</td><td>Parse-time regressions</td><td><code>benches/</code> + this doc</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="bench-coverage"><a class="header" href="#bench-coverage">Bench coverage</a></h2>
+<p>Six benchmarks in <code>benches/parse.rs</code> cover the main parse paths:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Bench</th><th>Input</th><th>What it stresses</th></tr>
+</thead>
+<tbody>
+<tr><td><code>minimal</code></td><td><code>movie.mkv</code></td><td>The parser fast path; baseline for “do nothing useful” cost</td></tr>
+<tr><td><code>movie_basic</code></td><td><code>The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv</code></td><td>Standard movie filename</td></tr>
+<tr><td><code>movie_complex</code></td><td><code>Blade.Runner.2049.2017.2160p.UHD.BluRay.REMUX.HDR.HEVC.DTS-HD.MA.7.1.Atmos-EPSiLON.mkv</code></td><td>Loaded movie with many tags (codec, source, audio, HDR, atmos)</td></tr>
+<tr><td><code>episode_sxxexx</code></td><td><code>The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv</code></td><td>Standard episode with <code>SxxExx</code> marker</td></tr>
+<tr><td><code>episode_with_path</code></td><td><code>Series/Californication/Season 2/Californication.2x05.Vaginatown.HDTV.XviD-0TV.avi</code></td><td>Multi-segment path with directory context</td></tr>
+<tr><td><code>anime_bracket</code></td><td><code>[SubGroup] Anime Title - 01 [720p] [ABCD1234].mkv</code></td><td>Anime-style brackets + CRC32 checksum</td></tr>
+</tbody>
+</table>
+</div>
+<p>Coverage matches what <a href="https://github.com/lijunzh/hunch/pull/138">PR #138</a> pinned for correctness — the same shapes get exercised for both correctness and perf.</p>
+<h2 id="initial-baseline-2026-04-18"><a class="header" href="#initial-baseline-2026-04-18">Initial baseline (2026-04-18)</a></h2>
+<p>Captured on local M-class hardware, criterion default (100 samples, 5s collection):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Bench</th><th>Median time</th><th>Iterations to fill 5 s</th></tr>
+</thead>
+<tbody>
+<tr><td><code>minimal</code></td><td><strong>11.5 µs</strong></td><td>444k</td></tr>
+<tr><td><code>anime_bracket</code></td><td><strong>62.5 µs</strong></td><td>81k</td></tr>
+<tr><td><code>movie_basic</code></td><td><strong>74.8 µs</strong></td><td>67k</td></tr>
+<tr><td><code>episode_with_path</code></td><td><strong>78.5 µs</strong></td><td>64k</td></tr>
+<tr><td><code>episode_sxxexx</code></td><td><strong>83.4 µs</strong></td><td>60k</td></tr>
+<tr><td><code>movie_complex</code></td><td><strong>183 µs</strong></td><td>27k</td></tr>
+</tbody>
+</table>
+</div>
+<p>Total cargo-bench wall clock: ~70 s on local hardware.</p>
+<p>GitHub-hosted ubuntu-latest runners are <strong>~2-3× slower</strong> with significantly noisier per-iteration variance. Expect CI numbers to be roughly:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Bench</th><th>CI estimate (rough)</th></tr>
+</thead>
+<tbody>
+<tr><td><code>minimal</code></td><td>25-40 µs</td></tr>
+<tr><td><code>movie_complex</code></td><td>400-600 µs</td></tr>
+<tr><td>Others</td><td>150-250 µs</td></tr>
+</tbody>
+</table>
+</div>
+<p>These ranges will tighten once we have a multi-month CI history to characterize the noise floor.</p>
+<h2 id="how-it-runs-in-ci"><a class="header" href="#how-it-runs-in-ci">How it runs in CI</a></h2>
+<p><a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/benchmark.yml"><code>.github/workflows/benchmark.yml</code></a> — triggered on:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Trigger</th><th>Behavior</th></tr>
+</thead>
+<tbody>
+<tr><td>Pull request (paths: <code>src/</code>, <code>benches/</code>, <code>Cargo.*</code>, workflow file)</td><td>Compare vs latest <code>main</code> baseline; <strong>comment delta table</strong> on PR; <strong>fail if any bench &gt;120% of baseline</strong></td></tr>
+<tr><td>Push to <code>main</code> (same paths)</td><td>Append results to <code>gh-pages/dev/bench/data.js</code>; no comment, no fail</td></tr>
+<tr><td>Weekly Sunday 05:14 UTC</td><td>Produce artifact only (legacy belt)</td></tr>
+<tr><td>Manual dispatch</td><td>Produce artifact only</td></tr>
+</tbody>
+</table>
+</div>
+<p>Output on every run: <code>bench-output/parse.txt</code> (full criterion log) + <code>bench-output/parse-summary.txt</code> (one bencher-format line per bench), uploaded as the <code>bench-results-&lt;sha&gt;</code> artifact with <strong>90-day retention</strong> — independent backstop in case the gh-pages history gets corrupted.</p>
+<h3 id="threshold-rationale"><a class="header" href="#threshold-rationale">Threshold rationale</a></h3>
+<ul>
+<li><strong><code>alert-threshold: '120%'</code></strong> — fail when any bench is <strong>&gt;20% slower</strong> than the latest main baseline.</li>
+<li>Deliberately permissive to filter the typical 5–10% noise floor on shared GitHub-hosted runners. A tighter threshold without statistical-significance handling would flake constantly.</li>
+<li>Tighten once we have ~4 weeks of weekly-run data to characterize real variance — tracked in <a href="https://github.com/lijunzh/hunch/issues/178">#178</a>’s comments.</li>
+</ul>
+<h3 id="triage-when-the-gate-fires"><a class="header" href="#triage-when-the-gate-fires">Triage when the gate fires</a></h3>
+<ol>
+<li><strong>Don’t immediately revert.</strong> Confirm by re-running the bench job (CPU jitter on shared runners is real). If the second run still flags it, you have a real signal.</li>
+<li>Pull the bench artifact from both the PR run and the most recent <code>main</code> run; eyeball the absolute numbers (the action’s comment shows %-delta, but absolute µs tells you whether it’s a hot-path concern or a 100ns blip on a 10µs bench).</li>
+<li>If real, profile locally with <code>cargo bench --bench parse -- --profile-time 10</code> (criterion’s built-in flamegraph mode) or <code>samply</code> for deeper drill-down.</li>
+<li><strong>Override path</strong>: if the regression is intentional (perf traded for correctness or feature), document the rationale in <code>CHANGELOG.md</code> and use the <code>[skip-bench-gate]</code> label (TODO once we hit the first justified override) — for now, accept the failure and discuss in PR review.</li>
+</ol>
+<h2 id="history-storage--decision-177"><a class="header" href="#history-storage--decision-177">History storage — decision (#177)</a></h2>
+<p><strong>Choice: <a href="https://github.com/benchmark-action/github-action-benchmark"><code>github-action-benchmark</code></a> committing data to a <code>gh-pages</code> branch.</strong></p>
+<p>Three real options were considered (full tradeoff table in <a href="https://github.com/lijunzh/hunch/issues/177">#177</a>):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Option</th><th>UX</th><th>Trust model</th><th>Cost</th><th>Picked?</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>A: bencher.dev</strong> (cloud SaaS)</td><td>Best (prebuilt charts, alerts)</td><td>External account + API token</td><td>Free for OSS</td><td>❌</td></tr>
+<tr><td><strong>B: github-action-benchmark</strong> (gh-pages)</td><td>Adequate (Chart.js dashboard)</td><td>In-repo, no external service</td><td>Free</td><td>✅</td></tr>
+<tr><td><strong>C: Self-hosted runner</strong></td><td>N/A (storage-orthogonal)</td><td>Internal</td><td>High (someone owns a machine)</td><td>❌</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="why-option-b"><a class="header" href="#why-option-b">Why Option B</a></h3>
+<ol>
+<li><strong>In-repo, no external deps</strong> — matches the project’s stewardship ethos (same as how <a href="#mutation-testing-baseline">Mutation Testing</a> and <a href="#fuzzing">Fuzzing</a> keep their data in-tree).</li>
+<li><strong>No vendor lock-in</strong> — <code>data.js</code> on <code>gh-pages</code> is just a JSON-array-shaped file; if we outgrow it, exporting to bencher.dev later is straightforward.</li>
+<li><strong>No org-secret friction</strong> — zero coordination with Walmart secret-management to get a token provisioned per-fork.</li>
+<li><strong>Negligible maintenance</strong> — the action auto-commits to <code>gh-pages</code> on every push to <code>main</code>; no manual touch.</li>
+<li><strong>PR comments are built-in</strong> — the action ships a <code>comment-on-alert</code> flag that posts deltas back to PRs once we wire it up in <a href="https://github.com/lijunzh/hunch/issues/178">#178</a>.</li>
+</ol>
+<h3 id="infrastructure-created-by-this-decision"><a class="header" href="#infrastructure-created-by-this-decision">Infrastructure created by this decision</a></h3>
+<ul>
+<li><strong><code>gh-pages</code> branch</strong> seeded with a placeholder <code>index.html</code> (commit <code>2916df7</code>). The action will populate it with <code>data.js</code> + an interactive Chart.js dashboard on the next push to <code>main</code>.</li>
+<li>The dashboard will be live at <code>https://lijunzh.github.io/hunch/</code> once GitHub Pages is enabled in repo settings (Settings → Pages → Source: <code>gh-pages</code> branch / <code>/</code> root). <strong>Manual one-time toggle required.</strong></li>
+</ul>
+<h3 id="migration-path-if-option-b-disappoints"><a class="header" href="#migration-path-if-option-b-disappoints">Migration path if Option B disappoints</a></h3>
+<p>If the dashboard UX or noise-handling proves inadequate after a few months of real-world use, migrating to bencher.dev is mechanical:</p>
+<ol>
+<li>Enable bencher.dev account, generate API token, store as repo secret.</li>
+<li>Replace the <code>github-action-benchmark</code> step in <code>benchmark.yml</code> with <code>bencherdev/bencher@v0.x</code>.</li>
+<li>Optionally backfill: <code>data.js</code> on <code>gh-pages</code> is a JSON array; bencher.dev supports CSV import.</li>
+</ol>
+<p>No code change to the bench harness itself (<code>benches/parse.rs</code>) is needed in either direction.</p>
+<h2 id="local-usage"><a class="header" href="#local-usage">Local usage</a></h2>
+<p>Run the full bench suite:</p>
+<pre><code class="language-bash">cargo bench --bench parse
+</code></pre>
+<p>(Takes ~70 s on M-class hardware; longer on CI.)</p>
+<p>Run just one bench:</p>
+<pre><code class="language-bash">cargo bench --bench parse -- minimal
+</code></pre>
+<p>Use criterion’s baseline-comparison mode to detect regressions across two commits:</p>
+<pre><code class="language-bash"># Save numbers from the current state as 'before'
+cargo bench --bench parse -- --save-baseline before
+
+# Make your change, then compare
+cargo bench --bench parse -- --baseline before
+</code></pre>
+<p>Criterion will print “Performance has improved” / “Performance has regressed” with confidence intervals. Anything with <code>p &lt; 0.05</code> is statistically significant; anything &gt; 5% delta is usually visible above the local-hardware noise floor.</p>
+<h2 id="roadmap-deferred-to-follow-up-prs-within-148"><a class="header" href="#roadmap-deferred-to-follow-up-prs-within-148">Roadmap (deferred to follow-up PRs within #148)</a></h2>
+<p>This first slice intentionally does <strong>not</strong> implement the full epic <a href="https://github.com/lijunzh/hunch/issues/148">DoD</a>. Why each piece is deferred:</p>
+<ul>
+<li><input disabled="" type="checkbox" checked=""> <strong>Decision: bencher.dev (cloud) vs github-action-benchmark (gh-pages) vs self-hosted runner</strong> — resolved in <a href="https://github.com/lijunzh/hunch/issues/177">#177</a>. See “History storage — decision” above.</li>
+<li><input disabled="" type="checkbox" checked=""> <strong>PR-time comparison + comment + regression gate</strong> — resolved in <a href="https://github.com/lijunzh/hunch/issues/178">#178</a>. See “How it runs in CI” above.</li>
+<li><input disabled="" type="checkbox"> <strong>Tighten alert threshold from 120% to something stricter</strong> — needs ~4 weeks of post-#178 data to characterize the noise floor on shared runners. Tracked in #178’s comments.</li>
+<li><input disabled="" type="checkbox"> <strong>Per-release baseline snapshot committed to the repo</strong> (<a href="https://github.com/lijunzh/hunch/issues/179">#179</a>): useful for showing perf trajectory in <code>CHANGELOG.md</code> per release. Trivial follow-up now that the storage substrate exists.</li>
+<li><input disabled="" type="checkbox"> <strong>Differential vs guessit</strong>: out of epic scope per #148 (“interesting but apples-to-oranges”).</li>
+<li><input disabled="" type="checkbox"> <strong>Memory profiling</strong>: out of epic scope per #148 (criterion is wall-clock).</li>
+</ul>
+<h2 id="triage-protocol--manual-deep-dive-when-the-gate-fires"><a class="header" href="#triage-protocol--manual-deep-dive-when-the-gate-fires">Triage protocol — manual deep-dive when the gate fires</a></h2>
+<p>The automated triage steps live in “Triage when the gate fires” above. This section covers the deeper-dive workflow once you’ve decided a regression is real.</p>
+<ol>
+<li><strong>Reproduce locally</strong> with <code>cargo bench --bench parse</code> — confirm it’s not just CI noise (re-run the workflow if numbers look wild).</li>
+<li><strong>Bisect</strong> with <code>cargo bench --bench parse -- --save-baseline X</code> at suspect commits, then <code>--baseline X</code> at the next one to find the introducing SHA.</li>
+<li><strong>Profile</strong> with <code>cargo bench --bench parse -- --profile-time 10</code> (criterion’s built-in flag) or <code>samply</code> / <code>flamegraph</code> for deeper drill-down.</li>
+<li><strong>Fix or revert</strong>: if the regression is acceptable (e.g., new feature traded perf for correctness), document it in <code>CHANGELOG.md</code>. Otherwise, fix or revert.</li>
+</ol>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
+<ul>
+<li><a href="https://bheisler.github.io/criterion.rs/book/">criterion.rs book</a> — methodology, statistical model</li>
+<li><a href="https://github.com/lijunzh/hunch/blob/main/benches/parse.rs"><code>benches/parse.rs</code></a> — the bench harness itself</li>
+<li>Sibling docs: <a href="#code-coverage">Coverage</a>, <a href="#mutation-testing-baseline">Mutation Testing</a>, <a href="#fuzzing">Fuzzing</a>, <a href="#public-api-surface">Public API</a></li>
+<li><a href="https://github.com/lijunzh/hunch/issues/148">#148</a> — the parent epic</li>
+<li><a href="https://github.com/lijunzh/hunch/pull/138">#138</a> — established the property-extractor coverage shape this doc mirrors</li>
+<li><a href="https://github.com/lijunzh/hunch/pull/140">#140</a> — refreshed criterion’s transitive dev-deps</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="benchmark-dashboard"><a class="header" href="#benchmark-dashboard">Benchmark Dashboard</a></h1>
+<p>Live performance trends for hunch’s parser, sourced from the
+<a href="https://github.com/lijunzh/hunch/actions/workflows/benchmark.yml">Benchmarks workflow</a>
+that runs on every push to <code>main</code>.</p>
+<blockquote>
+<p><strong>About this data</strong>: each chart shows wall-clock parse time per
+bench commit-by-commit. The data is committed to
+<a href="https://github.com/lijunzh/hunch/blob/gh-pages/dev/bench/data.js"><code>gh-pages/dev/bench/data.js</code></a>
+by the <a href="https://github.com/benchmark-action/github-action-benchmark"><code>benchmark-action/github-action-benchmark</code></a>
+step in <code>benchmark.yml</code>. See <a href="#benchmarks">Benchmarks</a> for
+methodology, the regression-gate threshold, and triage protocol.</p>
+</blockquote>
+<h2 id="trend-per-benchmark"><a class="header" href="#trend-per-benchmark">Trend per benchmark</a></h2>
+<div id="bench-charts">
+  
+<p id="bench-status">Loading bench data…</p>
+
+</div>
+
+<!-- Chart.js: pinned to the latest stable major (4.x) via jsDelivr CDN.
+     SRI hash omitted because the version selector breaks SRI; if we ever
+     hit a CSP issue, switch to bundling chart.umd.min.js under theme/. -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="../dev/bench/data.js"></script>
+<script>
+(function () {
+  const status = document.getElementById('bench-status');
+  const container = document.getElementById('bench-charts');
+
+  // The github-action-benchmark action populates window.BENCHMARK_DATA
+  // with shape { lastUpdate, repoUrl, entries: { 'hunch criterion benches': [...] } }.
+  if (typeof window.BENCHMARK_DATA === 'undefined') {
+    status.textContent =
+      'No benchmark data yet — the dashboard will populate after ' +
+      'the first push to main runs the Benchmarks workflow.';
+    return;
+  }
+
+  const suite = window.BENCHMARK_DATA.entries['hunch criterion benches'];
+  if (!suite || suite.length === 0) {
+    status.textContent = 'Bench data file present but empty. Check workflow logs.';
+    return;
+  }
+
+  // Pivot from per-commit-list-of-benches to per-bench-list-of-commits.
+  const benchSeries = new Map();
+  for (const commit of suite) {
+    const ts = new Date(commit.date).toISOString().slice(0, 10);
+    const sha = commit.commit.id.slice(0, 7);
+    for (const b of commit.benches) {
+      if (!benchSeries.has(b.name)) benchSeries.set(b.name, []);
+      benchSeries.get(b.name).push({
+        x: `${ts}\n${sha}`,
+        y: b.value,
+        unit: b.unit,
+      });
+    }
+  }
+
+  status.remove();
+  for (const [name, series] of benchSeries) {
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'height: 320px; margin: 1.5rem 0;';
+    const canvas = document.createElement('canvas');
+    wrapper.appendChild(canvas);
+    container.appendChild(wrapper);
+
+    new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: series.map(p => p.x),
+        datasets: [{
+          label: `${name} (${series[0].unit})`,
+          data: series.map(p => p.y),
+          borderColor: '#0053e2',
+          backgroundColor: 'rgba(0, 83, 226, 0.1)',
+          tension: 0.2,
+          fill: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { title: { display: true, text: series[0].unit }, beginAtZero: false },
+        },
+        plugins: { legend: { position: 'top' } },
+      },
+    });
+  }
+})();
+</script>
+<h2 id="what-the-gate-does"><a class="header" href="#what-the-gate-does">What the gate does</a></h2>
+<p>The <a href="https://github.com/lijunzh/hunch/actions/workflows/benchmark.yml">Benchmarks workflow</a>
+also runs on every PR and <strong>fails any bench that gets &gt;20% slower</strong>
+(threshold: <code>120%</code> of latest main baseline, p&lt;0.01 not yet enforced —
+shared-runner noise still dominates). See <a href="#threshold-rationale">Benchmarks → Threshold rationale</a>.</p>
+<h2 id="drill-down"><a class="header" href="#drill-down">Drill-down</a></h2>
+<p>If you spot a step-change above:</p>
+<ol>
+<li>Click “Benchmarks” in the GitHub Actions UI to find the runs around
+that commit.</li>
+<li>Download the <code>bench-results-&lt;sha&gt;</code> artifact (90-day retention) for
+the full criterion log.</li>
+<li>Reproduce locally: <code>cargo bench --bench parse -- --baseline &lt;known-good-sha&gt;</code>.</li>
+</ol>
+<p>Triage protocol: see <a href="#triage-when-the-gate-fires">Benchmarks → Triage</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="public-api-surface"><a class="header" href="#public-api-surface">Public API Surface</a></h1>
+<p>Hunch’s public Rust API is the contract that downstream library consumers
+depend on. SemVer-incompatible changes (removing/renaming <code>pub</code> items,
+changing signatures, adding non-<code>#[non_exhaustive]</code> enum variants, etc.)
+must be deliberate, not accidental.</p>
+<p>Two complementary tools watch this contract:</p>
+<ul>
+<li><strong><code>cargo-semver-checks</code></strong> (in <a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/ci.yml"><code>ci.yml</code></a>)
+— compares the PR head’s API against the latest release on crates.io.
+Catches <em>semantic</em> SemVer breaks (signature changes, trait-bound
+tightening, etc.). Advisory pre-1.0; will become a release-prep gate.</li>
+<li><strong><code>cargo-public-api</code></strong> (this doc + the <code>Public API Surface</code> CI job)
+— produces a flat text inventory of every <code>pub</code> item. Diffed against
+the committed snapshot in <a href="https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt"><code>public-api.txt</code></a> on every
+PR. Catches <em>additive</em> surface drift (new <code>pub</code> items that probably
+shouldn’t be exposed) that semver-checks doesn’t flag because adding
+is SemVer-minor, not major.</li>
+</ul>
+<h2 id="current-baseline"><a class="header" href="#current-baseline">Current baseline</a></h2>
+<p>Captured against <code>main</code> on <strong>2026-04-18</strong> (post #170):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Metric</th><th>Count</th></tr>
+</thead>
+<tbody>
+<tr><td>Total API lines</td><td><strong>853</strong></td></tr>
+<tr><td>Public modules</td><td>40</td></tr>
+<tr><td>Public functions</td><td>199</td></tr>
+<tr><td>Public structs</td><td>17</td></tr>
+<tr><td>Public enums</td><td>11</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="top-exposure-offenders-lines-per-module-path"><a class="header" href="#top-exposure-offenders-lines-per-module-path">Top exposure offenders (lines per module path)</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Module path</th><th>API lines</th><th>Comment</th></tr>
+</thead>
+<tbody>
+<tr><td><code>hunch::matcher::*</code></td><td>88</td><td>Regex helpers, span types — mostly internal scaffolding</td></tr>
+<tr><td><code>hunch::HunchResult::*</code></td><td>44</td><td>Public result type — keep, but field accessors warrant audit</td></tr>
+<tr><td><code>hunch::properties::*</code></td><td>54 (32 mods + 22 fns)</td><td>Every property is a <code>pub mod</code> exposing its <code>find_matches</code> — almost certainly should be <code>pub(crate)</code></td></tr>
+<tr><td><code>hunch::tokenizer::*</code></td><td>25</td><td>Internal — should be <code>pub(crate)</code></td></tr>
+<tr><td><code>hunch::zone_map::*</code></td><td>10</td><td>Internal — should be <code>pub(crate)</code></td></tr>
+<tr><td><code>hunch::Confidence::*</code></td><td>6</td><td>Public, intentional</td></tr>
+<tr><td><code>hunch::Pipeline::*</code></td><td>5</td><td>Public, intentional</td></tr>
+</tbody>
+</table>
+</div>
+<p>The intentional public surface is roughly: <code>hunch()</code>, <code>hunch_with_context()</code>,
+<code>Pipeline</code>, <code>HunchResult</code>, <code>Confidence</code>. Everything else is incidental
+exposure that grew organically and was never audited.</p>
+<p>This is exactly what the <a href="https://github.com/lijunzh/hunch/issues/144">Public-API visibility audit epic
+(#144)</a> is for.</p>
+<h2 id="how-the-ci-tripwire-works"><a class="header" href="#how-the-ci-tripwire-works">How the CI tripwire works</a></h2>
+<p>The <code>Public API Surface</code> job in <a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/ci.yml"><code>ci.yml</code></a>:</p>
+<ol>
+<li>Installs Rust nightly (<code>cargo-public-api</code> requires the unstable
+rustdoc-JSON output).</li>
+<li>Installs <code>cargo-public-api</code> via <code>taiki-e/install-action</code> (prebuilt
+binary; matches the pattern set by the coverage and mutation jobs).</li>
+<li>Generates the current API listing.</li>
+<li><code>diff -u</code>s it against <a href="https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt"><code>docs/src/reference/public-api.txt</code></a>.</li>
+<li>Posts the diff to the GitHub Job Summary.</li>
+</ol>
+<p>The job is <strong>advisory</strong> (<code>continue-on-error: true</code>), matching the
+existing <code>semver-checks</code> advisory job. It will <em>not</em> block merging a
+PR — but the diff in the Job Summary makes any drift impossible to
+miss in code review.</p>
+<h2 id="when-the-diff-fires"><a class="header" href="#when-the-diff-fires">When the diff fires</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Diff content</th><th>What to do</th></tr>
+</thead>
+<tbody>
+<tr><td>New <code>pub</code> items</td><td><strong>Audit</strong>: should they be <code>pub(crate)</code> instead? If yes, demote in the same PR. If genuinely public, regenerate the snapshot (below) and document the addition in the PR body.</td></tr>
+<tr><td>Removed <code>pub</code> items</td><td>This is a SemVer-major change. The <code>semver-checks</code> job should also be flagging it. Confirm intent, regenerate the snapshot, and bump the version per <a href="https://github.com/lijunzh/hunch/blob/main/CONTRIBUTING.md">CONTRIBUTING.md → API Stability Policy</a>.</td></tr>
+<tr><td>Signature changes</td><td>Same as removed — SemVer-major. Confirm with <code>semver-checks</code>.</td></tr>
+<tr><td>Reordered lines (no real diff)</td><td>The snapshot is sorted by <code>cargo-public-api</code>’s internal logic; reordering shouldn’t happen in normal use. If you see this, regenerate.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="regenerating-the-baseline"><a class="header" href="#regenerating-the-baseline">Regenerating the baseline</a></h2>
+<p>Required when an intentional API change lands.</p>
+<pre><code class="language-bash"># One-time install (uses Walmart proxy if needed):
+rustup toolchain install nightly --profile minimal
+cargo install cargo-public-api --locked
+
+# Capture the current public API:
+cargo public-api --simplified &gt; docs/public-api.txt
+
+# Verify the diff matches what you intended:
+git diff docs/public-api.txt
+</code></pre>
+<p>Commit <code>docs/public-api.txt</code> together with the API change in the same PR.
+The diff in the PR review should make the API delta easy for reviewers
+to scan.</p>
+<h2 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h2>
+<p>This document captures the <strong>first slice</strong> of the <a href="https://github.com/lijunzh/hunch/issues/144">API audit epic
+(#144)</a>. Deferred to follow-up
+PRs:</p>
+<ul>
+<li><strong>Triage pass</strong>: classify every <code>pub</code> item as Keep / Demote / Deprecate
+per the epic’s definition-of-done. Each demotion lands in its own PR
+to make the visibility change reviewable in isolation.</li>
+<li><strong>Reverse-dep check</strong>: query crates.io for downstream users of items
+marked Demote/Deprecate before actually pulling the trigger.</li>
+<li><strong><code>pub use</code> cleanup</strong>: collapse the obvious “should never have been
+exposed” cases (<code>tokenizer</code>, <code>zone_map</code>, <code>matcher::engine</code>’s internals,
+the property modules) en masse.</li>
+<li><strong><code>#[non_exhaustive]</code></strong> on the public enums (<code>Confidence</code>,
+<code>HunchResult</code> field types) so future variant additions aren’t
+SemVer-major. <em>Partially landed in #172: <code>Property</code>, <code>MediaType</code>,
+<code>Source</code>, <code>Separator</code>, <code>BracketKind</code>, <code>ZoneScope</code>, <code>CharClass</code> now
+bear the attribute. <code>Confidence</code> and <code>SegmentKind</code> deliberately
+excluded — they’re conceptually saturated (Low/Med/High and
+Directory/Filename respectively).</em></li>
+<li><strong>Promote the CI job from advisory → blocking</strong> once the surface has
+stabilised post-audit.</li>
+</ul>
+<h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
+<ul>
+<li><a href="https://github.com/Enselic/cargo-public-api"><code>cargo-public-api</code></a></li>
+<li><a href="https://github.com/obi1kenobi/cargo-semver-checks"><code>cargo-semver-checks</code></a>
+(sibling tool, already in CI)</li>
+<li><a href="https://github.com/lijunzh/hunch/blob/main/CONTRIBUTING.md">CONTRIBUTING.md → API Stability Policy</a></li>
+<li>Sibling docs: <a href="#code-coverage">Coverage</a> (line coverage),
+<a href="#mutation-testing-baseline">Mutation Testing</a> (assertion quality)</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="code-coverage"><a class="header" href="#code-coverage">Code Coverage</a></h1>
+<p>Hunch tracks line, function, and region coverage via <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a>.
+The CI <code>Coverage</code> job runs on every PR and uploads an LCOV report as a build
+artifact (<code>coverage-report</code>).</p>
+<h2 id="current-baseline-1"><a class="header" href="#current-baseline-1">Current baseline</a></h2>
+<p>Captured against <code>main</code> on <strong>2026-04-18</strong> (post v1.1.8, after PR #167):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Dimension</th><th>Coverage</th><th>Total</th><th>Missed</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Lines</strong></td><td><strong>94.34%</strong></td><td>15,030</td><td>851</td></tr>
+<tr><td><strong>Functions</strong></td><td><strong>95.54%</strong></td><td>1,054</td><td>47</td></tr>
+<tr><td><strong>Regions</strong></td><td><strong>94.63%</strong></td><td>8,571</td><td>460</td></tr>
+</tbody>
+</table>
+</div>
+<p>Re-measure with:</p>
+<pre><code class="language-bash">cargo llvm-cov --workspace --summary-only
+</code></pre>
+<h2 id="lowest-covered-files-line-"><a class="header" href="#lowest-covered-files-line-">Lowest-covered files (line %)</a></h2>
+<p>Useful targets for the next round of test-quality work (and for the upcoming
+mutation-testing epic, <a href="https://github.com/lijunzh/hunch/issues/146">#146</a>):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Line %</th><th>Missed</th></tr>
+</thead>
+<tbody>
+<tr><td><code>src/properties/language.rs</code></td><td>79.67%</td><td>37</td></tr>
+<tr><td><code>src/properties/date.rs</code></td><td>89.00%</td><td>55</td></tr>
+<tr><td><code>src/properties/title/strategies/unclaimed_bracket.rs</code></td><td>90.91%</td><td>8</td></tr>
+<tr><td><code>src/properties/part.rs</code></td><td>91.29%</td><td>37</td></tr>
+<tr><td><code>src/properties/subtitle_language.rs</code></td><td>91.99%</td><td>45</td></tr>
+<tr><td><code>src/properties/website.rs</code></td><td>93.30%</td><td>14</td></tr>
+</tbody>
+</table>
+</div>
+<p>Everything else is ≥ 94% line coverage. 273 of 282 unit tests pass on every
+fixture; the missed lines are concentrated in a handful of long-tail edge
+branches (rare locale codes, malformed date fragments, etc.).</p>
+<h2 id="running-locally"><a class="header" href="#running-locally">Running locally</a></h2>
+<p>Install once:</p>
+<pre><code class="language-bash">cargo install cargo-llvm-cov --locked
+rustup component add llvm-tools-preview
+</code></pre>
+<p>Generate a quick summary:</p>
+<pre><code class="language-bash">cargo llvm-cov --workspace --summary-only
+</code></pre>
+<p>Generate a full HTML report (open in browser):</p>
+<pre><code class="language-bash">cargo llvm-cov --workspace --html --open
+</code></pre>
+<p>Generate the LCOV file CI uploads (for IDE coverage gutters or external tools):</p>
+<pre><code class="language-bash">cargo llvm-cov --workspace --lcov --output-path lcov.info
+</code></pre>
+<h2 id="roadmap-1"><a class="header" href="#roadmap-1">Roadmap</a></h2>
+<p>This document captures the <strong>first slice</strong> of the <a href="https://github.com/lijunzh/hunch/issues/145">Code coverage CI epic
+(#145)</a>. Deferred to follow-up PRs:</p>
+<ul>
+<li><strong>PR-time regression gate</strong>: fail CI if total line coverage drops more than
+~0.5% below this baseline. Deferred until the baseline has settled across a
+few merges (otherwise we’d be tuning the noise threshold against a moving
+target).</li>
+<li><strong>Codecov.io / Coveralls integration</strong>: the LCOV artifact is already in the
+right shape; just needs the upload step + a token. Optional per the epic.</li>
+<li><strong>Per-file delta comments on PRs</strong>: shows which newly-added lines aren’t
+covered. Most useful with codecov.io’s PR comment integration.</li>
+<li><strong>Branch coverage</strong>: <code>cargo-llvm-cov</code> reports it but the issue scopes the
+initial work to line coverage.</li>
+</ul>
+<h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
+<ul>
+<li><strong>Why single-OS</strong>: line/region coverage of pure-Rust code is platform-agnostic.
+Running coverage on the cross-OS matrix would triple CI time for zero
+additional signal. Platform-conditional branches (<code>cfg(unix)</code> symlink tests,
+Windows path code) are still exercised by the cross-OS <code>test</code> matrix.</li>
+<li><strong>Why not 100%</strong>: parser code intentionally has permissive fallback branches
+(e.g., “we couldn’t decide, return the empty result”) that aren’t worth
+contorting tests to hit. ≥ 94% is the realistic ceiling for this codebase.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="mutation-testing-baseline"><a class="header" href="#mutation-testing-baseline">Mutation Testing Baseline</a></h1>
+<p>Hunch uses <a href="https://mutants.rs/"><code>cargo-mutants</code></a> to measure <strong>assertion
+quality</strong>, not just code coverage. Mutation testing mutates the source
+(flips <code>==</code> to <code>!=</code>, replaces <code>+</code> with <code>-</code>, etc.) and runs the test suite
+against each mutated build. A mutation that <strong>survives</strong> all tests means
+no test would actually catch that bug — the line might be 100% covered
+yet still fail to detect a real regression.</p>
+<p>This complements <a href="#code-coverage">code coverage (#145)</a>: coverage tells us
+which lines run; mutation testing tells us which lines have <strong>strong
+assertions</strong>.</p>
+<h2 id="how-it-runs"><a class="header" href="#how-it-runs">How it runs</a></h2>
+<p>A nightly GitHub Actions workflow (<a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/mutants.yml"><code>.github/workflows/mutants.yml</code></a>)
+runs <code>cargo mutants</code> against the highest-value targets at 03:14 UTC and
+publishes results as a Job Summary + downloadable <code>mutants-out</code> artifact.</p>
+<p>The job is <strong>advisory</strong> — surviving mutants do not fail CI. They get
+triaged here and addressed in follow-up PRs. Tool-level failures
+(usage errors, build broken, crash) DO fail the job, via an explicit
+exit-code allowlist (0–3 = expected) added in #170 after the original
+<code>|| true</code> masked an <code>--in-place</code>/<code>--jobs</code> incompatibility for an
+entire run.</p>
+<p>You can also trigger it on demand from the Actions UI via
+<strong>Run workflow</strong> → <strong>Mutation Tests</strong>.</p>
+<h2 id="first-nightly-run-results-2026-04-18"><a class="header" href="#first-nightly-run-results-2026-04-18">First nightly run results (2026-04-18)</a></h2>
+<p>First real run after #169/#170 landed: <a href="https://github.com/lijunzh/hunch/actions/runs/24615983143">run 24615983143</a>.
+12 minutes wall-clock on <code>ubuntu-latest</code> with <code>--jobs 4</code>.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Outcome</th><th>Count</th></tr>
+</thead>
+<tbody>
+<tr><td>✅ Caught</td><td>115</td></tr>
+<tr><td>⚠️ Missed</td><td>30</td></tr>
+<tr><td>⏱️ Timeout</td><td>0</td></tr>
+<tr><td>🚫 Unviable</td><td>11</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>156</strong></td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Overall kill rate: 73.7%</strong> (target: ≥ 80%) — below baseline but with
+a clear story.</p>
+<h3 id="per-file-breakdown"><a class="header" href="#per-file-breakdown">Per-file breakdown</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Caught</th><th>Missed</th><th>Unviable</th><th>Kill rate</th></tr>
+</thead>
+<tbody>
+<tr><td><code>src/properties/title/clean.rs</code></td><td>82</td><td>16</td><td>1</td><td><strong>83.7%</strong> ✅ already over target</td></tr>
+<tr><td><code>src/pipeline/mod.rs</code></td><td>33</td><td>14</td><td>10</td><td><strong>70.2%</strong> ⚠️ drags the average</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>title/clean.rs</code> already exceeds the 80% target — the <a href="https://github.com/lijunzh/hunch/pull/138">PR-C #138</a>
+kitchen-sink coverage was effective. <code>pipeline/mod.rs</code> is the laggard;
+the 14 surviving mutants there are the highest-leverage triage target
+for the next coverage-improvement loop.</p>
+<h3 id="categories-of-the-30-surviving-mutants"><a class="header" href="#categories-of-the-30-surviving-mutants">Categories of the 30 surviving mutants</a></h3>
+<p>Grouped by mutation kind for batch-fixing efficiency:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Category</th><th>Count</th><th>Examples</th><th>Likely fix</th></tr>
+</thead>
+<tbody>
+<tr><td>Comparison-operator boundaries (<code>&lt;</code> ↔ <code>&lt;=</code>, <code>&gt;</code> ↔ <code>&gt;=</code>)</td><td>13</td><td><code>pipeline/mod.rs:333:39</code>, <code>title/clean.rs:154:30</code></td><td>Add fixtures at boundary values</td></tr>
+<tr><td>Logical operator (<code>&amp;&amp;</code> ↔ <code>||</code>)</td><td>4</td><td><code>title/clean.rs:154:34</code>, <code>:225:28</code>, <code>:306:27</code>, <code>:492:9</code></td><td>Test both branches independently</td></tr>
+<tr><td>Arithmetic (<code>+</code>/<code>-</code>/<code>*</code>)</td><td>4</td><td><code>title/clean.rs:304:26</code>, <code>pipeline/mod.rs:422:33</code>, <code>:555:35</code></td><td>Assert exact computed values, not just non-zero</td></tr>
+<tr><td>Logical negation deletion (<code>delete !</code>)</td><td>2</td><td><code>pipeline/mod.rs:325:16</code>, <code>:391:12</code></td><td>Test the inverse-condition path</td></tr>
+<tr><td>Function-stub replacements (returns 0, 1, -1, <code>""</code>)</td><td>5</td><td><code>title/clean.rs:372:9</code> (<code>casing_score</code> 3×), <code>:303:5</code> (<code>strip_extension</code>)</td><td>Assert specific return values, not just non-empty/non-zero</td></tr>
+<tr><td>Equality (<code>==</code> ↔ <code>!=</code>)</td><td>2</td><td><code>pipeline/mod.rs:565:51</code>, <code>title/clean.rs:502:65</code></td><td>Test the negative case</td></tr>
+</tbody>
+</table>
+</div>
+<p>Full surviving-mutant list is in <code>mutants.out/missed.txt</code> (downloadable
+as the <a href="https://github.com/lijunzh/hunch/actions/runs/24615983143"><code>mutants-out</code> artifact</a>).</p>
+<h3 id="hot-spot-pick_better_casingcasing_score"><a class="header" href="#hot-spot-pick_better_casingcasing_score">Hot spot: <code>pick_better_casing::casing_score</code></a></h3>
+<p>Three mutations to this function survived (all three function-stub
+replacements: return <code>0</code>, return <code>1</code>, return <code>-1</code>). Plus its caller
+at <code>:388:24</code> lost its <code>&gt;=</code> boundary check. <strong>The function’s tests
+don’t actually pin its return value</strong> — they presumably check that
+the right branch is selected downstream, but never assert what the
+score IS. This is the single highest-leverage fix in the surviving
+set: pinning <code>casing_score</code>’s output for half a dozen representative
+inputs would kill 4 mutants in one tiny PR.</p>
+<h3 id="triage-actions-deferred-to-follow-up-prs"><a class="header" href="#triage-actions-deferred-to-follow-up-prs">Triage actions (deferred to follow-up PRs)</a></h3>
+<ul>
+<li><input disabled="" type="checkbox"> Pin <code>casing_score</code> return values — kills 4 mutants in one PR</li>
+<li><input disabled="" type="checkbox"> Add boundary-value fixtures for <code>pipeline/mod.rs</code> Pass 1/Pass 2
+<code>&lt;</code>/<code>&gt;</code> checks — kills ~6 mutants</li>
+<li><input disabled="" type="checkbox"> Independent-branch tests for the four <code>&amp;&amp;</code> survivors — kills 4</li>
+<li><input disabled="" type="checkbox"> Assertion-tightening pass on <code>strip_extension</code> (assert exact
+output, not just non-empty) — kills 4</li>
+</ul>
+<h2 id="scope-first-slice"><a class="header" href="#scope-first-slice">Scope (first slice)</a></h2>
+<p>The full crate has ~2,876 mutants and would take ~10 hours single-threaded.
+This first slice scopes the nightly run to two highest-value targets
+identified in the <a href="https://github.com/lijunzh/hunch/issues/146">Mutation testing epic (#146)</a>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Mutants</th><th>Why</th></tr>
+</thead>
+<tbody>
+<tr><td><code>src/pipeline/mod.rs</code></td><td>~57</td><td>Orchestration core — every property runs through here</td></tr>
+<tr><td><code>src/properties/title/clean.rs</code></td><td>~99</td><td>Busiest property module; PR-C #138 added kitchen-sink coverage</td></tr>
+</tbody>
+</table>
+</div>
+<p>Combined run with <code>--jobs 4</code> on a GitHub-hosted ubuntu runner: <strong>~12–15 min</strong>.</p>
+<h2 id="roadmap-2"><a class="header" href="#roadmap-2">Roadmap</a></h2>
+<p>Sequenced expansion (each is its own PR within the #146 epic):</p>
+<ol>
+<li><strong>Add the <code>Pipeline</code> neighbours</strong>: <code>pipeline/context.rs</code>, <code>pipeline/invariance.rs</code>,
+<code>pipeline/mod.rs</code>’s sibling helpers.</li>
+<li><strong>Add the <code>properties/title/</code> strategies</strong>: <code>secondary.rs</code>, <code>mod.rs</code>,
+the four <code>strategies/*.rs</code> modules.</li>
+<li><strong>Add the matcher core</strong>: <code>src/matcher/</code>, <code>src/zone_map.rs</code>, <code>src/tokenizer.rs</code>.</li>
+<li><strong>Opt-in PR-time check</strong>: a <code>mutation-test</code> label triggers a diff-only
+mutants run on the PR (cheap subset). Requires #146’s epic-level decision
+on labelling.</li>
+<li><strong>Hard kill-rate gate</strong>: fail the nightly if kill rate drops more than
+N% below baseline. Deferred until baseline has settled across enough
+nightly runs to characterise noise.</li>
+</ol>
+<h2 id="local-usage-1"><a class="header" href="#local-usage-1">Local usage</a></h2>
+<p>Install once (note: requires <code>--locked</code> so the version matches CI):</p>
+<pre><code class="language-bash">cargo install cargo-mutants --locked
+</code></pre>
+<p>Run against one file (~5 min for a small file):</p>
+<pre><code class="language-bash">cargo mutants --file src/properties/year.rs --no-shuffle
+</code></pre>
+<p>Run against the same scope CI uses:</p>
+<pre><code class="language-bash">cargo mutants --no-shuffle --jobs 4 \
+  --file src/pipeline/mod.rs \
+  --file src/properties/title/clean.rs
+</code></pre>
+<p>Outputs land in <code>./mutants.out/</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>Contents</th></tr>
+</thead>
+<tbody>
+<tr><td><code>outcomes.json</code></td><td>Machine-readable per-mutant results + counts</td></tr>
+<tr><td><code>missed.txt</code></td><td>Surviving mutants (the interesting ones)</td></tr>
+<tr><td><code>caught.txt</code></td><td>Killed mutants (good — your tests work)</td></tr>
+<tr><td><code>timeout.txt</code></td><td>Tests that hung — usually infinite-loop mutations</td></tr>
+<tr><td><code>unviable.txt</code></td><td>Mutants that didn’t compile (rare, ignorable)</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>mutants.out/</code> is gitignored.</p>
+<h2 id="worked-example-srcpropertiesyearrs"><a class="header" href="#worked-example-srcpropertiesyearrs">Worked example: <code>src/properties/year.rs</code></a></h2>
+<p>A pre-PR smoke run on <code>year.rs</code> (20 mutants, ~5 min) produced <strong>3 surviving
+mutants</strong> that demonstrate the categories we’ll see in nightly results:</p>
+<h3 id="equivalent-mutation-accepted-survival"><a class="header" href="#equivalent-mutation-accepted-survival">Equivalent mutation (accepted survival)</a></h3>
+<pre><code class="language-text">src/properties/year.rs:19:15: replace &lt; with &lt;= in find_matches
+</code></pre>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut pos = 0;
+while pos &lt; input.len() {       // mutation: pos &lt;= input.len()
+    let Some(m) = YEAR_RE.find_at(input, pos) else {
+        break;
+    };
+<span class="boring">}</span></code></pre>
+<p>When <code>pos == input.len()</code>, <code>Regex::find_at</code> returns <code>None</code> and the loop
+exits via the <code>else</code> branch on the next line — so <code>&lt;</code> and <code>&lt;=</code> produce
+identical observable behaviour. <strong>Equivalent mutation; document and
+move on.</strong></p>
+<h3 id="real-test-gaps-backlog--file-as-follow-up-issues"><a class="header" href="#real-test-gaps-backlog--file-as-follow-up-issues">Real test gaps (backlog — file as follow-up issues)</a></h3>
+<pre><code class="language-text">src/properties/year.rs:26:22: replace &gt; with &lt; in find_matches
+src/properties/year.rs:29:20: replace &lt; with &gt; in find_matches
+</code></pre>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Boundary: no digit before or after.
+if m.start() &gt; 0 &amp;&amp; bytes[m.start() - 1].is_ascii_digit() {  // L26
+    continue;
+}
+if m.end() &lt; bytes.len() &amp;&amp; bytes[m.end()].is_ascii_digit() { // L29
+    continue;
+}
+<span class="boring">}</span></code></pre>
+<p>Both mutations bypass the boundary check (the inverted comparison
+short-circuits via <code>&amp;&amp;</code> so the check never runs). They survive because
+<strong>no test exercises a year touching the start or end of the input string</strong>.
+Trivial fix: add fixtures like <code>2020</code> (year alone), <code>12020.mkv</code> (digit
+prefix), <code>20201.mkv</code> (digit suffix) and assert the boundary rejection.</p>
+<p>These two are not fixed in this PR — that’s deliberate. This PR sets up
+the <em>infrastructure</em> to find findings; fixing them is the next loop.</p>
+<h2 id="triage-protocol"><a class="header" href="#triage-protocol">Triage protocol</a></h2>
+<p>When the nightly job posts a Job Summary with surviving mutants:</p>
+<ol>
+<li><strong>Equivalent mutation?</strong> (the mutation produces identical observable
+behaviour) → add a one-line entry to the “Accepted equivalents” table
+below with the mutation string + a one-sentence rationale.</li>
+<li><strong>Real test gap?</strong> → file a <code>tech-debt</code> issue with the mutation string
+in the title, link the surviving-mutants table from the most recent
+nightly run, and assign to the next coverage-improvement loop.</li>
+<li><strong>Tool bug / unviable mis-classification?</strong> → file upstream at
+<a href="https://github.com/sourcefrog/cargo-mutants">https://github.com/sourcefrog/cargo-mutants</a>.</li>
+</ol>
+<h2 id="accepted-equivalents"><a class="header" href="#accepted-equivalents">Accepted equivalents</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Mutation</th><th>Why it’s equivalent</th><th>Accepted on</th></tr>
+</thead>
+<tbody>
+<tr><td><code>src/properties/year.rs:19:15: replace &lt; with &lt;= in find_matches</code></td><td><code>find_at(input, input.len())</code> returns <code>None</code>; <code>&lt;</code> and <code>&lt;=</code> produce identical loop behaviour.</td><td>2026-04-18 (smoke run)</td></tr>
+</tbody>
+</table>
+</div>
+<p>(Future entries get appended as they’re triaged.)</p>
+<h2 id="references-2"><a class="header" href="#references-2">References</a></h2>
+<ul>
+<li><a href="https://mutants.rs/"><code>cargo-mutants</code> book</a></li>
+<li>Epic <a href="https://github.com/lijunzh/hunch/issues/146">#146</a></li>
+<li>Sibling: code coverage <a href="https://github.com/lijunzh/hunch/issues/145">#145</a> /
+<a href="#code-coverage"><code>coverage.md</code></a></li>
+<li>Industry benchmark: 80% kill rate is the rough north star for parser
+code (mature mutation-tested Rust crates land 75–90%).</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="fuzzing"><a class="header" href="#fuzzing">Fuzzing</a></h1>
+<p>Hunch uses <a href="https://rust-fuzz.github.io/book/"><code>cargo-fuzz</code></a> to drive
+the public parser surface (<code>hunch::hunch</code>, <code>hunch::hunch_with_context</code>)
+with arbitrary mutator-generated inputs, hunting for panics, integer
+overflows, out-of-bounds slice indexing, and other crash-shape bugs
+that fixture-based tests can’t reach.</p>
+<p>This complements the existing testing layers:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Layer</th><th>Catches</th><th>Where</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Unit + integration tests</strong> (~525 fixtures)</td><td>Correctness for known inputs</td><td><code>tests/</code>, <code>src/**/tests</code></td></tr>
+<tr><td><strong>Coverage</strong> (#168)</td><td>Which lines are exercised at all</td><td><a href="#code-coverage">Coverage</a></td></tr>
+<tr><td><strong>Mutation testing</strong> (#146)</td><td>Whether assertions actually catch bugs</td><td><a href="#mutation-testing-baseline">Mutation Testing</a></td></tr>
+<tr><td><strong>Fuzzing</strong> (this doc)</td><td>Crash-shape bugs on adversarial inputs</td><td><code>fuzz/</code> + this doc</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="fuzz-targets"><a class="header" href="#fuzz-targets">Fuzz targets</a></h2>
+<p>Two targets in <code>fuzz/fuzz_targets/</code>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Target</th><th>Entry point</th><th>What it stresses</th></tr>
+</thead>
+<tbody>
+<tr><td><code>parse_filename</code></td><td><code>hunch::hunch(input: &amp;str)</code></td><td>Single-string parse with arbitrary UTF-8</td></tr>
+<tr><td><code>parse_with_context</code></td><td><code>hunch::hunch_with_context(input, &amp;siblings)</code></td><td>Multi-input invariance analysis with up to 16 siblings</td></tr>
+</tbody>
+</table>
+</div>
+<p>Both reject non-UTF-8 input at the harness layer (the public API takes <code>&amp;str</code>,
+so non-UTF-8 isn’t a reachable failure mode). <code>parse_with_context</code> uses the
+<a href="https://docs.rs/arbitrary/"><code>arbitrary</code></a> derive macro to give libfuzzer
+structured input it can mutate per-field — better coverage feedback than
+manually splitting a single <code>&amp;[u8]</code> blob.</p>
+<h2 id="how-it-runs-1"><a class="header" href="#how-it-runs-1">How it runs</a></h2>
+<p><a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/fuzz.yml"><code>.github/workflows/fuzz.yml</code></a> defines two jobs:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Job</th><th>Trigger</th><th>Time</th><th>What</th></tr>
+</thead>
+<tbody>
+<tr><td><code>Fuzz harness build</code></td><td>every PR + push</td><td>~30 s</td><td>Just <code>cargo fuzz build</code> — confirms targets compile against current API</td></tr>
+<tr><td><code>Nightly fuzz</code></td><td>04:14 UTC + manual</td><td>~12 min total (5 min × 2 targets)</td><td>Real fuzzing, corpus persistence via <code>actions/cache</code>, crash artifacts uploaded</td></tr>
+</tbody>
+</table>
+</div>
+<p>The PR-time job is intentionally <strong>build-only</strong>, not actual fuzzing.
+A 60-second per-target fuzz on every PR (the epic’s <a href="https://github.com/lijunzh/hunch/issues/147">#147 DoD</a>)
+adds noise without high signal — the corpus barely grows in 60 s, and
+nightly catches the same bugs at higher coverage. We can revisit if PR-time
+fuzzing produces useful findings; for now build-check is the daily signal.</p>
+<h3 id="what-the-nightly-does"><a class="header" href="#what-the-nightly-does">What the nightly does</a></h3>
+<pre><code class="language-bash">cargo +nightly fuzz run &lt;target&gt; -- \
+  -max_total_time=300   # 5 min wall-clock
+  -timeout=10           # per-input cap (catches slow-input DoS too)
+  -rss_limit_mb=2048    # treat unbounded allocation as a crash
+</code></pre>
+<p>The corpus directory <code>fuzz/corpus/&lt;target&gt;/</code> is restored from <code>actions/cache</code>
+at the start of each run and saved at the end, so coverage compounds across
+nights instead of restarting from the ~10-input seed each time.</p>
+<p>Crashes (if any) land in <code>fuzz/artifacts/&lt;target&gt;/</code> and are uploaded as
+the <code>fuzz-artifacts-&lt;target&gt;</code> workflow artifact (30-day retention).</p>
+<h2 id="local-usage-2"><a class="header" href="#local-usage-2">Local usage</a></h2>
+<p>One-time install:</p>
+<pre><code class="language-bash">rustup toolchain install nightly --profile minimal
+cargo install cargo-fuzz --locked
+</code></pre>
+<p>Build the harness:</p>
+<pre><code class="language-bash">cd fuzz
+cargo +nightly fuzz build
+</code></pre>
+<p>Run a single target for 60 seconds (good iteration loop):</p>
+<pre><code class="language-bash">cd fuzz
+cargo +nightly fuzz run parse_filename -- -max_total_time=60
+</code></pre>
+<p>Both targets in parallel for the same time the nightly uses:</p>
+<pre><code class="language-bash">cd fuzz
+cargo +nightly fuzz run parse_filename       -- -max_total_time=300 &amp;
+cargo +nightly fuzz run parse_with_context   -- -max_total_time=300 &amp;
+wait
+</code></pre>
+<h2 id="seed-corpus"><a class="header" href="#seed-corpus">Seed corpus</a></h2>
+<p>Located at <code>fuzz/corpus/&lt;target&gt;/</code>, <strong>committed to git</strong>. Each file is
+one input. Curated to give libfuzzer’s coverage feedback a wide initial
+spread rather than 100 near-duplicate movie filenames.</p>
+<p>Current <code>parse_filename</code> seeds (10 entries):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>File</th><th>What it covers</th></tr>
+</thead>
+<tbody>
+<tr><td><code>movie_basic</code></td><td>Standard <code>Title.Year.Resolution.Source.Codec-Group.ext</code></td></tr>
+<tr><td><code>episode_sxxexx</code></td><td><code>SxxExx</code> marker + episode title</td></tr>
+<tr><td><code>anime_brackets</code></td><td><code>[Group]</code> + <code>[CRC32]</code> brackets, <code>HEVC AAC</code> codec stack</td></tr>
+<tr><td><code>path_with_dirs</code></td><td>Multi-segment path with parenthesised year in directory</td></tr>
+<tr><td><code>multi_episode</code></td><td><code>S01E01-E03</code> range syntax</td></tr>
+<tr><td><code>unicode_title</code></td><td>Multi-byte UTF-8 (Japanese title)</td></tr>
+<tr><td><code>empty</code></td><td>Zero-byte input</td></tr>
+<tr><td><code>just_year</code></td><td>4-digit-only input</td></tr>
+<tr><td><code>long_dotted</code></td><td>Pathological 26-token dotted name</td></tr>
+<tr><td><code>extension_only</code></td><td>Just <code>.mkv</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>When you discover a new corpus-worthy input (e.g., a real-world
+filename that previously broke parsing), add it to the corpus under a
+descriptive name. The default <code>fuzz/.gitignore</code> ignores <code>corpus/</code> to
+keep mutator-discovered hex-named files out of git noise, so commit
+named seeds with <code>git add -f</code>:</p>
+<pre><code class="language-bash">echo 'My.New.Filename.shape.mkv' &gt; fuzz/corpus/parse_filename/regression_165
+git add -f fuzz/corpus/parse_filename/regression_165
+</code></pre>
+<h2 id="triage-protocol--when-fuzzing-finds-a-crash"><a class="header" href="#triage-protocol--when-fuzzing-finds-a-crash">Triage protocol — when fuzzing finds a crash</a></h2>
+<p>A crash artifact in <code>fuzz/artifacts/&lt;target&gt;/</code> is a 1-input file that
+makes the harness panic. Reproduce + minimize + fix workflow:</p>
+<h3 id="1-reproduce-locally"><a class="header" href="#1-reproduce-locally">1. Reproduce locally</a></h3>
+<pre><code class="language-bash">cd fuzz
+cargo +nightly fuzz run &lt;target&gt; artifacts/&lt;target&gt;/&lt;crash-id&gt;
+</code></pre>
+<p>This re-runs the harness against just that one input. You should see
+the panic output identical to the nightly’s failure log.</p>
+<h3 id="2-minimize"><a class="header" href="#2-minimize">2. Minimize</a></h3>
+<p><code>cargo fuzz tmin</code> shrinks the input to the smallest reproduction:</p>
+<pre><code class="language-bash">cd fuzz
+cargo +nightly fuzz tmin &lt;target&gt; artifacts/&lt;target&gt;/&lt;crash-id&gt;
+</code></pre>
+<p>The minimized input lands at <code>fuzz/artifacts/&lt;target&gt;/minimized-from-&lt;crash-id&gt;</code>.
+A 200-byte input often shrinks to &lt;20 bytes, which makes both the bug
+report and the eventual unit test much clearer.</p>
+<h3 id="3-classify-the-bug"><a class="header" href="#3-classify-the-bug">3. Classify the bug</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Pattern</th><th>Category</th><th>Action</th></tr>
+</thead>
+<tbody>
+<tr><td><code>unwrap()</code> / <code>expect()</code> / <code>panic!()</code> reachable from public API</td><td><strong>Defensive bug</strong></td><td>Convert to <code>Result</code> return; add a unit test pinning the input → Err mapping</td></tr>
+<tr><td>Integer overflow / underflow</td><td><strong>Arithmetic bug</strong></td><td>Use <code>checked_*</code> / <code>saturating_*</code> arithmetic; assert with <code>debug_assert!</code> if the invariant should hold</td></tr>
+<tr><td>Out-of-bounds slice on UTF-8 boundary</td><td><strong>Encoding bug</strong></td><td>Use <code>str::char_indices</code> / <code>str::is_char_boundary</code> instead of byte slicing</td></tr>
+<tr><td>Regex catastrophic backtracking (manifests as fuzzer timeout, not panic)</td><td><strong>DoS bug</strong></td><td>Rewrite the regex to be linear-time (typically by removing nested quantifiers)</td></tr>
+<tr><td>Genuinely intentional invariant violation</td><td><strong>Documentation bug</strong></td><td>Add <code>debug_assert!</code> with comment, document the precondition</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="4-fix--add-the-minimized-input-as-a-regression-test"><a class="header" href="#4-fix--add-the-minimized-input-as-a-regression-test">4. Fix + add the minimized input as a regression test</a></h3>
+<p>The minimized crash input goes into either:</p>
+<ul>
+<li><code>tests/fixtures/regression.yml</code> (if it should produce a sensible parse)</li>
+<li><code>tests/regression_panics.rs</code> (if it should produce a non-panicking error)</li>
+</ul>
+<p>Then commit the minimized input to <code>fuzz/corpus/&lt;target&gt;/regression-&lt;issue-num&gt;</code>
+so future fuzz runs always cover the regression shape.</p>
+<h3 id="5-file-an-issue-if-not-already"><a class="header" href="#5-file-an-issue-if-not-already">5. File an issue (if not already)</a></h3>
+<p>Use the <code>fuzz-finding</code> label. Include:</p>
+<ul>
+<li>The minimized input (hex if non-printable)</li>
+<li>The panic message + stack trace</li>
+<li>Your bug-classification verdict per step 3</li>
+<li>The fix PR link</li>
+</ul>
+<h2 id="initial-baseline-2026-04-18-1"><a class="header" href="#initial-baseline-2026-04-18-1">Initial baseline (2026-04-18)</a></h2>
+<p>First local smoke runs against current <code>main</code> (on this PR’s branch):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Target</th><th>Runs</th><th>Time</th><th>Crashes</th><th>Throughput</th></tr>
+</thead>
+<tbody>
+<tr><td><code>parse_filename</code></td><td>28,668</td><td>26 s</td><td><strong>0</strong> ✅</td><td>~1100 inputs/s</td></tr>
+<tr><td><code>parse_with_context</code></td><td>67,941</td><td>26 s</td><td><strong>0</strong> ✅</td><td>~2600 inputs/s</td></tr>
+</tbody>
+</table>
+</div>
+<p>Zero crashes from ~96K combined runs is a strong starting baseline. The
+public API surface is robust against adversarial single-input mutation
+out of the gate. The interesting findings (if any) will come from the
+<em>nightly</em> runs once the corpus accumulates coverage over weeks.</p>
+<h2 id="roadmap-deferred-to-follow-up-prs"><a class="header" href="#roadmap-deferred-to-follow-up-prs">Roadmap (deferred to follow-up PRs)</a></h2>
+<ul>
+<li><input disabled="" type="checkbox"> <strong>Differential fuzz target</strong> vs guessit-rs — hunt for behavioural
+divergence between the two parsers. Separate epic; not in #147.</li>
+<li><input disabled="" type="checkbox"> <strong>OSS-Fuzz integration application</strong> (the epic’s stretch goal).
+Google-funded continuous fuzzing for OSS Rust crates. Application
+template: <a href="https://github.com/google/oss-fuzz/tree/master/projects">https://github.com/google/oss-fuzz/tree/master/projects</a>.</li>
+<li><input disabled="" type="checkbox"> <strong>Promote PR-time job from build-only → 60s smoke fuzz</strong> if the
+nightly produces useful findings worth catching earlier.</li>
+<li><input disabled="" type="checkbox"> <strong>Add the guessit-rs corpus</strong> as additional seeds (the epic’s
+DoD mentions it; we seeded only from <code>tests/fixtures/</code> here).</li>
+</ul>
+<h2 id="references-3"><a class="header" href="#references-3">References</a></h2>
+<ul>
+<li><a href="https://rust-fuzz.github.io/book/"><code>cargo-fuzz</code> book</a></li>
+<li><a href="https://docs.rs/libfuzzer-sys/"><code>libfuzzer-sys</code></a> — the underlying
+harness</li>
+<li><a href="https://docs.rs/arbitrary/"><code>arbitrary</code></a> — structured-input derive
+used by <code>parse_with_context</code></li>
+<li><a href="https://github.com/lijunzh/hunch/blob/main/SECURITY.md">SECURITY.md</a> — fuzzing maps to “DoS via crafted
+filenames” in the threat model</li>
+<li>Sibling docs: <a href="#code-coverage">Coverage</a>,
+<a href="#mutation-testing-baseline">Mutation Testing</a>,
+<a href="#public-api-surface">Public API</a></li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
+
+        <!-- Custom JS scripts -->
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>
