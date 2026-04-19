@@ -1,0 +1,159 @@
+name: Fuzzing
+
+# Two complementary signals on the public parser surface:
+#
+# 1. PR-time `build` job (~30s): just `cargo fuzz build` to confirm the
+#    fuzz targets still compile against current main. Catches API drift
+#    that would silently rot the fuzz harness, without paying for
+#    actual fuzzing time on every PR.
+#
+# 2. Nightly `run` job (~12 min): real fuzzing — 5 min/target with
+#    corpus persistence. Crashes are uploaded as artifacts.
+#
+# A "smoke-fuzz on every PR" (60s/target per #147 DoD) is intentionally
+# deferred to a follow-up PR. Reason: 60s of fuzzing per PR adds noise
+# (corpus barely grows in that time) without high signal — bugs
+# discovered by a 60s run would also be caught by the nightly. Build-
+# check is the better daily signal.
+#
+# OSS-Fuzz integration (the epic's stretch goal) is NOT here. It runs
+# off-CI on Google's infrastructure once the application lands.
+
+on:
+  pull_request:
+    paths:
+      - 'fuzz/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/fuzz.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'fuzz/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  schedule:
+    # 04:14 UTC, one hour after the mutation nightly. Stagger so the
+    # two slow nightlies don't fight for runner concurrency.
+    - cron: "14 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  # Multiple fuzz runs on the same ref would fight over the corpus
+  # cache; serialise them.
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Fuzz harness build
+    # Fast PR-time check: just compile the fuzz targets to detect
+    # public-API drift that would break the harness.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - name: Install Rust nightly
+        # cargo-fuzz requires nightly for libfuzzer-sys instrumentation.
+        # Pin the target explicitly to gnu — without this, on ubuntu-latest
+        # cargo-fuzz's sanitizer rustflags get applied against the musl
+        # default, which fails with 'sanitizer is incompatible with
+        # statically linked libc'. See run 24617607922 for the original
+        # failure shape.
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+        with:
+          toolchain: nightly
+          targets: x86_64-unknown-linux-gnu
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+        with:
+          # Separate cache key — fuzz builds use distinct rustflags
+          # (sanitizers, instrumentation) and would poison the regular
+          # `target/` cache if shared.
+          key: fuzz-build
+          workspaces: fuzz
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@58e862542551f667fa44c8a2a4a1d64ad477c96a  # v2
+        with:
+          tool: cargo-fuzz
+      - name: Build fuzz targets
+        # --target gnu must match the toolchain target above; otherwise
+        # cargo-fuzz auto-picks musl on ubuntu-latest and the sanitizer
+        # can't link.
+        run: cargo +nightly fuzz build --target x86_64-unknown-linux-gnu
+        working-directory: fuzz
+
+  run:
+    name: Nightly fuzz (${{ matrix.target }})
+    # Only on schedule + manual dispatch — never on PRs (too slow).
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      # Don't fail the whole matrix if one target crashes — we want
+      # ALL crash artifacts uploaded for triage.
+      fail-fast: false
+      matrix:
+        target: [parse_filename, parse_with_context]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+        with:
+          toolchain: nightly
+          targets: x86_64-unknown-linux-gnu  # see build job comment
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+        with:
+          key: fuzz-run-${{ matrix.target }}
+          workspaces: fuzz
+      - uses: taiki-e/install-action@58e862542551f667fa44c8a2a4a1d64ad477c96a  # v2
+        with:
+          tool: cargo-fuzz
+
+      - name: Restore corpus from previous nightly
+        # Persist the corpus across nightly runs so coverage compounds.
+        # Without this each run starts from the committed seed corpus
+        # (~10 inputs) and re-discovers the same coverage every time.
+        # actions/cache restores the corpus into fuzz/corpus/<target>/
+        # where libfuzzer reads/writes it natively.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          # Date-keyed for daily rotation; restore-keys lets us fall
+          # back to any previous day's corpus.
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.run_id }}
+          restore-keys: |
+            fuzz-corpus-${{ matrix.target }}-
+
+      - name: Run fuzzer (5 min)
+        run: |
+          # -max_total_time: hard wall-clock cap; libfuzzer halts gracefully
+          # -timeout: per-input timeout (catches slow-input DoS shapes too)
+          # -rss_limit_mb: catch unbounded-allocation bugs as crashes
+          # No `|| true` — a crash MUST fail the job. Crash artifacts
+          # land in fuzz/artifacts/<target>/ which we upload below.
+          # --target must match the toolchain target installed above
+          # (see build job for the musl-vs-gnu rationale).
+          cargo +nightly fuzz run ${{ matrix.target }} \
+            --target x86_64-unknown-linux-gnu -- \
+            -max_total_time=300 \
+            -timeout=10 \
+            -rss_limit_mb=2048
+        working-directory: fuzz
+
+      - name: Upload crash artifacts
+        # Always upload — empty artifact when no crashes is fine and
+        # confirms the upload step itself works.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: fuzz-artifacts-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}/
+          if-no-files-found: ignore
+          retention-days: 30

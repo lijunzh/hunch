@@ -2,6 +2,13 @@
 # cargo-mutants output (see docs/mutation-baseline.md)
 /mutants.out/
 /mutants.out.old/
+# cargo-fuzz output (see docs/fuzzing.md)
+# Note: fuzz/corpus/ IS committed (seed inputs); fuzz/artifacts/ contains
+# crash reproductions and is per-machine; fuzz/target/ + coverage/ are
+# build outputs.
+/fuzz/target/
+/fuzz/artifacts/
+/fuzz/coverage/
 *.db
 *.sqlite
 *.csv
