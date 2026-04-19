@@ -63,10 +63,15 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - name: Install Rust nightly
         # cargo-fuzz requires nightly for libfuzzer-sys instrumentation.
+        # Pin the target explicitly to gnu — without this, on ubuntu-latest
+        # cargo-fuzz's sanitizer rustflags get applied against the musl
+        # default, which fails with 'sanitizer is incompatible with
+        # statically linked libc'. See run 24617607922 for the original
+        # failure shape.
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
         with:
           toolchain: nightly
-          components: rust-src
+          targets: x86_64-unknown-linux-gnu
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
         with:
           # Separate cache key — fuzz builds use distinct rustflags
@@ -79,7 +84,10 @@ jobs:
         with:
           tool: cargo-fuzz
       - name: Build fuzz targets
-        run: cargo +nightly fuzz build
+        # --target gnu must match the toolchain target above; otherwise
+        # cargo-fuzz auto-picks musl on ubuntu-latest and the sanitizer
+        # can't link.
+        run: cargo +nightly fuzz build --target x86_64-unknown-linux-gnu
         working-directory: fuzz
 
   run:
@@ -99,7 +107,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
         with:
           toolchain: nightly
-          components: rust-src
+          targets: x86_64-unknown-linux-gnu  # see build job comment
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
         with:
           key: fuzz-run-${{ matrix.target }}
@@ -130,7 +138,10 @@ jobs:
           # -rss_limit_mb: catch unbounded-allocation bugs as crashes
           # No `|| true` — a crash MUST fail the job. Crash artifacts
           # land in fuzz/artifacts/<target>/ which we upload below.
-          cargo +nightly fuzz run ${{ matrix.target }} -- \
+          # --target must match the toolchain target installed above
+          # (see build job for the musl-vs-gnu rationale).
+          cargo +nightly fuzz run ${{ matrix.target }} \
+            --target x86_64-unknown-linux-gnu -- \
             -max_total_time=300 \
             -timeout=10 \
             -rss_limit_mb=2048
