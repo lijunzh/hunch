@@ -166,3 +166,150 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
         }
     }
 }
+
+// ── Pass 1 match_all helpers (#146 mutant kills) ─────────────────────
+//
+// Two tiny pure helpers extracted from `Pipeline::match_all` so the
+// boundary arithmetic and lookup predicates can be unit-tested.
+
+/// Compute the effective priority for a rule firing within a segment.
+/// Directory segments get a [`crate::priority::DIR_PENALTY`] adjustment
+/// so filename matches win in conflicts.
+///
+/// Extracted from match_all to pin two surviving mutants on the inline
+/// `rule.priority + priority::DIR_PENALTY` arithmetic (#146):
+///   - `+ -> -` would flip the sign of the penalty
+///   - `+ -> *` would multiply instead of add
+pub(super) fn effective_priority_for_segment(rule_priority: i32, is_dir: bool) -> i32 {
+    if is_dir {
+        rule_priority + crate::priority::DIR_PENALTY
+    } else {
+        rule_priority
+    }
+}
+
+/// Look up the per-directory zone map for a given segment index.
+/// Returns the first `SegmentZone` whose `segment_idx` matches.
+///
+/// Extracted from match_all to pin one surviving mutant on the inline
+/// `dz.segment_idx == seg_idx` predicate (#146):
+///   - `== -> !=` would return the first NON-matching zone, which has
+///     a different segment_idx by construction.
+pub(super) fn find_dir_zone_for_segment(
+    dir_zones: &[zone_map::SegmentZone],
+    seg_idx: usize,
+) -> Option<&zone_map::SegmentZone> {
+    dir_zones.iter().find(|dz| dz.segment_idx == seg_idx)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::priority;
+    use crate::zone_map::SegmentZone;
+
+    // ── effective_priority_for_segment ───────────────────────────────
+
+    #[test]
+    fn effective_priority_filename_unchanged() {
+        // Pin: filename segments do NOT receive the penalty. With the
+        // original `if is_dir { ... }` guard inverted (e.g., the if-arm
+        // taken for !is_dir), the filename would get a penalty applied.
+        assert_eq!(effective_priority_for_segment(10, false), 10);
+        assert_eq!(effective_priority_for_segment(0, false), 0);
+        assert_eq!(effective_priority_for_segment(-3, false), -3);
+    }
+
+    #[test]
+    fn effective_priority_directory_adds_dir_penalty() {
+        // Pin `+ -> -` and `+ -> *` mutants on the directory branch.
+        //
+        // DIR_PENALTY is currently -5 (see src/priority.rs).
+        //
+        // For rule_priority=10, is_dir=true:
+        //   - With `+`: 10 + (-5) = 5  (correct)
+        //   - With `-`: 10 - (-5) = 15 (mutant: penalty becomes a bonus!)
+        //   - With `*`: 10 * (-5) = -50 (mutant: clearly wrong magnitude)
+        // Asserting the result is exactly 5 kills both mutants.
+        assert_eq!(
+            effective_priority_for_segment(10, true),
+            10 + priority::DIR_PENALTY
+        );
+        // Concrete value sanity check (depends on DIR_PENALTY=-5):
+        assert_eq!(effective_priority_for_segment(10, true), 5);
+    }
+
+    #[test]
+    fn effective_priority_dir_with_negative_rule_priority() {
+        // Belt: ensure the addition handles negative rule priorities
+        // (HEURISTIC=-1, POSITIONAL=-2). With the mutation `+ -> *`,
+        // a negative rule priority * negative DIR_PENALTY would give a
+        // POSITIVE result — opposite of intent.
+        assert_eq!(
+            effective_priority_for_segment(priority::HEURISTIC, true),
+            priority::HEURISTIC + priority::DIR_PENALTY
+        );
+        // Concrete value: -1 + (-5) = -6
+        assert_eq!(
+            effective_priority_for_segment(priority::HEURISTIC, true),
+            -6
+        );
+    }
+
+    // ── find_dir_zone_for_segment ────────────────────────────────────
+
+    fn make_zone(segment_idx: usize) -> SegmentZone {
+        SegmentZone {
+            segment_idx,
+            title_zone: 0..0,
+            tech_zone: 0..0,
+            has_anchors: false,
+        }
+    }
+
+    #[test]
+    fn find_dir_zone_empty_list_returns_none() {
+        assert!(find_dir_zone_for_segment(&[], 0).is_none());
+        assert!(find_dir_zone_for_segment(&[], 42).is_none());
+    }
+
+    #[test]
+    fn find_dir_zone_no_match_returns_none() {
+        let zones = vec![make_zone(1), make_zone(3)];
+        assert!(find_dir_zone_for_segment(&zones, 2).is_none());
+    }
+
+    #[test]
+    fn find_dir_zone_single_match_returns_it() {
+        let zones = vec![make_zone(2)];
+        let found = find_dir_zone_for_segment(&zones, 2).expect("should find");
+        assert_eq!(found.segment_idx, 2);
+    }
+
+    #[test]
+    fn find_dir_zone_picks_correct_zone_among_many() {
+        // CRITICAL: pins `== -> !=` mutant on `dz.segment_idx == seg_idx`.
+        //
+        // Three zones with distinct segment_idx values. Looking up idx=1
+        // must return the zone with segment_idx==1, not 0 or 2.
+        //   - With `==`: returns zone where segment_idx == 1 (correct)
+        //   - With `!=`: returns first zone where segment_idx != 1, which
+        //     would be the zone at idx=0 (wrong segment_idx).
+        // Asserting the returned zone has segment_idx==1 kills it.
+        let zones = vec![make_zone(0), make_zone(1), make_zone(2)];
+        let found = find_dir_zone_for_segment(&zones, 1).expect("should find");
+        assert_eq!(
+            found.segment_idx, 1,
+            "must return the zone whose idx matches the query"
+        );
+    }
+
+    #[test]
+    fn find_dir_zone_first_match_wins_on_duplicates() {
+        // Documents: with duplicate segment_idx values, the first one in
+        // iteration order is returned. Belt for any future Iterator change.
+        let zones = vec![make_zone(5), make_zone(5)];
+        let found = find_dir_zone_for_segment(&zones, 5).expect("should find");
+        assert_eq!(found.segment_idx, 5);
+    }
+}
