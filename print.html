@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-09928b96.js";
+            window.path_to_searchindex_js = "searchindex-1545d35c.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-54a5f23b.js"></script>
@@ -643,7 +643,6 @@ weekly + on every push to <code>main</code> to accumulate a performance history.
 <tr><th>Bench</th><th>Input</th><th>What it stresses</th></tr>
 </thead>
 <tbody>
-<tr><td><code>minimal</code></td><td><code>movie.mkv</code></td><td>The parser fast path; baseline for “do nothing useful” cost</td></tr>
 <tr><td><code>movie_basic</code></td><td><code>The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv</code></td><td>Standard movie filename</td></tr>
 <tr><td><code>movie_complex</code></td><td><code>Blade.Runner.2049.2017.2160p.UHD.BluRay.REMUX.HDR.HEVC.DTS-HD.MA.7.1.Atmos-EPSiLON.mkv</code></td><td>Loaded movie with many tags (codec, source, audio, HDR, atmos)</td></tr>
 <tr><td><code>episode_sxxexx</code></td><td><code>The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv</code></td><td>Standard episode with <code>SxxExx</code> marker</td></tr>
@@ -661,7 +660,6 @@ weekly + on every push to <code>main</code> to accumulate a performance history.
 <tr><th>Bench</th><th>Median time</th><th>Iterations to fill 5 s</th></tr>
 </thead>
 <tbody>
-<tr><td><code>minimal</code></td><td><strong>11.5 µs</strong></td><td>444k</td></tr>
 <tr><td><code>anime_bracket</code></td><td><strong>62.5 µs</strong></td><td>81k</td></tr>
 <tr><td><code>movie_basic</code></td><td><strong>74.8 µs</strong></td><td>67k</td></tr>
 <tr><td><code>episode_with_path</code></td><td><strong>78.5 µs</strong></td><td>64k</td></tr>
@@ -678,7 +676,6 @@ weekly + on every push to <code>main</code> to accumulate a performance history.
 <tr><th>Bench</th><th>CI estimate (rough)</th></tr>
 </thead>
 <tbody>
-<tr><td><code>minimal</code></td><td>25-40 µs</td></tr>
 <tr><td><code>movie_complex</code></td><td>400-600 µs</td></tr>
 <tr><td>Others</td><td>150-250 µs</td></tr>
 </tbody>
@@ -756,7 +753,7 @@ weekly + on every push to <code>main</code> to accumulate a performance history.
 </code></pre>
 <p>(Takes ~70 s on M-class hardware; longer on CI.)</p>
 <p>Run just one bench:</p>
-<pre><code class="language-bash">cargo bench --bench parse -- minimal
+<pre><code class="language-bash">cargo bench --bench parse -- movie_basic
 </code></pre>
 <p>Use criterion’s baseline-comparison mode to detect regressions across two commits:</p>
 <pre><code class="language-bash"># Save numbers from the current state as 'before'
