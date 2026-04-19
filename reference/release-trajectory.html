@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Fuzzing - hunch — Documentation</title>
+        <title>Release Performance Trajectory - hunch — Documentation</title>
 
 
         <!-- Custom HTML head -->
@@ -146,7 +146,7 @@
                         <a href="https://github.com/lijunzh/hunch" title="Git repository" aria-label="Git repository">
                             <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z"/></svg></span>
                         </a>
-                        <a href="https://github.com/lijunzh/hunch/edit/main/docs/src/src/contributor-guide/fuzzing.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
+                        <a href="https://github.com/lijunzh/hunch/edit/main/docs/src/src/reference/release-trajectory.md" title="Suggest an edit" aria-label="Suggest an edit" rel="edit">
                             <span class=fa-svg id="git-edit-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M421.7 220.3l-11.3 11.3-22.6 22.6-205 205c-6.6 6.6-14.8 11.5-23.8 14.1L30.8 511c-8.4 2.5-17.5 .2-23.7-6.1S-1.5 489.7 1 481.2L38.7 353.1c2.6-9 7.5-17.2 14.1-23.8l205-205 22.6-22.6 11.3-11.3 33.9 33.9 62.1 62.1 33.9 33.9zM96 353.9l-9.3 9.3c-.9 .9-1.6 2.1-2 3.4l-25.3 86 86-25.3c1.3-.4 2.5-1.1 3.4-2l9.3-9.3H112c-8.8 0-16-7.2-16-16V353.9zM453.3 19.3l39.4 39.4c25 25 25 65.5 0 90.5l-14.5 14.5-22.6 22.6-11.3 11.3-33.9-33.9-62.1-62.1L314.3 67.7l11.3-11.3 22.6-22.6 14.5-14.5c25-25 65.5-25 90.5 0z"/></svg></span>
                         </a>
 
@@ -180,223 +180,135 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="fuzzing"><a class="header" href="#fuzzing">Fuzzing</a></h1>
-<p>Hunch uses <a href="https://rust-fuzz.github.io/book/"><code>cargo-fuzz</code></a> to drive
-the public parser surface (<code>hunch::hunch</code>, <code>hunch::hunch_with_context</code>)
-with arbitrary mutator-generated inputs, hunting for panics, integer
-overflows, out-of-bounds slice indexing, and other crash-shape bugs
-that fixture-based tests can’t reach.</p>
-<p>This complements the existing testing layers:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Layer</th><th>Catches</th><th>Where</th></tr>
-</thead>
-<tbody>
-<tr><td><strong>Unit + integration tests</strong> (~525 fixtures)</td><td>Correctness for known inputs</td><td><code>tests/</code>, <code>src/**/tests</code></td></tr>
-<tr><td><strong>Coverage</strong> (#168)</td><td>Which lines are exercised at all</td><td><a href="./coverage.html">Coverage</a></td></tr>
-<tr><td><strong>Mutation testing</strong> (#146)</td><td>Whether assertions actually catch bugs</td><td><a href="./mutation-baseline.html">Mutation Testing</a></td></tr>
-<tr><td><strong>Fuzzing</strong> (this doc)</td><td>Crash-shape bugs on adversarial inputs</td><td><code>fuzz/</code> + this doc</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="fuzz-targets"><a class="header" href="#fuzz-targets">Fuzz targets</a></h2>
-<p>Two targets in <code>fuzz/fuzz_targets/</code>:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Target</th><th>Entry point</th><th>What it stresses</th></tr>
-</thead>
-<tbody>
-<tr><td><code>parse_filename</code></td><td><code>hunch::hunch(input: &amp;str)</code></td><td>Single-string parse with arbitrary UTF-8</td></tr>
-<tr><td><code>parse_with_context</code></td><td><code>hunch::hunch_with_context(input, &amp;siblings)</code></td><td>Multi-input invariance analysis with up to 16 siblings</td></tr>
-</tbody>
-</table>
-</div>
-<p>Both reject non-UTF-8 input at the harness layer (the public API takes <code>&amp;str</code>,
-so non-UTF-8 isn’t a reachable failure mode). <code>parse_with_context</code> uses the
-<a href="https://docs.rs/arbitrary/"><code>arbitrary</code></a> derive macro to give libfuzzer
-structured input it can mutate per-field — better coverage feedback than
-manually splitting a single <code>&amp;[u8]</code> blob.</p>
-<h2 id="how-it-runs"><a class="header" href="#how-it-runs">How it runs</a></h2>
-<p><a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/fuzz.yml"><code>.github/workflows/fuzz.yml</code></a> defines two jobs:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Job</th><th>Trigger</th><th>Time</th><th>What</th></tr>
-</thead>
-<tbody>
-<tr><td><code>Fuzz harness build</code></td><td>every PR + push</td><td>~30 s</td><td>Just <code>cargo fuzz build</code> — confirms targets compile against current API</td></tr>
-<tr><td><code>Nightly fuzz</code></td><td>04:14 UTC + manual</td><td>~12 min total (5 min × 2 targets)</td><td>Real fuzzing, corpus persistence via <code>actions/cache</code>, crash artifacts uploaded</td></tr>
-</tbody>
-</table>
-</div>
-<p>The PR-time job is intentionally <strong>build-only</strong>, not actual fuzzing.
-A 60-second per-target fuzz on every PR (the epic’s <a href="https://github.com/lijunzh/hunch/issues/147">#147 DoD</a>)
-adds noise without high signal — the corpus barely grows in 60 s, and
-nightly catches the same bugs at higher coverage. We can revisit if PR-time
-fuzzing produces useful findings; for now build-check is the daily signal.</p>
-<h3 id="what-the-nightly-does"><a class="header" href="#what-the-nightly-does">What the nightly does</a></h3>
-<pre><code class="language-bash">cargo +nightly fuzz run &lt;target&gt; -- \
-  -max_total_time=300   # 5 min wall-clock
-  -timeout=10           # per-input cap (catches slow-input DoS too)
-  -rss_limit_mb=2048    # treat unbounded allocation as a crash
-</code></pre>
-<p>The corpus directory <code>fuzz/corpus/&lt;target&gt;/</code> is restored from <code>actions/cache</code>
-at the start of each run and saved at the end, so coverage compounds across
-nights instead of restarting from the ~10-input seed each time.</p>
-<p>Crashes (if any) land in <code>fuzz/artifacts/&lt;target&gt;/</code> and are uploaded as
-the <code>fuzz-artifacts-&lt;target&gt;</code> workflow artifact (30-day retention).</p>
-<h2 id="local-usage"><a class="header" href="#local-usage">Local usage</a></h2>
-<p>One-time install:</p>
-<pre><code class="language-bash">rustup toolchain install nightly --profile minimal
-cargo install cargo-fuzz --locked
-</code></pre>
-<p>Build the harness:</p>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz build
-</code></pre>
-<p>Run a single target for 60 seconds (good iteration loop):</p>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz run parse_filename -- -max_total_time=60
-</code></pre>
-<p>Both targets in parallel for the same time the nightly uses:</p>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz run parse_filename       -- -max_total_time=300 &amp;
-cargo +nightly fuzz run parse_with_context   -- -max_total_time=300 &amp;
-wait
-</code></pre>
-<h2 id="seed-corpus"><a class="header" href="#seed-corpus">Seed corpus</a></h2>
-<p>Located at <code>fuzz/corpus/&lt;target&gt;/</code>, <strong>committed to git</strong>. Each file is
-one input. Curated to give libfuzzer’s coverage feedback a wide initial
-spread rather than 100 near-duplicate movie filenames.</p>
-<p>Current <code>parse_filename</code> seeds (10 entries):</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>File</th><th>What it covers</th></tr>
-</thead>
-<tbody>
-<tr><td><code>movie_basic</code></td><td>Standard <code>Title.Year.Resolution.Source.Codec-Group.ext</code></td></tr>
-<tr><td><code>episode_sxxexx</code></td><td><code>SxxExx</code> marker + episode title</td></tr>
-<tr><td><code>anime_brackets</code></td><td><code>[Group]</code> + <code>[CRC32]</code> brackets, <code>HEVC AAC</code> codec stack</td></tr>
-<tr><td><code>path_with_dirs</code></td><td>Multi-segment path with parenthesised year in directory</td></tr>
-<tr><td><code>multi_episode</code></td><td><code>S01E01-E03</code> range syntax</td></tr>
-<tr><td><code>unicode_title</code></td><td>Multi-byte UTF-8 (Japanese title)</td></tr>
-<tr><td><code>empty</code></td><td>Zero-byte input</td></tr>
-<tr><td><code>just_year</code></td><td>4-digit-only input</td></tr>
-<tr><td><code>long_dotted</code></td><td>Pathological 26-token dotted name</td></tr>
-<tr><td><code>extension_only</code></td><td>Just <code>.mkv</code></td></tr>
-</tbody>
-</table>
-</div>
-<p>When you discover a new corpus-worthy input (e.g., a real-world
-filename that previously broke parsing), add it to the corpus under a
-descriptive name. The default <code>fuzz/.gitignore</code> ignores <code>corpus/</code> to
-keep mutator-discovered hex-named files out of git noise, so commit
-named seeds with <code>git add -f</code>:</p>
-<pre><code class="language-bash">echo 'My.New.Filename.shape.mkv' &gt; fuzz/corpus/parse_filename/regression_165
-git add -f fuzz/corpus/parse_filename/regression_165
-</code></pre>
-<h2 id="triage-protocol--when-fuzzing-finds-a-crash"><a class="header" href="#triage-protocol--when-fuzzing-finds-a-crash">Triage protocol — when fuzzing finds a crash</a></h2>
-<p>A crash artifact in <code>fuzz/artifacts/&lt;target&gt;/</code> is a 1-input file that
-makes the harness panic. Reproduce + minimize + fix workflow:</p>
-<h3 id="1-reproduce-locally"><a class="header" href="#1-reproduce-locally">1. Reproduce locally</a></h3>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz run &lt;target&gt; artifacts/&lt;target&gt;/&lt;crash-id&gt;
-</code></pre>
-<p>This re-runs the harness against just that one input. You should see
-the panic output identical to the nightly’s failure log.</p>
-<h3 id="2-minimize"><a class="header" href="#2-minimize">2. Minimize</a></h3>
-<p><code>cargo fuzz tmin</code> shrinks the input to the smallest reproduction:</p>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz tmin &lt;target&gt; artifacts/&lt;target&gt;/&lt;crash-id&gt;
-</code></pre>
-<p>The minimized input lands at <code>fuzz/artifacts/&lt;target&gt;/minimized-from-&lt;crash-id&gt;</code>.
-A 200-byte input often shrinks to &lt;20 bytes, which makes both the bug
-report and the eventual unit test much clearer.</p>
-<h3 id="3-classify-the-bug"><a class="header" href="#3-classify-the-bug">3. Classify the bug</a></h3>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Pattern</th><th>Category</th><th>Action</th></tr>
-</thead>
-<tbody>
-<tr><td><code>unwrap()</code> / <code>expect()</code> / <code>panic!()</code> reachable from public API</td><td><strong>Defensive bug</strong></td><td>Convert to <code>Result</code> return; add a unit test pinning the input → Err mapping</td></tr>
-<tr><td>Integer overflow / underflow</td><td><strong>Arithmetic bug</strong></td><td>Use <code>checked_*</code> / <code>saturating_*</code> arithmetic; assert with <code>debug_assert!</code> if the invariant should hold</td></tr>
-<tr><td>Out-of-bounds slice on UTF-8 boundary</td><td><strong>Encoding bug</strong></td><td>Use <code>str::char_indices</code> / <code>str::is_char_boundary</code> instead of byte slicing</td></tr>
-<tr><td>Regex catastrophic backtracking (manifests as fuzzer timeout, not panic)</td><td><strong>DoS bug</strong></td><td>Rewrite the regex to be linear-time (typically by removing nested quantifiers)</td></tr>
-<tr><td>Genuinely intentional invariant violation</td><td><strong>Documentation bug</strong></td><td>Add <code>debug_assert!</code> with comment, document the precondition</td></tr>
-</tbody>
-</table>
-</div>
-<h3 id="4-fix--add-the-minimized-input-as-a-regression-test"><a class="header" href="#4-fix--add-the-minimized-input-as-a-regression-test">4. Fix + add the minimized input as a regression test</a></h3>
-<p>The minimized crash input goes into either:</p>
-<ul>
-<li><code>tests/fixtures/regression.yml</code> (if it should produce a sensible parse)</li>
-<li><code>tests/regression_panics.rs</code> (if it should produce a non-panicking error)</li>
-</ul>
-<p>Then commit the minimized input to <code>fuzz/corpus/&lt;target&gt;/regression-&lt;issue-num&gt;</code>
-so future fuzz runs always cover the regression shape.</p>
-<h3 id="5-file-an-issue-if-not-already"><a class="header" href="#5-file-an-issue-if-not-already">5. File an issue (if not already)</a></h3>
-<p>Use the <code>fuzz-finding</code> label. Include:</p>
-<ul>
-<li>The minimized input (hex if non-printable)</li>
-<li>The panic message + stack trace</li>
-<li>Your bug-classification verdict per step 3</li>
-<li>The fix PR link</li>
-</ul>
-<h2 id="initial-baseline-2026-04-18"><a class="header" href="#initial-baseline-2026-04-18">Initial baseline (2026-04-18)</a></h2>
-<p>First local smoke runs against current <code>main</code> (on this PR’s branch):</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Target</th><th>Runs</th><th>Time</th><th>Crashes</th><th>Throughput</th></tr>
-</thead>
-<tbody>
-<tr><td><code>parse_filename</code></td><td>28,668</td><td>26 s</td><td><strong>0</strong> ✅</td><td>~1100 inputs/s</td></tr>
-<tr><td><code>parse_with_context</code></td><td>67,941</td><td>26 s</td><td><strong>0</strong> ✅</td><td>~2600 inputs/s</td></tr>
-</tbody>
-</table>
-</div>
-<p>Zero crashes from ~96K combined runs is a strong starting baseline. The
-public API surface is robust against adversarial single-input mutation
-out of the gate. The interesting findings (if any) will come from the
-<em>nightly</em> runs once the corpus accumulates coverage over weeks.</p>
-<h2 id="roadmap-deferred-to-follow-up-prs"><a class="header" href="#roadmap-deferred-to-follow-up-prs">Roadmap (deferred to follow-up PRs)</a></h2>
-<ul>
-<li><input disabled="" type="checkbox"> <strong>Differential fuzz target</strong> vs guessit-rs — hunt for behavioural
-divergence between the two parsers. Separate epic; not in #147.</li>
-<li><input disabled="" type="checkbox"> <strong>OSS-Fuzz integration application</strong> (the epic’s stretch goal).
-Google-funded continuous fuzzing for OSS Rust crates. Application
-template: <a href="https://github.com/google/oss-fuzz/tree/master/projects">https://github.com/google/oss-fuzz/tree/master/projects</a>.</li>
-<li><input disabled="" type="checkbox"> <strong>Promote PR-time job from build-only → 60s smoke fuzz</strong> if the
-nightly produces useful findings worth catching earlier.</li>
-<li><input disabled="" type="checkbox"> <strong>Add the guessit-rs corpus</strong> as additional seeds (the epic’s
-DoD mentions it; we seeded only from <code>tests/fixtures/</code> here).</li>
-</ul>
-<h2 id="references"><a class="header" href="#references">References</a></h2>
-<ul>
-<li><a href="https://rust-fuzz.github.io/book/"><code>cargo-fuzz</code> book</a></li>
-<li><a href="https://docs.rs/libfuzzer-sys/"><code>libfuzzer-sys</code></a> — the underlying
-harness</li>
-<li><a href="https://docs.rs/arbitrary/"><code>arbitrary</code></a> — structured-input derive
-used by <code>parse_with_context</code></li>
-<li><a href="https://github.com/lijunzh/hunch/blob/main/SECURITY.md">SECURITY.md</a> — fuzzing maps to “DoS via crafted
-filenames” in the threat model</li>
-<li>Sibling docs: <a href="./coverage.html">Coverage</a>,
-<a href="./mutation-baseline.html">Mutation Testing</a>,
-<a href="../reference/public-api.html">Public API</a></li>
-</ul>
+                        <h1 id="release-performance-trajectory"><a class="header" href="#release-performance-trajectory">Release Performance Trajectory</a></h1>
+<p>How hunch’s parser performance has evolved across released versions.</p>
+<blockquote>
+<p><strong>Source of truth:</strong> <code>gh-pages/release-snapshots/&lt;tag&gt;.json</code> — one
+immutable file per version tag. Generated automatically by the
+<code>Benchmarks</code> workflow whenever a <code>v*</code> tag is pushed (per
+<a href="https://github.com/lijunzh/hunch/issues/179">#179</a>). Each snapshot
+records the bench numbers, git SHA, runner identity, and timestamp.</p>
+<p>See <a href="./benchmarks.html">Benchmarks</a> for methodology and the
+<a href="./benchmark-dashboard.html">Live Dashboard</a> for per-commit history.</p>
+</blockquote>
+<h2 id="snapshots"><a class="header" href="#snapshots">Snapshots</a></h2>
+<div id="trajectory-status">Loading release snapshots…</div>
+
+<div id="trajectory-content"></div>
+
+<!-- The list of release tags below is the ONLY thing that needs to be
+     updated as part of release prep. Newest tag first. Tags older
+     than the bench harness landing in #176 (= older than v1.1.8) won't
+     have snapshots — they're not in this list.
+
+     Release-prep checklist (per #179):
+       1. Bump version in Cargo.toml
+       2. Update CHANGELOG.md
+       3. Add the new tag to the RELEASE_TAGS array below (top of list)
+       4. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
+       5. Wait ~3 min for the bench workflow to publish the snapshot
+       6. (optional) Verify at https://lijunzh.github.io/hunch/release-snapshots/<tag>.json -->
+<script>
+const RELEASE_TAGS = [
+  // Newest first. Add new entries to the TOP per the checklist above.
+  // (Empty until the first post-#179 release lands.)
+];
+
+(async function () {
+  const status = document.getElementById('trajectory-status');
+  const content = document.getElementById('trajectory-content');
+
+  if (RELEASE_TAGS.length === 0) {
+    status.innerHTML =
+      '<p><em>No release snapshots yet. The first one will appear after ' +
+      'the next <code>v*</code> tag is pushed (post-#179 merge). ' +
+      'Until then, see the <a href="./benchmark-dashboard.html">' +
+      'live per-commit dashboard</a> for current performance trends.</em></p>';
+    return;
+  }
+
+  // Fetch all snapshots in parallel; tolerate 404s (a tag in the list
+  // without a published snapshot just gets skipped, with a console warning).
+  const fetched = await Promise.all(RELEASE_TAGS.map(async (tag) => {
+    try {
+      const r = await fetch(`../release-snapshots/${tag}.json`);
+      if (!r.ok) {
+        console.warn(`No snapshot for ${tag} (HTTP ${r.status})`);
+        return null;
+      }
+      return await r.json();
+    } catch (e) {
+      console.warn(`Failed to fetch ${tag}:`, e);
+      return null;
+    }
+  }));
+
+  const snapshots = fetched.filter(Boolean);
+  if (snapshots.length === 0) {
+    status.textContent =
+      'Listed releases have no published snapshots yet. ' +
+      'Re-deploying the docs after the next bench workflow run should fix this.';
+    return;
+  }
+
+  // Build a per-bench comparison table: rows = bench names,
+  // columns = release tags (newest first), cells = ns/iter.
+  // Bench names taken from the newest snapshot; older snapshots that
+  // are missing a bench (e.g. `minimal` was dropped in #191) show "—".
+  const newest = snapshots[0];
+  const benchNames = newest.benches.map(b => b.name);
+
+  let html = '<h2>Per-bench comparison</h2><table><thead><tr><th>Bench</th>';
+  for (const s of snapshots) html += `<th>${s.tag}</th>`;
+  html += '</tr></thead><tbody>';
+
+  for (const name of benchNames) {
+    html += `<tr><td><code>${name}</code></td>`;
+    for (const s of snapshots) {
+      const b = s.benches.find(x => x.name === name);
+      html += b
+        ? `<td>${(b.value / 1000).toFixed(1)} \u00b5s</td>`
+        : '<td><em>—</em></td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+
+  // Snapshot metadata table.
+  html += '<h2>Snapshot details</h2><table><thead><tr><th>Tag</th><th>Date</th><th>SHA</th><th>Runner</th></tr></thead><tbody>';
+  for (const s of snapshots) {
+    const sha = s.sha.slice(0, 7);
+    const date = s.date.slice(0, 10);
+    html += `<tr><td><strong>${s.tag}</strong></td><td>${date}</td><td><code>${sha}</code></td><td><code>${s.runner}</code></td></tr>`;
+  }
+  html += '</tbody></table>';
+
+  status.remove();
+  content.innerHTML = html;
+})();
+</script>
+<h2 id="methodology-caveat"><a class="header" href="#methodology-caveat">Methodology caveat</a></h2>
+<p>Numbers are wall-clock parse time on <code>ubuntu-latest</code> GitHub-hosted
+runners — useful for <strong>trajectory</strong> (is the parser getting slower or
+faster across releases?) but <strong>not</strong> for absolute comparisons against
+your hardware. Local M-class hardware typically runs ~2–3× faster.</p>
+<p>Per-bench variance from runner-hardware shifts has been observed at
+±5–10% on the larger benches and &gt;30% on benches under ~25 µs. The
+<a href="https://github.com/lijunzh/hunch/issues/178">#178</a> regression gate
+uses a 120% threshold for exactly this reason; small absolute
+swings shouldn’t be over-interpreted as real regressions.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../contributor-guide/mutation-baseline.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../reference/benchmark-dashboard.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
+                            <a rel="next prefetch" href="../reference/public-api.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -404,10 +316,13 @@ filenames” in the threat model</li>
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../contributor-guide/mutation-baseline.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../reference/benchmark-dashboard.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
+                    <a rel="next prefetch" href="../reference/public-api.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
+                    </a>
             </nav>
 
         </div>

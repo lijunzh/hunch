@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-1545d35c.js";
+            window.path_to_searchindex_js = "searchindex-23e96f49.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-54a5f23b.js"></script>
+        <script src="toc-736678f7.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -783,6 +783,8 @@ cargo bench --bench parse -- --baseline before
 </ol>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <ul>
+<li><a href="#benchmark-dashboard">Live Dashboard</a> — per-commit history (Pattern B chart)</li>
+<li><a href="#release-performance-trajectory">Release Trajectory</a> — per-released-version snapshots</li>
 <li><a href="https://bheisler.github.io/criterion.rs/book/">criterion.rs book</a> — methodology, statistical model</li>
 <li><a href="https://github.com/lijunzh/hunch/blob/main/benches/parse.rs"><code>benches/parse.rs</code></a> — the bench harness itself</li>
 <li>Sibling docs: <a href="#code-coverage">Coverage</a>, <a href="#mutation-testing-baseline">Mutation Testing</a>, <a href="#fuzzing">Fuzzing</a>, <a href="#public-api-surface">Public API</a></li>
@@ -898,6 +900,124 @@ the full criterion log.</li>
 <li>Reproduce locally: <code>cargo bench --bench parse -- --baseline &lt;known-good-sha&gt;</code>.</li>
 </ol>
 <p>Triage protocol: see <a href="#triage-when-the-gate-fires">Benchmarks → Triage</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="release-performance-trajectory"><a class="header" href="#release-performance-trajectory">Release Performance Trajectory</a></h1>
+<p>How hunch’s parser performance has evolved across released versions.</p>
+<blockquote>
+<p><strong>Source of truth:</strong> <code>gh-pages/release-snapshots/&lt;tag&gt;.json</code> — one
+immutable file per version tag. Generated automatically by the
+<code>Benchmarks</code> workflow whenever a <code>v*</code> tag is pushed (per
+<a href="https://github.com/lijunzh/hunch/issues/179">#179</a>). Each snapshot
+records the bench numbers, git SHA, runner identity, and timestamp.</p>
+<p>See <a href="#benchmarks">Benchmarks</a> for methodology and the
+<a href="#benchmark-dashboard">Live Dashboard</a> for per-commit history.</p>
+</blockquote>
+<h2 id="snapshots"><a class="header" href="#snapshots">Snapshots</a></h2>
+<div id="trajectory-status">Loading release snapshots…</div>
+
+<div id="trajectory-content"></div>
+
+<!-- The list of release tags below is the ONLY thing that needs to be
+     updated as part of release prep. Newest tag first. Tags older
+     than the bench harness landing in #176 (= older than v1.1.8) won't
+     have snapshots — they're not in this list.
+
+     Release-prep checklist (per #179):
+       1. Bump version in Cargo.toml
+       2. Update CHANGELOG.md
+       3. Add the new tag to the RELEASE_TAGS array below (top of list)
+       4. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
+       5. Wait ~3 min for the bench workflow to publish the snapshot
+       6. (optional) Verify at https://lijunzh.github.io/hunch/release-snapshots/<tag>.json -->
+<script>
+const RELEASE_TAGS = [
+  // Newest first. Add new entries to the TOP per the checklist above.
+  // (Empty until the first post-#179 release lands.)
+];
+
+(async function () {
+  const status = document.getElementById('trajectory-status');
+  const content = document.getElementById('trajectory-content');
+
+  if (RELEASE_TAGS.length === 0) {
+    status.innerHTML =
+      '<p><em>No release snapshots yet. The first one will appear after ' +
+      'the next <code>v*</code> tag is pushed (post-#179 merge). ' +
+      'Until then, see the <a href="./benchmark-dashboard.html">' +
+      'live per-commit dashboard</a> for current performance trends.</em></p>';
+    return;
+  }
+
+  // Fetch all snapshots in parallel; tolerate 404s (a tag in the list
+  // without a published snapshot just gets skipped, with a console warning).
+  const fetched = await Promise.all(RELEASE_TAGS.map(async (tag) => {
+    try {
+      const r = await fetch(`../release-snapshots/${tag}.json`);
+      if (!r.ok) {
+        console.warn(`No snapshot for ${tag} (HTTP ${r.status})`);
+        return null;
+      }
+      return await r.json();
+    } catch (e) {
+      console.warn(`Failed to fetch ${tag}:`, e);
+      return null;
+    }
+  }));
+
+  const snapshots = fetched.filter(Boolean);
+  if (snapshots.length === 0) {
+    status.textContent =
+      'Listed releases have no published snapshots yet. ' +
+      'Re-deploying the docs after the next bench workflow run should fix this.';
+    return;
+  }
+
+  // Build a per-bench comparison table: rows = bench names,
+  // columns = release tags (newest first), cells = ns/iter.
+  // Bench names taken from the newest snapshot; older snapshots that
+  // are missing a bench (e.g. `minimal` was dropped in #191) show "—".
+  const newest = snapshots[0];
+  const benchNames = newest.benches.map(b => b.name);
+
+  let html = '<h2>Per-bench comparison</h2><table><thead><tr><th>Bench</th>';
+  for (const s of snapshots) html += `<th>${s.tag}</th>`;
+  html += '</tr></thead><tbody>';
+
+  for (const name of benchNames) {
+    html += `<tr><td><code>${name}</code></td>`;
+    for (const s of snapshots) {
+      const b = s.benches.find(x => x.name === name);
+      html += b
+        ? `<td>${(b.value / 1000).toFixed(1)} \u00b5s</td>`
+        : '<td><em>—</em></td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+
+  // Snapshot metadata table.
+  html += '<h2>Snapshot details</h2><table><thead><tr><th>Tag</th><th>Date</th><th>SHA</th><th>Runner</th></tr></thead><tbody>';
+  for (const s of snapshots) {
+    const sha = s.sha.slice(0, 7);
+    const date = s.date.slice(0, 10);
+    html += `<tr><td><strong>${s.tag}</strong></td><td>${date}</td><td><code>${sha}</code></td><td><code>${s.runner}</code></td></tr>`;
+  }
+  html += '</tbody></table>';
+
+  status.remove();
+  content.innerHTML = html;
+})();
+</script>
+<h2 id="methodology-caveat"><a class="header" href="#methodology-caveat">Methodology caveat</a></h2>
+<p>Numbers are wall-clock parse time on <code>ubuntu-latest</code> GitHub-hosted
+runners — useful for <strong>trajectory</strong> (is the parser getting slower or
+faster across releases?) but <strong>not</strong> for absolute comparisons against
+your hardware. Local M-class hardware typically runs ~2–3× faster.</p>
+<p>Per-bench variance from runner-hardware shifts has been observed at
+±5–10% on the larger benches and &gt;30% on benches under ~25 µs. The
+<a href="https://github.com/lijunzh/hunch/issues/178">#178</a> regression gate
+uses a 120% threshold for exactly this reason; small absolute
+swings shouldn’t be over-interpreted as real regressions.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="public-api-surface"><a class="header" href="#public-api-surface">Public API Surface</a></h1>
 <p>Hunch’s public Rust API is the contract that downstream library consumers
