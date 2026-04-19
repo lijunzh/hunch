@@ -868,3 +868,70 @@ fn bit_rate_mbits_plural_suffix() {
     assert_eq!(r.video_bit_rate(), Some("19.1Mbps"));
     assert_eq!(r.frame_rate(), Some("120fps"));
 }
+
+// ─── Pass 2 boundary mutants (#146) ──────────────────────────────────
+//
+// These tests pin two boundary checks in Pass 2 of the pipeline that
+// survived as mutants in the 2026-04-19 nightly run:
+//   - Step 5e: drop heuristic episode matches in movie context
+//   - Step 6:  only emit ProperCount when count > 0
+//
+// The other two #146 Pass 2 mutants (lines 454, 515) are killed by
+// the unit tests on the hoisted `compute_override_title_span` and
+// `release_group_overlaps_episode_title` helpers in
+// `src/pipeline/pass2_helpers.rs`.
+
+#[test]
+fn movie_context_drops_heuristic_episode_match() {
+    // "Movie.10.mkv" — bare number "10" in movie context is a franchise
+    // number ("Toy Story 10"), not an episode. Step 5e drops episode
+    // matches with priority <= HEURISTIC when media_type == "movie".
+    //
+    // Pins the `<= -> >` mutant on `m.priority <= priority::HEURISTIC`
+    // in src/pipeline/mod.rs. With the mutation, retain would drop only
+    // matches with priority STRICTLY GREATER than HEURISTIC (i.e., the
+    // strong matches would be dropped while weak ones survive — exactly
+    // the wrong direction). The bare "10" would then surface as an
+    // episode in movie context.
+    let r = hunch("Movie.10.mkv");
+    assert_eq!(r.media_type(), Some(hunch::MediaType::Movie));
+    assert_eq!(
+        r.episode(),
+        None,
+        "bare number in movie context must not surface as episode"
+    );
+}
+
+#[test]
+fn movie_without_proper_omits_proper_count_field() {
+    // For a clean movie filename (no PROPER/REPACK), proper_count is 0
+    // and the field must NOT be emitted. Pins the `> -> >=` mutant on
+    // `if proper_count > 0` in step 6 of Pass 2.
+    //
+    // With `>=`, ProperCount would be emitted as "0" for every clean
+    // file, polluting downstream consumers.
+    let r = hunch("The.Movie.2024.1080p.BluRay.x264.mkv");
+    assert_eq!(
+        r.proper_count(),
+        None,
+        "ProperCount must be absent when count is 0"
+    );
+}
+
+#[test]
+fn episode_with_proper_emits_proper_count_one() {
+    // Happy-path companion to the previous test — ensures we don't
+    // accidentally regress the emit path while pinning the > vs >=
+    // boundary. With either operator, count=1 produces Some(1), so this
+    // doesn't kill the mutant on its own; it documents the positive case.
+    let r = hunch("Show.S01E03.PROPER.mkv");
+    assert_eq!(r.proper_count(), Some(1));
+}
+
+#[test]
+fn episode_with_repack_and_proper_emits_proper_count_two() {
+    // Stronger positive case — exercises the to_string() path with a
+    // multi-digit count and confirms the field is set correctly.
+    let r = hunch("Show.S01E03.REPACK.PROPER.mkv");
+    assert_eq!(r.proper_count(), Some(2));
+}
