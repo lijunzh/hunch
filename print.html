@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-ba2f4f1f.js";
+            window.path_to_searchindex_js = "searchindex-31dcd877.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-d3f9349e.js"></script>
+        <script src="toc-e3665db2.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -2153,6 +2153,14 @@ properties have been claimed; release_group <em>must</em> know which
 spans are already taken. Their self-containment is at the module
 level (one directory, own tests), not the function level.</p>
 <p>Examples: title, release_group, episode_title, alternative_title.</p>
+<p><strong>Derived properties</strong> are a small special case: not matched from the
+input at all, but computed at result-build time from another property’s
+value. Currently the only one is <code>Property::Mimetype</code>, derived from
+<code>Container</code> (e.g., <code>mkv</code> → <code>video/x-matroska</code>). Derived properties never
+appear in <code>MatchSpan</code> output — they’re populated as the final step in
+<code>HunchResult</code> construction. Add new derived properties with care: the
+invariant is “if the source property is <code>None</code>, the derived property is
+<code>None</code>” (no fabrication).</p>
 <h3 id="d10-refactor-before-accreting-p1"><a class="header" href="#d10-refactor-before-accreting-p1">D10: Refactor before accreting (P1)</a></h3>
 <p>The pattern that turned guessit hard to reason about was not any single
 bad decision — it was accretion. One callback, one validator, one tag,
@@ -2345,11 +2353,15 @@ not_before = ["tv", "dvd", "cam", "rip"]
 ├── tokenizer.rs        # Input → TokenStream (separators, brackets)
 ├── zone_map.rs         # Anchor detection + zone boundaries
 ├── pipeline/
-│   ├── mod.rs          # Two-pass orchestration
-│   ├── matching.rs     # Token-level TOML rule matching
-│   ├── context.rs      # Cross-file invariance detection
-│   ├── token_context.rs # Structure-aware disambiguation
-│   └── zone_rules.rs   # Post-match zone filtering
+│   ├── mod.rs            # Two-pass orchestration
+│   ├── matching.rs       # Token-level TOML rule matching
+│   ├── context.rs        # Cross-file invariance detection
+│   ├── token_context.rs  # Structure-aware disambiguation
+│   ├── zone_rules.rs     # Post-match zone filtering
+│   ├── invariance.rs     # Sibling-set title invariance algorithm
+│   ├── pass2_helpers.rs  # Shared helpers for Pass-2 extractors
+│   ├── proper_count.rs   # PROPER/REPACK release-version derivation
+│   └── rule_registry.rs  # Compile-time rule→matcher registry
 ├── matcher/
 │   ├── span.rs         # MatchSpan + Property enum (49 variants)
 │   ├── engine.rs       # Conflict resolution (priority + length)
@@ -2395,6 +2407,87 @@ Disc support multiple values (serialized as JSON arrays).</li>
 <li>Bracket depth guard (max 3) prevents stack overflow from malicious input</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
+<h1 id="migrating-to-v200"><a class="header" href="#migrating-to-v200">Migrating to v2.0.0</a></h1>
+<p>hunch v2.0.0 is the first major version bump since v1.0. It carries
+two breaking API changes — both small, both summarized here in one
+place. The full release notes live in the <a href="#changelog">Changelog</a>.</p>
+<p>This page exists so library consumers don’t have to scrape the
+changelog: if your code compiles and runs against v1.x, the two
+sections below tell you everything you need to update.</p>
+<h2 id="1-propertybitrate-is-removed"><a class="header" href="#1-propertybitrate-is-removed">1. <code>Property::BitRate</code> is removed</a></h2>
+<p><code>Property::BitRate</code> was deprecated mid-v1 wave in favor of two
+unit-typed variants: <code>Property::AudioBitRate</code> (Kbps) and
+<code>Property::VideoBitRate</code> (Mbps). The bit-rate matcher captures the
+unit from the input and routes to one of the two specific variants;
+the old combined variant has been unreachable from any parser path
+since the split landed.</p>
+<p>Removing it now under the v2.0.0 major bump avoids forcing a v3.0.0
+just to delete one variant later.</p>
+<p><strong>If your code matches on <code>Property::BitRate</code>,</strong> switch to the
+unit-typed variants. The <code>#[non_exhaustive]</code> annotation already
+requires a wildcard arm, so the diff is usually a one-liner:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>match prop {
+    // Before:
+    Property::BitRate       =&gt; handle_either(value),
+
+    // After:
+    Property::AudioBitRate  =&gt; handle_audio(value),
+    Property::VideoBitRate  =&gt; handle_video(value),
+    _ =&gt; {} // already required by #[non_exhaustive]
+}
+<span class="boring">}</span></code></pre>
+<p>If you don’t care about the unit distinction, you can collapse both
+arms into one:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>Property::AudioBitRate | Property::VideoBitRate =&gt; handle_either(value),
+<span class="boring">}</span></code></pre>
+<h2 id="2-deep-module-imports-are-gone--use-crate-root-re-exports"><a class="header" href="#2-deep-module-imports-are-gone--use-crate-root-re-exports">2. Deep module imports are gone — use crate-root re-exports</a></h2>
+<p>The <code>Options</code> module and various deep-path imports under
+<code>hunch::pipeline::*</code>, <code>hunch::matcher::*</code>, and <code>hunch::properties::*</code>
+are no longer part of the public API surface. Everything an external
+caller needs is re-exported from the crate root.</p>
+<p><strong>If you have deep imports,</strong> switch to the crate-root re-exports:</p>
+<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// Before:
+use hunch::pipeline::Pipeline;
+use hunch::hunch_result::HunchResult;
+use hunch::matcher::span::Property;
+
+// After:
+use hunch::{Pipeline, HunchResult, Property};
+<span class="boring">}</span></code></pre>
+<p>For the full list of public types, the
+<a href="#public-api-surface">Public API Surface</a> page is generated
+directly from <code>cargo public-api</code> output and is the authoritative
+reference.</p>
+<h2 id="what-hasnt-changed"><a class="header" href="#what-hasnt-changed">What hasn’t changed</a></h2>
+<ul>
+<li><code>hunch()</code> and <code>hunch_with_context()</code> keep the same signatures.</li>
+<li><code>HunchResult</code> accessors (<code>.title()</code>, <code>.season()</code>, <code>.year()</code>, etc.)
+are unchanged. v2.0.0 actually <em>adds</em> a few:
+<code>HunchResult::is_movie()</code>, <code>is_episode()</code>, <code>is_extra()</code>,
+<code>audio_bit_rate()</code>, <code>video_bit_rate()</code>, <code>mimetype()</code>.</li>
+<li>The CLI (<code>hunch &lt;filename&gt;</code>, <code>hunch --batch &lt;dir&gt; -r</code>,
+<code>hunch --context &lt;dir&gt; &lt;file&gt;</code>) is fully backwards-compatible —
+no flag renames, no output-format breakage.</li>
+<li>The compatibility-report contract (per-property pass rates) holds:
+v2.0.0 maintains or improves every property’s accuracy versus v1.x.</li>
+</ul>
+<h2 id="why-a-major-bump-for-so-little"><a class="header" href="#why-a-major-bump-for-so-little">Why a major bump for so little?</a></h2>
+<p>Two reasons. <strong>One:</strong> SemVer requires it for any incompatible API
+change, no matter how small. Removing one enum variant qualifies even
+if it was effectively dead code. <strong>Two:</strong> both removals had been
+deprecated for one or more minor releases already; bundling them under
+a single major bump amortizes the upgrade cost (callers update once,
+not twice).</p>
+<p>If you find a v1.x integration point we missed, please
+<a href="https://github.com/lijunzh/hunch/issues/new/choose">open an issue</a> —
+the goal is <em>no</em> surprise breakage.</p>
+<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="changelog"><a class="header" href="#changelog">Changelog</a></h1>
 <p>This page is rendered from <a href="https://github.com/lijunzh/hunch/blob/main/CHANGELOG.md"><code>CHANGELOG.md</code></a>
 at the root of the repository (single source of truth). Format follows
@@ -2420,6 +2513,60 @@ Release prep checklist (per #179):
      gh-pages/release-snapshots/vX.Y.Z.json (~3 min after the tag push)
 -->
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
+<ul>
+<li><strong><code>#[must_use]</code> on <code>HunchResult</code> and <code>Pipeline</code>.</strong> Catches the easy
+mistake of dropping a parsed result or constructing a Pipeline without
+ever calling <code>.run()</code>. Also added explicit <code>#[must_use]</code> on the four
+<code>HunchResult</code> accessors that return non-must-use types
+(<code>confidence()</code>, <code>is_movie()</code>, <code>is_episode()</code>, <code>is_extra()</code>). The
+remaining accessors return <code>Option&lt;T&gt;</code> / <code>Vec&lt;T&gt;</code> which are already
+<code>#[must_use]</code> in std — no need to repeat. (#205, bundled in #218)</li>
+</ul>
+<h3 id="docs"><a class="header" href="#docs">Docs</a></h3>
+<ul>
+<li><strong>New <code>docs/src/about/migration-v2.md</code> page</strong> consolidating the v2.0.0
+breaking changes (<code>Property::BitRate</code> removal + deep-import deprecation)
+in one mdbook destination, so callers don’t have to scrape the
+changelog. Linked from <code>SUMMARY.md</code>. (#201, bundled in #218)</li>
+<li><strong><code>DESIGN.md</code> pipeline module map updated</strong> from the stale 5-file list
+to the actual 9 files (<code>mod</code>, <code>matching</code>, <code>context</code>, <code>token_context</code>,
+<code>zone_rules</code>, <code>invariance</code>, <code>pass2_helpers</code>, <code>proper_count</code>,
+<code>rule_registry</code>). (#200, bundled in #218)</li>
+<li><strong><code>DESIGN.md</code> D9</strong> now documents the third class of property matchers:
+derived properties (computed at result-build time from another
+property’s value). Currently the only one is <code>Property::Mimetype</code>,
+derived from <code>Container</code>. (#203, bundled in #218)</li>
+<li><strong><code>README.md</code> no longer duplicates the guessit pass-rate stats</strong> that
+live in the live compatibility report. The README now links and the
+per-property numbers stay in their single source of truth
+(regenerated from <code>cargo test -- --ignored guessit_compat</code>). The
+hard-coded <code># 295 tests</code> comment in the contribution snippet is
+also gone — it had drifted to ~612 and the count was never load-bearing.
+(#202, #204, bundled in #218)</li>
+</ul>
+<h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
+<ul>
+<li><strong><code>Show/Extras/Bonus.mkv</code> no longer inherits unrelated sibling titles
+via the ancestor cache.</strong> The CLI’s inheritance-blocking predicate
+(previously <code>is_sample_dir</code>, now <code>is_inheritance_blocking_dir</code>) covered
+<code>sample/samples/subs/subtitles/featurettes</code> but missed the equally
+common <code>extras/extra/specials/bonus</code>. In <code>--batch -r</code> mode, that gap
+let an unrelated movie title at the batch root leak into Extras
+subtrees of an adjacent show. (#208)</li>
+</ul>
+<h3 id="security"><a class="header" href="#security">Security</a></h3>
+<ul>
+<li><strong><code>list_media_files</code> now skips symlinks</strong>, mirroring the hardening
+already applied to <code>walk_dir_inner</code> for <code>--batch -r</code>. The function
+backs both <code>--context</code> mode and <code>--batch &lt;dir&gt;</code> (without <code>-r</code>); the
+previous use of <code>Path::is_file()</code> followed symlinks, allowing an
+attacker who controls files inside the user-chosen directory to inject
+crafted basenames from outside the directory into the parser. Hunch
+only reads basenames (not file contents), so the impact was low — but
+matching <code>walk_dir</code>’s defense story keeps both CLI entry points
+consistent. (#209)</li>
+</ul>
 <h3 id="added"><a class="header" href="#added">Added</a></h3>
 <ul>
 <li><strong><code>HunchResult::is_movie()</code>, <code>is_episode()</code>, <code>is_extra()</code> convenience
@@ -2439,7 +2586,7 @@ properties moved from 0% to 100% accuracy on the compatibility corpus.
 Previously only R5 was recognized. R7–R9 are intentionally omitted to
 limit false positives on niche release-group tokens. (#156)</li>
 </ul>
-<h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
+<h3 id="changed-1"><a class="header" href="#changed-1">Changed</a></h3>
 <ul>
 <li>
 <p><strong>⚠️ BREAKING: removed <code>Property::BitRate</code> variant.</strong> Deprecated in
@@ -2530,7 +2677,7 @@ prerelease audit (#196) — every <code>pub enum</code> in the crate is now
 consistently <code>#[non_exhaustive]</code>. (#172, #196)</p>
 </li>
 </ul>
-<h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
+<h3 id="fixed-1"><a class="header" href="#fixed-1">Fixed</a></h3>
 <ul>
 <li><strong>Website false-positives on country-code TLDs inside language
 abbreviations.</strong> Filenames like <code>Community.s02e20.rus.eng.720p.mkv</code>
@@ -2574,7 +2721,7 @@ safety boundaries (#153, #162), parse-torrent-name corpus pins
 (#157, #164).</li>
 </ul>
 <h2 id="118---2026-04-17"><a class="header" href="#118---2026-04-17"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.8">1.1.8</a> - 2026-04-17</a></h2>
-<h3 id="changed-1"><a class="header" href="#changed-1">Changed</a></h3>
+<h3 id="changed-2"><a class="header" href="#changed-2">Changed</a></h3>
 <ul>
 <li><strong><code>--batch -r</code> now bounds recursion depth and skips symlinks.</strong> Recursive
 directory walks (<code>hunch --batch &lt;dir&gt; -r</code>) cap at 32 levels deep and
@@ -2586,7 +2733,7 @@ NAS symlinks) will see fewer or zero results in v1.1.8 — either follow
 the symlinks before invoking hunch, or run hunch on the original
 directory tree. (#137)</li>
 </ul>
-<h3 id="fixed-1"><a class="header" href="#fixed-1">Fixed</a></h3>
+<h3 id="fixed-2"><a class="header" href="#fixed-2">Fixed</a></h3>
 <ul>
 <li><strong>Anime titles containing <code>" - "</code> and <code>"Part N"</code></strong> — in <code>[Group] Show - Sub Part 2 - 13 [tags]</code> style filenames, the title is now extracted as the full
 <code>Show - Sub Part 2</code>. Previously the parser truncated at the first <code>" - "</code>
@@ -2631,7 +2778,7 @@ realistic-depth happy path (depth 6); <code>cfg(unix)</code> symlink-loop contai
 (counts occurrences to prove non-following); outside-root symlink-escape
 rejection. (#137)</li>
 </ul>
-<h3 id="docs"><a class="header" href="#docs">Docs</a></h3>
+<h3 id="docs-1"><a class="header" href="#docs-1">Docs</a></h3>
 <ul>
 <li><strong><code>SECURITY.md</code> added</strong> at repo root with threat model, vulnerability
 reporting procedure (private GitHub Security Advisories), and explicit
@@ -2681,7 +2828,7 @@ credential commits (<code>.env*</code>, <code>*.pem</code>, <code>*.key</code>, 
 <code>credentials.json</code>, <code>service-account*.json</code>). (#139)</li>
 </ul>
 <h2 id="117---2026-03-23"><a class="header" href="#117---2026-03-23"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.7">1.1.7</a> - 2026-03-23</a></h2>
-<h3 id="fixed-2"><a class="header" href="#fixed-2">Fixed</a></h3>
+<h3 id="fixed-3"><a class="header" href="#fixed-3">Fixed</a></h3>
 <ul>
 <li><strong>Bracket metadata leakage</strong> — bracketed metadata in CJK/anime filenames no
 longer leaks into <code>episode_title</code>, and release-group extraction now prefers
@@ -2704,7 +2851,7 @@ trees. (#99)</li>
 as <code>title</code> when it looks like natural language instead of a release group.
 (#100)</li>
 </ul>
-<h3 id="docs-1"><a class="header" href="#docs-1">Docs</a></h3>
+<h3 id="docs-2"><a class="header" href="#docs-2">Docs</a></h3>
 <ul>
 <li>Added a README <strong>Known Limitations</strong> section documenting the main remaining
 edge-case categories and their tradeoffs. (#103)</li>
@@ -2730,7 +2877,7 @@ extraction for deeply nested libraries (<code>tv/Show/Season 1/01.mkv</code> →
 and subdirectories contain media files being skipped, hunch prints a hint
 to stderr suggesting <code>--batch -r</code>. (#74)</li>
 </ul>
-<h3 id="fixed-3"><a class="header" href="#fixed-3">Fixed</a></h3>
+<h3 id="fixed-4"><a class="header" href="#fixed-4">Fixed</a></h3>
 <ul>
 <li><strong>“Movie N” parsed as episode</strong> — <code>Detective.Conan.Movie.10...</code> in a
 <code>movie/</code> directory now returns <code>type=movie</code>. Bare number matches at
@@ -2748,7 +2895,7 @@ now include the parent directory path so the invariant title text (e.g.,
 “Paw Patrol”) is correctly identified and suppressed from episode titles.
 (#63)</li>
 </ul>
-<h3 id="changed-2"><a class="header" href="#changed-2">Changed</a></h3>
+<h3 id="changed-3"><a class="header" href="#changed-3">Changed</a></h3>
 <ul>
 <li><strong>Named priority constants</strong> — new <code>src/priority.rs</code> module exposes
 <code>STRUCTURAL</code>, <code>KEYWORD</code>, <code>VOCABULARY</code>, <code>DEFAULT</code>, <code>HEURISTIC</code>,
@@ -2758,7 +2905,7 @@ integers throughout the codebase. (#85)</li>
 names (e.g., <code>language_in_title_zone</code>) instead of numbers (Rule 1,
 Rule 2, …). (#86)</li>
 </ul>
-<h3 id="docs-2"><a class="header" href="#docs-2">Docs</a></h3>
+<h3 id="docs-3"><a class="header" href="#docs-3">Docs</a></h3>
 <ul>
 <li>Added <code>--batch -r</code> flag to CLI help, README, and user manual. (#69)</li>
 <li>Added P5 principle (surface ambiguity) and updated D6 in design.md. (#76)</li>
@@ -2791,7 +2938,7 @@ invariant years from metadata. (#47, #48)</li>
 path inference, invariance signals, cross-feature interactions, and
 panic safety edge cases.</li>
 </ul>
-<h3 id="changed-3"><a class="header" href="#changed-3">Changed</a></h3>
+<h3 id="changed-4"><a class="header" href="#changed-4">Changed</a></h3>
 <ul>
 <li><strong><code>find_invariant_text</code></strong> now returns <code>(usize, String)</code> — pre-computed
 byte offset eliminates fragile <code>input.find()</code> re-search that could match
@@ -2809,7 +2956,7 @@ per-call in episode title extraction).</li>
 <li><strong><code>is_episode_directory</code></strong> uses <code>strip_prefix('s')</code> instead of
 <code>component[1..]</code> byte indexing for safe UTF-8 handling.</li>
 </ul>
-<h3 id="fixed-4"><a class="header" href="#fixed-4">Fixed</a></h3>
+<h3 id="fixed-5"><a class="header" href="#fixed-5">Fixed</a></h3>
 <ul>
 <li><strong><code>CODEC_NUMBERS</code> shared constant</strong> (264, 265, 128) — extracted from
 duplicated checks in <code>invariance.rs</code> and <code>episodes/mod.rs</code>. (DRY)</li>
@@ -2835,7 +2982,7 @@ structural signals (tech anchors, title quality, cross-file context).</li>
 <code>requires_context</code>, <code>requires_nearby</code>, side effects, compound windows,
 zone scoping, and reclaimable matches.</li>
 </ul>
-<h3 id="changed-4"><a class="header" href="#changed-4">Changed</a></h3>
+<h3 id="changed-5"><a class="header" href="#changed-5">Changed</a></h3>
 <ul>
 <li><strong>Pipeline refactored</strong> into <code>pass1()</code> / <code>pass2()</code> for reuse by cross-file
 context. No behavior change for existing <code>run()</code> callers.</li>
@@ -2849,7 +2996,7 @@ dependencies.</li>
 <li><code>--batch</code> now properly conflicts with positional filename args.</li>
 <li><code>list_media_files</code> signature: <code>&amp;PathBuf</code> → <code>&amp;Path</code> (idiomatic Rust).</li>
 </ul>
-<h3 id="fixed-5"><a class="header" href="#fixed-5">Fixed</a></h3>
+<h3 id="fixed-6"><a class="header" href="#fixed-6">Fixed</a></h3>
 <ul>
 <li>Stale doc-links pointing to <code>hunch</code> instead of <code>hunch_with_context</code>.</li>
 <li><code>Pipeline</code> doc comment merged with <code>SegmentScope</code> doc (missing blank line).</li>
@@ -2857,7 +3004,7 @@ dependencies.</li>
 <li>README.md: removed deleted <code>options.rs</code>, updated test count to 333.</li>
 </ul>
 <h2 id="113---2026-03-19"><a class="header" href="#113---2026-03-19"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.3">1.1.3</a> - 2026-03-19</a></h2>
-<h3 id="changed-5"><a class="header" href="#changed-5">Changed</a></h3>
+<h3 id="changed-6"><a class="header" href="#changed-6">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 81.7% → 82.2%</strong> (1,069 → 1,076 / 1,309).</li>
 <li><strong>Structure-aware neighbor-context disambiguation</strong> — replaced fragile
@@ -2889,7 +3036,7 @@ not hardcoded to the leaf filename.</li>
 <li><strong>episode_title: 73.6% → 76.1%</strong> — parent-dir extraction, boundary fixes.</li>
 <li><strong>other: 88.8% → 89.1%</strong> — TOML-driven <code>requires_nearby</code> for “Proper”.</li>
 </ul>
-<h3 id="fixed-6"><a class="header" href="#fixed-6">Fixed</a></h3>
+<h3 id="fixed-7"><a class="header" href="#fixed-7">Fixed</a></h3>
 <ul>
 <li>Episode title extraction from parent directories when the leaf filename
 contains only a numeric code (e.g., <code>Bones.S12E02.The.Brain.In.The.Bot .1080p.WEB-DL/161219_06.mkv</code> → episode_title: “The Brain In The Bot”).</li>
@@ -2914,7 +3061,7 @@ These were dead code from v1.0.0 (never wired into the pipeline).</li>
 <li><code>src/options.rs</code> module deleted.</li>
 </ul>
 <h2 id="112---2026-02-28"><a class="header" href="#112---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.2">1.1.2</a> - 2026-02-28</a></h2>
-<h3 id="fixed-7"><a class="header" href="#fixed-7">Fixed</a></h3>
+<h3 id="fixed-8"><a class="header" href="#fixed-8">Fixed</a></h3>
 <ul>
 <li><strong>docs.rs build</strong> — added <code>rust-version = "1.85"</code> and
 <code>[package.metadata.docs.rs]</code> to <code>Cargo.toml</code>. Edition 2024 requires
@@ -2922,7 +3069,7 @@ Rust 1.85+; docs.rs needs this hint to select a compatible toolchain.
 Versions 1.0.0–1.1.1 failed to build on docs.rs for this reason.</li>
 </ul>
 <h2 id="111---2026-02-28"><a class="header" href="#111---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.1">1.1.1</a> - 2026-02-28</a></h2>
-<h3 id="fixed-8"><a class="header" href="#fixed-8">Fixed</a></h3>
+<h3 id="fixed-9"><a class="header" href="#fixed-9">Fixed</a></h3>
 <ul>
 <li><strong><code>cargo fmt</code></strong> — applied rustfmt to all files modified in v1.1.0.
 No logic changes; line wrapping only.</li>
@@ -2944,7 +3091,7 @@ regressions.</li>
 <li><strong>15 new doc-tests</strong> — all rustdoc examples are compiled and run as
 part of <code>cargo test</code> (total: 295 tests).</li>
 </ul>
-<h3 id="changed-6"><a class="header" href="#changed-6">Changed</a></h3>
+<h3 id="changed-7"><a class="header" href="#changed-7">Changed</a></h3>
 <ul>
 <li><strong>Comprehensive Rustdoc coverage</strong> — 81 missing-doc warnings → 0:
 <ul>
@@ -2965,7 +3112,7 @@ count (295).</li>
 <li><strong>CLI error handling</strong> — JSON serialization errors now print to stderr
 and exit(1) instead of silently producing empty output.</li>
 </ul>
-<h3 id="fixed-9"><a class="header" href="#fixed-9">Fixed</a></h3>
+<h3 id="fixed-10"><a class="header" href="#fixed-10">Fixed</a></h3>
 <ul>
 <li><strong>~30 bare <code>.unwrap()</code> calls</strong> replaced with descriptive <code>.expect()</code>
 messages across <code>zone_map.rs</code>, <code>bit_rate.rs</code>, <code>size.rs</code>, <code>uuid.rs</code>,
@@ -2977,7 +3124,7 @@ algorithmic complexity and future optimization path.</li>
 planned <code>media_type</code> / <code>expected_title</code> wiring.</li>
 </ul>
 <h2 id="101---2026-02-28"><a class="header" href="#101---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.0.1">1.0.1</a> - 2026-02-28</a></h2>
-<h3 id="fixed-10"><a class="header" href="#fixed-10">Fixed</a></h3>
+<h3 id="fixed-11"><a class="header" href="#fixed-11">Fixed</a></h3>
 <ul>
 <li><strong>Documentation patch</strong> — v1.0.0 shipped with incorrect compatibility
 numbers in README. This release corrects all documentation to match
@@ -2986,7 +3133,7 @@ actual test results (81.7%, 1,069 / 1,309).</li>
 <li>Added missing CHANGELOG entries for v1.0.0 and v1.0.1.</li>
 </ul>
 <h2 id="100---2026-02-28"><a class="header" href="#100---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.0.0">1.0.0</a> - 2026-02-28</a></h2>
-<h3 id="changed-7"><a class="header" href="#changed-7">Changed</a></h3>
+<h3 id="changed-8"><a class="header" href="#changed-8">Changed</a></h3>
 <ul>
 <li><strong>Stable release</strong> — first non-pre-release version.</li>
 <li>Removed “in progress” / “developing” warnings from all documentation.</li>
@@ -3002,7 +3149,7 @@ actual test results (81.7%, 1,069 / 1,309).</li>
 <li>Single binary, TOML rules embedded at compile time.</li>
 </ul>
 <h2 id="031---2026-02-27"><a class="header" href="#031---2026-02-27"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.3.1">0.3.1</a> - 2026-02-27</a></h2>
-<h3 id="fixed-11"><a class="header" href="#fixed-11">Fixed</a></h3>
+<h3 id="fixed-12"><a class="header" href="#fixed-12">Fixed</a></h3>
 <ul>
 <li><strong>Language/subtitle_language disambiguation</strong> — Add zone Rule 8 to
 suppress Language matches contained within SubtitleLanguage spans.
@@ -3018,7 +3165,7 @@ Multi-language bracket patterns like <code>St{Fr-Eng}</code> now correctly
 extract both languages.</li>
 <li><strong>Remove unused <code>is_episode_property</code></strong> — Dead code cleanup.</li>
 </ul>
-<h3 id="changed-8"><a class="header" href="#changed-8">Changed</a></h3>
+<h3 id="changed-9"><a class="header" href="#changed-9">Changed</a></h3>
 <ul>
 <li><strong>language.yml pass rate</strong> — 66.7% → 100% (ratcheted to 98%).</li>
 <li><strong>Enable Language rules in directory segments</strong> — Language TOML
@@ -3070,7 +3217,7 @@ title extraction skips to the first non-tech gap.</li>
 <li><strong>Zone Rule 1 duplicate language detection</strong> — drops language in
 title zone when the same language appears in the tech zone.</li>
 </ul>
-<h3 id="changed-9"><a class="header" href="#changed-9">Changed</a></h3>
+<h3 id="changed-10"><a class="header" href="#changed-10">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 79.0% → 80.0%</strong> (1,034 → 1,047 / 1,309).</li>
 <li><strong>title: 90.1% → 91.6%</strong> — leading codec, language dedup, asterisks.</li>
@@ -3083,7 +3230,7 @@ title zone when the same language appears in the tech zone.</li>
 <li><strong>Zone Rule 5</strong> moved to <code>apply_post_release_group_rules()</code> so it
 can see release group positions.</li>
 </ul>
-<h3 id="fixed-12"><a class="header" href="#fixed-12">Fixed</a></h3>
+<h3 id="fixed-13"><a class="header" href="#fixed-13">Fixed</a></h3>
 <ul>
 <li><strong>video_codec.toml</strong>: HEVC suffix regex <code>hevc.+</code> → <code>hevc[a-zA-Z0-9_]+</code>
 to prevent multi-token window over-matching (e.g., HEVC.Atmos-GROUP).</li>
@@ -3115,7 +3262,7 @@ source (TV) and a specific source (HDTV) exist, the generic is dropped.</li>
 year is ≥6 bytes, the year enables zone filtering even without Tier 1/2
 anchors. Fixes titles like <code>A.Common.Title.Special.2014</code>.</li>
 </ul>
-<h3 id="changed-10"><a class="header" href="#changed-10">Changed</a></h3>
+<h3 id="changed-11"><a class="header" href="#changed-11">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 76.6% → 79.1%</strong> (1,003 → 1,036 / 1,309).</li>
 <li><strong>edition: 97.6% → 100%</strong> on per-property accuracy.</li>
@@ -3131,7 +3278,7 @@ SCR screener, FanSub pruning, Dubbed not_after.</li>
 <li><strong>release_group module</strong> split into <code>mod.rs</code> + <code>known_tokens.rs</code>
 (626 lines → 312 + 190).</li>
 </ul>
-<h3 id="fixed-13"><a class="header" href="#fixed-13">Fixed</a></h3>
+<h3 id="fixed-14"><a class="header" href="#fixed-14">Fixed</a></h3>
 <ul>
 <li><strong>HQ standalone</strong> → Other:High Quality (was audio_profile:High Quality).
 AudioProfile HQ now requires AAC prefix.</li>
@@ -3168,7 +3315,7 @@ Other:Screener, Other:Reencoded via declarative side_effects.</li>
 <li><strong>Zone Rule 7</strong> — promotes Blu-ray → Ultra HD Blu-ray when UHD/4K/2160p
 signals exist elsewhere in the filename.</li>
 </ul>
-<h3 id="changed-11"><a class="header" href="#changed-11">Changed</a></h3>
+<h3 id="changed-12"><a class="header" href="#changed-12">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 78.2% → 76.6%</strong> (1,023 → 1,003 / 1,309).
 Slight regression from eliminating dual-pipeline overlap; source-specific
@@ -3204,7 +3351,7 @@ retiring zone Rule 4.</li>
 directly instead of re-deriving from match positions.</li>
 <li><strong>cargo clippy</strong> clean — zero warnings.</li>
 </ul>
-<h3 id="fixed-14"><a class="header" href="#fixed-14">Fixed</a></h3>
+<h3 id="fixed-15"><a class="header" href="#fixed-15">Fixed</a></h3>
 <ul>
 <li><strong>Title: “The 100” pattern</strong> — absolute episode candidates before the
 first S/E span are now skipped.</li>
@@ -3252,7 +3399,7 @@ are treated as title.</li>
 <li><strong>Subtitle language capture groups</strong> — <code>SUB.FR</code> / <code>FR-SUB</code> patterns
 extract the language code via <code>{1}</code> template.</li>
 </ul>
-<h3 id="changed-12"><a class="header" href="#changed-12">Changed</a></h3>
+<h3 id="changed-13"><a class="header" href="#changed-13">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 75.1% → 77.3%</strong> (983 → 1,012 / 1,309 test cases).</li>
 <li><strong><code>fancy_regex</code> removed entirely</strong> — all regex is now standard <code>regex</code>
@@ -3308,7 +3455,7 @@ offline-only constraints.</li>
 <li><strong>Español Castellano</strong> — combined pattern maps to Catalan correctly.</li>
 <li><strong>DTS.HD-MA</strong> — dot-separated <code>DTS.HD-MA</code> now matches as DTS-HD.</li>
 </ul>
-<h3 id="changed-13"><a class="header" href="#changed-13">Changed</a></h3>
+<h3 id="changed-14"><a class="header" href="#changed-14">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 61.6% → 75.1%</strong> (806 → 983 / 1,309 test cases).</li>
 <li><strong>proper_count</strong> — <code>REAL</code> keyword scanned case-insensitively but only
@@ -3324,7 +3471,7 @@ in the technical zone (prevents false positives on titles like
 <li>Pre-built binaries for 5 platforms in GitHub Releases.</li>
 <li><code>cargo-binstall</code> support — install without compiling.</li>
 </ul>
-<h3 id="fixed-15"><a class="header" href="#fixed-15">Fixed</a></h3>
+<h3 id="fixed-16"><a class="header" href="#fixed-16">Fixed</a></h3>
 <ul>
 <li>All clippy warnings resolved.</li>
 <li><code>cargo fmt</code> applied consistently.</li>
