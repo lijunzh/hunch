@@ -194,17 +194,19 @@ fn run_batch(pipeline: &Pipeline, batch_dir: &Path, recursive: bool, json: bool)
 
         // Look up the nearest ancestor's cached title as a fallback hint.
         // This propagates invariance results from parent directories to
-        // child directories like Extras/, 特典映像/, SP/. (#94)
+        // child directories like SP/, 特典映像/. (#94)
         //
-        // Suppress the fallback for generic child directories like
-        // Samples/, Sample/ — these are not show content and should not
-        // inherit the parent's title. (#97 comment)
+        // Suppress the fallback for child directories whose names signal
+        // "this is auxiliary content, not show episodes" — Sample/,
+        // Subs/, Extras/, Specials/, Bonus/, Featurettes/. These should
+        // not inherit the parent's title because the parent's invariance
+        // was computed over a different content type. (#97, #208)
         let fallback_title: Option<&str> = if recursive {
             let dir_name = Path::new(parent_key)
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("");
-            if is_sample_dir(dir_name) {
+            if is_inheritance_blocking_dir(dir_name) {
                 None
             } else {
                 find_ancestor_title(parent_key, &dir_titles)
@@ -512,13 +514,30 @@ fn dir_contains_media_inner(dir: &Path, depth: usize) -> bool {
         .any(|d| dir_contains_media_inner(d, depth + 1))
 }
 
-/// Check whether a directory name indicates sample/preview content.
+/// Check whether a directory name signals "auxiliary content, not show
+/// episodes" — i.e., its files should NOT inherit the parent's title via
+/// the ancestor-title fallback.
 ///
-/// Sample directories should not inherit parent titles — their files
-/// are clips, not show episodes. (#97)
-fn is_sample_dir(name: &str) -> bool {
+/// Two flavors of blocking:
+///
+/// - **Sample/preview content** (`sample`, `samples`, `subs`, `subtitles`,
+///   `featurettes`) — clips and packaging, not the show itself. (#97)
+/// - **Extras/specials content** (`extras`, `extra`, `specials`, `bonus`)
+///   — bonus features that live alongside a show but don't share its
+///   title metadata. Without blocking, a `Show/Extras/Bonus.mkv` file in
+///   a batch alongside an unrelated `Movie.mkv` could inherit "Movie"
+///   from the batch-root cache. (#208)
+fn is_inheritance_blocking_dir(name: &str) -> bool {
     matches!(
         name.to_ascii_lowercase().as_str(),
-        "sample" | "samples" | "subs" | "subtitles" | "featurettes"
+        "sample"
+            | "samples"
+            | "subs"
+            | "subtitles"
+            | "featurettes"
+            | "extras"
+            | "extra"
+            | "specials"
+            | "bonus"
     )
 }
