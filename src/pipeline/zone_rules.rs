@@ -66,7 +66,7 @@ pub fn apply_zone_rules(
         initial_count
     );
 
-    // ── source_in_title_context ───────────────────────────────────────
+    // ── source_in_title_context ───────────────────────────────
     // When multiple sources exist, drop the one(s) surrounded by title words.
     // This replaces the fragile "before anchor = title word" heuristic.
     let source_count = matches
@@ -81,6 +81,34 @@ pub fn apply_zone_rules(
             .map(|m| m.start)
             .collect();
         matches.retain(|m| m.property != Property::Source || !drop_positions.contains(&m.start));
+    }
+
+    // ── ancestor_source_yields_to_filename (#212 bug 3) ─────────────
+    // Source matches from ancestor-path segments (e.g. `tv/`, `Blu-ray/`,
+    // `WEB-DL/`) are organisational hints, not authoritative metadata.
+    // When the filename itself carries an explicit source marker (e.g.
+    // `WEB-DL`, `BDRip`, `HDTV`), that match wins and any conflicting
+    // ancestor-path matches are dropped.
+    //
+    // Example: `/Volumes/media/tv/Show.WEB-DL.mkv` previously yielded
+    // `source: ["TV", "Web"]`. After this rule: `source: "Web"`.
+    //
+    // Ancestor-only sources (no filename source) are preserved — e.g.
+    // `/Volumes/Blu-ray/Movie.mkv` still detects `source: "Blu-ray"`.
+    {
+        let has_filename_source = matches
+            .iter()
+            .any(|m| m.property == Property::Source && m.start >= fn_start);
+        if has_filename_source {
+            let before = matches.len();
+            matches.retain(|m| !(m.property == Property::Source && m.start < fn_start));
+            if matches.len() < before {
+                trace!(
+                    "zone rules: dropped {} ancestor-path Source match(es) in favor of filename source",
+                    before - matches.len()
+                );
+            }
+        }
     }
 
     // ── uhd_bluray_promotion ──────────────────────────────────────────
