@@ -185,6 +185,15 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     // High confidence: structural markers (always run)
     try_sxxexx_family(input, &mut matches);
 
+    // CJK fansub Latin-ordinal season+episode: `[4th - 01]` etc.
+    // Runs early because it's an explicit structural marker (carries
+    // BOTH season and episode), not a heuristic. Only runs if the
+    // SxxExx family didn't already produce a match — SxxExx wins on
+    // overlap (rare in practice; CJK fansubs rarely use both).
+    if matches.is_empty() {
+        try_nth_dash_episode(input, &mut matches);
+    }
+
     // Medium-high: compact notation (only if no SxxExx found)
     if matches.is_empty() {
         try_nxn(input, &mut matches);
@@ -205,6 +214,12 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     if !has_property(&matches, Property::Episode) {
         try_cjk_episode_marker(input, &mut matches);
     }
+
+    // CJK cumulative-episode marker: `[总第67]` → absolute_episode=67.
+    // Runs unconditionally (independent of Episode detection) because
+    // it produces AbsoluteEpisode, not Episode — the two coexist by
+    // design (e.g. season 4 episode 1 = cumulative episode 67).
+    try_cjk_cumulative_episode(input, &mut matches);
 
     // Low confidence: digit decomposition (only if nothing found)
     if !has_property(&matches, Property::Season) && !has_property(&matches, Property::Episode) {
@@ -856,7 +871,7 @@ fn try_cjk_bracket_episode(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 }
 
-// ── Group 4c: CJK ordinal episode markers ─────────────────────────────
+// ── Group 4c: CJK ordinal episode markers ─────────────────────
 
 /// CJK ordinal episode markers: 第N話 (Japanese), 第N集 (Chinese), 第N话, 第N回.
 ///
@@ -886,6 +901,58 @@ fn try_cjk_episode_marker(input: &str, matches: &mut Vec<MatchSpan>) {
             MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
                 .with_priority(crate::priority::KEYWORD),
         );
+    }
+}
+
+// ── Group 4d: CJK fansub Latin-ordinal season+episode ─────────────
+
+/// CJK fansub Latin-ordinal season+episode: `[4th - 01]`, `[2nd - 12]`,
+/// `[4th - 01v2]`. Common in Chinese fansub releases that bracket the
+/// English ordinal season label alongside the episode number.
+///
+/// Both season and episode are emitted at structural priority — this
+/// is an explicit marker, not a heuristic.
+///
+/// Examples:
+/// - `[晚街与灯][Re Zero ...][4th - 01][总第67]...mkv` → season=4, episode=1
+/// - `[Group][Title][2nd - 12v2][...]` → season=2, episode=12
+fn try_nth_dash_episode(input: &str, matches: &mut Vec<MatchSpan>) {
+    for cap in NTH_DASH_EPISODE.captures_iter(input) {
+        let full = cap.get(0).expect("group 0 always present");
+        let season = parse_num(&cap, "season");
+        let episode = parse_num(&cap, "episode");
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Season, season)
+                .with_priority(crate::priority::STRUCTURAL),
+        );
+        matches.push(
+            MatchSpan::new(full.start(), full.end(), Property::Episode, episode)
+                .with_priority(crate::priority::STRUCTURAL),
+        );
+    }
+}
+
+// ── Group 4e: CJK cumulative-episode marker ───────────────────
+
+/// CJK cumulative-episode marker: `[总第67]` → absolute_episode=67.
+///
+/// `总第` literally means "cumulative episode" in Chinese. This is a
+/// common Chinese fansub convention for tagging the absolute episode
+/// number of a multi-season series alongside the per-season number
+/// (e.g. season 4 episode 1 = cumulative episode 67).
+///
+/// Emits [`Property::AbsoluteEpisode`] independently of regular Episode
+/// detection — the two are designed to coexist.
+fn try_cjk_cumulative_episode(input: &str, matches: &mut Vec<MatchSpan>) {
+    for cap in CJK_CUMULATIVE_EPISODE.captures_iter(input) {
+        let full = cap.get(0).expect("group 0 always present");
+        let abs_ep = parse_num(&cap, "absolute_episode");
+        matches.push(MatchSpan::new(
+            full.start(),
+            full.end(),
+            Property::AbsoluteEpisode,
+            abs_ep,
+        ));
     }
 }
 

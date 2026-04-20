@@ -304,3 +304,174 @@ fn test_season_range_word() {
         .collect();
     assert_eq!(seasons.len(), 3, "Expected 3 seasons, got: {:?}", seasons);
 }
+
+// ── Issue #212: CJK fansub patterns ──────────────────────────────
+
+#[test]
+fn test_nth_dash_episode_basic() {
+    // [4th - 01] → season 4, episode 1
+    let m = find_matches("[Group][Title][4th - 01][1080P].mkv");
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::Season && x.value == "4"),
+        "Expected season 4, got: {:?}",
+        m.iter()
+            .filter(|x| x.property == Property::Season)
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::Episode && x.value == "1"),
+        "Expected episode 1, got: {:?}",
+        m.iter()
+            .filter(|x| x.property == Property::Episode)
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn test_nth_dash_episode_all_ordinals() {
+    // 1st through 9th should all parse.
+    for (label, season) in [
+        ("1st", "1"),
+        ("2nd", "2"),
+        ("3rd", "3"),
+        ("4th", "4"),
+        ("5th", "5"),
+        ("9th", "9"),
+    ] {
+        let filename = format!("[Group][Title][{} - 03][1080P].mkv", label);
+        let m = find_matches(&filename);
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == season),
+            "Expected season {} for {:?}, got: {:?}",
+            season,
+            filename,
+            m
+        );
+    }
+}
+
+#[test]
+fn test_nth_dash_episode_with_version() {
+    // [4th - 01v2] — the v2 is a revision suffix; episode is still 1.
+    let m = find_matches("[Group][Title][4th - 01v2][1080P].mkv");
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::Season && x.value == "4")
+    );
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::Episode && x.value == "1")
+    );
+}
+
+#[test]
+fn test_nth_dash_episode_em_dash() {
+    // Some fansubs use em-dash (—) or en-dash (–) instead of hyphen.
+    let m = find_matches("[Group][Title][3rd – 12][1080P].mkv");
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::Season && x.value == "3")
+    );
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::Episode && x.value == "12")
+    );
+}
+
+#[test]
+fn test_nth_dash_episode_ignores_two_digit_ordinals() {
+    // We deliberately only match single-digit ordinals (1st-9th) to
+    // avoid false positives on group names / scene tags.
+    let m = find_matches("[Group][Title][10th - 05][1080P].mkv");
+    assert!(
+        !m.iter()
+            .any(|x| x.property == Property::Season && x.value == "10"),
+        "Should NOT match two-digit ordinals like '10th', got: {:?}",
+        m.iter()
+            .filter(|x| x.property == Property::Season)
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn test_cjk_cumulative_episode_basic() {
+    // [总第67] → absolute_episode 67
+    let m = find_matches("[Group][Title][4th - 01][总第67][1080P].mkv");
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::AbsoluteEpisode && x.value == "67"),
+        "Expected absolute_episode 67, got: {:?}",
+        m.iter()
+            .filter(|x| x.property == Property::AbsoluteEpisode)
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn test_cjk_cumulative_episode_with_whitespace() {
+    // [总第 100] with space — should still match.
+    let m = find_matches("[Group][Title][总第 100][1080P].mkv");
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::AbsoluteEpisode && x.value == "100")
+    );
+}
+
+#[test]
+fn test_cjk_cumulative_episode_independent_of_episode() {
+    // The cumulative pattern emits AbsoluteEpisode even when no
+    // regular Episode is present in the filename.
+    let m = find_matches("[Group][Title][总第42][1080P].mkv");
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::AbsoluteEpisode && x.value == "42")
+    );
+}
+
+#[test]
+fn test_212_full_filename_regression() {
+    // The exact filenames from issue #212. Pins season + episode +
+    // absolute_episode + (implicitly) `type: episode` via the
+    // cascading effect on type classification.
+    let cases = [
+        (
+            "[晚街与灯][Re Zero kara Hajimeru Isekai Seikatsu][4th - 01][总第67][WEB-DL Remux][1080P_AVC_AAC][简繁日内封PGS][V2].mkv",
+            "4",
+            "1",
+            "67",
+        ),
+        (
+            "[晚街与灯][Re Zero kara Hajimeru Isekai Seikatsu][4th - 02][总第68][WEB-DL Remux][1080P_AVC_AAC][简繁日内封PGS].mkv",
+            "4",
+            "2",
+            "68",
+        ),
+    ];
+    for (filename, season, episode, abs_ep) in cases {
+        let m = find_matches(filename);
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Season && x.value == season),
+            "Expected season {} in {:?}",
+            season,
+            filename
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::Episode && x.value == episode),
+            "Expected episode {} in {:?}",
+            episode,
+            filename
+        );
+        assert!(
+            m.iter()
+                .any(|x| x.property == Property::AbsoluteEpisode && x.value == abs_ep),
+            "Expected absolute_episode {} in {:?}",
+            abs_ep,
+            filename
+        );
+    }
+}
