@@ -1,8 +1,8 @@
 //! Audio codec and channel detection — now handled by TOML rules.
 //!
-//! - `rules/audio_codec.toml`: codec patterns + combined codec+channel side_effects
-//! - `rules/audio_channels.toml`: standalone channel count patterns
-//! - `rules/audio_profile.toml`: codec profile patterns (MA, Atmos, etc.)
+//! - `src/rules/audio_codec.toml`: codec patterns + combined codec+channel side_effects
+//! - `src/rules/audio_channels.toml`: standalone channel count patterns
+//! - `src/rules/audio_profile.toml`: codec profile patterns (MA, Atmos, etc.)
 
 #[cfg(test)]
 mod tests {

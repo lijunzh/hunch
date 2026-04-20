@@ -1,6 +1,6 @@
 //! Language detection — bracket/brace multi-language codes only.
 //!
-//! Simple language tokens are handled by `rules/language.toml`.
+//! Simple language tokens are handled by `src/rules/language.toml`.
 //! This module handles ONLY the custom parsing cases that TOML cannot express:
 //! - Bracketed multi-language: `[ENG+RU+PT]`, `[ENG+DE+IT]`
 //! - Brace-delimited codes: `{Fr-Eng}`, `{Fr-Eng}`

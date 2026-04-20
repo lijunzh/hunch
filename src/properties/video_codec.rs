@@ -1,4 +1,4 @@
-//! Video codec detection — now fully handled by `rules/video_codec.toml`.
+//! Video codec detection — now fully handled by `src/rules/video_codec.toml`.
 
 #[cfg(test)]
 mod tests {

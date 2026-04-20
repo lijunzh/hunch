@@ -1,4 +1,4 @@
-//! Country detection — now fully handled by `rules/country.toml`.
+//! Country detection — now fully handled by `src/rules/country.toml`.
 
 #[cfg(test)]
 mod tests {

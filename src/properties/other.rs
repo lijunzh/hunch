@@ -1,8 +1,8 @@
 //! "Other" flags: HDR, Remux, Proper, Repack, 3D, region codes, etc.
 //!
 //! Now fully handled by TOML rules:
-//! - `rules/other.toml`: unambiguous tokens (Remux, HDR10, Proper, etc.)
-//! - `rules/other_positional.toml`: position-dependent tokens (HD, 3D, Proof, DV)
+//! - `src/rules/other.toml`: unambiguous tokens (Remux, HDR10, Proper, etc.)
+//! - `src/rules/other_positional.toml`: position-dependent tokens (HD, 3D, Proof, DV)
 //!   with `zone_scope = "tech_only"` to suppress in title zones.
 
 #[cfg(test)]

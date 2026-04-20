@@ -1,4 +1,4 @@
-//! Streaming service detection — now fully handled by `rules/streaming_service.toml`.
+//! Streaming service detection — now fully handled by `src/rules/streaming_service.toml`.
 
 #[cfg(test)]
 mod tests {

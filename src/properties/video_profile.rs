@@ -1,4 +1,4 @@
-//! Video profile detection — now fully handled by `rules/video_profile.toml`.
+//! Video profile detection — now fully handled by `src/rules/video_profile.toml`.
 
 #[cfg(test)]
 mod tests {

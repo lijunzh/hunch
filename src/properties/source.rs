@@ -1,6 +1,6 @@
 //! Source / origin detection (Blu-ray, WEB-DL, HDTV, DVD, etc.).
 //!
-//! Now fully handled by TOML rules (`rules/source.toml`) with side_effects
+//! Now fully handled by TOML rules (`src/rules/source.toml`) with side_effects
 //! for Rip, Screener, and Reencoded flags. Ultra HD Blu-ray promotion for
 //! wide-gap patterns (UHD...Bluray with 4+ tokens between) is handled by
 //! zone_rules `subtitle_source_conflict`.

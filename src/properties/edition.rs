@@ -1,4 +1,4 @@
-//! Edition detection — now fully handled by `rules/edition.toml`.
+//! Edition detection — now fully handled by `src/rules/edition.toml`.
 
 #[cfg(test)]
 mod tests {

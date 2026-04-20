@@ -1,6 +1,6 @@
 //! Subtitle language detection — algorithmic patterns only.
 //!
-//! Simple vocabulary-based markers are handled by `rules/subtitle_language.toml`.
+//! Simple vocabulary-based markers are handled by `src/rules/subtitle_language.toml`.
 //! This module handles patterns that require algorithmic/positional logic:
 //! - File extensions: movie.eng.srt
 //! - SUBFORCED with optional language prefix

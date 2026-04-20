@@ -1,4 +1,4 @@
-//! Audio profile detection — now fully handled by `rules/audio_profile.toml`.
+//! Audio profile detection — now fully handled by `src/rules/audio_profile.toml`.
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,4 @@
-//! Color depth detection — now fully handled by `rules/color_depth.toml`.
+//! Color depth detection — now fully handled by `src/rules/color_depth.toml`.
 
 #[cfg(test)]
 mod tests {

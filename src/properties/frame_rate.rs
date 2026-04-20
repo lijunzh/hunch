@@ -1,4 +1,4 @@
-//! Frame rate detection — now fully handled by `rules/frame_rate.toml`.
+//! Frame rate detection — now fully handled by `src/rules/frame_rate.toml`.
 //!
 //! The TOML rule engine handles:
 //! - Explicit fps: `24fps`, `120fps`, `29.97fps`
