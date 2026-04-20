@@ -14,6 +14,20 @@ Release prep checklist:
 
 ## [Unreleased]
 
+### Docs
+
+- **README polish.** Replaced the stale `Coverage` badge (the underlying
+  CI job was deleted in #216 — the 94.34% number is frozen forever) with
+  the standard four-badge row: CI status, crates.io version, docs.rs,
+  and license. Scaled back the "Real-world accuracy" section to point at
+  the live compatibility report only — the prior personal-library
+  anecdote ("99.8% across 7,838 files") was a single ad-hoc data point,
+  not a reproducible measurement, and the section header now matches
+  what's actually claimed ("Accuracy"). Dropped the inline Contributing
+  and License sections — the new license badge links to `LICENSE`, and
+  `CONTRIBUTING.md` stays in the repo root next to the README. Net diff:
+  −13 lines.
+
 ## [2.0.0] - 2026-04-20
 
 ### Removed
