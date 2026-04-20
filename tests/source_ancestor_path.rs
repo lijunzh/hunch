@@ -119,3 +119,90 @@ fn filename_only_no_ancestor_unaffected() {
     assert_eq!(r.source(), Some("Web"));
     assert_eq!(source_count(&r), 1);
 }
+
+// ── Full end-to-end regression for #212 ──────────────────────
+
+/// The complete contract from #212: given the original reported absolute
+/// path, hunch must extract every field correctly. This test pins the
+/// interaction between three independent fixes that together close the
+/// issue:
+///
+/// 1. CJK fansub `[Nth - NN]` parsing (this branch's parent commit) —
+///    yields season + episode.
+/// 2. CJK cumulative `[总第NN]` parsing (this branch's parent commit) —
+///    yields absolute_episode.
+/// 3. Ancestor-path source dedup (this commit) — yields a single `Web`
+///    source value instead of `["TV", "Web"]`.
+///
+/// If any of those three regress, this test fails. The earlier per-
+/// concern tests (`test_212_full_filename_regression` for the patterns
+/// in `src/properties/episodes/tests.rs`, and the source-only tests
+/// above) only pin one slice each.
+#[test]
+fn issue_212_full_end_to_end_with_path() {
+    let r = hunch(
+        "/Volumes/media/tv/Anime/[\u{665a}\u{8857}\u{4e0e}\u{706f}]\
+         [Re Zero kara Hajimeru Isekai Seikatsu]\
+         [4th - 01][\u{603b}\u{7b2c}67]\
+         [WEB-DL Remux][1080P_AVC_AAC]\
+         [\u{7b80}\u{7e41}\u{65e5}\u{5185}\u{5c01}PGS][V2].mkv",
+    );
+
+    // Episode parsing (PR #213 territory)
+    assert_eq!(r.season(), Some(4), "season from [4th - 01]");
+    assert_eq!(r.episode(), Some(1), "episode from [4th - 01]");
+    let abs_ep = r
+        .to_flat_map()
+        .get("absolute_episode")
+        .and_then(|v| v.as_i64());
+    assert_eq!(
+        abs_ep,
+        Some(67),
+        "absolute_episode from [\u{603b}\u{7b2c}67]"
+    );
+
+    // Ancestor-path source dedup (PR #214 — this commit)
+    assert_eq!(
+        r.source(),
+        Some("Web"),
+        "single source value, no TV pollution"
+    );
+    assert_eq!(
+        source_count(&r),
+        1,
+        "expected single 'Web' source, not array"
+    );
+
+    // Cascading correctness (type classifier sees season+episode)
+    assert!(r.is_episode(), "type should be episode, not movie");
+
+    // Other fields that should round-trip cleanly
+    assert_eq!(r.title(), Some("Re Zero kara Hajimeru Isekai Seikatsu"));
+    assert_eq!(r.release_group(), Some("\u{665a}\u{8857}\u{4e0e}\u{706f}"));
+    assert_eq!(r.video_codec(), Some("H.264"));
+    assert_eq!(r.audio_codec(), Some("AAC"));
+    assert_eq!(r.screen_size(), Some("1080p"));
+    assert_eq!(r.container(), Some("mkv"));
+}
+
+/// Episode 02 variant (no `[V2]` suffix) — same coverage as above.
+#[test]
+fn issue_212_full_end_to_end_with_path_episode_02() {
+    let r = hunch(
+        "/Volumes/media/tv/Anime/[\u{665a}\u{8857}\u{4e0e}\u{706f}]\
+         [Re Zero kara Hajimeru Isekai Seikatsu]\
+         [4th - 02][\u{603b}\u{7b2c}68]\
+         [WEB-DL Remux][1080P_AVC_AAC]\
+         [\u{7b80}\u{7e41}\u{65e5}\u{5185}\u{5c01}PGS].mkv",
+    );
+    assert_eq!(r.season(), Some(4));
+    assert_eq!(r.episode(), Some(2));
+    let abs_ep = r
+        .to_flat_map()
+        .get("absolute_episode")
+        .and_then(|v| v.as_i64());
+    assert_eq!(abs_ep, Some(68));
+    assert_eq!(r.source(), Some("Web"));
+    assert_eq!(source_count(&r), 1);
+    assert!(r.is_episode());
+}
