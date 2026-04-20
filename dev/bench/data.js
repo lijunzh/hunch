@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776648746684,
+  "lastUpdate": 1776649131354,
   "repoUrl": "https://github.com/lijunzh/hunch",
   "entries": {
     "hunch criterion benches": [
@@ -443,6 +443,60 @@ window.BENCHMARK_DATA = {
             "name": "anime_bracket",
             "value": 92940,
             "range": "± 1137",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lijunzh@users.noreply.github.com",
+            "name": "Lijun Zhu",
+            "username": "lijunzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dfff00f33b6cdbe43b49ba0cd300522ad452e451",
+          "message": "fix(#212): drop ancestor-path Source matches when filename has source (#215)\n\n* fix(#212): drop ancestor-path Source matches when filename has source\n\nBug 3 from #212: `/Volumes/media/tv/Anime/...WEB-DL...mkv` produced\n`source: [\"TV\", \"Web\"]` because the `tv` rule in source.toml is\nregistered as `AllSegments` (so `/tv/` directories legitimately\nprovide a source signal when the filename has none) and no zone rule\nsuppressed the ancestor match when the filename also carried an\nexplicit source marker.\n\n## Fix\n\nNew zone rule `ancestor_source_yields_to_filename` in\n`src/pipeline/zone_rules.rs`:\n\n  if any Source match has start >= fn_start (filename match exists),\n  drop all Source matches with start < fn_start (ancestor matches).\n\nFilename source is treated as authoritative \\u2014 ancestor-path matches\nare organisational hints that yield to explicit signal in the\nfilename. When the filename carries no source, ancestor matches are\npreserved unchanged (the existing behaviour for `/Blu-ray/Movie.mkv`\nor `/tv/Show.mkv`).\n\n## Why not change SOURCE_RULES scope?\n\n`SOURCE_RULES` is `AllSegments` for a good reason: directories like\n`Blu-ray/`, `WEB-DL/`, and `HDTV/` are common organisational\npatterns and provide real metadata when the filename has none.\nSwitching to `FilenameOnly` wholesale would regress those cases.\nA per-key scope (mark only `tv`, `sd` as filename-only) would\nrequire new TOML schema. The zone-rule approach is a pure additive\npost-pass with no schema changes and the smallest possible blast\nradius.\n\n## Verification matrix\n\n| Path                                         | Before              | After  |\n|----------------------------------------------|---------------------|--------|\n| /tv/Show.WEB-DL.mkv                          | [\"TV\", \"Web\"]   | Web    |\n| /tv/Show.BDRip.mkv                           | [\"TV\", \"Blu-ray\"]| Blu-ray|\n| /HDTV/Show.WEB-DL.mkv                        | [\"HDTV\", \"Web\"] | Web    |\n| /Blu-ray/Movie.mkv (no filename source)      | Blu-ray             | Blu-ray|\n| /tv/Show.mkv (no filename source)            | TV                  | TV     |\n| /WEB-DL/Movie.mkv (no filename source)       | Web                 | Web    |\n| Show.WEB-DL.mkv (no path)                    | Web                 | Web    |\n\nThe exact failing case from #212 (`[\\u665a\\u8857\\u4e0e\\u706f]...`) now returns\n`source: \"Web\"` instead of `source: [\"TV\", \"Web\"]`.\n\n## Tests\n\n8 new tests in `tests/source_ancestor_path.rs`:\n  - issue_212_bug3_tv_ancestor_with_filename_webdl (the exact bug)\n  - filename_webdl_overrides_tv_ancestor\n  - filename_bdrip_overrides_tv_ancestor\n  - filename_webdl_overrides_hdtv_ancestor\n  - ancestor_bluray_preserved_when_filename_has_no_source\n  - ancestor_tv_preserved_when_filename_has_no_source\n  - ancestor_webdl_preserved_when_filename_has_no_source\n  - filename_only_no_ancestor_unaffected\n\nTests use a `source_count()` helper that inspects `r.to_flat_map()`\nto distinguish single-string vs JSON-array source values \\u2014 catches\nthe array-leakage symptom directly.\n\n## Quality gates\n\n  - cargo test (lib + 9 integration suites + doctests): all pass\n  - cargo clippy --all-targets: clean\n  - cargo fmt --check: clean\n  - Compatibility corpus: 1080/1311 (82.38%) \\u2014 no regression\n\n## Composition with PR #213\n\nIndependent of PR #213 (which adds the `[Nth - NN]` and `[\\u603b\\u7b2cNN]`\npatterns). The two PRs compose cleanly: with both merged, the bug\nreport filename produces the fully-correct output:\n\n  {\n    \"season\": 4, \"episode\": 1, \"absolute_episode\": 67,\n    \"source\": \"Web\", \"type\": \"episode\", ...\n  }\n\nCloses the third of four bugs in #212. The residual `--context`-vs-\n`--batch` divergence (bug 4) was already auto-fixed by PR #213.\n\n* test(#212): add full end-to-end regression for the original bug-report path\n\nThe two PRs that close issue #212 each had a separate-concerns regression\ntest:\n\n  - PR #213's `test_212_full_filename_regression` uses BARE filenames\n    (no path prefix) and asserts season + episode + absolute_episode.\n  - PR #214's `issue_212_bug3_tv_ancestor_with_filename_webdl` uses the\n    FULL absolute path but only asserts source + source_count.\n\nNeither pinned the cross-cutting end-to-end behaviour: that the original\nreported absolute path produces ALL the expected fields together.\n\nThis test (and its episode-02 variant) closes that gap. It uses the\nexact path from the bug report and asserts every field that should\nfall out of the combined fix:\n\n  - season=4, episode=1, absolute_episode=67  (from PR #213's patterns)\n  - source=Web (single value, not array)      (from PR #214's dedup)\n  - is_episode() == true                      (cascading correctness)\n  - title, release_group, codecs              (round-trip sanity)\n\nIf a future refactor breaks the interaction between path-aware source\nfiltering and CJK episode parsing, this test fails immediately.\n\nNote: this test requires PR #213's patches to be present, which is why\nit's added on top of the rebased branch (PR #214 stacked on PR #213)\nrather than to PR #213 directly \\u2014 the source-dedup assertion would\nfail without #214's fix.",
+          "timestamp": "2026-04-19T20:37:32-05:00",
+          "tree_id": "cd318b202dd4ffc081e31ab15ac7e705c3a0d9db",
+          "url": "https://github.com/lijunzh/hunch/commit/dfff00f33b6cdbe43b49ba0cd300522ad452e451"
+        },
+        "date": 1776649130844,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "movie_basic",
+            "value": 105027,
+            "range": "± 719",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "movie_complex",
+            "value": 241787,
+            "range": "± 2251",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_sxxexx",
+            "value": 112150,
+            "range": "± 1424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_with_path",
+            "value": 109738,
+            "range": "± 7198",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "anime_bracket",
+            "value": 92456,
+            "range": "± 488",
             "unit": "ns/iter"
           }
         ]
