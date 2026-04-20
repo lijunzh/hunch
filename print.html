@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-177f80de.js";
+            window.path_to_searchindex_js = "searchindex-c2279305.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-168c2c66.js"></script>
+        <script src="toc-8a688177.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -640,6 +640,58 @@ cargo test compatibility_report --release -- --ignored --nocapture
 # Include sampled failure details
 HUNCH_DUMP_FAILURES=50 cargo test compatibility_report --release -- --ignored --nocapture
 </code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="known-limitations"><a class="header" href="#known-limitations">Known Limitations</a></h1>
+<p>In one real-world library audit of 7,838 files, hunch achieved <strong>99.8%
+accuracy</strong> across a mixed Anime / English / Japanese / Kids collection.
+The remaining failures fall into a small number of edge-case categories
+that are difficult to solve reliably with a deterministic, offline
+filename parser.</p>
+<p>These examples illustrate the main categories of remaining failures
+rather than an exhaustive list of every individual filename.</p>
+<h2 id="bonus-content-without-episode-numbers"><a class="header" href="#bonus-content-without-episode-numbers">Bonus content without episode numbers</a></h2>
+<p>Files in bonus directories such as <code>Bonus/</code> or <code>特典映像/</code> that contain
+no numeric episode marker may still be classified as <code>episode</code> with no
+episode number. Hunch recognizes these directory names for title
+cleanup but does not currently infer <code>type=extra</code> from directory names
+alone.</p>
+<pre><code class="language-text">tv/Anime/.../特典映像/[DBD-Raws][Natsume Yuujinchou Shichi][声優トークショー][1080P][BDRip][HEVC-10bit][FLAC].mkv
+  → type=episode, episode=None  (expected: type=extra)
+
+tv/English/Power Rangers/17 - Power Rangers RPM/Bonus/Power Rangers RPM - Stuntman Behind The Scenes (Japanese).mp4
+  → type=episode, episode=None  (expected: type=extra)
+</code></pre>
+<p><strong>Why this remains difficult:</strong> directory names are useful context, but
+using them alone to infer <code>type=extra</code> would require an open-ended set
+of library-specific rules (<code>Extras/</code>, <code>Featurettes/</code>, <code>Behind the Scenes/</code>,
+<code>Making Of/</code>, etc.), increasing regression risk across other
+collections.</p>
+<h2 id="sample--preview-clips"><a class="header" href="#sample--preview-clips">Sample / preview clips</a></h2>
+<p>Verification clips such as <code>Sample1.mkv</code> inside <code>Samples/</code> directories
+may have their digits interpreted as episode numbers.</p>
+<pre><code class="language-text">movie/.../Samples/Sample1.mkv
+  → type=episode, episode=1  (expected: not real media content)
+</code></pre>
+<p><strong>Why this is low priority:</strong> sample files are typically release
+artifacts rather than meaningful library entries. Reliable detection
+would require special-casing many filename and directory conventions
+that vary across release groups.</p>
+<h2 id="ambiguous-special--episode-cross-references"><a class="header" href="#ambiguous-special--episode-cross-references">Ambiguous special / episode cross-references</a></h2>
+<p>Some filenames contain both special markers (<code>SP</code>) and episode markers
+(<code>EP</code>), where the episode number refers to a related TV episode rather
+than the file itself.</p>
+<pre><code class="language-text">movie/.../[Detective Conan][Tokuten BD][SP02][TV Series EP1080][BDRIP][1080P][H264_FLAC].mkv
+  → type=episode, episode=1080  (EP1080 is a cross-reference, not this file's episode)
+</code></pre>
+<p><strong>Why this remains difficult:</strong> distinguishing “this file is episode
+1080” from “this file references episode 1080” requires semantic
+understanding beyond hunch’s current deterministic filename heuristics.</p>
+<h2 id="malformed-filenames"><a class="header" href="#malformed-filenames">Malformed filenames</a></h2>
+<p>Genuinely malformed inputs such as <code>1.The.mkv.mkv</code> can still produce
+poor results.</p>
+<p><strong>Why this is not prioritized:</strong> hunch assumes filenames contain at
+least some recoverable structure. Severely malformed input is treated
+as garbage-in, garbage-out.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="public-api-surface"><a class="header" href="#public-api-surface">Public API Surface</a></h1>
 <p>Hunch’s public Rust API is the contract that downstream library consumers
@@ -1746,19 +1798,20 @@ not_before = ["tv", "dvd", "cam", "rip"]
 │   ├── engine.rs       # Conflict resolution (priority + length)
 │   ├── rule_loader.rs  # TOML → RuleSet parser
 │   └── regex_utils.rs  # BoundedRegex (strips lookarounds)
-└── properties/         # 31 property matcher modules
-    ├── episodes/       # S01E02, 1x03, ranges, anime (algorithmic)
-    ├── title/          # Title extraction (algorithmic)
-    ├── release_group/  # Positional heuristics (algorithmic)
-    └── ...             # year, date, language, etc.
+├── properties/         # 31 property matcher modules
+│   ├── episodes/       # S01E02, 1x03, ranges, anime (algorithmic)
+│   ├── title/          # Title extraction (algorithmic)
+│   ├── release_group/  # Positional heuristics (algorithmic)
+│   └── ...             # year, date, language, etc.
+└── rules/              # 21 TOML data files (compile-time embedded
+                        # via include_str! by pipeline/rule_registry.rs)
 
-rules/                  # 20 TOML data files (compile-time embedded)
 tests/                  # Integration + regression + constraint tests
 </code></pre>
 <hr>
 <h2 id="adding-a-new-property"><a class="header" href="#adding-a-new-property">Adding a New Property</a></h2>
 <ol>
-<li>Create <code>rules/&lt;name&gt;.toml</code> with <code>property</code>, <code>[exact]</code>, <code>[[patterns]]</code>.</li>
+<li>Create <code>src/rules/&lt;name&gt;.toml</code> with <code>property</code>, <code>[exact]</code>, <code>[[patterns]]</code>.</li>
 <li>Add a <code>LazyLock&lt;RuleSet&gt;</code> static in <code>pipeline/mod.rs</code>.</li>
 <li>Register it in <code>toml_rules</code> with property + priority + segment scope.</li>
 <li>Add <code>Property::YourProp</code> variant to <code>matcher/span.rs</code>.</li>

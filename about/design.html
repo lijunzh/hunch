@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-177f80de.js";
+            window.path_to_searchindex_js = "../searchindex-c2279305.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-168c2c66.js"></script>
+        <script src="../toc-8a688177.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -637,19 +637,20 @@ not_before = ["tv", "dvd", "cam", "rip"]
 │   ├── engine.rs       # Conflict resolution (priority + length)
 │   ├── rule_loader.rs  # TOML → RuleSet parser
 │   └── regex_utils.rs  # BoundedRegex (strips lookarounds)
-└── properties/         # 31 property matcher modules
-    ├── episodes/       # S01E02, 1x03, ranges, anime (algorithmic)
-    ├── title/          # Title extraction (algorithmic)
-    ├── release_group/  # Positional heuristics (algorithmic)
-    └── ...             # year, date, language, etc.
+├── properties/         # 31 property matcher modules
+│   ├── episodes/       # S01E02, 1x03, ranges, anime (algorithmic)
+│   ├── title/          # Title extraction (algorithmic)
+│   ├── release_group/  # Positional heuristics (algorithmic)
+│   └── ...             # year, date, language, etc.
+└── rules/              # 21 TOML data files (compile-time embedded
+                        # via include_str! by pipeline/rule_registry.rs)
 
-rules/                  # 20 TOML data files (compile-time embedded)
 tests/                  # Integration + regression + constraint tests
 </code></pre>
 <hr>
 <h2 id="adding-a-new-property"><a class="header" href="#adding-a-new-property">Adding a New Property</a></h2>
 <ol>
-<li>Create <code>rules/&lt;name&gt;.toml</code> with <code>property</code>, <code>[exact]</code>, <code>[[patterns]]</code>.</li>
+<li>Create <code>src/rules/&lt;name&gt;.toml</code> with <code>property</code>, <code>[exact]</code>, <code>[[patterns]]</code>.</li>
 <li>Add a <code>LazyLock&lt;RuleSet&gt;</code> static in <code>pipeline/mod.rs</code>.</li>
 <li>Register it in <code>toml_rules</code> with property + priority + segment scope.</li>
 <li>Add <code>Property::YourProp</code> variant to <code>matcher/span.rs</code>.</li>
