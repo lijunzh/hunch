@@ -90,7 +90,8 @@ pub(crate) struct FileAnalysis<'a> {
 }
 
 /// Regex for finding bare numbers in gap text.
-static GAP_NUMBER: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(r"\d+").unwrap());
+static GAP_NUMBER: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\d+").expect("GAP_NUMBER regex is valid"));
 
 /// Perform unified cross-file invariance analysis.
 ///

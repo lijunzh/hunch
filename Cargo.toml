@@ -9,7 +9,7 @@ license = "MIT"
 repository = "https://github.com/lijunzh/hunch"
 homepage = "https://github.com/lijunzh/hunch"
 keywords = ["media", "parser", "filename", "movies", "episodes"]
-categories = ["multimedia", "parser-implementations"]
+categories = ["multimedia", "parser-implementations", "command-line-utilities", "text-processing"]
 readme = "README.md"
 
 [dependencies]

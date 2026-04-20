@@ -104,8 +104,9 @@ pub(super) fn strip_leading_brackets(raw: &str) -> String {
 
 // ── Step 2: trailing parenthesized year ────────────────────────────────────
 
-static RE_PAREN_YEAR: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").unwrap());
+static RE_PAREN_YEAR: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"\s*\((?:19|20)\d{2}\)\s*$").expect("RE_PAREN_YEAR regex is valid")
+});
 
 /// Strip a trailing `(YYYY)`: `Movie Name (2005)` → `Movie Name`.
 pub(super) fn strip_paren_year(s: &str) -> String {
@@ -119,7 +120,7 @@ pub(super) fn strip_paren_year(s: &str) -> String {
 // ── Step 3: parenthesized groups ───────────────────────────────────────────
 
 static RE_PAREN_GROUP: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"\s*\([^)]*\)\s*").unwrap());
+    LazyLock::new(|| regex::Regex::new(r"\s*\([^)]*\)\s*").expect("RE_PAREN_GROUP regex is valid"));
 
 /// Strip all `(...)` groups (alternative titles, country tags, etc.).
 ///
@@ -137,7 +138,8 @@ pub(super) fn strip_paren_groups(s: &str) -> String {
 // ── Step 4: separator normalization ────────────────────────────────────────
 
 static RE_DOT_ACRONYM: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"(?:^|[\s._])([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)").unwrap()
+    regex::Regex::new(r"(?:^|[\s._])([A-Za-z0-9](?:\.[A-Za-z0-9]){2,}\.?)")
+        .expect("RE_DOT_ACRONYM regex is valid")
 });
 
 // ── Helpers extracted from `normalize_separators` (#146 mutant kills) ──
@@ -267,20 +269,23 @@ pub(super) fn trim_trailing_punct(s: &str) -> String {
 // ── Step 6: trailing keywords ──────────────────────────────────────────────
 
 static RE_TRAILING_PART: LazyLock<regex::Regex> = LazyLock::new(|| {
-    regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$").unwrap()
+    regex::Regex::new(r"(?i)\s+Part\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?\s*$")
+        .expect("RE_TRAILING_PART regex is valid")
 });
 
 static RE_TRAILING_SEASON: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(
         r"(?i)\s+(?:Saison|Temporada|Stagione|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
-    ).unwrap()
+    ).expect("RE_TRAILING_SEASON regex is valid")
 });
 
-static RE_TRAILING_EP: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?i)\s+(?:Episodes?|Ep\.?)\s*$").unwrap());
+static RE_TRAILING_EP: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(?i)\s+(?:Episodes?|Ep\.?)\s*$").expect("RE_TRAILING_EP regex is valid")
+});
 
-static RE_TRAILING_BONUS: LazyLock<regex::Regex> =
-    LazyLock::new(|| regex::Regex::new(r"(?i)[-]x\d{1,3}\s*$").unwrap());
+static RE_TRAILING_BONUS: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"(?i)[-]x\d{1,3}\s*$").expect("RE_TRAILING_BONUS regex is valid")
+});
 
 /// Strip trailing `Part`, `Season`, `Episode` keywords and `-xNN` bonus
 /// markers from titles. Each strip is skipped if it would empty the title.
