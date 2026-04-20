@@ -492,7 +492,6 @@ src/
 
 rules/                  # 20 TOML data files (compile-time embedded)
 tests/                  # Integration + regression + constraint tests
-benches/                # Criterion benchmarks
 ```
 
 ---
