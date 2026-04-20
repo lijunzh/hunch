@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1776633489833,
+  "lastUpdate": 1776648746684,
   "repoUrl": "https://github.com/lijunzh/hunch",
   "entries": {
     "hunch criterion benches": [
@@ -389,6 +389,60 @@ window.BENCHMARK_DATA = {
             "name": "anime_bracket",
             "value": 62878,
             "range": "± 181",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "lijunzh@users.noreply.github.com",
+            "name": "Lijun Zhu",
+            "username": "lijunzh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "53e54ee8ca5e59b6872e16710fb9c0170df00605",
+          "message": "fix(#212): parse CJK fansub patterns [Nth - NN] and [总第NN] (#213)\n\nTwo new regex patterns for Chinese fansub releases that were silently\ndropped before this commit, fixing three of the four bugs reported in\n#212:\n\n  Bug 1: `[4th - 01]` Latin-ordinal-in-CJK-bracket → no season/episode\n  Bug 2: `[总第67]` cumulative episode → no absolute_episode\n  Bug 4 (cascading): `type: movie` was a downstream effect of bugs 1+2;\n         once season+episode are detected the type classifier\n         correctly returns `episode`. (#212 also reports a separate\n         --context-vs--batch divergence; that's not addressed here\n         and remains open as the residual bug 4 for a follow-up PR.)\n\n## Patterns\n\n`NTH_DASH_EPISODE` — `\\[\\s*(\\d)(?:st|nd|rd|th)\\s*[-–—]\\s*(\\d{1,4})(?:[vV]\\d+)?\\s*\\]`\n  Matches `[1st - 03]` through `[9th - 12v2]`. Single-digit ordinals\n  only — `10th`/`20th` would too easily collide with scene tags or\n  group names (deliberate guardrail; revisit if we see real-world\n  filenames needing it).\n  Emits BOTH Season and Episode at STRUCTURAL priority — this is an\n  explicit marker, not a heuristic.\n  Accepts hyphen, en-dash (–), and em-dash (—) as separators since\n  fansubs vary.\n\n`CJK_CUMULATIVE_EPISODE` — `\\[\\s*总第\\s*(\\d{1,4})\\s*\\]`\n  Matches `[总第67]` and `[总第 100]`. Maps to existing\n  Property::AbsoluteEpisode (no new variant needed — semantics match\n  the existing absolute-episode concept used for anime).\n  Runs unconditionally in the dispatch chain, independent of regular\n  Episode detection, since the two coexist by design (S04E01 == ep 67\n  cumulative).\n\n## Wiring (find_matches dispatch order)\n\n  1. SxxExx family\n  2. `try_nth_dash_episode` (NEW) — only if SxxExx didn't match\n  3. NxN\n  4. Season patterns\n  5. Episode standalone\n  6. CJK bracket episode\n  7. CJK ordinal markers\n  8. `try_cjk_cumulative_episode` (NEW) — always runs, emits AbsoluteEpisode\n  9. Digit decomposition\n 10. detect_absolute_episodes (existing post-pass)\n\n## Verification on the exact bug-report filenames\n\nBefore:\n  {\"title\":\"...\",\"source\":\"Web\",\"type\":\"movie\"}   ← no season/ep, wrong type\n\nAfter:\n  {\"season\":4,\"episode\":1,\"absolute_episode\":67,\n   \"title\":\"...\",\"type\":\"episode\"}   ✅\n\n## Tests\n\n9 new tests in src/properties/episodes/tests.rs:\n  - test_nth_dash_episode_basic\n  - test_nth_dash_episode_all_ordinals (1st through 9th)\n  - test_nth_dash_episode_with_version (`[4th - 01v2]`)\n  - test_nth_dash_episode_em_dash (en-dash variant)\n  - test_nth_dash_episode_ignores_two_digit_ordinals (anti-FP guardrail)\n  - test_cjk_cumulative_episode_basic\n  - test_cjk_cumulative_episode_with_whitespace (`[总第 100]`)\n  - test_cjk_cumulative_episode_independent_of_episode\n  - test_212_full_filename_regression (both exact filenames from #212)\n\nAll quality gates green:\n  - cargo test (lib + integration + doctests): all pass\n  - cargo clippy --all-targets: clean\n  - cargo fmt --check: clean\n  - Compatibility corpus: 1080/1311 (82.38%) — no regression\n\n## Out of scope (filed as residual #212 work)\n\nBug 3 (path component `tv/` contaminating `source`) and the residual\nbug 4 (--context single-file mode classifying as `movie` when --batch\ncorrectly says `episode`) are not addressed here. They need different\nfixes (source matcher hardening + cli mode investigation) and will\nfollow in separate PRs to keep this one focused.",
+          "timestamp": "2026-04-19T20:31:09-05:00",
+          "tree_id": "b31ce3aeef5f7fea017209ae3a6f597edf2f0838",
+          "url": "https://github.com/lijunzh/hunch/commit/53e54ee8ca5e59b6872e16710fb9c0170df00605"
+        },
+        "date": 1776648745791,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "movie_basic",
+            "value": 106755,
+            "range": "± 1052",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "movie_complex",
+            "value": 245851,
+            "range": "± 3492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_sxxexx",
+            "value": 112945,
+            "range": "± 2358",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "episode_with_path",
+            "value": 110304,
+            "range": "± 1946",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "anime_bracket",
+            "value": 92940,
+            "range": "± 1137",
             "unit": "ns/iter"
           }
         ]
