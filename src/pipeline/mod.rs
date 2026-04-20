@@ -64,6 +64,7 @@ use crate::properties::title;
 /// See [`Pipeline::run`] for the main entry point, or use
 /// [`hunch`](crate::hunch) / [`hunch_with_context`](crate::hunch_with_context)
 /// for convenience.
+#[must_use = "a Pipeline is only useful when you call `.run()` / `.run_with_context()` on it"]
 pub struct Pipeline {
     /// TOML-driven rule sets registered in [`rule_registry::build_toml_rules`].
     toml_rules: Vec<TomlRule>,

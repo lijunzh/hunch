@@ -27,4 +27,5 @@
 - [Contributing](./about/contributing.md)
 - [Security Policy](./about/security.md)
 - [Design](./about/design.md)
+- [Migrating to v2.0.0](./about/migration-v2.md)
 - [Changelog](./about/changelog.md)
