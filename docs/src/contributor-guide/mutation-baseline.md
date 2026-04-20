@@ -13,19 +13,18 @@ assertions**.
 
 ## How it runs
 
-A nightly GitHub Actions workflow ([`.github/workflows/mutants.yml`](https://github.com/lijunzh/hunch/blob/main/.github/workflows/mutants.yml))
-runs `cargo mutants` against the highest-value targets at 03:14 UTC and
-publishes results as a Job Summary + downloadable `mutants-out` artifact.
+Run `cargo mutants` locally during test-quality work or when adding
+fixtures around a tricky function. The mutation-killing PRs landed
+during the v1.1.x → v2.0.0 cycle (#180–#185) used this exact loop.
 
-The job is **advisory** — surviving mutants do not fail CI. They get
-triaged here and addressed in follow-up PRs. Tool-level failures
-(usage errors, build broken, crash) DO fail the job, via an explicit
-exit-code allowlist (0–3 = expected) added in #170 after the original
-`|| true` masked an `--in-place`/`--jobs` incompatibility for an
-entire run.
+> The nightly `mutants.yml` workflow that previously ran on a schedule
+> was removed in #216 along with the rest of the over-engineered CI for
+> a hobby-scale crate. The tooling and the local workflow are unchanged;
+> the surviving-mutants triage in this doc still applies when you run
+> `cargo mutants` locally.
 
-You can also trigger it on demand from the Actions UI via
-**Run workflow** → **Mutation Tests**.
+You can still capture results in the same shape the old job produced —
+see [Local usage](#local-usage) below.
 
 ## First nightly run results (2026-04-18)
 
@@ -106,19 +105,14 @@ Combined run with `--jobs 4` on a GitHub-hosted ubuntu runner: **~12–15 min**.
 
 ## Roadmap
 
-Sequenced expansion (each is its own PR within the #146 epic):
+Long-term ideas, not actively planned post-#216:
 
-1. **Add the `Pipeline` neighbours**: `pipeline/context.rs`, `pipeline/invariance.rs`,
-   `pipeline/mod.rs`'s sibling helpers.
-2. **Add the `properties/title/` strategies**: `secondary.rs`, `mod.rs`,
-   the four `strategies/*.rs` modules.
-3. **Add the matcher core**: `src/matcher/`, `src/zone_map.rs`, `src/tokenizer.rs`.
-4. **Opt-in PR-time check**: a `mutation-test` label triggers a diff-only
-   mutants run on the PR (cheap subset). Requires #146's epic-level decision
-   on labelling.
-5. **Hard kill-rate gate**: fail the nightly if kill rate drops more than
-   N% below baseline. Deferred until baseline has settled across enough
-   nightly runs to characterise noise.
+- **Re-enable a nightly workflow** if the project ever grows past
+  hobby-scale (multi-developer, downstream library users filing
+  regression-class bugs). The triage protocol below is the workflow.
+- **Hard kill-rate gate** — only meaningful with a recurring run.
+- **Diff-only PR check** — useful with a CI cadence; manual on demand
+  for now.
 
 ## Local usage
 
@@ -206,14 +200,13 @@ the *infrastructure* to find findings; fixing them is the next loop.
 
 ## Triage protocol
 
-When the nightly job posts a Job Summary with surviving mutants:
+When a local `cargo mutants` run produces surviving mutants:
 
 1. **Equivalent mutation?** (the mutation produces identical observable
    behaviour) → add a one-line entry to the "Accepted equivalents" table
    below with the mutation string + a one-sentence rationale.
 2. **Real test gap?** → file a `tech-debt` issue with the mutation string
-   in the title, link the surviving-mutants table from the most recent
-   nightly run, and assign to the next coverage-improvement loop.
+   in the title, or fix it directly in the same PR if scope allows.
 3. **Tool bug / unviable mis-classification?** → file upstream at
    <https://github.com/sourcefrog/cargo-mutants>.
 

@@ -14,6 +14,8 @@ Release prep checklist:
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-04-20
+
 ### Removed
 
 - **`benches/` directory and the `cargo bench` harness.** The Criterion
@@ -31,7 +33,17 @@ Release prep checklist:
   workflow was deleted in #217; manual contributor fuzzing isn't being
   done in practice. The library is small and deterministic enough that
   the existing 612-test integration suite is the right testing layer
-  for our scale. (#218 follow-up)
+  for our scale. (#218 follow-up, #222)
+- **CI workflow over-engineering.** The `coverage` (cargo-llvm-cov),
+  `api-surface` (cargo-public-api drift gate), and `mutants` (nightly
+  cargo-mutants) jobs were all dropped in #216 alongside the entire
+  `mutants.yml` workflow. The `benchmark.yml` and `fuzz.yml` workflows
+  were dropped in #217. Rationale: a single-author hobby crate does not
+  need 7 quality-gate workflows running on every PR. The four jobs that
+  matter — `fmt`, `clippy`, `test` (Linux/macOS/Windows), `audit` —
+  remain. The `semver` advisory job also survives. The mutation-test
+  work that landed in #180–#185 left permanent regression coverage in
+  `tests/`, so that quality investment outlives the workflow.
 
 ### Changed
 
@@ -43,7 +55,31 @@ Release prep checklist:
   remaining accessors return `Option<T>` / `Vec<T>` which are already
   `#[must_use]` in std — no need to repeat. (#205, bundled in #218)
 
+### Refactored
+
+- **Moved `rules/` to `src/rules/` for compile-time co-location.** The
+  21 TOML data files are embedded into the binary at compile time via
+  `include_str!` from `pipeline/rule_registry.rs` — they're not
+  external configuration, not user-tunable at runtime, and have no
+  purpose outside this crate. Top-level `rules/` was misleading
+  (reading as nginx-style runtime config when it's actually frozen
+  Rust data). The `../../rules/X.toml` paths in `rule_registry.rs`
+  were the universal "this should be local" code smell pointing here.
+  Pure restructure: zero behavior change, all 21 `include_str!` paths
+  + 17 doc-comment refs updated, file history preserved via `git mv`.
+  (#223)
+
 ### Docs
+
+- **Slimmed `README.md` from 178 → 89 lines (-50%).** Now that we
+  have a proper mdbook at <https://lijunzh.github.io/hunch>, the
+  README can stop trying to be canonical for everything. The verbose
+  `--batch -r` tip and the four "Known Limitations" subsections
+  (~60 lines of edge-case essays) moved to the new
+  `docs/src/user-guide/known-limitations.md` mdbook page; the README
+  links to it. Documentation table tightened: dropped dead bench
+  dashboard row (page deleted), added Migration Guide + Known
+  Limitations rows. (#224)
 
 - **New `docs/src/about/migration-v2.md` page** consolidating the v2.0.0
   breaking changes (`Property::BitRate` removal + deep-import deprecation)
@@ -74,6 +110,15 @@ Release prep checklist:
   common `extras/extra/specials/bonus`. In `--batch -r` mode, that gap
   let an unrelated movie title at the batch root leak into Extras
   subtrees of an adjacent show. (#208)
+- **CJK fansub patterns `[Nth - NN]` and `[总第NN]` are now parsed as
+  episode markers** instead of being absorbed into the title. Catches
+  real-world filenames from the Re:Zero / 12 Kingdoms / similar fansub
+  release groups. (#212, #213)
+- **Ancestor-path `Source` matches are dropped when the filename itself
+  carries a Source token.** Prevents directory-level source hints (e.g.
+  `BluRay/Show.S01E01.WEB-DL.mkv` resolving to `BluRay`) from
+  overriding the more specific filename-level signal in `--batch -r`
+  mode. (#212, #215)
 
 ### Security
 
@@ -214,26 +259,14 @@ Release prep checklist:
 
 ### Internal / Infrastructure
 
-This release lands a substantial CI and documentation investment
-motivated by the project moving from "experimental, no users" to
-"users filing real bug reports." None of the items below change
-parser behavior, but they meaningfully improve the project's
-ability to catch regressions before they ship:
+This release lands a substantial documentation investment motivated by
+the project moving from "experimental, no users" to "users filing real
+bug reports." None of the items below change parser behavior, but they
+meaningfully improve the project's ability to catch regressions before
+they ship.
 
-- **Code coverage tracking** via `cargo-llvm-cov` (advisory). (#145, #168)
-- **Mutation testing baseline** via `cargo-mutants` nightly, with
-  29 surviving mutants triaged and killed across
-  #175, #180, #181, #182, #183, #184, #185. (#146, #169, #170, #173)
-- **Fuzz baseline** via `cargo-fuzz` with two targets (single-string
-  parse + multi-segment path) and nightly CI. (#147, #174)
-- **Public API surface tripwire** that fails CI on accidental changes
-  to `pub use src/lib.rs` items. (#144, #171)
-- **Continuous benchmarking** via `criterion` + `github-action-benchmark`,
-  with PR-time regression gating (>120% threshold), per-commit history
-  on a live dashboard, and per-release immutable snapshots. See the
-  [Benchmarks reference](https://lijunzh.github.io/hunch/reference/benchmarks.html)
-  and [Release Trajectory](https://lijunzh.github.io/hunch/reference/release-trajectory.html).
-  (#148, #176, #177, #178, #179, #186, #189, #191, #192, #194)
+**What survived to v2.0.0:**
+
 - **Documentation portal** at <https://lijunzh.github.io/hunch/>
   built with mdbook. (#188, #190)
 - **Release pipeline hardening** — PR-time CI now also runs on release
@@ -242,6 +275,23 @@ ability to catch regressions before they ship:
   `TitleStrategy` fallback ordering (#154, #161), `cli_walk_dir`
   safety boundaries (#153, #162), parse-torrent-name corpus pins
   (#157, #164).
+- **Mutation-killing test additions** from the cargo-mutants triage
+  pass survive as permanent regression coverage in `tests/` even though
+  the nightly `mutants.yml` workflow itself was dropped: 29 mutants
+  killed across #175, #180, #181, #182, #183, #184, #185.
+
+**What was added during the cycle and then rolled back (see Removed):**
+
+The CI infrastructure burst between v1.1.x and v2.0.0 — cargo-llvm-cov
+coverage tracking (#145, #168), nightly cargo-mutants (#146, #169, #170,
+#173), cargo-fuzz (#147, #174), continuous benchmarking via criterion +
+github-action-benchmark (#148, #176, #177, #178, #179, #186, #189, #191,
+#192, #194), and the cargo-public-api surface tripwire (#144, #171) —
+all got built and then trimmed in #216, #217, #222 once we acknowledged
+this is a single-developer hobby crate. The investment paid for itself
+in permanent test additions (above) and in the public API audit it
+drove (#197), but the workflows themselves were over-engineered for the
+project's actual scale.
 
 ## [1.1.8] - 2026-04-17
 
@@ -1029,6 +1079,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[2.0.0]: https://github.com/lijunzh/hunch/releases/tag/v2.0.0
 [1.1.8]: https://github.com/lijunzh/hunch/releases/tag/v1.1.8
 [1.1.7]: https://github.com/lijunzh/hunch/releases/tag/v1.1.7
 [1.1.6]: https://github.com/lijunzh/hunch/releases/tag/v1.1.6
