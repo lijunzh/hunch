@@ -173,6 +173,47 @@ pub(super) static CJK_BRACKET_EPISODE: LazyLock<regex::Regex> = LazyLock::new(||
         .expect("CJK_BRACKET_EPISODE regex is valid")
 });
 
+// ── CJK fansub Latin-ordinal season+episode ──
+
+/// CJK fansub Latin-ordinal season+episode: `[4th - 01]`, `[2nd - 12]`,
+/// `[4th - 01v2]`. Common in Chinese fansub releases that bracket the
+/// English ordinal season label alongside the episode number.
+///
+/// Examples:
+/// - `[4th - 01]` → season=4, episode=1
+/// - `[2nd - 12v2]` → season=2, episode=12 (the `v2` revision suffix is
+///   absorbed by the regex but ignored — the existing `VERSIONED_EPISODE`
+///   pattern handles the version separately).
+///
+/// We only accept ordinals 1st–10th (single digit) to avoid false
+/// positives on group names or scene tags that happen to end in those
+/// suffixes.
+pub(super) static NTH_DASH_EPISODE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(
+        r"\[\s*(?P<season>\d)(?:st|nd|rd|th)\s*[-\u2013\u2014]\s*(?P<episode>\d{1,4})(?:[vV]\d+)?\s*\]",
+    )
+    .expect("NTH_DASH_EPISODE regex is valid")
+});
+
+// ── CJK cumulative episode ──
+
+/// CJK cumulative-episode marker: `[总第NN]` (Chinese: "cumulative
+/// episode N"). A common Chinese fansub convention for tagging the
+/// absolute episode number of a multi-season series alongside the
+/// per-season episode number.
+///
+/// Examples:
+/// - `[总第67]` → absolute_episode=67
+/// - `[总第 100]` → absolute_episode=100
+///
+/// Maps to [`Property::AbsoluteEpisode`] (existing property), not a new
+/// variant — the semantics match the existing absolute-episode concept
+/// (e.g. anime that runs cumulatively across seasons).
+pub(super) static CJK_CUMULATIVE_EPISODE: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(r"\[\s*总第\s*(?P<absolute_episode>\d{1,4})\s*\]")
+        .expect("CJK_CUMULATIVE_EPISODE regex is valid")
+});
+
 // ── Week pattern ──
 
 /// Week 45, Week.12, etc.
