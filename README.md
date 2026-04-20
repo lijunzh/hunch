@@ -1,6 +1,9 @@
 # 🔍 Hunch
 
-[![Coverage](https://img.shields.io/badge/coverage-94.34%25-brightgreen)](https://lijunzh.github.io/hunch/contributor-guide/coverage.html)
+[![CI](https://img.shields.io/github/actions/workflow/status/lijunzh/hunch/ci.yml?branch=main&label=CI&logo=github)](https://github.com/lijunzh/hunch/actions/workflows/ci.yml)
+[![Crates.io](https://img.shields.io/crates/v/hunch.svg)](https://crates.io/crates/hunch)
+[![Docs](https://img.shields.io/docsrs/hunch)](https://docs.rs/hunch)
+[![License](https://img.shields.io/crates/l/hunch.svg)](LICENSE)
 
 **A fast, offline media filename parser for Rust — extract title, year,
 season, episode, codec, language, and 49 properties from messy filenames.**
@@ -62,28 +65,12 @@ assert_eq!(result.episode(), Some(3));
 | [**API Reference**](https://docs.rs/hunch) | Full Rust API docs |
 | [**Changelog**](CHANGELOG.md) | Version history |
 
-## Real-world accuracy
+## Accuracy
 
 Validated against guessit's upstream test suite — see the
 [compatibility report](https://lijunzh.github.io/hunch/user-guide/compatibility.html)
 for the live pass rate, regenerated from
-`cargo test -- --ignored guessit_compat` so it can't drift.
-
-In one real-world library audit of 7,838 files, hunch achieved **99.8%
-accuracy** across a mixed Anime / English / Japanese / Kids collection.
-The remaining edge cases are documented under
+`cargo test -- --ignored guessit_compat` so it can't drift. Edge cases
+that remain difficult are documented under
 [Known Limitations](https://lijunzh.github.io/hunch/user-guide/known-limitations.html).
 
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md). The easiest contribution is
-[reporting a failed parse](https://github.com/lijunzh/hunch/issues/new/choose).
-
-```bash
-cargo test              # full suite
-cargo test -- --ignored # guessit compatibility report
-```
-
-## License
-
-[MIT](LICENSE)
