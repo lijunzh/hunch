@@ -36,10 +36,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-31dcd877.js";
+            window.path_to_searchindex_js = "searchindex-177f80de.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-e3665db2.js"></script>
+        <script src="toc-168c2c66.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -197,10 +197,8 @@ page has an “edit this page” link in the top right.</p>
 <tbody>
 <tr><td>A user (CLI or library)</td><td><a href="#user-manual--hunch">User Manual</a></td></tr>
 <tr><td>Evaluating accuracy vs guessit</td><td><a href="#hunch-vs-guessit--compatibility">guessit Compatibility</a></td></tr>
-<tr><td>Curious about performance</td><td><a href="#benchmarks">Benchmarks</a> → <a href="#benchmark-dashboard">Live Dashboard</a></td></tr>
 <tr><td>Auditing the public API surface</td><td><a href="#public-api-surface">Public API Surface</a></td></tr>
 <tr><td>Contributing tests</td><td><a href="#mutation-testing-baseline">Mutation Testing</a>, <a href="#code-coverage">Coverage</a></td></tr>
-<tr><td>Contributing crash-shape work</td><td><a href="#fuzzing">Fuzzing</a></td></tr>
 </tbody>
 </table>
 </div>
@@ -213,16 +211,13 @@ page has an “edit this page” link in the top right.</p>
 <tbody>
 <tr><td><strong>Coverage</strong> (<a href="https://github.com/lijunzh/hunch/issues/168">#168</a>)</td><td>Which lines are exercised at all</td><td><a href="#code-coverage">coverage.md</a></td></tr>
 <tr><td><strong>Mutation testing</strong> (<a href="https://github.com/lijunzh/hunch/issues/146">#146</a>)</td><td>Whether tests actually catch bugs</td><td><a href="#mutation-testing-baseline">mutation-baseline.md</a></td></tr>
-<tr><td><strong>Fuzzing</strong> (<a href="https://github.com/lijunzh/hunch/issues/147">#147</a>)</td><td>Crash-shape bugs on adversarial inputs</td><td><a href="#fuzzing">fuzzing.md</a></td></tr>
 <tr><td><strong>Public API surface</strong> (<a href="https://github.com/lijunzh/hunch/issues/145">#145</a>)</td><td>SemVer-relevant public-surface drift</td><td><a href="#public-api-surface">public-api.md</a></td></tr>
-<tr><td><strong>Performance</strong> (<a href="https://github.com/lijunzh/hunch/issues/148">#148</a>)</td><td>Parse-time regressions</td><td><a href="#benchmarks">benchmarks.md</a></td></tr>
 </tbody>
 </table>
 </div>
 <p>Each layer is independently honest: coverage tells you what code runs,
 but a 100%-covered codebase can still have zero meaningful assertions —
-that’s what mutation testing exists for. Fuzzing finds the inputs that
-the other three layers never thought to test.</p>
+that’s what mutation testing exists for.</p>
 <h2 id="project-links"><a class="header" href="#project-links">Project links</a></h2>
 <ul>
 <li>🐙 <strong>Repository</strong>: <a href="https://github.com/lijunzh/hunch">https://github.com/lijunzh/hunch</a></li>
@@ -646,410 +641,6 @@ cargo test compatibility_report --release -- --ignored --nocapture
 HUNCH_DUMP_FAILURES=50 cargo test compatibility_report --release -- --ignored --nocapture
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div>
-<h1 id="benchmarks"><a class="header" href="#benchmarks">Benchmarks</a></h1>
-<p>Hunch uses <a href="https://bheisler.github.io/criterion.rs/book/">criterion</a>
-to track parsing performance via <code>benches/parse.rs</code>. The
-<a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/benchmark.yml">Benchmarks workflow</a> runs them
-weekly + on every push to <code>main</code> to accumulate a performance history.</p>
-<h2 id="how-this-fits-in-the-quality-stack"><a class="header" href="#how-this-fits-in-the-quality-stack">How this fits in the quality stack</a></h2>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Layer</th><th>Catches</th><th>Where</th></tr>
-</thead>
-<tbody>
-<tr><td><strong>Coverage</strong> (#168)</td><td>Which lines are exercised at all</td><td><a href="#code-coverage">Coverage</a></td></tr>
-<tr><td><strong>Mutation testing</strong> (#146)</td><td>Whether tests actually catch bugs</td><td><a href="#mutation-testing-baseline">Mutation Testing</a></td></tr>
-<tr><td><strong>Fuzzing</strong> (#147)</td><td>Crash-shape bugs on adversarial inputs</td><td><a href="#fuzzing">Fuzzing</a></td></tr>
-<tr><td><strong>Public API surface</strong> (#145)</td><td>SemVer-relevant public-surface drift</td><td><a href="#public-api-surface">Public API</a></td></tr>
-<tr><td><strong>Performance</strong> (this doc, #148)</td><td>Parse-time regressions</td><td><code>benches/</code> + this doc</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="bench-coverage"><a class="header" href="#bench-coverage">Bench coverage</a></h2>
-<p>Six benchmarks in <code>benches/parse.rs</code> cover the main parse paths:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Bench</th><th>Input</th><th>What it stresses</th></tr>
-</thead>
-<tbody>
-<tr><td><code>movie_basic</code></td><td><code>The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv</code></td><td>Standard movie filename</td></tr>
-<tr><td><code>movie_complex</code></td><td><code>Blade.Runner.2049.2017.2160p.UHD.BluRay.REMUX.HDR.HEVC.DTS-HD.MA.7.1.Atmos-EPSiLON.mkv</code></td><td>Loaded movie with many tags (codec, source, audio, HDR, atmos)</td></tr>
-<tr><td><code>episode_sxxexx</code></td><td><code>The.Walking.Dead.S05E03.720p.BluRay.x264-DEMAND.mkv</code></td><td>Standard episode with <code>SxxExx</code> marker</td></tr>
-<tr><td><code>episode_with_path</code></td><td><code>Series/Californication/Season 2/Californication.2x05.Vaginatown.HDTV.XviD-0TV.avi</code></td><td>Multi-segment path with directory context</td></tr>
-<tr><td><code>anime_bracket</code></td><td><code>[SubGroup] Anime Title - 01 [720p] [ABCD1234].mkv</code></td><td>Anime-style brackets + CRC32 checksum</td></tr>
-</tbody>
-</table>
-</div>
-<p>Coverage matches what <a href="https://github.com/lijunzh/hunch/pull/138">PR #138</a> pinned for correctness — the same shapes get exercised for both correctness and perf.</p>
-<h2 id="initial-baseline-2026-04-18"><a class="header" href="#initial-baseline-2026-04-18">Initial baseline (2026-04-18)</a></h2>
-<p>Captured on local M-class hardware, criterion default (100 samples, 5s collection):</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Bench</th><th>Median time</th><th>Iterations to fill 5 s</th></tr>
-</thead>
-<tbody>
-<tr><td><code>anime_bracket</code></td><td><strong>62.5 µs</strong></td><td>81k</td></tr>
-<tr><td><code>movie_basic</code></td><td><strong>74.8 µs</strong></td><td>67k</td></tr>
-<tr><td><code>episode_with_path</code></td><td><strong>78.5 µs</strong></td><td>64k</td></tr>
-<tr><td><code>episode_sxxexx</code></td><td><strong>83.4 µs</strong></td><td>60k</td></tr>
-<tr><td><code>movie_complex</code></td><td><strong>183 µs</strong></td><td>27k</td></tr>
-</tbody>
-</table>
-</div>
-<p>Total cargo-bench wall clock: ~70 s on local hardware.</p>
-<p>GitHub-hosted ubuntu-latest runners are <strong>~2-3× slower</strong> with significantly noisier per-iteration variance. Expect CI numbers to be roughly:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Bench</th><th>CI estimate (rough)</th></tr>
-</thead>
-<tbody>
-<tr><td><code>movie_complex</code></td><td>400-600 µs</td></tr>
-<tr><td>Others</td><td>150-250 µs</td></tr>
-</tbody>
-</table>
-</div>
-<p>These ranges will tighten once we have a multi-month CI history to characterize the noise floor.</p>
-<h2 id="how-it-runs-in-ci"><a class="header" href="#how-it-runs-in-ci">How it runs in CI</a></h2>
-<p><a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/benchmark.yml"><code>.github/workflows/benchmark.yml</code></a> — triggered on:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Trigger</th><th>Behavior</th></tr>
-</thead>
-<tbody>
-<tr><td>Pull request (paths: <code>src/</code>, <code>benches/</code>, <code>Cargo.*</code>, workflow file)</td><td>Compare vs latest <code>main</code> baseline; <strong>comment delta table</strong> on PR; <strong>fail if any bench &gt;120% of baseline</strong></td></tr>
-<tr><td>Push to <code>main</code> (same paths)</td><td>Append results to <code>gh-pages/dev/bench/data.js</code>; no comment, no fail</td></tr>
-<tr><td>Weekly Sunday 05:14 UTC</td><td>Produce artifact only (legacy belt)</td></tr>
-<tr><td>Manual dispatch</td><td>Produce artifact only</td></tr>
-</tbody>
-</table>
-</div>
-<p>Output on every run: <code>bench-output/parse.txt</code> (full criterion log) + <code>bench-output/parse-summary.txt</code> (one bencher-format line per bench), uploaded as the <code>bench-results-&lt;sha&gt;</code> artifact with <strong>90-day retention</strong> — independent backstop in case the gh-pages history gets corrupted.</p>
-<h3 id="threshold-rationale"><a class="header" href="#threshold-rationale">Threshold rationale</a></h3>
-<ul>
-<li><strong><code>alert-threshold: '120%'</code></strong> — fail when any bench is <strong>&gt;20% slower</strong> than the latest main baseline.</li>
-<li>Deliberately permissive to filter the typical 5–10% noise floor on shared GitHub-hosted runners. A tighter threshold without statistical-significance handling would flake constantly.</li>
-<li>Tighten once we have ~4 weeks of weekly-run data to characterize real variance — tracked in <a href="https://github.com/lijunzh/hunch/issues/178">#178</a>’s comments.</li>
-</ul>
-<h3 id="triage-when-the-gate-fires"><a class="header" href="#triage-when-the-gate-fires">Triage when the gate fires</a></h3>
-<ol>
-<li><strong>Don’t immediately revert.</strong> Confirm by re-running the bench job (CPU jitter on shared runners is real). If the second run still flags it, you have a real signal.</li>
-<li>Pull the bench artifact from both the PR run and the most recent <code>main</code> run; eyeball the absolute numbers (the action’s comment shows %-delta, but absolute µs tells you whether it’s a hot-path concern or a 100ns blip on a 10µs bench).</li>
-<li>If real, profile locally with <code>cargo bench --bench parse -- --profile-time 10</code> (criterion’s built-in flamegraph mode) or <code>samply</code> for deeper drill-down.</li>
-<li><strong>Override path</strong>: if the regression is intentional (perf traded for correctness or feature), document the rationale in <code>CHANGELOG.md</code> and use the <code>[skip-bench-gate]</code> label (TODO once we hit the first justified override) — for now, accept the failure and discuss in PR review.</li>
-</ol>
-<h2 id="history-storage--decision-177"><a class="header" href="#history-storage--decision-177">History storage — decision (#177)</a></h2>
-<p><strong>Choice: <a href="https://github.com/benchmark-action/github-action-benchmark"><code>github-action-benchmark</code></a> committing data to a <code>gh-pages</code> branch.</strong></p>
-<p>Three real options were considered (full tradeoff table in <a href="https://github.com/lijunzh/hunch/issues/177">#177</a>):</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Option</th><th>UX</th><th>Trust model</th><th>Cost</th><th>Picked?</th></tr>
-</thead>
-<tbody>
-<tr><td><strong>A: bencher.dev</strong> (cloud SaaS)</td><td>Best (prebuilt charts, alerts)</td><td>External account + API token</td><td>Free for OSS</td><td>❌</td></tr>
-<tr><td><strong>B: github-action-benchmark</strong> (gh-pages)</td><td>Adequate (Chart.js dashboard)</td><td>In-repo, no external service</td><td>Free</td><td>✅</td></tr>
-<tr><td><strong>C: Self-hosted runner</strong></td><td>N/A (storage-orthogonal)</td><td>Internal</td><td>High (someone owns a machine)</td><td>❌</td></tr>
-</tbody>
-</table>
-</div>
-<h3 id="why-option-b"><a class="header" href="#why-option-b">Why Option B</a></h3>
-<ol>
-<li><strong>In-repo, no external deps</strong> — matches the project’s stewardship ethos (same as how <a href="#mutation-testing-baseline">Mutation Testing</a> and <a href="#fuzzing">Fuzzing</a> keep their data in-tree).</li>
-<li><strong>No vendor lock-in</strong> — <code>data.js</code> on <code>gh-pages</code> is just a JSON-array-shaped file; if we outgrow it, exporting to bencher.dev later is straightforward.</li>
-<li><strong>No org-secret friction</strong> — zero coordination with Walmart secret-management to get a token provisioned per-fork.</li>
-<li><strong>Negligible maintenance</strong> — the action auto-commits to <code>gh-pages</code> on every push to <code>main</code>; no manual touch.</li>
-<li><strong>PR comments are built-in</strong> — the action ships a <code>comment-on-alert</code> flag that posts deltas back to PRs once we wire it up in <a href="https://github.com/lijunzh/hunch/issues/178">#178</a>.</li>
-</ol>
-<h3 id="infrastructure-created-by-this-decision"><a class="header" href="#infrastructure-created-by-this-decision">Infrastructure created by this decision</a></h3>
-<ul>
-<li><strong><code>gh-pages</code> branch</strong> seeded with a placeholder <code>index.html</code> (commit <code>2916df7</code>). The action will populate it with <code>data.js</code> + an interactive Chart.js dashboard on the next push to <code>main</code>.</li>
-<li>The dashboard will be live at <code>https://lijunzh.github.io/hunch/</code> once GitHub Pages is enabled in repo settings (Settings → Pages → Source: <code>gh-pages</code> branch / <code>/</code> root). <strong>Manual one-time toggle required.</strong></li>
-</ul>
-<h3 id="migration-path-if-option-b-disappoints"><a class="header" href="#migration-path-if-option-b-disappoints">Migration path if Option B disappoints</a></h3>
-<p>If the dashboard UX or noise-handling proves inadequate after a few months of real-world use, migrating to bencher.dev is mechanical:</p>
-<ol>
-<li>Enable bencher.dev account, generate API token, store as repo secret.</li>
-<li>Replace the <code>github-action-benchmark</code> step in <code>benchmark.yml</code> with <code>bencherdev/bencher@v0.x</code>.</li>
-<li>Optionally backfill: <code>data.js</code> on <code>gh-pages</code> is a JSON array; bencher.dev supports CSV import.</li>
-</ol>
-<p>No code change to the bench harness itself (<code>benches/parse.rs</code>) is needed in either direction.</p>
-<h2 id="local-usage"><a class="header" href="#local-usage">Local usage</a></h2>
-<p>Run the full bench suite:</p>
-<pre><code class="language-bash">cargo bench --bench parse
-</code></pre>
-<p>(Takes ~70 s on M-class hardware; longer on CI.)</p>
-<p>Run just one bench:</p>
-<pre><code class="language-bash">cargo bench --bench parse -- movie_basic
-</code></pre>
-<p>Use criterion’s baseline-comparison mode to detect regressions across two commits:</p>
-<pre><code class="language-bash"># Save numbers from the current state as 'before'
-cargo bench --bench parse -- --save-baseline before
-
-# Make your change, then compare
-cargo bench --bench parse -- --baseline before
-</code></pre>
-<p>Criterion will print “Performance has improved” / “Performance has regressed” with confidence intervals. Anything with <code>p &lt; 0.05</code> is statistically significant; anything &gt; 5% delta is usually visible above the local-hardware noise floor.</p>
-<h2 id="roadmap-deferred-to-follow-up-prs-within-148"><a class="header" href="#roadmap-deferred-to-follow-up-prs-within-148">Roadmap (deferred to follow-up PRs within #148)</a></h2>
-<p>This first slice intentionally does <strong>not</strong> implement the full epic <a href="https://github.com/lijunzh/hunch/issues/148">DoD</a>. Why each piece is deferred:</p>
-<ul>
-<li><input disabled="" type="checkbox" checked=""> <strong>Decision: bencher.dev (cloud) vs github-action-benchmark (gh-pages) vs self-hosted runner</strong> — resolved in <a href="https://github.com/lijunzh/hunch/issues/177">#177</a>. See “History storage — decision” above.</li>
-<li><input disabled="" type="checkbox" checked=""> <strong>PR-time comparison + comment + regression gate</strong> — resolved in <a href="https://github.com/lijunzh/hunch/issues/178">#178</a>. See “How it runs in CI” above.</li>
-<li><input disabled="" type="checkbox"> <strong>Tighten alert threshold from 120% to something stricter</strong> — needs ~4 weeks of post-#178 data to characterize the noise floor on shared runners. Tracked in #178’s comments.</li>
-<li><input disabled="" type="checkbox"> <strong>Per-release baseline snapshot committed to the repo</strong> (<a href="https://github.com/lijunzh/hunch/issues/179">#179</a>): useful for showing perf trajectory in <code>CHANGELOG.md</code> per release. Trivial follow-up now that the storage substrate exists.</li>
-<li><input disabled="" type="checkbox"> <strong>Differential vs guessit</strong>: out of epic scope per #148 (“interesting but apples-to-oranges”).</li>
-<li><input disabled="" type="checkbox"> <strong>Memory profiling</strong>: out of epic scope per #148 (criterion is wall-clock).</li>
-</ul>
-<h2 id="triage-protocol--manual-deep-dive-when-the-gate-fires"><a class="header" href="#triage-protocol--manual-deep-dive-when-the-gate-fires">Triage protocol — manual deep-dive when the gate fires</a></h2>
-<p>The automated triage steps live in “Triage when the gate fires” above. This section covers the deeper-dive workflow once you’ve decided a regression is real.</p>
-<ol>
-<li><strong>Reproduce locally</strong> with <code>cargo bench --bench parse</code> — confirm it’s not just CI noise (re-run the workflow if numbers look wild).</li>
-<li><strong>Bisect</strong> with <code>cargo bench --bench parse -- --save-baseline X</code> at suspect commits, then <code>--baseline X</code> at the next one to find the introducing SHA.</li>
-<li><strong>Profile</strong> with <code>cargo bench --bench parse -- --profile-time 10</code> (criterion’s built-in flag) or <code>samply</code> / <code>flamegraph</code> for deeper drill-down.</li>
-<li><strong>Fix or revert</strong>: if the regression is acceptable (e.g., new feature traded perf for correctness), document it in <code>CHANGELOG.md</code>. Otherwise, fix or revert.</li>
-</ol>
-<h2 id="references"><a class="header" href="#references">References</a></h2>
-<ul>
-<li><a href="#benchmark-dashboard">Live Dashboard</a> — per-commit history (Pattern B chart)</li>
-<li><a href="#release-performance-trajectory">Release Trajectory</a> — per-released-version snapshots</li>
-<li><a href="https://bheisler.github.io/criterion.rs/book/">criterion.rs book</a> — methodology, statistical model</li>
-<li><a href="https://github.com/lijunzh/hunch/blob/main/benches/parse.rs"><code>benches/parse.rs</code></a> — the bench harness itself</li>
-<li>Sibling docs: <a href="#code-coverage">Coverage</a>, <a href="#mutation-testing-baseline">Mutation Testing</a>, <a href="#fuzzing">Fuzzing</a>, <a href="#public-api-surface">Public API</a></li>
-<li><a href="https://github.com/lijunzh/hunch/issues/148">#148</a> — the parent epic</li>
-<li><a href="https://github.com/lijunzh/hunch/pull/138">#138</a> — established the property-extractor coverage shape this doc mirrors</li>
-<li><a href="https://github.com/lijunzh/hunch/pull/140">#140</a> — refreshed criterion’s transitive dev-deps</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="benchmark-dashboard"><a class="header" href="#benchmark-dashboard">Benchmark Dashboard</a></h1>
-<p>Live performance trends for hunch’s parser, sourced from the
-<a href="https://github.com/lijunzh/hunch/actions/workflows/benchmark.yml">Benchmarks workflow</a>
-that runs on every push to <code>main</code>.</p>
-<blockquote>
-<p><strong>About this data</strong>: each chart shows wall-clock parse time per
-bench commit-by-commit. The data is committed to
-<a href="https://github.com/lijunzh/hunch/blob/gh-pages/dev/bench/data.js"><code>gh-pages/dev/bench/data.js</code></a>
-by the <a href="https://github.com/benchmark-action/github-action-benchmark"><code>benchmark-action/github-action-benchmark</code></a>
-step in <code>benchmark.yml</code>. See <a href="#benchmarks">Benchmarks</a> for
-methodology, the regression-gate threshold, and triage protocol.</p>
-</blockquote>
-<h2 id="trend-per-benchmark"><a class="header" href="#trend-per-benchmark">Trend per benchmark</a></h2>
-<div id="bench-charts">
-  
-<p id="bench-status">Loading bench data…</p>
-
-</div>
-
-<!-- Chart.js: pinned to the latest stable major (4.x) via jsDelivr CDN.
-     SRI hash omitted because the version selector breaks SRI; if we ever
-     hit a CSP issue, switch to bundling chart.umd.min.js under theme/. -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script src="../dev/bench/data.js"></script>
-<script>
-(function () {
-  const status = document.getElementById('bench-status');
-  const container = document.getElementById('bench-charts');
-
-  // The github-action-benchmark action populates window.BENCHMARK_DATA
-  // with shape { lastUpdate, repoUrl, entries: { 'hunch criterion benches': [...] } }.
-  if (typeof window.BENCHMARK_DATA === 'undefined') {
-    status.textContent =
-      'No benchmark data yet — the dashboard will populate after ' +
-      'the first push to main runs the Benchmarks workflow.';
-    return;
-  }
-
-  const suite = window.BENCHMARK_DATA.entries['hunch criterion benches'];
-  if (!suite || suite.length === 0) {
-    status.textContent = 'Bench data file present but empty. Check workflow logs.';
-    return;
-  }
-
-  // Pivot from per-commit-list-of-benches to per-bench-list-of-commits.
-  const benchSeries = new Map();
-  for (const commit of suite) {
-    const ts = new Date(commit.date).toISOString().slice(0, 10);
-    const sha = commit.commit.id.slice(0, 7);
-    for (const b of commit.benches) {
-      if (!benchSeries.has(b.name)) benchSeries.set(b.name, []);
-      benchSeries.get(b.name).push({
-        x: `${ts}\n${sha}`,
-        y: b.value,
-        unit: b.unit,
-      });
-    }
-  }
-
-  status.remove();
-  for (const [name, series] of benchSeries) {
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'height: 320px; margin: 1.5rem 0;';
-    const canvas = document.createElement('canvas');
-    wrapper.appendChild(canvas);
-    container.appendChild(wrapper);
-
-    new Chart(canvas, {
-      type: 'line',
-      data: {
-        labels: series.map(p => p.x),
-        datasets: [{
-          label: `${name} (${series[0].unit})`,
-          data: series.map(p => p.y),
-          borderColor: '#0053e2',
-          backgroundColor: 'rgba(0, 83, 226, 0.1)',
-          tension: 0.2,
-          fill: true,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: { title: { display: true, text: series[0].unit }, beginAtZero: false },
-        },
-        plugins: { legend: { position: 'top' } },
-      },
-    });
-  }
-})();
-</script>
-<h2 id="what-the-gate-does"><a class="header" href="#what-the-gate-does">What the gate does</a></h2>
-<p>The <a href="https://github.com/lijunzh/hunch/actions/workflows/benchmark.yml">Benchmarks workflow</a>
-also runs on every PR and <strong>fails any bench that gets &gt;20% slower</strong>
-(threshold: <code>120%</code> of latest main baseline, p&lt;0.01 not yet enforced —
-shared-runner noise still dominates). See <a href="#threshold-rationale">Benchmarks → Threshold rationale</a>.</p>
-<h2 id="drill-down"><a class="header" href="#drill-down">Drill-down</a></h2>
-<p>If you spot a step-change above:</p>
-<ol>
-<li>Click “Benchmarks” in the GitHub Actions UI to find the runs around
-that commit.</li>
-<li>Download the <code>bench-results-&lt;sha&gt;</code> artifact (90-day retention) for
-the full criterion log.</li>
-<li>Reproduce locally: <code>cargo bench --bench parse -- --baseline &lt;known-good-sha&gt;</code>.</li>
-</ol>
-<p>Triage protocol: see <a href="#triage-when-the-gate-fires">Benchmarks → Triage</a>.</p>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="release-performance-trajectory"><a class="header" href="#release-performance-trajectory">Release Performance Trajectory</a></h1>
-<p>How hunch’s parser performance has evolved across released versions.</p>
-<blockquote>
-<p><strong>Source of truth:</strong> <code>gh-pages/release-snapshots/&lt;tag&gt;.json</code> — one
-immutable file per version tag. Generated automatically by the
-<code>Benchmarks</code> workflow whenever a <code>v*</code> tag is pushed (per
-<a href="https://github.com/lijunzh/hunch/issues/179">#179</a>). Each snapshot
-records the bench numbers, git SHA, runner identity, and timestamp.</p>
-<p>See <a href="#benchmarks">Benchmarks</a> for methodology and the
-<a href="#benchmark-dashboard">Live Dashboard</a> for per-commit history.</p>
-</blockquote>
-<h2 id="snapshots"><a class="header" href="#snapshots">Snapshots</a></h2>
-<div id="trajectory-status">Loading release snapshots…</div>
-
-<div id="trajectory-content"></div>
-
-<!-- The list of release tags below is the ONLY thing that needs to be
-     updated as part of release prep. Newest tag first. Tags older
-     than the bench harness landing in #176 (= older than v1.1.8) won't
-     have snapshots — they're not in this list.
-
-     Release-prep checklist (per #179):
-       1. Bump version in Cargo.toml
-       2. Update CHANGELOG.md
-       3. Add the new tag to the RELEASE_TAGS array below (top of list)
-       4. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
-       5. Wait ~3 min for the bench workflow to publish the snapshot
-       6. (optional) Verify at https://lijunzh.github.io/hunch/release-snapshots/<tag>.json -->
-<script>
-const RELEASE_TAGS = [
-  // Newest first. Add new entries to the TOP per the checklist above.
-  // (Empty until the first post-#179 release lands.)
-];
-
-(async function () {
-  const status = document.getElementById('trajectory-status');
-  const content = document.getElementById('trajectory-content');
-
-  if (RELEASE_TAGS.length === 0) {
-    status.innerHTML =
-      '<p><em>No release snapshots yet. The first one will appear after ' +
-      'the next <code>v*</code> tag is pushed (post-#179 merge). ' +
-      'Until then, see the <a href="./benchmark-dashboard.html">' +
-      'live per-commit dashboard</a> for current performance trends.</em></p>';
-    return;
-  }
-
-  // Fetch all snapshots in parallel; tolerate 404s (a tag in the list
-  // without a published snapshot just gets skipped, with a console warning).
-  const fetched = await Promise.all(RELEASE_TAGS.map(async (tag) => {
-    try {
-      const r = await fetch(`../release-snapshots/${tag}.json`);
-      if (!r.ok) {
-        console.warn(`No snapshot for ${tag} (HTTP ${r.status})`);
-        return null;
-      }
-      return await r.json();
-    } catch (e) {
-      console.warn(`Failed to fetch ${tag}:`, e);
-      return null;
-    }
-  }));
-
-  const snapshots = fetched.filter(Boolean);
-  if (snapshots.length === 0) {
-    status.textContent =
-      'Listed releases have no published snapshots yet. ' +
-      'Re-deploying the docs after the next bench workflow run should fix this.';
-    return;
-  }
-
-  // Build a per-bench comparison table: rows = bench names,
-  // columns = release tags (newest first), cells = ns/iter.
-  // Bench names taken from the newest snapshot; older snapshots that
-  // are missing a bench (e.g. `minimal` was dropped in #191) show "—".
-  const newest = snapshots[0];
-  const benchNames = newest.benches.map(b => b.name);
-
-  let html = '<h2>Per-bench comparison</h2><table><thead><tr><th>Bench</th>';
-  for (const s of snapshots) html += `<th>${s.tag}</th>`;
-  html += '</tr></thead><tbody>';
-
-  for (const name of benchNames) {
-    html += `<tr><td><code>${name}</code></td>`;
-    for (const s of snapshots) {
-      const b = s.benches.find(x => x.name === name);
-      html += b
-        ? `<td>${(b.value / 1000).toFixed(1)} \u00b5s</td>`
-        : '<td><em>—</em></td>';
-    }
-    html += '</tr>';
-  }
-  html += '</tbody></table>';
-
-  // Snapshot metadata table.
-  html += '<h2>Snapshot details</h2><table><thead><tr><th>Tag</th><th>Date</th><th>SHA</th><th>Runner</th></tr></thead><tbody>';
-  for (const s of snapshots) {
-    const sha = s.sha.slice(0, 7);
-    const date = s.date.slice(0, 10);
-    html += `<tr><td><strong>${s.tag}</strong></td><td>${date}</td><td><code>${sha}</code></td><td><code>${s.runner}</code></td></tr>`;
-  }
-  html += '</tbody></table>';
-
-  status.remove();
-  content.innerHTML = html;
-})();
-</script>
-<h2 id="methodology-caveat"><a class="header" href="#methodology-caveat">Methodology caveat</a></h2>
-<p>Numbers are wall-clock parse time on <code>ubuntu-latest</code> GitHub-hosted
-runners — useful for <strong>trajectory</strong> (is the parser getting slower or
-faster across releases?) but <strong>not</strong> for absolute comparisons against
-your hardware. Local M-class hardware typically runs ~2–3× faster.</p>
-<p>Per-bench variance from runner-hardware shifts has been observed at
-±5–10% on the larger benches and &gt;30% on benches under ~25 µs. The
-<a href="https://github.com/lijunzh/hunch/issues/178">#178</a> regression gate
-uses a 120% threshold for exactly this reason; small absolute
-swings shouldn’t be over-interpreted as real regressions.</p>
-<div style="break-before: page; page-break-before: always;"></div>
 <h1 id="public-api-surface"><a class="header" href="#public-api-surface">Public API Surface</a></h1>
 <p>Hunch’s public Rust API is the contract that downstream library consumers
 depend on. SemVer-incompatible changes (removing/renaming <code>pub</code> items,
@@ -1173,7 +764,7 @@ Directory/Filename respectively).</em></li>
 <li><strong>Promote the CI job from advisory → blocking</strong> once the surface has
 stabilised post-audit.</li>
 </ul>
-<h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
+<h2 id="references"><a class="header" href="#references">References</a></h2>
 <ul>
 <li><a href="https://github.com/Enselic/cargo-public-api"><code>cargo-public-api</code></a></li>
 <li><a href="https://github.com/obi1kenobi/cargo-semver-checks"><code>cargo-semver-checks</code></a>
@@ -1390,7 +981,7 @@ on labelling.</li>
 N% below baseline. Deferred until baseline has settled across enough
 nightly runs to characterise noise.</li>
 </ol>
-<h2 id="local-usage-1"><a class="header" href="#local-usage-1">Local usage</a></h2>
+<h2 id="local-usage"><a class="header" href="#local-usage">Local usage</a></h2>
 <p>Install once (note: requires <code>--locked</code> so the version matches CI):</p>
 <pre><code class="language-bash">cargo install cargo-mutants --locked
 </code></pre>
@@ -1481,7 +1072,7 @@ nightly run, and assign to the next coverage-improvement loop.</li>
 </table>
 </div>
 <p>(Future entries get appended as they’re triaged.)</p>
-<h2 id="references-2"><a class="header" href="#references-2">References</a></h2>
+<h2 id="references-1"><a class="header" href="#references-1">References</a></h2>
 <ul>
 <li><a href="https://mutants.rs/"><code>cargo-mutants</code> book</a></li>
 <li>Epic <a href="https://github.com/lijunzh/hunch/issues/146">#146</a></li>
@@ -1489,215 +1080,6 @@ nightly run, and assign to the next coverage-improvement loop.</li>
 <a href="#code-coverage"><code>coverage.md</code></a></li>
 <li>Industry benchmark: 80% kill rate is the rough north star for parser
 code (mature mutation-tested Rust crates land 75–90%).</li>
-</ul>
-<div style="break-before: page; page-break-before: always;"></div>
-<h1 id="fuzzing"><a class="header" href="#fuzzing">Fuzzing</a></h1>
-<p>Hunch uses <a href="https://rust-fuzz.github.io/book/"><code>cargo-fuzz</code></a> to drive
-the public parser surface (<code>hunch::hunch</code>, <code>hunch::hunch_with_context</code>)
-with arbitrary mutator-generated inputs, hunting for panics, integer
-overflows, out-of-bounds slice indexing, and other crash-shape bugs
-that fixture-based tests can’t reach.</p>
-<p>This complements the existing testing layers:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Layer</th><th>Catches</th><th>Where</th></tr>
-</thead>
-<tbody>
-<tr><td><strong>Unit + integration tests</strong> (~525 fixtures)</td><td>Correctness for known inputs</td><td><code>tests/</code>, <code>src/**/tests</code></td></tr>
-<tr><td><strong>Coverage</strong> (#168)</td><td>Which lines are exercised at all</td><td><a href="#code-coverage">Coverage</a></td></tr>
-<tr><td><strong>Mutation testing</strong> (#146)</td><td>Whether assertions actually catch bugs</td><td><a href="#mutation-testing-baseline">Mutation Testing</a></td></tr>
-<tr><td><strong>Fuzzing</strong> (this doc)</td><td>Crash-shape bugs on adversarial inputs</td><td><code>fuzz/</code> + this doc</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="fuzz-targets"><a class="header" href="#fuzz-targets">Fuzz targets</a></h2>
-<p>Two targets in <code>fuzz/fuzz_targets/</code>:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Target</th><th>Entry point</th><th>What it stresses</th></tr>
-</thead>
-<tbody>
-<tr><td><code>parse_filename</code></td><td><code>hunch::hunch(input: &amp;str)</code></td><td>Single-string parse with arbitrary UTF-8</td></tr>
-<tr><td><code>parse_with_context</code></td><td><code>hunch::hunch_with_context(input, &amp;siblings)</code></td><td>Multi-input invariance analysis with up to 16 siblings</td></tr>
-</tbody>
-</table>
-</div>
-<p>Both reject non-UTF-8 input at the harness layer (the public API takes <code>&amp;str</code>,
-so non-UTF-8 isn’t a reachable failure mode). <code>parse_with_context</code> uses the
-<a href="https://docs.rs/arbitrary/"><code>arbitrary</code></a> derive macro to give libfuzzer
-structured input it can mutate per-field — better coverage feedback than
-manually splitting a single <code>&amp;[u8]</code> blob.</p>
-<h2 id="how-it-runs-1"><a class="header" href="#how-it-runs-1">How it runs</a></h2>
-<p><a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/fuzz.yml"><code>.github/workflows/fuzz.yml</code></a> defines two jobs:</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Job</th><th>Trigger</th><th>Time</th><th>What</th></tr>
-</thead>
-<tbody>
-<tr><td><code>Fuzz harness build</code></td><td>every PR + push</td><td>~30 s</td><td>Just <code>cargo fuzz build</code> — confirms targets compile against current API</td></tr>
-<tr><td><code>Nightly fuzz</code></td><td>04:14 UTC + manual</td><td>~12 min total (5 min × 2 targets)</td><td>Real fuzzing, corpus persistence via <code>actions/cache</code>, crash artifacts uploaded</td></tr>
-</tbody>
-</table>
-</div>
-<p>The PR-time job is intentionally <strong>build-only</strong>, not actual fuzzing.
-A 60-second per-target fuzz on every PR (the epic’s <a href="https://github.com/lijunzh/hunch/issues/147">#147 DoD</a>)
-adds noise without high signal — the corpus barely grows in 60 s, and
-nightly catches the same bugs at higher coverage. We can revisit if PR-time
-fuzzing produces useful findings; for now build-check is the daily signal.</p>
-<h3 id="what-the-nightly-does"><a class="header" href="#what-the-nightly-does">What the nightly does</a></h3>
-<pre><code class="language-bash">cargo +nightly fuzz run &lt;target&gt; -- \
-  -max_total_time=300   # 5 min wall-clock
-  -timeout=10           # per-input cap (catches slow-input DoS too)
-  -rss_limit_mb=2048    # treat unbounded allocation as a crash
-</code></pre>
-<p>The corpus directory <code>fuzz/corpus/&lt;target&gt;/</code> is restored from <code>actions/cache</code>
-at the start of each run and saved at the end, so coverage compounds across
-nights instead of restarting from the ~10-input seed each time.</p>
-<p>Crashes (if any) land in <code>fuzz/artifacts/&lt;target&gt;/</code> and are uploaded as
-the <code>fuzz-artifacts-&lt;target&gt;</code> workflow artifact (30-day retention).</p>
-<h2 id="local-usage-2"><a class="header" href="#local-usage-2">Local usage</a></h2>
-<p>One-time install:</p>
-<pre><code class="language-bash">rustup toolchain install nightly --profile minimal
-cargo install cargo-fuzz --locked
-</code></pre>
-<p>Build the harness:</p>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz build
-</code></pre>
-<p>Run a single target for 60 seconds (good iteration loop):</p>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz run parse_filename -- -max_total_time=60
-</code></pre>
-<p>Both targets in parallel for the same time the nightly uses:</p>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz run parse_filename       -- -max_total_time=300 &amp;
-cargo +nightly fuzz run parse_with_context   -- -max_total_time=300 &amp;
-wait
-</code></pre>
-<h2 id="seed-corpus"><a class="header" href="#seed-corpus">Seed corpus</a></h2>
-<p>Located at <code>fuzz/corpus/&lt;target&gt;/</code>, <strong>committed to git</strong>. Each file is
-one input. Curated to give libfuzzer’s coverage feedback a wide initial
-spread rather than 100 near-duplicate movie filenames.</p>
-<p>Current <code>parse_filename</code> seeds (10 entries):</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>File</th><th>What it covers</th></tr>
-</thead>
-<tbody>
-<tr><td><code>movie_basic</code></td><td>Standard <code>Title.Year.Resolution.Source.Codec-Group.ext</code></td></tr>
-<tr><td><code>episode_sxxexx</code></td><td><code>SxxExx</code> marker + episode title</td></tr>
-<tr><td><code>anime_brackets</code></td><td><code>[Group]</code> + <code>[CRC32]</code> brackets, <code>HEVC AAC</code> codec stack</td></tr>
-<tr><td><code>path_with_dirs</code></td><td>Multi-segment path with parenthesised year in directory</td></tr>
-<tr><td><code>multi_episode</code></td><td><code>S01E01-E03</code> range syntax</td></tr>
-<tr><td><code>unicode_title</code></td><td>Multi-byte UTF-8 (Japanese title)</td></tr>
-<tr><td><code>empty</code></td><td>Zero-byte input</td></tr>
-<tr><td><code>just_year</code></td><td>4-digit-only input</td></tr>
-<tr><td><code>long_dotted</code></td><td>Pathological 26-token dotted name</td></tr>
-<tr><td><code>extension_only</code></td><td>Just <code>.mkv</code></td></tr>
-</tbody>
-</table>
-</div>
-<p>When you discover a new corpus-worthy input (e.g., a real-world
-filename that previously broke parsing), add it to the corpus under a
-descriptive name. The default <code>fuzz/.gitignore</code> ignores <code>corpus/</code> to
-keep mutator-discovered hex-named files out of git noise, so commit
-named seeds with <code>git add -f</code>:</p>
-<pre><code class="language-bash">echo 'My.New.Filename.shape.mkv' &gt; fuzz/corpus/parse_filename/regression_165
-git add -f fuzz/corpus/parse_filename/regression_165
-</code></pre>
-<h2 id="triage-protocol--when-fuzzing-finds-a-crash"><a class="header" href="#triage-protocol--when-fuzzing-finds-a-crash">Triage protocol — when fuzzing finds a crash</a></h2>
-<p>A crash artifact in <code>fuzz/artifacts/&lt;target&gt;/</code> is a 1-input file that
-makes the harness panic. Reproduce + minimize + fix workflow:</p>
-<h3 id="1-reproduce-locally"><a class="header" href="#1-reproduce-locally">1. Reproduce locally</a></h3>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz run &lt;target&gt; artifacts/&lt;target&gt;/&lt;crash-id&gt;
-</code></pre>
-<p>This re-runs the harness against just that one input. You should see
-the panic output identical to the nightly’s failure log.</p>
-<h3 id="2-minimize"><a class="header" href="#2-minimize">2. Minimize</a></h3>
-<p><code>cargo fuzz tmin</code> shrinks the input to the smallest reproduction:</p>
-<pre><code class="language-bash">cd fuzz
-cargo +nightly fuzz tmin &lt;target&gt; artifacts/&lt;target&gt;/&lt;crash-id&gt;
-</code></pre>
-<p>The minimized input lands at <code>fuzz/artifacts/&lt;target&gt;/minimized-from-&lt;crash-id&gt;</code>.
-A 200-byte input often shrinks to &lt;20 bytes, which makes both the bug
-report and the eventual unit test much clearer.</p>
-<h3 id="3-classify-the-bug"><a class="header" href="#3-classify-the-bug">3. Classify the bug</a></h3>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Pattern</th><th>Category</th><th>Action</th></tr>
-</thead>
-<tbody>
-<tr><td><code>unwrap()</code> / <code>expect()</code> / <code>panic!()</code> reachable from public API</td><td><strong>Defensive bug</strong></td><td>Convert to <code>Result</code> return; add a unit test pinning the input → Err mapping</td></tr>
-<tr><td>Integer overflow / underflow</td><td><strong>Arithmetic bug</strong></td><td>Use <code>checked_*</code> / <code>saturating_*</code> arithmetic; assert with <code>debug_assert!</code> if the invariant should hold</td></tr>
-<tr><td>Out-of-bounds slice on UTF-8 boundary</td><td><strong>Encoding bug</strong></td><td>Use <code>str::char_indices</code> / <code>str::is_char_boundary</code> instead of byte slicing</td></tr>
-<tr><td>Regex catastrophic backtracking (manifests as fuzzer timeout, not panic)</td><td><strong>DoS bug</strong></td><td>Rewrite the regex to be linear-time (typically by removing nested quantifiers)</td></tr>
-<tr><td>Genuinely intentional invariant violation</td><td><strong>Documentation bug</strong></td><td>Add <code>debug_assert!</code> with comment, document the precondition</td></tr>
-</tbody>
-</table>
-</div>
-<h3 id="4-fix--add-the-minimized-input-as-a-regression-test"><a class="header" href="#4-fix--add-the-minimized-input-as-a-regression-test">4. Fix + add the minimized input as a regression test</a></h3>
-<p>The minimized crash input goes into either:</p>
-<ul>
-<li><code>tests/fixtures/regression.yml</code> (if it should produce a sensible parse)</li>
-<li><code>tests/regression_panics.rs</code> (if it should produce a non-panicking error)</li>
-</ul>
-<p>Then commit the minimized input to <code>fuzz/corpus/&lt;target&gt;/regression-&lt;issue-num&gt;</code>
-so future fuzz runs always cover the regression shape.</p>
-<h3 id="5-file-an-issue-if-not-already"><a class="header" href="#5-file-an-issue-if-not-already">5. File an issue (if not already)</a></h3>
-<p>Use the <code>fuzz-finding</code> label. Include:</p>
-<ul>
-<li>The minimized input (hex if non-printable)</li>
-<li>The panic message + stack trace</li>
-<li>Your bug-classification verdict per step 3</li>
-<li>The fix PR link</li>
-</ul>
-<h2 id="initial-baseline-2026-04-18-1"><a class="header" href="#initial-baseline-2026-04-18-1">Initial baseline (2026-04-18)</a></h2>
-<p>First local smoke runs against current <code>main</code> (on this PR’s branch):</p>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Target</th><th>Runs</th><th>Time</th><th>Crashes</th><th>Throughput</th></tr>
-</thead>
-<tbody>
-<tr><td><code>parse_filename</code></td><td>28,668</td><td>26 s</td><td><strong>0</strong> ✅</td><td>~1100 inputs/s</td></tr>
-<tr><td><code>parse_with_context</code></td><td>67,941</td><td>26 s</td><td><strong>0</strong> ✅</td><td>~2600 inputs/s</td></tr>
-</tbody>
-</table>
-</div>
-<p>Zero crashes from ~96K combined runs is a strong starting baseline. The
-public API surface is robust against adversarial single-input mutation
-out of the gate. The interesting findings (if any) will come from the
-<em>nightly</em> runs once the corpus accumulates coverage over weeks.</p>
-<h2 id="roadmap-deferred-to-follow-up-prs"><a class="header" href="#roadmap-deferred-to-follow-up-prs">Roadmap (deferred to follow-up PRs)</a></h2>
-<ul>
-<li><input disabled="" type="checkbox"> <strong>Differential fuzz target</strong> vs guessit-rs — hunt for behavioural
-divergence between the two parsers. Separate epic; not in #147.</li>
-<li><input disabled="" type="checkbox"> <strong>OSS-Fuzz integration application</strong> (the epic’s stretch goal).
-Google-funded continuous fuzzing for OSS Rust crates. Application
-template: <a href="https://github.com/google/oss-fuzz/tree/master/projects">https://github.com/google/oss-fuzz/tree/master/projects</a>.</li>
-<li><input disabled="" type="checkbox"> <strong>Promote PR-time job from build-only → 60s smoke fuzz</strong> if the
-nightly produces useful findings worth catching earlier.</li>
-<li><input disabled="" type="checkbox"> <strong>Add the guessit-rs corpus</strong> as additional seeds (the epic’s
-DoD mentions it; we seeded only from <code>tests/fixtures/</code> here).</li>
-</ul>
-<h2 id="references-3"><a class="header" href="#references-3">References</a></h2>
-<ul>
-<li><a href="https://rust-fuzz.github.io/book/"><code>cargo-fuzz</code> book</a></li>
-<li><a href="https://docs.rs/libfuzzer-sys/"><code>libfuzzer-sys</code></a> — the underlying
-harness</li>
-<li><a href="https://docs.rs/arbitrary/"><code>arbitrary</code></a> — structured-input derive
-used by <code>parse_with_context</code></li>
-<li><a href="https://github.com/lijunzh/hunch/blob/main/SECURITY.md">SECURITY.md</a> — fuzzing maps to “DoS via crafted
-filenames” in the threat model</li>
-<li>Sibling docs: <a href="#code-coverage">Coverage</a>,
-<a href="#mutation-testing-baseline">Mutation Testing</a>,
-<a href="#public-api-surface">Public API</a></li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="contributing"><a class="header" href="#contributing">Contributing</a></h1>
@@ -1747,9 +1129,6 @@ cargo test
 
 # Run guessit compatibility report
 cargo test compatibility_report -- --ignored --nocapture
-
-# Run benchmarks
-cargo bench
 
 # Run clippy
 cargo clippy -- -D warnings
@@ -2375,7 +1754,6 @@ not_before = ["tv", "dvd", "cam", "rip"]
 
 rules/                  # 20 TOML data files (compile-time embedded)
 tests/                  # Integration + regression + constraint tests
-benches/                # Criterion benchmarks
 </code></pre>
 <hr>
 <h2 id="adding-a-new-property"><a class="header" href="#adding-a-new-property">Adding a New Property</a></h2>
@@ -2499,20 +1877,31 @@ to <a href="https://semver.org/">Semantic Versioning</a> per the
 <p>The format is based on <a href="https://keepachangelog.com/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/">Semantic Versioning</a>.</p>
 <!--
-Release prep checklist (per #179):
+Release prep checklist:
   1. Bump `version` in Cargo.toml
   2. Move "[Unreleased]" entries below into a new "[X.Y.Z] - YYYY-MM-DD" section
-  3. Add the new tag to the RELEASE_TAGS array in
-     docs/src/reference/release-trajectory.md (top of list)
-  4. (Optional) Add a "### Performance" subsection to the new release with
-     a one-liner like:
-     - See <https://lijunzh.github.io/hunch/reference/release-trajectory.html>
-       for bench numbers compared to vX.Y.Z-1.
-  5. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
-  6. The Benchmarks workflow auto-publishes the snapshot to
-     gh-pages/release-snapshots/vX.Y.Z.json (~3 min after the tag push)
+  3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 -->
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h3 id="removed"><a class="header" href="#removed">Removed</a></h3>
+<ul>
+<li><strong><code>benches/</code> directory and the <code>cargo bench</code> harness.</strong> The Criterion
+setup (5 micro-benches) was over-engineered for a hobby-scale
+filename parser — the benchmark workflow it served was deleted in
+#217. Dropping the harness now (along with the <code>criterion</code>
+dev-dependency, the <code>[[bench]]</code> Cargo entry, and the dependent
+mdbook pages: <code>benchmarks.md</code>, <code>benchmark-dashboard.md</code>,
+<code>release-trajectory.md</code>) eliminates ~100 LOC of dev infra plus four
+doc pages whose content was stale the moment the workflow stopped
+publishing snapshots. (#218 follow-up)</li>
+<li><strong><code>fuzz/</code> directory and the <code>cargo-fuzz</code> infrastructure.</strong> Two fuzz
+targets (<code>parse_filename</code>, <code>parse_with_context</code>) plus corpus seeds
+plus the <code>contributor-guide/fuzzing.md</code> mdbook page. The fuzzing
+workflow was deleted in #217; manual contributor fuzzing isn’t being
+done in practice. The library is small and deterministic enough that
+the existing 612-test integration suite is the right testing layer
+for our scale. (#218 follow-up)</li>
+</ul>
 <h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
 <ul>
 <li><strong><code>#[must_use]</code> on <code>HunchResult</code> and <code>Pipeline</code>.</strong> Catches the easy
@@ -3054,7 +2443,7 @@ contains only a numeric code (e.g., <code>Bones.S12E02.The.Brain.In.The.Bot .108
 <li>8 positional args replaced with <code>MatchContext</code> struct.</li>
 <li><code>known_tokens.rs</code> renamed to <code>validation.rs</code>.</li>
 </ul>
-<h3 id="removed"><a class="header" href="#removed">Removed</a></h3>
+<h3 id="removed-1"><a class="header" href="#removed-1">Removed</a></h3>
 <ul>
 <li><code>Options</code> struct, <code>hunch_with()</code>, <code>--type</code>/<code>--name-only</code> CLI flags.
 These were dead code from v1.0.0 (never wired into the pipeline).</li>
@@ -3241,7 +2630,7 @@ group name or SDH means subtitle tag.</li>
 <li><strong>Episode title REPACK/REAL</strong>: checks original input text, not just
 the Other match value, to distinguish metadata from title content.</li>
 </ul>
-<h3 id="removed-1"><a class="header" href="#removed-1">Removed</a></h3>
+<h3 id="removed-2"><a class="header" href="#removed-2">Removed</a></h3>
 <ul>
 <li><strong><code>is_known_token()</code></strong> — 130-token exclusion list replaced by
 position-based overlap detection + 20-token curated non-group list.</li>

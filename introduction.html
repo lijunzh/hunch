@@ -35,10 +35,10 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-31dcd877.js";
+            window.path_to_searchindex_js = "searchindex-177f80de.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="toc-e3665db2.js"></script>
+        <script src="toc-168c2c66.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -199,10 +199,8 @@ page has an “edit this page” link in the top right.</p>
 <tbody>
 <tr><td>A user (CLI or library)</td><td><a href="./user-guide/user-manual.html">User Manual</a></td></tr>
 <tr><td>Evaluating accuracy vs guessit</td><td><a href="./user-guide/compatibility.html">guessit Compatibility</a></td></tr>
-<tr><td>Curious about performance</td><td><a href="./reference/benchmarks.html">Benchmarks</a> → <a href="./reference/benchmark-dashboard.html">Live Dashboard</a></td></tr>
 <tr><td>Auditing the public API surface</td><td><a href="./reference/public-api.html">Public API Surface</a></td></tr>
 <tr><td>Contributing tests</td><td><a href="./contributor-guide/mutation-baseline.html">Mutation Testing</a>, <a href="./contributor-guide/coverage.html">Coverage</a></td></tr>
-<tr><td>Contributing crash-shape work</td><td><a href="./contributor-guide/fuzzing.html">Fuzzing</a></td></tr>
 </tbody>
 </table>
 </div>
@@ -215,16 +213,13 @@ page has an “edit this page” link in the top right.</p>
 <tbody>
 <tr><td><strong>Coverage</strong> (<a href="https://github.com/lijunzh/hunch/issues/168">#168</a>)</td><td>Which lines are exercised at all</td><td><a href="./contributor-guide/coverage.html">coverage.md</a></td></tr>
 <tr><td><strong>Mutation testing</strong> (<a href="https://github.com/lijunzh/hunch/issues/146">#146</a>)</td><td>Whether tests actually catch bugs</td><td><a href="./contributor-guide/mutation-baseline.html">mutation-baseline.md</a></td></tr>
-<tr><td><strong>Fuzzing</strong> (<a href="https://github.com/lijunzh/hunch/issues/147">#147</a>)</td><td>Crash-shape bugs on adversarial inputs</td><td><a href="./contributor-guide/fuzzing.html">fuzzing.md</a></td></tr>
 <tr><td><strong>Public API surface</strong> (<a href="https://github.com/lijunzh/hunch/issues/145">#145</a>)</td><td>SemVer-relevant public-surface drift</td><td><a href="./reference/public-api.html">public-api.md</a></td></tr>
-<tr><td><strong>Performance</strong> (<a href="https://github.com/lijunzh/hunch/issues/148">#148</a>)</td><td>Parse-time regressions</td><td><a href="./reference/benchmarks.html">benchmarks.md</a></td></tr>
 </tbody>
 </table>
 </div>
 <p>Each layer is independently honest: coverage tells you what code runs,
 but a 100%-covered codebase can still have zero meaningful assertions —
-that’s what mutation testing exists for. Fuzzing finds the inputs that
-the other three layers never thought to test.</p>
+that’s what mutation testing exists for.</p>
 <h2 id="project-links"><a class="header" href="#project-links">Project links</a></h2>
 <ul>
 <li>🐙 <strong>Repository</strong>: <a href="https://github.com/lijunzh/hunch">https://github.com/lijunzh/hunch</a></li>

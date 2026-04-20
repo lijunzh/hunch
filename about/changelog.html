@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-31dcd877.js";
+            window.path_to_searchindex_js = "../searchindex-177f80de.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-e3665db2.js"></script>
+        <script src="../toc-168c2c66.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -191,20 +191,31 @@ to <a href="https://semver.org/">Semantic Versioning</a> per the
 <p>The format is based on <a href="https://keepachangelog.com/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/">Semantic Versioning</a>.</p>
 <!--
-Release prep checklist (per #179):
+Release prep checklist:
   1. Bump `version` in Cargo.toml
   2. Move "[Unreleased]" entries below into a new "[X.Y.Z] - YYYY-MM-DD" section
-  3. Add the new tag to the RELEASE_TAGS array in
-     docs/src/reference/release-trajectory.md (top of list)
-  4. (Optional) Add a "### Performance" subsection to the new release with
-     a one-liner like:
-     - See <https://lijunzh.github.io/hunch/reference/release-trajectory.html>
-       for bench numbers compared to vX.Y.Z-1.
-  5. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
-  6. The Benchmarks workflow auto-publishes the snapshot to
-     gh-pages/release-snapshots/vX.Y.Z.json (~3 min after the tag push)
+  3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 -->
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h3 id="removed"><a class="header" href="#removed">Removed</a></h3>
+<ul>
+<li><strong><code>benches/</code> directory and the <code>cargo bench</code> harness.</strong> The Criterion
+setup (5 micro-benches) was over-engineered for a hobby-scale
+filename parser — the benchmark workflow it served was deleted in
+#217. Dropping the harness now (along with the <code>criterion</code>
+dev-dependency, the <code>[[bench]]</code> Cargo entry, and the dependent
+mdbook pages: <code>benchmarks.md</code>, <code>benchmark-dashboard.md</code>,
+<code>release-trajectory.md</code>) eliminates ~100 LOC of dev infra plus four
+doc pages whose content was stale the moment the workflow stopped
+publishing snapshots. (#218 follow-up)</li>
+<li><strong><code>fuzz/</code> directory and the <code>cargo-fuzz</code> infrastructure.</strong> Two fuzz
+targets (<code>parse_filename</code>, <code>parse_with_context</code>) plus corpus seeds
+plus the <code>contributor-guide/fuzzing.md</code> mdbook page. The fuzzing
+workflow was deleted in #217; manual contributor fuzzing isn’t being
+done in practice. The library is small and deterministic enough that
+the existing 612-test integration suite is the right testing layer
+for our scale. (#218 follow-up)</li>
+</ul>
 <h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
 <ul>
 <li><strong><code>#[must_use]</code> on <code>HunchResult</code> and <code>Pipeline</code>.</strong> Catches the easy
@@ -746,7 +757,7 @@ contains only a numeric code (e.g., <code>Bones.S12E02.The.Brain.In.The.Bot .108
 <li>8 positional args replaced with <code>MatchContext</code> struct.</li>
 <li><code>known_tokens.rs</code> renamed to <code>validation.rs</code>.</li>
 </ul>
-<h3 id="removed"><a class="header" href="#removed">Removed</a></h3>
+<h3 id="removed-1"><a class="header" href="#removed-1">Removed</a></h3>
 <ul>
 <li><code>Options</code> struct, <code>hunch_with()</code>, <code>--type</code>/<code>--name-only</code> CLI flags.
 These were dead code from v1.0.0 (never wired into the pipeline).</li>
@@ -933,7 +944,7 @@ group name or SDH means subtitle tag.</li>
 <li><strong>Episode title REPACK/REAL</strong>: checks original input text, not just
 the Other match value, to distinguish metadata from title content.</li>
 </ul>
-<h3 id="removed-1"><a class="header" href="#removed-1">Removed</a></h3>
+<h3 id="removed-2"><a class="header" href="#removed-2">Removed</a></h3>
 <ul>
 <li><strong><code>is_known_token()</code></strong> — 130-token exclusion list replaced by
 position-based overlap detection + 20-token curated non-group list.</li>
