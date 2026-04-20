@@ -10,77 +10,46 @@ Two complementary tools watch this contract:
 - **`cargo-semver-checks`** (in [`ci.yml`](https://github.com/lijunzh/hunch/blob/main/.github/workflows/ci.yml))
   — compares the PR head's API against the latest release on crates.io.
   Catches *semantic* SemVer breaks (signature changes, trait-bound
-  tightening, etc.). Advisory pre-1.0; will become a release-prep gate.
-- **`cargo-public-api`** (this doc + the `Public API Surface` CI job)
-  — produces a flat text inventory of every `pub` item. Diffed against
-  the committed snapshot in [`public-api.txt`](https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt) on every
-  PR. Catches *additive* surface drift (new `pub` items that probably
-  shouldn't be exposed) that semver-checks doesn't flag because adding
-  is SemVer-minor, not major.
+  tightening, etc.). Runs as an **advisory** CI job (non-blocking).
+- **`cargo-public-api`** (this doc + the snapshot at [`public-api.txt`](https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt))
+  — produces a flat text inventory of every `pub` item. Run **locally**
+  during release prep to verify the snapshot still matches the actual
+  surface; commit any intentional drift in the same PR. Catches
+  *additive* surface drift (new `pub` items that probably shouldn't be
+  exposed) that semver-checks doesn't flag because adding is
+  SemVer-minor, not major.
+
+> The dedicated "Public API Surface" CI job that previously diffed the
+> snapshot on every PR was removed in #216 as part of trimming
+> over-engineered CI for a hobby-scale crate. The contract still holds;
+> the verification step just moved from "every PR" to "release prep".
 
 ## Current baseline
 
-Captured against `main` on **2026-04-18** (post #170):
+Captured against `main` at the v2.0.0 release tag (post #197/#198):
 
 | Metric | Count |
 |---|---|
-| Total API lines | **853** |
-| Public modules | 40 |
-| Public functions | 199 |
-| Public structs | 17 |
-| Public enums | 11 |
+| Total API lines | **201** |
+| Public modules | 1 (`hunch`) |
+| Public functions | 70 |
+| Public structs | 2 (`HunchResult`, `Pipeline`) |
+| Public enums | 3 (`Confidence`, `MediaType`, `Property`) |
 
-### Top exposure offenders (lines per module path)
+The intentional public surface is: `hunch()`, `hunch_with_context()`,
+`Pipeline`, `HunchResult`, `Confidence`, `MediaType`, `Property`. The
+v2.0.0 audit (#144 / #197) demoted the `matcher`, `properties`,
+`tokenizer`, and `zone_map` modules from `pub mod` to `pub(crate) mod`,
+shrinking the surface from 853 → 201 lines (76% reduction). See the
+[v2.0.0 migration guide](../about/migration-v2.md) for the migration
+path for downstream code that was using deep imports.
 
-| Module path | API lines | Comment |
-|---|---|---|
-| `hunch::matcher::*` | 88 | Regex helpers, span types — mostly internal scaffolding |
-| `hunch::HunchResult::*` | 44 | Public result type — keep, but field accessors warrant audit |
-| `hunch::properties::*` | 54 (32 mods + 22 fns) | Every property is a `pub mod` exposing its `find_matches` — almost certainly should be `pub(crate)` |
-| `hunch::tokenizer::*` | 25 | Internal — should be `pub(crate)` |
-| `hunch::zone_map::*` | 10 | Internal — should be `pub(crate)` |
-| `hunch::Confidence::*` | 6 | Public, intentional |
-| `hunch::Pipeline::*` | 5 | Public, intentional |
-
-The intentional public surface is roughly: `hunch()`, `hunch_with_context()`,
-`Pipeline`, `HunchResult`, `Confidence`. Everything else is incidental
-exposure that grew organically and was never audited.
-
-This is exactly what the [Public-API visibility audit epic
-(#144)](https://github.com/lijunzh/hunch/issues/144) is for.
-
-## How the CI tripwire works
-
-The `Public API Surface` job in [`ci.yml`](https://github.com/lijunzh/hunch/blob/main/.github/workflows/ci.yml):
-
-1. Installs Rust nightly (`cargo-public-api` requires the unstable
-   rustdoc-JSON output).
-2. Installs `cargo-public-api` via `taiki-e/install-action` (prebuilt
-   binary; matches the pattern set by the coverage and mutation jobs).
-3. Generates the current API listing.
-4. `diff -u`s it against [`docs/src/reference/public-api.txt`](https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt).
-5. Posts the diff to the GitHub Job Summary.
-
-The job is **advisory** (`continue-on-error: true`), matching the
-existing `semver-checks` advisory job. It will *not* block merging a
-PR — but the diff in the Job Summary makes any drift impossible to
-miss in code review.
-
-## When the diff fires
-
-| Diff content | What to do |
-|---|---|
-| New `pub` items | **Audit**: should they be `pub(crate)` instead? If yes, demote in the same PR. If genuinely public, regenerate the snapshot (below) and document the addition in the PR body. |
-| Removed `pub` items | This is a SemVer-major change. The `semver-checks` job should also be flagging it. Confirm intent, regenerate the snapshot, and bump the version per [CONTRIBUTING.md → API Stability Policy](https://github.com/lijunzh/hunch/blob/main/CONTRIBUTING.md). |
-| Signature changes | Same as removed — SemVer-major. Confirm with `semver-checks`. |
-| Reordered lines (no real diff) | The snapshot is sorted by `cargo-public-api`'s internal logic; reordering shouldn't happen in normal use. If you see this, regenerate. |
-
-## Regenerating the baseline
+## Verifying the snapshot during release prep
 
 Required when an intentional API change lands.
 
 ```bash
-# One-time install (uses Walmart proxy if needed):
+# One-time install:
 rustup toolchain install nightly --profile minimal
 cargo install cargo-public-api --locked
 
@@ -91,39 +60,31 @@ cargo +nightly public-api --simplified 2>/dev/null > docs/src/reference/public-a
 git diff docs/src/reference/public-api.txt
 ```
 
-Commit `docs/src/reference/public-api.txt` together with the API change in the same PR.
-The diff in the PR review should make the API delta easy for reviewers
-to scan.
+Commit `docs/src/reference/public-api.txt` together with the API change
+in the same PR. The diff in PR review should make the API delta easy
+for reviewers to scan.
 
-## Roadmap
+## Interpreting a diff
 
-This document captures the **first slice** of the [API audit epic
-(#144)](https://github.com/lijunzh/hunch/issues/144). Deferred to follow-up
-PRs:
+| Diff content | What to do |
+|---|---|
+| New `pub` items | **Audit**: should they be `pub(crate)` instead? If yes, demote in the same PR. If genuinely public, regenerate the snapshot and document the addition in the PR body. |
+| Removed `pub` items | This is a SemVer-major change. The `semver-checks` job should also be flagging it. Confirm intent, regenerate the snapshot, and bump the major version. |
+| Signature changes | Same as removed — SemVer-major. Confirm with `semver-checks`. |
 
-- **Triage pass**: classify every `pub` item as Keep / Demote / Deprecate
-  per the epic's definition-of-done. Each demotion lands in its own PR
-  to make the visibility change reviewable in isolation.
-- **Reverse-dep check**: query crates.io for downstream users of items
-  marked Demote/Deprecate before actually pulling the trigger.
-- **`pub use` cleanup**: collapse the obvious "should never have been
-  exposed" cases (`tokenizer`, `zone_map`, `matcher::engine`'s internals,
-  the property modules) en masse.
-- **`#[non_exhaustive]`** on the public enums (`Confidence`,
-  `HunchResult` field types) so future variant additions aren't
-  SemVer-major. _Partially landed in #172: `Property`, `MediaType`,
-  `Source`, `Separator`, `BracketKind`, `ZoneScope`, `CharClass` now
-  bear the attribute. `Confidence` and `SegmentKind` deliberately
-  excluded — they're conceptually saturated (Low/Med/High and
-  Directory/Filename respectively)._
-- **Promote the CI job from advisory → blocking** once the surface has
-  stabilised post-audit.
+## Public enum policy
+
+All public enums carry `#[non_exhaustive]` as of v2.0.0 (#172, #196):
+`Property`, `MediaType`, `Confidence`. Downstream code must include a
+wildcard arm (`_ => …`) when matching on any of these. This lets
+future minor releases add new variants without re-breaking the API.
 
 ## References
 
 - [`cargo-public-api`](https://github.com/Enselic/cargo-public-api)
 - [`cargo-semver-checks`](https://github.com/obi1kenobi/cargo-semver-checks)
-  (sibling tool, already in CI)
-- [CONTRIBUTING.md → API Stability Policy](https://github.com/lijunzh/hunch/blob/main/CONTRIBUTING.md)
-- Sibling docs: [Coverage](../contributor-guide/coverage.md) (line coverage),
-  [Mutation Testing](../contributor-guide/mutation-baseline.md) (assertion quality)
+  (sibling tool, advisory CI job)
+- [v2.0.0 migration guide](../about/migration-v2.md) — what the surface
+  shrink means for callers
+- Sibling docs: [Coverage](../contributor-guide/coverage.md) (run locally),
+  [Mutation Testing](../contributor-guide/mutation-baseline.md) (run locally)

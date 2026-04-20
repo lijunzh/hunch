@@ -1,8 +1,12 @@
 # Code Coverage
 
 Hunch tracks line, function, and region coverage via [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov).
-The CI `Coverage` job runs on every PR and uploads an LCOV report as a build
-artifact (`coverage-report`).
+Run locally during release prep or when working on test-quality
+improvements.
+
+> The dedicated CI `Coverage` job that previously ran on every PR
+> was removed in #216 as part of trimming over-engineered CI for a
+> hobby-scale crate. The tooling and the local workflow are unchanged.
 
 ## Current baseline
 
@@ -67,26 +71,15 @@ cargo llvm-cov --workspace --lcov --output-path lcov.info
 
 ## Roadmap
 
-This document captures the **first slice** of the [Code coverage CI epic
-(#145)](https://github.com/lijunzh/hunch/issues/145). Deferred to follow-up PRs:
+Long-term ideas, not actively planned post-#216:
 
-- **PR-time regression gate**: fail CI if total line coverage drops more than
-  ~0.5% below this baseline. Deferred until the baseline has settled across a
-  few merges (otherwise we'd be tuning the noise threshold against a moving
-  target).
-- **Codecov.io / Coveralls integration**: the LCOV artifact is already in the
-  right shape; just needs the upload step + a token. Optional per the epic.
-- **Per-file delta comments on PRs**: shows which newly-added lines aren't
-  covered. Most useful with codecov.io's PR comment integration.
-- **Branch coverage**: `cargo-llvm-cov` reports it but the issue scopes the
-  initial work to line coverage.
+- **Codecov.io / Coveralls integration** — the LCOV file is in the
+  right shape if anyone wants to wire it up. Local-only for now.
+- **Branch coverage** — `cargo-llvm-cov` reports it; the line-coverage
+  baseline above is the project's primary signal.
 
 ## Notes
 
-- **Why single-OS**: line/region coverage of pure-Rust code is platform-agnostic.
-  Running coverage on the cross-OS matrix would triple CI time for zero
-  additional signal. Platform-conditional branches (`cfg(unix)` symlink tests,
-  Windows path code) are still exercised by the cross-OS `test` matrix.
 - **Why not 100%**: parser code intentionally has permissive fallback branches
   (e.g., "we couldn't decide, return the empty result") that aren't worth
   contorting tests to hit. ≥ 94% is the realistic ceiling for this codebase.

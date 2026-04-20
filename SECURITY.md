@@ -20,12 +20,16 @@ and symlink-skipping. See the rustdoc on
 ## Supported Versions
 
 Security fixes are applied to the **latest minor release** on the
-`1.x` line. Older minor releases are not patched — please upgrade.
+`2.x` line. Older minor releases (including the `1.x` line) are not
+patched — please upgrade to `2.x`. See the
+[v2.0.0 migration guide](https://lijunzh.github.io/hunch/about/migration-v2.html)
+for breaking changes.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.1.x   | :white_check_mark: |
-| < 1.1   | :x:                |
+| 2.0.x   | :white_check_mark: |
+| 1.x     | :x:                |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
