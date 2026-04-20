@@ -2,6 +2,13 @@
 //!
 //! Detects release versions like `v2`, `V3`, or `07v4` commonly
 //! found in anime fansub releases (e.g., `Episode.366v2`, `[Group] Show 07v4`).
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Position-sensitive parsing: the version digit can stand alone (`v2`)
+//! or trail an episode number (`07v4` → episode=7 + version=4),
+//! requiring coordination with `episodes` extraction. See DESIGN.md D2
+//! decision table → "cross-pattern coordination".
 
 use regex::Regex;
 

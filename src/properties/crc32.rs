@@ -1,6 +1,13 @@
 //! CRC32 detection.
 //!
 //! Detects CRC32 checksums commonly found in anime filenames: `[ABCD1234]`.
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Hex format validation (8 chars, [0-9A-Fa-f]) wraps the regex match
+//! and the captured value is normalized to uppercase for output. See
+//! DESIGN.md D2 decision table → "validation beyond regex" + "requires
+//! type conversion".
 
 use regex::Regex;
 

@@ -1,6 +1,13 @@
 //! UUID detection.
 //!
 //! Detects UUIDs in filenames (commonly used in obfuscated releases).
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! UUID format validation (32 hex chars in canonical hyphenation, or
+//! the bare 32-char form) requires post-match checks beyond what regex
+//! alone can express, plus normalization to a single output format.
+//! See DESIGN.md D2 decision table → "validation beyond regex".
 
 use regex::Regex;
 

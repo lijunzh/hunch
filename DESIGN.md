@@ -110,6 +110,42 @@ Control flow (episode parsing, date detection, title extraction)
 lives in Rust. The boundary is: if it's a vocabulary lookup, it's
 TOML; if it needs branching or state, it's Rust.
 
+#### When does a property go to TOML vs stay in Rust?
+
+The D2 boundary in practice — use this table when adding a new
+property or wondering why an existing one lives where it does:
+
+| Question about your property | TOML | Rust |
+|---|:---:|:---:|
+| Fixed vocabulary lookup? (`x264` → `H.264`) | ✅ | |
+| Single capture group → string substitution with `value = "{1}"`? | ✅ | |
+| Needs >1 named capture group with semantic roles? | | ✅ |
+| Requires post-match arithmetic? (WxH → ratio float) | | ✅ |
+| Requires type conversion? (`trois` → 3, hex → bytes) | | ✅ |
+| Cross-pattern coordination or span deduplication? | | ✅ |
+| Validation beyond regex? (year range, CRC format) | | ✅ |
+| Multiple regex variants with different output meanings? (YMD vs MDY) | | ✅ |
+
+**Examples on each side as of v2.0.0:**
+
+- ✅ **TOML-only** (16 properties): `audio_codec`, `audio_profile`,
+  `color_depth`, `container`, `country`, `edition`, `episode_details`,
+  `frame_rate`, `other`, `screen_size`, `source`, `streaming_service`,
+  `video_codec`, `video_profile` — plus the hybrid pair below.
+- ✅ **Rust-only** (14 properties with inline regex): `date`,
+  `episodes`, `release_group`, `title`, `part`, `website`,
+  `episode_count`, `bonus`, `uuid`, `year`, `version`, `crc32`,
+  `aspect_ratio`, `size`, `bit_rate` — each module's docstring states
+  which row(s) of the table forced it Rust-side.
+- 🔀 **Hybrid** (TOML vocabulary + Rust logic): `subtitle_language`,
+  `language` — simple markers in TOML, positional/algorithmic patterns
+  in Rust. Module docstring names the TOML companion.
+
+If you find yourself wanting to add `min`/`max`/`format`/`transform`
+keys to a TOML schema to express logic, **stop**: that's the table
+telling you the property belongs in Rust. Inventing a Rust→TOML→Rust
+DSL is a category error (Zen: "Simple is better than complex").
+
 ### D3: Single self-contained binary (P3)
 
 All TOML rules are `include_str!`-ed at compile time. No runtime

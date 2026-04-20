@@ -1,6 +1,14 @@
 //! Bonus content detection.
 //!
 //! Detects bonus/extras markers: x01, x02 (used for bonus features).
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Capture-group title extraction (`x01-Title_Here` → bonus_number=1 +
+//! bonus_title="Title Here") emits multiple properties from one match
+//! and requires span deduplication against neighboring episode/season
+//! patterns. See DESIGN.md D2 decision table → "cross-pattern
+//! coordination".
 
 use regex::Regex;
 

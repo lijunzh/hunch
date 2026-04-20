@@ -1,6 +1,14 @@
 //! Part, disc, CD, film detection.
 //!
 //! Detects part/disc/cd/film numbers commonly used in media filenames.
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Roman numeral conversion (`IV` → 4), French number-words (`trois` →
+//! 3), and multi-disc range expansion (`Disc.1-3` → [1, 2, 3]) are
+//! type conversions and arithmetic that TOML's `value = "{1}"`
+//! template can't express. See DESIGN.md D2 decision table →
+//! "requires type conversion" row.
 
 use regex::Regex;
 

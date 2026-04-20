@@ -1,6 +1,13 @@
 //! Size detection.
 //!
 //! Detects file sizes: 700MB, 1.4GB, 4.7GB, etc.
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Float parsing of the numeric capture plus unit normalization
+//! (MB/GB/TB → a single output format) requires arithmetic the TOML
+//! schema can't express. See DESIGN.md D2 decision table → "requires
+//! post-match arithmetic" + "requires type conversion".
 
 use regex::Regex;
 
