@@ -86,12 +86,21 @@ jobs:
 
   semver:
     name: Semver Checks
-    # Detects SemVer-incompatible changes vs the latest crates.io release.
-    # Advisory (continue-on-error): pre-1.0 stability semantics — breaking
-    # changes land on main with the version bump deferred to release prep.
-    # Release-prep PRs MUST verify this is green or accept the bump.
+    # Required (post-2.0.0): SemVer-incompatible changes vs the latest
+    # crates.io release MUST be paired with a matching version bump in
+    # the same PR. cargo-semver-checks compares the PR's public API
+    # against the published baseline; a major-version bump in Cargo.toml
+    # makes a breaking change pass the check.
+    #
+    # If you genuinely need to break the public API:
+    #   1. Make the breaking change
+    #   2. Bump Cargo.toml version (major: 2.x.y → 3.0.0)
+    #   3. Add a CHANGELOG entry under [Unreleased] describing the break
+    #
+    # Until v1.0 this job ran with continue-on-error: true and breaking
+    # changes accumulated for batch release. That escape hatch is gone
+    # now that downstream consumers depend on stable API contracts.
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
