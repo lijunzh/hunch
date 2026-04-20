@@ -255,6 +255,15 @@ level (one directory, own tests), not the function level.
 
 Examples: title, release_group, episode_title, alternative_title.
 
+**Derived properties** are a small special case: not matched from the
+input at all, but computed at result-build time from another property's
+value. Currently the only one is `Property::Mimetype`, derived from
+`Container` (e.g., `mkv` → `video/x-matroska`). Derived properties never
+appear in `MatchSpan` output — they're populated as the final step in
+`HunchResult` construction. Add new derived properties with care: the
+invariant is "if the source property is `None`, the derived property is
+`None`" (no fabrication).
+
 ### D10: Refactor before accreting (P1)
 
 The pattern that turned guessit hard to reason about was not any single
@@ -461,11 +470,15 @@ src/
 ├── tokenizer.rs        # Input → TokenStream (separators, brackets)
 ├── zone_map.rs         # Anchor detection + zone boundaries
 ├── pipeline/
-│   ├── mod.rs          # Two-pass orchestration
-│   ├── matching.rs     # Token-level TOML rule matching
-│   ├── context.rs      # Cross-file invariance detection
-│   ├── token_context.rs # Structure-aware disambiguation
-│   └── zone_rules.rs   # Post-match zone filtering
+│   ├── mod.rs            # Two-pass orchestration
+│   ├── matching.rs       # Token-level TOML rule matching
+│   ├── context.rs        # Cross-file invariance detection
+│   ├── token_context.rs  # Structure-aware disambiguation
+│   ├── zone_rules.rs     # Post-match zone filtering
+│   ├── invariance.rs     # Sibling-set title invariance algorithm
+│   ├── pass2_helpers.rs  # Shared helpers for Pass-2 extractors
+│   ├── proper_count.rs   # PROPER/REPACK release-version derivation
+│   └── rule_registry.rs  # Compile-time rule→matcher registry
 ├── matcher/
 │   ├── span.rs         # MatchSpan + Property enum (49 variants)
 │   ├── engine.rs       # Conflict resolution (priority + length)

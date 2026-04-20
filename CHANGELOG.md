@@ -22,6 +22,38 @@ Release prep checklist (per #179):
 
 ## [Unreleased]
 
+### Changed
+
+- **`#[must_use]` on `HunchResult` and `Pipeline`.** Catches the easy
+  mistake of dropping a parsed result or constructing a Pipeline without
+  ever calling `.run()`. Also added explicit `#[must_use]` on the four
+  `HunchResult` accessors that return non-must-use types
+  (`confidence()`, `is_movie()`, `is_episode()`, `is_extra()`). The
+  remaining accessors return `Option<T>` / `Vec<T>` which are already
+  `#[must_use]` in std — no need to repeat. (#205, bundled in #218)
+
+### Docs
+
+- **New `docs/src/about/migration-v2.md` page** consolidating the v2.0.0
+  breaking changes (`Property::BitRate` removal + deep-import deprecation)
+  in one mdbook destination, so callers don't have to scrape the
+  changelog. Linked from `SUMMARY.md`. (#201, bundled in #218)
+- **`DESIGN.md` pipeline module map updated** from the stale 5-file list
+  to the actual 9 files (`mod`, `matching`, `context`, `token_context`,
+  `zone_rules`, `invariance`, `pass2_helpers`, `proper_count`,
+  `rule_registry`). (#200, bundled in #218)
+- **`DESIGN.md` D9** now documents the third class of property matchers:
+  derived properties (computed at result-build time from another
+  property's value). Currently the only one is `Property::Mimetype`,
+  derived from `Container`. (#203, bundled in #218)
+- **`README.md` no longer duplicates the guessit pass-rate stats** that
+  live in the live compatibility report. The README now links and the
+  per-property numbers stay in their single source of truth
+  (regenerated from `cargo test -- --ignored guessit_compat`). The
+  hard-coded `# 295 tests` comment in the contribution snippet is
+  also gone — it had drifted to ~612 and the count was never load-bearing.
+  (#202, #204, bundled in #218)
+
 ### Fixed
 
 - **`Show/Extras/Bonus.mkv` no longer inherits unrelated sibling titles

@@ -79,6 +79,7 @@ pub enum MediaType {
 /// println!("{r}");
 /// ```
 #[derive(Debug, Clone)]
+#[must_use = "a HunchResult is the entire point of calling hunch — dropping it discards parsed properties"]
 pub struct HunchResult {
     /// All properties extracted, keyed by property.
     props: BTreeMap<Property, Vec<String>>,
@@ -145,6 +146,7 @@ impl HunchResult {
     ///
     /// Based on structural signals: number of tech anchors, title quality,
     /// and whether cross-file context was used.
+    #[must_use]
     pub fn confidence(&self) -> Confidence {
         self.confidence
     }
@@ -286,6 +288,7 @@ impl HunchResult {
     /// Returns `false` when the media type is unknown — callers that need to
     /// distinguish "definitely not a movie" from "unknown" should use
     /// [`media_type`](Self::media_type) directly.
+    #[must_use]
     pub fn is_movie(&self) -> bool {
         self.media_type() == Some(MediaType::Movie)
     }
@@ -293,6 +296,7 @@ impl HunchResult {
     /// `true` if the detected media type is [`MediaType::Episode`].
     ///
     /// See [`is_movie`](Self::is_movie) for caveats around unknown media type.
+    #[must_use]
     pub fn is_episode(&self) -> bool {
         self.media_type() == Some(MediaType::Episode)
     }
@@ -301,6 +305,7 @@ impl HunchResult {
     /// (bonus features, openings, endings, specials, etc.).
     ///
     /// See [`is_movie`](Self::is_movie) for caveats around unknown media type.
+    #[must_use]
     pub fn is_extra(&self) -> bool {
         self.media_type() == Some(MediaType::Extra)
     }

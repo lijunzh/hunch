@@ -87,15 +87,11 @@ hunch --batch /path/to/tv/ -r -j
 ## guessit Compatibility
 
 All 49 guessit properties implemented. Validated against guessit's
-1,309-case test suite.
-
-| Metric | Value |
-|---|---|
-| Pass rate | **81.8%** (1,072 / 1,311) |
-| Properties at 95%+ | 22 |
-| Properties at 100% | 16 |
-
-See [the compatibility report](https://lijunzh.github.io/hunch/user-guide/compatibility.html) for per-property breakdowns.
+upstream test suite — see [the compatibility
+report](https://lijunzh.github.io/hunch/user-guide/compatibility.html)
+for the live pass rate, per-property breakdowns, and the methodology
+behind the numbers. (Single source of truth: that page is regenerated
+from `cargo test -- --ignored guessit_compat` so it can't drift.)
 
 ## Known Limitations
 
@@ -172,7 +168,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). The easiest contribution is
 [reporting a failed parse](https://github.com/lijunzh/hunch/issues/new/choose).
 
 ```bash
-cargo test              # 295 tests
+cargo test              # full suite
 cargo test -- --ignored # guessit compatibility report
 cargo bench             # benchmarks
 ```
