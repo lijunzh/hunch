@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c2279305.js";
+            window.path_to_searchindex_js = "../searchindex-151c5061.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-8a688177.js"></script>
@@ -191,17 +191,18 @@ yet still fail to detect a real regression.</p>
 which lines run; mutation testing tells us which lines have <strong>strong
 assertions</strong>.</p>
 <h2 id="how-it-runs"><a class="header" href="#how-it-runs">How it runs</a></h2>
-<p>A nightly GitHub Actions workflow (<a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/mutants.yml"><code>.github/workflows/mutants.yml</code></a>)
-runs <code>cargo mutants</code> against the highest-value targets at 03:14 UTC and
-publishes results as a Job Summary + downloadable <code>mutants-out</code> artifact.</p>
-<p>The job is <strong>advisory</strong> — surviving mutants do not fail CI. They get
-triaged here and addressed in follow-up PRs. Tool-level failures
-(usage errors, build broken, crash) DO fail the job, via an explicit
-exit-code allowlist (0–3 = expected) added in #170 after the original
-<code>|| true</code> masked an <code>--in-place</code>/<code>--jobs</code> incompatibility for an
-entire run.</p>
-<p>You can also trigger it on demand from the Actions UI via
-<strong>Run workflow</strong> → <strong>Mutation Tests</strong>.</p>
+<p>Run <code>cargo mutants</code> locally during test-quality work or when adding
+fixtures around a tricky function. The mutation-killing PRs landed
+during the v1.1.x → v2.0.0 cycle (#180–#185) used this exact loop.</p>
+<blockquote>
+<p>The nightly <code>mutants.yml</code> workflow that previously ran on a schedule
+was removed in #216 along with the rest of the over-engineered CI for
+a hobby-scale crate. The tooling and the local workflow are unchanged;
+the surviving-mutants triage in this doc still applies when you run
+<code>cargo mutants</code> locally.</p>
+</blockquote>
+<p>You can still capture results in the same shape the old job produced —
+see <a href="#local-usage">Local usage</a> below.</p>
 <h2 id="first-nightly-run-results-2026-04-18"><a class="header" href="#first-nightly-run-results-2026-04-18">First nightly run results (2026-04-18)</a></h2>
 <p>First real run after #169/#170 landed: <a href="https://github.com/lijunzh/hunch/actions/runs/24615983143">run 24615983143</a>.
 12 minutes wall-clock on <code>ubuntu-latest</code> with <code>--jobs 4</code>.</p>
@@ -291,20 +292,15 @@ identified in the <a href="https://github.com/lijunzh/hunch/issues/146">Mutation
 </div>
 <p>Combined run with <code>--jobs 4</code> on a GitHub-hosted ubuntu runner: <strong>~12–15 min</strong>.</p>
 <h2 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h2>
-<p>Sequenced expansion (each is its own PR within the #146 epic):</p>
-<ol>
-<li><strong>Add the <code>Pipeline</code> neighbours</strong>: <code>pipeline/context.rs</code>, <code>pipeline/invariance.rs</code>,
-<code>pipeline/mod.rs</code>’s sibling helpers.</li>
-<li><strong>Add the <code>properties/title/</code> strategies</strong>: <code>secondary.rs</code>, <code>mod.rs</code>,
-the four <code>strategies/*.rs</code> modules.</li>
-<li><strong>Add the matcher core</strong>: <code>src/matcher/</code>, <code>src/zone_map.rs</code>, <code>src/tokenizer.rs</code>.</li>
-<li><strong>Opt-in PR-time check</strong>: a <code>mutation-test</code> label triggers a diff-only
-mutants run on the PR (cheap subset). Requires #146’s epic-level decision
-on labelling.</li>
-<li><strong>Hard kill-rate gate</strong>: fail the nightly if kill rate drops more than
-N% below baseline. Deferred until baseline has settled across enough
-nightly runs to characterise noise.</li>
-</ol>
+<p>Long-term ideas, not actively planned post-#216:</p>
+<ul>
+<li><strong>Re-enable a nightly workflow</strong> if the project ever grows past
+hobby-scale (multi-developer, downstream library users filing
+regression-class bugs). The triage protocol below is the workflow.</li>
+<li><strong>Hard kill-rate gate</strong> — only meaningful with a recurring run.</li>
+<li><strong>Diff-only PR check</strong> — useful with a CI cadence; manual on demand
+for now.</li>
+</ul>
 <h2 id="local-usage"><a class="header" href="#local-usage">Local usage</a></h2>
 <p>Install once (note: requires <code>--locked</code> so the version matches CI):</p>
 <pre><code class="language-bash">cargo install cargo-mutants --locked
@@ -373,14 +369,13 @@ prefix), <code>20201.mkv</code> (digit suffix) and assert the boundary rejection
 <p>These two are not fixed in this PR — that’s deliberate. This PR sets up
 the <em>infrastructure</em> to find findings; fixing them is the next loop.</p>
 <h2 id="triage-protocol"><a class="header" href="#triage-protocol">Triage protocol</a></h2>
-<p>When the nightly job posts a Job Summary with surviving mutants:</p>
+<p>When a local <code>cargo mutants</code> run produces surviving mutants:</p>
 <ol>
 <li><strong>Equivalent mutation?</strong> (the mutation produces identical observable
 behaviour) → add a one-line entry to the “Accepted equivalents” table
 below with the mutation string + a one-sentence rationale.</li>
 <li><strong>Real test gap?</strong> → file a <code>tech-debt</code> issue with the mutation string
-in the title, link the surviving-mutants table from the most recent
-nightly run, and assign to the next coverage-improvement loop.</li>
+in the title, or fix it directly in the same PR if scope allows.</li>
 <li><strong>Tool bug / unviable mis-classification?</strong> → file upstream at
 <a href="https://github.com/sourcefrog/cargo-mutants">https://github.com/sourcefrog/cargo-mutants</a>.</li>
 </ol>

@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c2279305.js";
+            window.path_to_searchindex_js = "../searchindex-151c5061.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-8a688177.js"></script>
@@ -190,84 +190,47 @@ must be deliberate, not accidental.</p>
 <li><strong><code>cargo-semver-checks</code></strong> (in <a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/ci.yml"><code>ci.yml</code></a>)
 — compares the PR head’s API against the latest release on crates.io.
 Catches <em>semantic</em> SemVer breaks (signature changes, trait-bound
-tightening, etc.). Advisory pre-1.0; will become a release-prep gate.</li>
-<li><strong><code>cargo-public-api</code></strong> (this doc + the <code>Public API Surface</code> CI job)
-— produces a flat text inventory of every <code>pub</code> item. Diffed against
-the committed snapshot in <a href="https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt"><code>public-api.txt</code></a> on every
-PR. Catches <em>additive</em> surface drift (new <code>pub</code> items that probably
-shouldn’t be exposed) that semver-checks doesn’t flag because adding
-is SemVer-minor, not major.</li>
+tightening, etc.). Runs as an <strong>advisory</strong> CI job (non-blocking).</li>
+<li><strong><code>cargo-public-api</code></strong> (this doc + the snapshot at <a href="https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt"><code>public-api.txt</code></a>)
+— produces a flat text inventory of every <code>pub</code> item. Run <strong>locally</strong>
+during release prep to verify the snapshot still matches the actual
+surface; commit any intentional drift in the same PR. Catches
+<em>additive</em> surface drift (new <code>pub</code> items that probably shouldn’t be
+exposed) that semver-checks doesn’t flag because adding is
+SemVer-minor, not major.</li>
 </ul>
+<blockquote>
+<p>The dedicated “Public API Surface” CI job that previously diffed the
+snapshot on every PR was removed in #216 as part of trimming
+over-engineered CI for a hobby-scale crate. The contract still holds;
+the verification step just moved from “every PR” to “release prep”.</p>
+</blockquote>
 <h2 id="current-baseline"><a class="header" href="#current-baseline">Current baseline</a></h2>
-<p>Captured against <code>main</code> on <strong>2026-04-18</strong> (post #170):</p>
+<p>Captured against <code>main</code> at the v2.0.0 release tag (post #197/#198):</p>
 <div class="table-wrapper">
 <table>
 <thead>
 <tr><th>Metric</th><th>Count</th></tr>
 </thead>
 <tbody>
-<tr><td>Total API lines</td><td><strong>853</strong></td></tr>
-<tr><td>Public modules</td><td>40</td></tr>
-<tr><td>Public functions</td><td>199</td></tr>
-<tr><td>Public structs</td><td>17</td></tr>
-<tr><td>Public enums</td><td>11</td></tr>
+<tr><td>Total API lines</td><td><strong>201</strong></td></tr>
+<tr><td>Public modules</td><td>1 (<code>hunch</code>)</td></tr>
+<tr><td>Public functions</td><td>70</td></tr>
+<tr><td>Public structs</td><td>2 (<code>HunchResult</code>, <code>Pipeline</code>)</td></tr>
+<tr><td>Public enums</td><td>3 (<code>Confidence</code>, <code>MediaType</code>, <code>Property</code>)</td></tr>
 </tbody>
 </table>
 </div>
-<h3 id="top-exposure-offenders-lines-per-module-path"><a class="header" href="#top-exposure-offenders-lines-per-module-path">Top exposure offenders (lines per module path)</a></h3>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Module path</th><th>API lines</th><th>Comment</th></tr>
-</thead>
-<tbody>
-<tr><td><code>hunch::matcher::*</code></td><td>88</td><td>Regex helpers, span types — mostly internal scaffolding</td></tr>
-<tr><td><code>hunch::HunchResult::*</code></td><td>44</td><td>Public result type — keep, but field accessors warrant audit</td></tr>
-<tr><td><code>hunch::properties::*</code></td><td>54 (32 mods + 22 fns)</td><td>Every property is a <code>pub mod</code> exposing its <code>find_matches</code> — almost certainly should be <code>pub(crate)</code></td></tr>
-<tr><td><code>hunch::tokenizer::*</code></td><td>25</td><td>Internal — should be <code>pub(crate)</code></td></tr>
-<tr><td><code>hunch::zone_map::*</code></td><td>10</td><td>Internal — should be <code>pub(crate)</code></td></tr>
-<tr><td><code>hunch::Confidence::*</code></td><td>6</td><td>Public, intentional</td></tr>
-<tr><td><code>hunch::Pipeline::*</code></td><td>5</td><td>Public, intentional</td></tr>
-</tbody>
-</table>
-</div>
-<p>The intentional public surface is roughly: <code>hunch()</code>, <code>hunch_with_context()</code>,
-<code>Pipeline</code>, <code>HunchResult</code>, <code>Confidence</code>. Everything else is incidental
-exposure that grew organically and was never audited.</p>
-<p>This is exactly what the <a href="https://github.com/lijunzh/hunch/issues/144">Public-API visibility audit epic
-(#144)</a> is for.</p>
-<h2 id="how-the-ci-tripwire-works"><a class="header" href="#how-the-ci-tripwire-works">How the CI tripwire works</a></h2>
-<p>The <code>Public API Surface</code> job in <a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/ci.yml"><code>ci.yml</code></a>:</p>
-<ol>
-<li>Installs Rust nightly (<code>cargo-public-api</code> requires the unstable
-rustdoc-JSON output).</li>
-<li>Installs <code>cargo-public-api</code> via <code>taiki-e/install-action</code> (prebuilt
-binary; matches the pattern set by the coverage and mutation jobs).</li>
-<li>Generates the current API listing.</li>
-<li><code>diff -u</code>s it against <a href="https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt"><code>docs/src/reference/public-api.txt</code></a>.</li>
-<li>Posts the diff to the GitHub Job Summary.</li>
-</ol>
-<p>The job is <strong>advisory</strong> (<code>continue-on-error: true</code>), matching the
-existing <code>semver-checks</code> advisory job. It will <em>not</em> block merging a
-PR — but the diff in the Job Summary makes any drift impossible to
-miss in code review.</p>
-<h2 id="when-the-diff-fires"><a class="header" href="#when-the-diff-fires">When the diff fires</a></h2>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Diff content</th><th>What to do</th></tr>
-</thead>
-<tbody>
-<tr><td>New <code>pub</code> items</td><td><strong>Audit</strong>: should they be <code>pub(crate)</code> instead? If yes, demote in the same PR. If genuinely public, regenerate the snapshot (below) and document the addition in the PR body.</td></tr>
-<tr><td>Removed <code>pub</code> items</td><td>This is a SemVer-major change. The <code>semver-checks</code> job should also be flagging it. Confirm intent, regenerate the snapshot, and bump the version per <a href="https://github.com/lijunzh/hunch/blob/main/CONTRIBUTING.md">CONTRIBUTING.md → API Stability Policy</a>.</td></tr>
-<tr><td>Signature changes</td><td>Same as removed — SemVer-major. Confirm with <code>semver-checks</code>.</td></tr>
-<tr><td>Reordered lines (no real diff)</td><td>The snapshot is sorted by <code>cargo-public-api</code>’s internal logic; reordering shouldn’t happen in normal use. If you see this, regenerate.</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="regenerating-the-baseline"><a class="header" href="#regenerating-the-baseline">Regenerating the baseline</a></h2>
+<p>The intentional public surface is: <code>hunch()</code>, <code>hunch_with_context()</code>,
+<code>Pipeline</code>, <code>HunchResult</code>, <code>Confidence</code>, <code>MediaType</code>, <code>Property</code>. The
+v2.0.0 audit (#144 / #197) demoted the <code>matcher</code>, <code>properties</code>,
+<code>tokenizer</code>, and <code>zone_map</code> modules from <code>pub mod</code> to <code>pub(crate) mod</code>,
+shrinking the surface from 853 → 201 lines (76% reduction). See the
+<a href="../about/migration-v2.html">v2.0.0 migration guide</a> for the migration
+path for downstream code that was using deep imports.</p>
+<h2 id="verifying-the-snapshot-during-release-prep"><a class="header" href="#verifying-the-snapshot-during-release-prep">Verifying the snapshot during release prep</a></h2>
 <p>Required when an intentional API change lands.</p>
-<pre><code class="language-bash"># One-time install (uses Walmart proxy if needed):
+<pre><code class="language-bash"># One-time install:
 rustup toolchain install nightly --profile minimal
 cargo install cargo-public-api --locked
 
@@ -277,40 +240,36 @@ cargo +nightly public-api --simplified 2&gt;/dev/null &gt; docs/src/reference/pu
 # Verify the diff matches what you intended:
 git diff docs/src/reference/public-api.txt
 </code></pre>
-<p>Commit <code>docs/src/reference/public-api.txt</code> together with the API change in the same PR.
-The diff in the PR review should make the API delta easy for reviewers
-to scan.</p>
-<h2 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h2>
-<p>This document captures the <strong>first slice</strong> of the <a href="https://github.com/lijunzh/hunch/issues/144">API audit epic
-(#144)</a>. Deferred to follow-up
-PRs:</p>
-<ul>
-<li><strong>Triage pass</strong>: classify every <code>pub</code> item as Keep / Demote / Deprecate
-per the epic’s definition-of-done. Each demotion lands in its own PR
-to make the visibility change reviewable in isolation.</li>
-<li><strong>Reverse-dep check</strong>: query crates.io for downstream users of items
-marked Demote/Deprecate before actually pulling the trigger.</li>
-<li><strong><code>pub use</code> cleanup</strong>: collapse the obvious “should never have been
-exposed” cases (<code>tokenizer</code>, <code>zone_map</code>, <code>matcher::engine</code>’s internals,
-the property modules) en masse.</li>
-<li><strong><code>#[non_exhaustive]</code></strong> on the public enums (<code>Confidence</code>,
-<code>HunchResult</code> field types) so future variant additions aren’t
-SemVer-major. <em>Partially landed in #172: <code>Property</code>, <code>MediaType</code>,
-<code>Source</code>, <code>Separator</code>, <code>BracketKind</code>, <code>ZoneScope</code>, <code>CharClass</code> now
-bear the attribute. <code>Confidence</code> and <code>SegmentKind</code> deliberately
-excluded — they’re conceptually saturated (Low/Med/High and
-Directory/Filename respectively).</em></li>
-<li><strong>Promote the CI job from advisory → blocking</strong> once the surface has
-stabilised post-audit.</li>
-</ul>
+<p>Commit <code>docs/src/reference/public-api.txt</code> together with the API change
+in the same PR. The diff in PR review should make the API delta easy
+for reviewers to scan.</p>
+<h2 id="interpreting-a-diff"><a class="header" href="#interpreting-a-diff">Interpreting a diff</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Diff content</th><th>What to do</th></tr>
+</thead>
+<tbody>
+<tr><td>New <code>pub</code> items</td><td><strong>Audit</strong>: should they be <code>pub(crate)</code> instead? If yes, demote in the same PR. If genuinely public, regenerate the snapshot and document the addition in the PR body.</td></tr>
+<tr><td>Removed <code>pub</code> items</td><td>This is a SemVer-major change. The <code>semver-checks</code> job should also be flagging it. Confirm intent, regenerate the snapshot, and bump the major version.</td></tr>
+<tr><td>Signature changes</td><td>Same as removed — SemVer-major. Confirm with <code>semver-checks</code>.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="public-enum-policy"><a class="header" href="#public-enum-policy">Public enum policy</a></h2>
+<p>All public enums carry <code>#[non_exhaustive]</code> as of v2.0.0 (#172, #196):
+<code>Property</code>, <code>MediaType</code>, <code>Confidence</code>. Downstream code must include a
+wildcard arm (<code>_ =&gt; …</code>) when matching on any of these. This lets
+future minor releases add new variants without re-breaking the API.</p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <ul>
 <li><a href="https://github.com/Enselic/cargo-public-api"><code>cargo-public-api</code></a></li>
 <li><a href="https://github.com/obi1kenobi/cargo-semver-checks"><code>cargo-semver-checks</code></a>
-(sibling tool, already in CI)</li>
-<li><a href="https://github.com/lijunzh/hunch/blob/main/CONTRIBUTING.md">CONTRIBUTING.md → API Stability Policy</a></li>
-<li>Sibling docs: <a href="../contributor-guide/coverage.html">Coverage</a> (line coverage),
-<a href="../contributor-guide/mutation-baseline.html">Mutation Testing</a> (assertion quality)</li>
+(sibling tool, advisory CI job)</li>
+<li><a href="../about/migration-v2.html">v2.0.0 migration guide</a> — what the surface
+shrink means for callers</li>
+<li>Sibling docs: <a href="../contributor-guide/coverage.html">Coverage</a> (run locally),
+<a href="../contributor-guide/mutation-baseline.html">Mutation Testing</a> (run locally)</li>
 </ul>
 
                     </main>

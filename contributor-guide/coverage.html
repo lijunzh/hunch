@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c2279305.js";
+            window.path_to_searchindex_js = "../searchindex-151c5061.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-8a688177.js"></script>
@@ -182,8 +182,13 @@
                     <main>
                         <h1 id="code-coverage"><a class="header" href="#code-coverage">Code Coverage</a></h1>
 <p>Hunch tracks line, function, and region coverage via <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a>.
-The CI <code>Coverage</code> job runs on every PR and uploads an LCOV report as a build
-artifact (<code>coverage-report</code>).</p>
+Run locally during release prep or when working on test-quality
+improvements.</p>
+<blockquote>
+<p>The dedicated CI <code>Coverage</code> job that previously ran on every PR
+was removed in #216 as part of trimming over-engineered CI for a
+hobby-scale crate. The tooling and the local workflow are unchanged.</p>
+</blockquote>
 <h2 id="current-baseline"><a class="header" href="#current-baseline">Current baseline</a></h2>
 <p>Captured against <code>main</code> on <strong>2026-04-18</strong> (post v1.1.8, after PR #167):</p>
 <div class="table-wrapper">
@@ -237,26 +242,15 @@ rustup component add llvm-tools-preview
 <pre><code class="language-bash">cargo llvm-cov --workspace --lcov --output-path lcov.info
 </code></pre>
 <h2 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h2>
-<p>This document captures the <strong>first slice</strong> of the <a href="https://github.com/lijunzh/hunch/issues/145">Code coverage CI epic
-(#145)</a>. Deferred to follow-up PRs:</p>
+<p>Long-term ideas, not actively planned post-#216:</p>
 <ul>
-<li><strong>PR-time regression gate</strong>: fail CI if total line coverage drops more than
-~0.5% below this baseline. Deferred until the baseline has settled across a
-few merges (otherwise we’d be tuning the noise threshold against a moving
-target).</li>
-<li><strong>Codecov.io / Coveralls integration</strong>: the LCOV artifact is already in the
-right shape; just needs the upload step + a token. Optional per the epic.</li>
-<li><strong>Per-file delta comments on PRs</strong>: shows which newly-added lines aren’t
-covered. Most useful with codecov.io’s PR comment integration.</li>
-<li><strong>Branch coverage</strong>: <code>cargo-llvm-cov</code> reports it but the issue scopes the
-initial work to line coverage.</li>
+<li><strong>Codecov.io / Coveralls integration</strong> — the LCOV file is in the
+right shape if anyone wants to wire it up. Local-only for now.</li>
+<li><strong>Branch coverage</strong> — <code>cargo-llvm-cov</code> reports it; the line-coverage
+baseline above is the project’s primary signal.</li>
 </ul>
 <h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
 <ul>
-<li><strong>Why single-OS</strong>: line/region coverage of pure-Rust code is platform-agnostic.
-Running coverage on the cross-OS matrix would triple CI time for zero
-additional signal. Platform-conditional branches (<code>cfg(unix)</code> symlink tests,
-Windows path code) are still exercised by the cross-OS <code>test</code> matrix.</li>
 <li><strong>Why not 100%</strong>: parser code intentionally has permissive fallback branches
 (e.g., “we couldn’t decide, return the empty result”) that aren’t worth
 contorting tests to hit. ≥ 94% is the realistic ceiling for this codebase.</li>

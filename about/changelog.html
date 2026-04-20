@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-c2279305.js";
+            window.path_to_searchindex_js = "../searchindex-151c5061.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-8a688177.js"></script>
@@ -197,6 +197,7 @@ Release prep checklist:
   3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 -->
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h2 id="200---2026-04-20"><a class="header" href="#200---2026-04-20"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.0">2.0.0</a> - 2026-04-20</a></h2>
 <h3 id="removed"><a class="header" href="#removed">Removed</a></h3>
 <ul>
 <li><strong><code>benches/</code> directory and the <code>cargo bench</code> harness.</strong> The Criterion
@@ -214,7 +215,17 @@ plus the <code>contributor-guide/fuzzing.md</code> mdbook page. The fuzzing
 workflow was deleted in #217; manual contributor fuzzing isn’t being
 done in practice. The library is small and deterministic enough that
 the existing 612-test integration suite is the right testing layer
-for our scale. (#218 follow-up)</li>
+for our scale. (#218 follow-up, #222)</li>
+<li><strong>CI workflow over-engineering.</strong> The <code>coverage</code> (cargo-llvm-cov),
+<code>api-surface</code> (cargo-public-api drift gate), and <code>mutants</code> (nightly
+cargo-mutants) jobs were all dropped in #216 alongside the entire
+<code>mutants.yml</code> workflow. The <code>benchmark.yml</code> and <code>fuzz.yml</code> workflows
+were dropped in #217. Rationale: a single-author hobby crate does not
+need 7 quality-gate workflows running on every PR. The four jobs that
+matter — <code>fmt</code>, <code>clippy</code>, <code>test</code> (Linux/macOS/Windows), <code>audit</code> —
+remain. The <code>semver</code> advisory job also survives. The mutation-test
+work that landed in #180–#185 left permanent regression coverage in
+<code>tests/</code>, so that quality investment outlives the workflow.</li>
 </ul>
 <h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
 <ul>
@@ -226,27 +237,63 @@ ever calling <code>.run()</code>. Also added explicit <code>#[must_use]</code> o
 remaining accessors return <code>Option&lt;T&gt;</code> / <code>Vec&lt;T&gt;</code> which are already
 <code>#[must_use]</code> in std — no need to repeat. (#205, bundled in #218)</li>
 </ul>
+<h3 id="refactored"><a class="header" href="#refactored">Refactored</a></h3>
+<ul>
+<li><strong>Moved <code>rules/</code> to <code>src/rules/</code> for compile-time co-location.</strong> The
+21 TOML data files are embedded into the binary at compile time via
+<code>include_str!</code> from <code>pipeline/rule_registry.rs</code> — they’re not
+external configuration, not user-tunable at runtime, and have no
+purpose outside this crate. Top-level <code>rules/</code> was misleading
+(reading as nginx-style runtime config when it’s actually frozen
+Rust data). The <code>../../rules/X.toml</code> paths in <code>rule_registry.rs</code>
+were the universal “this should be local” code smell pointing here.
+Pure restructure: zero behavior change, all 21 <code>include_str!</code> paths
+<ul>
+<li>17 doc-comment refs updated, file history preserved via <code>git mv</code>.
+(#223)</li>
+</ul>
+</li>
+</ul>
 <h3 id="docs"><a class="header" href="#docs">Docs</a></h3>
 <ul>
-<li><strong>New <code>docs/src/about/migration-v2.md</code> page</strong> consolidating the v2.0.0
+<li>
+<p><strong>Slimmed <code>README.md</code> from 178 → 89 lines (-50%).</strong> Now that we
+have a proper mdbook at <a href="https://lijunzh.github.io/hunch">https://lijunzh.github.io/hunch</a>, the
+README can stop trying to be canonical for everything. The verbose
+<code>--batch -r</code> tip and the four “Known Limitations” subsections
+(~60 lines of edge-case essays) moved to the new
+<code>docs/src/user-guide/known-limitations.md</code> mdbook page; the README
+links to it. Documentation table tightened: dropped dead bench
+dashboard row (page deleted), added Migration Guide + Known
+Limitations rows. (#224)</p>
+</li>
+<li>
+<p><strong>New <code>docs/src/about/migration-v2.md</code> page</strong> consolidating the v2.0.0
 breaking changes (<code>Property::BitRate</code> removal + deep-import deprecation)
 in one mdbook destination, so callers don’t have to scrape the
-changelog. Linked from <code>SUMMARY.md</code>. (#201, bundled in #218)</li>
-<li><strong><code>DESIGN.md</code> pipeline module map updated</strong> from the stale 5-file list
+changelog. Linked from <code>SUMMARY.md</code>. (#201, bundled in #218)</p>
+</li>
+<li>
+<p><strong><code>DESIGN.md</code> pipeline module map updated</strong> from the stale 5-file list
 to the actual 9 files (<code>mod</code>, <code>matching</code>, <code>context</code>, <code>token_context</code>,
 <code>zone_rules</code>, <code>invariance</code>, <code>pass2_helpers</code>, <code>proper_count</code>,
-<code>rule_registry</code>). (#200, bundled in #218)</li>
-<li><strong><code>DESIGN.md</code> D9</strong> now documents the third class of property matchers:
+<code>rule_registry</code>). (#200, bundled in #218)</p>
+</li>
+<li>
+<p><strong><code>DESIGN.md</code> D9</strong> now documents the third class of property matchers:
 derived properties (computed at result-build time from another
 property’s value). Currently the only one is <code>Property::Mimetype</code>,
-derived from <code>Container</code>. (#203, bundled in #218)</li>
-<li><strong><code>README.md</code> no longer duplicates the guessit pass-rate stats</strong> that
+derived from <code>Container</code>. (#203, bundled in #218)</p>
+</li>
+<li>
+<p><strong><code>README.md</code> no longer duplicates the guessit pass-rate stats</strong> that
 live in the live compatibility report. The README now links and the
 per-property numbers stay in their single source of truth
 (regenerated from <code>cargo test -- --ignored guessit_compat</code>). The
 hard-coded <code># 295 tests</code> comment in the contribution snippet is
 also gone — it had drifted to ~612 and the count was never load-bearing.
-(#202, #204, bundled in #218)</li>
+(#202, #204, bundled in #218)</p>
+</li>
 </ul>
 <h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
 <ul>
@@ -257,6 +304,15 @@ via the ancestor cache.</strong> The CLI’s inheritance-blocking predicate
 common <code>extras/extra/specials/bonus</code>. In <code>--batch -r</code> mode, that gap
 let an unrelated movie title at the batch root leak into Extras
 subtrees of an adjacent show. (#208)</li>
+<li><strong>CJK fansub patterns <code>[Nth - NN]</code> and <code>[总第NN]</code> are now parsed as
+episode markers</strong> instead of being absorbed into the title. Catches
+real-world filenames from the Re:Zero / 12 Kingdoms / similar fansub
+release groups. (#212, #213)</li>
+<li><strong>Ancestor-path <code>Source</code> matches are dropped when the filename itself
+carries a Source token.</strong> Prevents directory-level source hints (e.g.
+<code>BluRay/Show.S01E01.WEB-DL.mkv</code> resolving to <code>BluRay</code>) from
+overriding the more specific filename-level signal in <code>--batch -r</code>
+mode. (#212, #215)</li>
 </ul>
 <h3 id="security"><a class="header" href="#security">Security</a></h3>
 <ul>
@@ -394,26 +450,13 @@ digits as part of the bit-rate (regex bound tightened to <code>\d{1,2}</code>).
 (#165)</li>
 </ul>
 <h3 id="internal--infrastructure"><a class="header" href="#internal--infrastructure">Internal / Infrastructure</a></h3>
-<p>This release lands a substantial CI and documentation investment
-motivated by the project moving from “experimental, no users” to
-“users filing real bug reports.” None of the items below change
-parser behavior, but they meaningfully improve the project’s
-ability to catch regressions before they ship:</p>
+<p>This release lands a substantial documentation investment motivated by
+the project moving from “experimental, no users” to “users filing real
+bug reports.” None of the items below change parser behavior, but they
+meaningfully improve the project’s ability to catch regressions before
+they ship.</p>
+<p><strong>What survived to v2.0.0:</strong></p>
 <ul>
-<li><strong>Code coverage tracking</strong> via <code>cargo-llvm-cov</code> (advisory). (#145, #168)</li>
-<li><strong>Mutation testing baseline</strong> via <code>cargo-mutants</code> nightly, with
-29 surviving mutants triaged and killed across
-#175, #180, #181, #182, #183, #184, #185. (#146, #169, #170, #173)</li>
-<li><strong>Fuzz baseline</strong> via <code>cargo-fuzz</code> with two targets (single-string
-parse + multi-segment path) and nightly CI. (#147, #174)</li>
-<li><strong>Public API surface tripwire</strong> that fails CI on accidental changes
-to <code>pub use src/lib.rs</code> items. (#144, #171)</li>
-<li><strong>Continuous benchmarking</strong> via <code>criterion</code> + <code>github-action-benchmark</code>,
-with PR-time regression gating (&gt;120% threshold), per-commit history
-on a live dashboard, and per-release immutable snapshots. See the
-<a href="https://lijunzh.github.io/hunch/reference/benchmarks.html">Benchmarks reference</a>
-and <a href="https://lijunzh.github.io/hunch/reference/release-trajectory.html">Release Trajectory</a>.
-(#148, #176, #177, #178, #179, #186, #189, #191, #192, #194)</li>
 <li><strong>Documentation portal</strong> at <a href="https://lijunzh.github.io/hunch/">https://lijunzh.github.io/hunch/</a>
 built with mdbook. (#188, #190)</li>
 <li><strong>Release pipeline hardening</strong> — PR-time CI now also runs on release
@@ -422,7 +465,22 @@ branches; release workflow is more defensive. (#150, #151, #152, #159)</li>
 <code>TitleStrategy</code> fallback ordering (#154, #161), <code>cli_walk_dir</code>
 safety boundaries (#153, #162), parse-torrent-name corpus pins
 (#157, #164).</li>
+<li><strong>Mutation-killing test additions</strong> from the cargo-mutants triage
+pass survive as permanent regression coverage in <code>tests/</code> even though
+the nightly <code>mutants.yml</code> workflow itself was dropped: 29 mutants
+killed across #175, #180, #181, #182, #183, #184, #185.</li>
 </ul>
+<p><strong>What was added during the cycle and then rolled back (see Removed):</strong></p>
+<p>The CI infrastructure burst between v1.1.x and v2.0.0 — cargo-llvm-cov
+coverage tracking (#145, #168), nightly cargo-mutants (#146, #169, #170,
+#173), cargo-fuzz (#147, #174), continuous benchmarking via criterion +
+github-action-benchmark (#148, #176, #177, #178, #179, #186, #189, #191,
+#192, #194), and the cargo-public-api surface tripwire (#144, #171) —
+all got built and then trimmed in #216, #217, #222 once we acknowledged
+this is a single-developer hobby crate. The investment paid for itself
+in permanent test additions (above) and in the public API audit it
+drove (#197), but the workflows themselves were over-engineered for the
+project’s actual scale.</p>
 <h2 id="118---2026-04-17"><a class="header" href="#118---2026-04-17"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.8">1.1.8</a> - 2026-04-17</a></h2>
 <h3 id="changed-2"><a class="header" href="#changed-2">Changed</a></h3>
 <ul>
@@ -443,7 +501,7 @@ directory tree. (#137)</li>
 and incorrectly extracted <code>Part 2</code> as a standalone <code>part</code> property.
 (#124, #127)</li>
 </ul>
-<h3 id="refactored"><a class="header" href="#refactored">Refactored</a></h3>
+<h3 id="refactored-1"><a class="header" href="#refactored-1">Refactored</a></h3>
 <ul>
 <li><strong>Pipeline <code>rule_registry</code> extracted</strong> from <code>pipeline/mod.rs</code> into its own
 module. Centralizes the legacy / TOML rule registration so the pipeline
@@ -751,7 +809,7 @@ contains only a numeric code (e.g., <code>Bones.S12E02.The.Brain.In.The.Bot .108
 <li>Added BDMux/BRMux/BDRipMux/BRRipMux source patterns.</li>
 <li>Multi-segment alternative_title with earliest-boundary fix.</li>
 </ul>
-<h3 id="refactored-1"><a class="header" href="#refactored-1">Refactored</a></h3>
+<h3 id="refactored-2"><a class="header" href="#refactored-2">Refactored</a></h3>
 <ul>
 <li><code>Property</code> enum uses <code>define_properties!</code> macro (DRY).</li>
 <li>8 positional args replaced with <code>MatchContext</code> struct.</li>

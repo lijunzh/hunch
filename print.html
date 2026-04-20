@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-c2279305.js";
+            window.path_to_searchindex_js = "searchindex-151c5061.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8a688177.js"></script>
@@ -703,84 +703,47 @@ must be deliberate, not accidental.</p>
 <li><strong><code>cargo-semver-checks</code></strong> (in <a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/ci.yml"><code>ci.yml</code></a>)
 — compares the PR head’s API against the latest release on crates.io.
 Catches <em>semantic</em> SemVer breaks (signature changes, trait-bound
-tightening, etc.). Advisory pre-1.0; will become a release-prep gate.</li>
-<li><strong><code>cargo-public-api</code></strong> (this doc + the <code>Public API Surface</code> CI job)
-— produces a flat text inventory of every <code>pub</code> item. Diffed against
-the committed snapshot in <a href="https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt"><code>public-api.txt</code></a> on every
-PR. Catches <em>additive</em> surface drift (new <code>pub</code> items that probably
-shouldn’t be exposed) that semver-checks doesn’t flag because adding
-is SemVer-minor, not major.</li>
+tightening, etc.). Runs as an <strong>advisory</strong> CI job (non-blocking).</li>
+<li><strong><code>cargo-public-api</code></strong> (this doc + the snapshot at <a href="https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt"><code>public-api.txt</code></a>)
+— produces a flat text inventory of every <code>pub</code> item. Run <strong>locally</strong>
+during release prep to verify the snapshot still matches the actual
+surface; commit any intentional drift in the same PR. Catches
+<em>additive</em> surface drift (new <code>pub</code> items that probably shouldn’t be
+exposed) that semver-checks doesn’t flag because adding is
+SemVer-minor, not major.</li>
 </ul>
+<blockquote>
+<p>The dedicated “Public API Surface” CI job that previously diffed the
+snapshot on every PR was removed in #216 as part of trimming
+over-engineered CI for a hobby-scale crate. The contract still holds;
+the verification step just moved from “every PR” to “release prep”.</p>
+</blockquote>
 <h2 id="current-baseline"><a class="header" href="#current-baseline">Current baseline</a></h2>
-<p>Captured against <code>main</code> on <strong>2026-04-18</strong> (post #170):</p>
+<p>Captured against <code>main</code> at the v2.0.0 release tag (post #197/#198):</p>
 <div class="table-wrapper">
 <table>
 <thead>
 <tr><th>Metric</th><th>Count</th></tr>
 </thead>
 <tbody>
-<tr><td>Total API lines</td><td><strong>853</strong></td></tr>
-<tr><td>Public modules</td><td>40</td></tr>
-<tr><td>Public functions</td><td>199</td></tr>
-<tr><td>Public structs</td><td>17</td></tr>
-<tr><td>Public enums</td><td>11</td></tr>
+<tr><td>Total API lines</td><td><strong>201</strong></td></tr>
+<tr><td>Public modules</td><td>1 (<code>hunch</code>)</td></tr>
+<tr><td>Public functions</td><td>70</td></tr>
+<tr><td>Public structs</td><td>2 (<code>HunchResult</code>, <code>Pipeline</code>)</td></tr>
+<tr><td>Public enums</td><td>3 (<code>Confidence</code>, <code>MediaType</code>, <code>Property</code>)</td></tr>
 </tbody>
 </table>
 </div>
-<h3 id="top-exposure-offenders-lines-per-module-path"><a class="header" href="#top-exposure-offenders-lines-per-module-path">Top exposure offenders (lines per module path)</a></h3>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Module path</th><th>API lines</th><th>Comment</th></tr>
-</thead>
-<tbody>
-<tr><td><code>hunch::matcher::*</code></td><td>88</td><td>Regex helpers, span types — mostly internal scaffolding</td></tr>
-<tr><td><code>hunch::HunchResult::*</code></td><td>44</td><td>Public result type — keep, but field accessors warrant audit</td></tr>
-<tr><td><code>hunch::properties::*</code></td><td>54 (32 mods + 22 fns)</td><td>Every property is a <code>pub mod</code> exposing its <code>find_matches</code> — almost certainly should be <code>pub(crate)</code></td></tr>
-<tr><td><code>hunch::tokenizer::*</code></td><td>25</td><td>Internal — should be <code>pub(crate)</code></td></tr>
-<tr><td><code>hunch::zone_map::*</code></td><td>10</td><td>Internal — should be <code>pub(crate)</code></td></tr>
-<tr><td><code>hunch::Confidence::*</code></td><td>6</td><td>Public, intentional</td></tr>
-<tr><td><code>hunch::Pipeline::*</code></td><td>5</td><td>Public, intentional</td></tr>
-</tbody>
-</table>
-</div>
-<p>The intentional public surface is roughly: <code>hunch()</code>, <code>hunch_with_context()</code>,
-<code>Pipeline</code>, <code>HunchResult</code>, <code>Confidence</code>. Everything else is incidental
-exposure that grew organically and was never audited.</p>
-<p>This is exactly what the <a href="https://github.com/lijunzh/hunch/issues/144">Public-API visibility audit epic
-(#144)</a> is for.</p>
-<h2 id="how-the-ci-tripwire-works"><a class="header" href="#how-the-ci-tripwire-works">How the CI tripwire works</a></h2>
-<p>The <code>Public API Surface</code> job in <a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/ci.yml"><code>ci.yml</code></a>:</p>
-<ol>
-<li>Installs Rust nightly (<code>cargo-public-api</code> requires the unstable
-rustdoc-JSON output).</li>
-<li>Installs <code>cargo-public-api</code> via <code>taiki-e/install-action</code> (prebuilt
-binary; matches the pattern set by the coverage and mutation jobs).</li>
-<li>Generates the current API listing.</li>
-<li><code>diff -u</code>s it against <a href="https://github.com/lijunzh/hunch/blob/main/docs/src/reference/public-api.txt"><code>docs/src/reference/public-api.txt</code></a>.</li>
-<li>Posts the diff to the GitHub Job Summary.</li>
-</ol>
-<p>The job is <strong>advisory</strong> (<code>continue-on-error: true</code>), matching the
-existing <code>semver-checks</code> advisory job. It will <em>not</em> block merging a
-PR — but the diff in the Job Summary makes any drift impossible to
-miss in code review.</p>
-<h2 id="when-the-diff-fires"><a class="header" href="#when-the-diff-fires">When the diff fires</a></h2>
-<div class="table-wrapper">
-<table>
-<thead>
-<tr><th>Diff content</th><th>What to do</th></tr>
-</thead>
-<tbody>
-<tr><td>New <code>pub</code> items</td><td><strong>Audit</strong>: should they be <code>pub(crate)</code> instead? If yes, demote in the same PR. If genuinely public, regenerate the snapshot (below) and document the addition in the PR body.</td></tr>
-<tr><td>Removed <code>pub</code> items</td><td>This is a SemVer-major change. The <code>semver-checks</code> job should also be flagging it. Confirm intent, regenerate the snapshot, and bump the version per <a href="https://github.com/lijunzh/hunch/blob/main/CONTRIBUTING.md">CONTRIBUTING.md → API Stability Policy</a>.</td></tr>
-<tr><td>Signature changes</td><td>Same as removed — SemVer-major. Confirm with <code>semver-checks</code>.</td></tr>
-<tr><td>Reordered lines (no real diff)</td><td>The snapshot is sorted by <code>cargo-public-api</code>’s internal logic; reordering shouldn’t happen in normal use. If you see this, regenerate.</td></tr>
-</tbody>
-</table>
-</div>
-<h2 id="regenerating-the-baseline"><a class="header" href="#regenerating-the-baseline">Regenerating the baseline</a></h2>
+<p>The intentional public surface is: <code>hunch()</code>, <code>hunch_with_context()</code>,
+<code>Pipeline</code>, <code>HunchResult</code>, <code>Confidence</code>, <code>MediaType</code>, <code>Property</code>. The
+v2.0.0 audit (#144 / #197) demoted the <code>matcher</code>, <code>properties</code>,
+<code>tokenizer</code>, and <code>zone_map</code> modules from <code>pub mod</code> to <code>pub(crate) mod</code>,
+shrinking the surface from 853 → 201 lines (76% reduction). See the
+<a href="#migrating-to-v200">v2.0.0 migration guide</a> for the migration
+path for downstream code that was using deep imports.</p>
+<h2 id="verifying-the-snapshot-during-release-prep"><a class="header" href="#verifying-the-snapshot-during-release-prep">Verifying the snapshot during release prep</a></h2>
 <p>Required when an intentional API change lands.</p>
-<pre><code class="language-bash"># One-time install (uses Walmart proxy if needed):
+<pre><code class="language-bash"># One-time install:
 rustup toolchain install nightly --profile minimal
 cargo install cargo-public-api --locked
 
@@ -790,46 +753,47 @@ cargo +nightly public-api --simplified 2&gt;/dev/null &gt; docs/src/reference/pu
 # Verify the diff matches what you intended:
 git diff docs/src/reference/public-api.txt
 </code></pre>
-<p>Commit <code>docs/src/reference/public-api.txt</code> together with the API change in the same PR.
-The diff in the PR review should make the API delta easy for reviewers
-to scan.</p>
-<h2 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h2>
-<p>This document captures the <strong>first slice</strong> of the <a href="https://github.com/lijunzh/hunch/issues/144">API audit epic
-(#144)</a>. Deferred to follow-up
-PRs:</p>
-<ul>
-<li><strong>Triage pass</strong>: classify every <code>pub</code> item as Keep / Demote / Deprecate
-per the epic’s definition-of-done. Each demotion lands in its own PR
-to make the visibility change reviewable in isolation.</li>
-<li><strong>Reverse-dep check</strong>: query crates.io for downstream users of items
-marked Demote/Deprecate before actually pulling the trigger.</li>
-<li><strong><code>pub use</code> cleanup</strong>: collapse the obvious “should never have been
-exposed” cases (<code>tokenizer</code>, <code>zone_map</code>, <code>matcher::engine</code>’s internals,
-the property modules) en masse.</li>
-<li><strong><code>#[non_exhaustive]</code></strong> on the public enums (<code>Confidence</code>,
-<code>HunchResult</code> field types) so future variant additions aren’t
-SemVer-major. <em>Partially landed in #172: <code>Property</code>, <code>MediaType</code>,
-<code>Source</code>, <code>Separator</code>, <code>BracketKind</code>, <code>ZoneScope</code>, <code>CharClass</code> now
-bear the attribute. <code>Confidence</code> and <code>SegmentKind</code> deliberately
-excluded — they’re conceptually saturated (Low/Med/High and
-Directory/Filename respectively).</em></li>
-<li><strong>Promote the CI job from advisory → blocking</strong> once the surface has
-stabilised post-audit.</li>
-</ul>
+<p>Commit <code>docs/src/reference/public-api.txt</code> together with the API change
+in the same PR. The diff in PR review should make the API delta easy
+for reviewers to scan.</p>
+<h2 id="interpreting-a-diff"><a class="header" href="#interpreting-a-diff">Interpreting a diff</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Diff content</th><th>What to do</th></tr>
+</thead>
+<tbody>
+<tr><td>New <code>pub</code> items</td><td><strong>Audit</strong>: should they be <code>pub(crate)</code> instead? If yes, demote in the same PR. If genuinely public, regenerate the snapshot and document the addition in the PR body.</td></tr>
+<tr><td>Removed <code>pub</code> items</td><td>This is a SemVer-major change. The <code>semver-checks</code> job should also be flagging it. Confirm intent, regenerate the snapshot, and bump the major version.</td></tr>
+<tr><td>Signature changes</td><td>Same as removed — SemVer-major. Confirm with <code>semver-checks</code>.</td></tr>
+</tbody>
+</table>
+</div>
+<h2 id="public-enum-policy"><a class="header" href="#public-enum-policy">Public enum policy</a></h2>
+<p>All public enums carry <code>#[non_exhaustive]</code> as of v2.0.0 (#172, #196):
+<code>Property</code>, <code>MediaType</code>, <code>Confidence</code>. Downstream code must include a
+wildcard arm (<code>_ =&gt; …</code>) when matching on any of these. This lets
+future minor releases add new variants without re-breaking the API.</p>
 <h2 id="references"><a class="header" href="#references">References</a></h2>
 <ul>
 <li><a href="https://github.com/Enselic/cargo-public-api"><code>cargo-public-api</code></a></li>
 <li><a href="https://github.com/obi1kenobi/cargo-semver-checks"><code>cargo-semver-checks</code></a>
-(sibling tool, already in CI)</li>
-<li><a href="https://github.com/lijunzh/hunch/blob/main/CONTRIBUTING.md">CONTRIBUTING.md → API Stability Policy</a></li>
-<li>Sibling docs: <a href="#code-coverage">Coverage</a> (line coverage),
-<a href="#mutation-testing-baseline">Mutation Testing</a> (assertion quality)</li>
+(sibling tool, advisory CI job)</li>
+<li><a href="#migrating-to-v200">v2.0.0 migration guide</a> — what the surface
+shrink means for callers</li>
+<li>Sibling docs: <a href="#code-coverage">Coverage</a> (run locally),
+<a href="#mutation-testing-baseline">Mutation Testing</a> (run locally)</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="code-coverage"><a class="header" href="#code-coverage">Code Coverage</a></h1>
 <p>Hunch tracks line, function, and region coverage via <a href="https://github.com/taiki-e/cargo-llvm-cov"><code>cargo-llvm-cov</code></a>.
-The CI <code>Coverage</code> job runs on every PR and uploads an LCOV report as a build
-artifact (<code>coverage-report</code>).</p>
+Run locally during release prep or when working on test-quality
+improvements.</p>
+<blockquote>
+<p>The dedicated CI <code>Coverage</code> job that previously ran on every PR
+was removed in #216 as part of trimming over-engineered CI for a
+hobby-scale crate. The tooling and the local workflow are unchanged.</p>
+</blockquote>
 <h2 id="current-baseline-1"><a class="header" href="#current-baseline-1">Current baseline</a></h2>
 <p>Captured against <code>main</code> on <strong>2026-04-18</strong> (post v1.1.8, after PR #167):</p>
 <div class="table-wrapper">
@@ -882,27 +846,16 @@ rustup component add llvm-tools-preview
 <p>Generate the LCOV file CI uploads (for IDE coverage gutters or external tools):</p>
 <pre><code class="language-bash">cargo llvm-cov --workspace --lcov --output-path lcov.info
 </code></pre>
-<h2 id="roadmap-1"><a class="header" href="#roadmap-1">Roadmap</a></h2>
-<p>This document captures the <strong>first slice</strong> of the <a href="https://github.com/lijunzh/hunch/issues/145">Code coverage CI epic
-(#145)</a>. Deferred to follow-up PRs:</p>
+<h2 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h2>
+<p>Long-term ideas, not actively planned post-#216:</p>
 <ul>
-<li><strong>PR-time regression gate</strong>: fail CI if total line coverage drops more than
-~0.5% below this baseline. Deferred until the baseline has settled across a
-few merges (otherwise we’d be tuning the noise threshold against a moving
-target).</li>
-<li><strong>Codecov.io / Coveralls integration</strong>: the LCOV artifact is already in the
-right shape; just needs the upload step + a token. Optional per the epic.</li>
-<li><strong>Per-file delta comments on PRs</strong>: shows which newly-added lines aren’t
-covered. Most useful with codecov.io’s PR comment integration.</li>
-<li><strong>Branch coverage</strong>: <code>cargo-llvm-cov</code> reports it but the issue scopes the
-initial work to line coverage.</li>
+<li><strong>Codecov.io / Coveralls integration</strong> — the LCOV file is in the
+right shape if anyone wants to wire it up. Local-only for now.</li>
+<li><strong>Branch coverage</strong> — <code>cargo-llvm-cov</code> reports it; the line-coverage
+baseline above is the project’s primary signal.</li>
 </ul>
 <h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
 <ul>
-<li><strong>Why single-OS</strong>: line/region coverage of pure-Rust code is platform-agnostic.
-Running coverage on the cross-OS matrix would triple CI time for zero
-additional signal. Platform-conditional branches (<code>cfg(unix)</code> symlink tests,
-Windows path code) are still exercised by the cross-OS <code>test</code> matrix.</li>
 <li><strong>Why not 100%</strong>: parser code intentionally has permissive fallback branches
 (e.g., “we couldn’t decide, return the empty result”) that aren’t worth
 contorting tests to hit. ≥ 94% is the realistic ceiling for this codebase.</li>
@@ -919,17 +872,18 @@ yet still fail to detect a real regression.</p>
 which lines run; mutation testing tells us which lines have <strong>strong
 assertions</strong>.</p>
 <h2 id="how-it-runs"><a class="header" href="#how-it-runs">How it runs</a></h2>
-<p>A nightly GitHub Actions workflow (<a href="https://github.com/lijunzh/hunch/blob/main/.github/workflows/mutants.yml"><code>.github/workflows/mutants.yml</code></a>)
-runs <code>cargo mutants</code> against the highest-value targets at 03:14 UTC and
-publishes results as a Job Summary + downloadable <code>mutants-out</code> artifact.</p>
-<p>The job is <strong>advisory</strong> — surviving mutants do not fail CI. They get
-triaged here and addressed in follow-up PRs. Tool-level failures
-(usage errors, build broken, crash) DO fail the job, via an explicit
-exit-code allowlist (0–3 = expected) added in #170 after the original
-<code>|| true</code> masked an <code>--in-place</code>/<code>--jobs</code> incompatibility for an
-entire run.</p>
-<p>You can also trigger it on demand from the Actions UI via
-<strong>Run workflow</strong> → <strong>Mutation Tests</strong>.</p>
+<p>Run <code>cargo mutants</code> locally during test-quality work or when adding
+fixtures around a tricky function. The mutation-killing PRs landed
+during the v1.1.x → v2.0.0 cycle (#180–#185) used this exact loop.</p>
+<blockquote>
+<p>The nightly <code>mutants.yml</code> workflow that previously ran on a schedule
+was removed in #216 along with the rest of the over-engineered CI for
+a hobby-scale crate. The tooling and the local workflow are unchanged;
+the surviving-mutants triage in this doc still applies when you run
+<code>cargo mutants</code> locally.</p>
+</blockquote>
+<p>You can still capture results in the same shape the old job produced —
+see <a href="#local-usage">Local usage</a> below.</p>
 <h2 id="first-nightly-run-results-2026-04-18"><a class="header" href="#first-nightly-run-results-2026-04-18">First nightly run results (2026-04-18)</a></h2>
 <p>First real run after #169/#170 landed: <a href="https://github.com/lijunzh/hunch/actions/runs/24615983143">run 24615983143</a>.
 12 minutes wall-clock on <code>ubuntu-latest</code> with <code>--jobs 4</code>.</p>
@@ -1018,21 +972,16 @@ identified in the <a href="https://github.com/lijunzh/hunch/issues/146">Mutation
 </table>
 </div>
 <p>Combined run with <code>--jobs 4</code> on a GitHub-hosted ubuntu runner: <strong>~12–15 min</strong>.</p>
-<h2 id="roadmap-2"><a class="header" href="#roadmap-2">Roadmap</a></h2>
-<p>Sequenced expansion (each is its own PR within the #146 epic):</p>
-<ol>
-<li><strong>Add the <code>Pipeline</code> neighbours</strong>: <code>pipeline/context.rs</code>, <code>pipeline/invariance.rs</code>,
-<code>pipeline/mod.rs</code>’s sibling helpers.</li>
-<li><strong>Add the <code>properties/title/</code> strategies</strong>: <code>secondary.rs</code>, <code>mod.rs</code>,
-the four <code>strategies/*.rs</code> modules.</li>
-<li><strong>Add the matcher core</strong>: <code>src/matcher/</code>, <code>src/zone_map.rs</code>, <code>src/tokenizer.rs</code>.</li>
-<li><strong>Opt-in PR-time check</strong>: a <code>mutation-test</code> label triggers a diff-only
-mutants run on the PR (cheap subset). Requires #146’s epic-level decision
-on labelling.</li>
-<li><strong>Hard kill-rate gate</strong>: fail the nightly if kill rate drops more than
-N% below baseline. Deferred until baseline has settled across enough
-nightly runs to characterise noise.</li>
-</ol>
+<h2 id="roadmap-1"><a class="header" href="#roadmap-1">Roadmap</a></h2>
+<p>Long-term ideas, not actively planned post-#216:</p>
+<ul>
+<li><strong>Re-enable a nightly workflow</strong> if the project ever grows past
+hobby-scale (multi-developer, downstream library users filing
+regression-class bugs). The triage protocol below is the workflow.</li>
+<li><strong>Hard kill-rate gate</strong> — only meaningful with a recurring run.</li>
+<li><strong>Diff-only PR check</strong> — useful with a CI cadence; manual on demand
+for now.</li>
+</ul>
 <h2 id="local-usage"><a class="header" href="#local-usage">Local usage</a></h2>
 <p>Install once (note: requires <code>--locked</code> so the version matches CI):</p>
 <pre><code class="language-bash">cargo install cargo-mutants --locked
@@ -1101,14 +1050,13 @@ prefix), <code>20201.mkv</code> (digit suffix) and assert the boundary rejection
 <p>These two are not fixed in this PR — that’s deliberate. This PR sets up
 the <em>infrastructure</em> to find findings; fixing them is the next loop.</p>
 <h2 id="triage-protocol"><a class="header" href="#triage-protocol">Triage protocol</a></h2>
-<p>When the nightly job posts a Job Summary with surviving mutants:</p>
+<p>When a local <code>cargo mutants</code> run produces surviving mutants:</p>
 <ol>
 <li><strong>Equivalent mutation?</strong> (the mutation produces identical observable
 behaviour) → add a one-line entry to the “Accepted equivalents” table
 below with the mutation string + a one-sentence rationale.</li>
 <li><strong>Real test gap?</strong> → file a <code>tech-debt</code> issue with the mutation string
-in the title, link the surviving-mutants table from the most recent
-nightly run, and assign to the next coverage-improvement loop.</li>
+in the title, or fix it directly in the same PR if scope allows.</li>
 <li><strong>Tool bug / unviable mis-classification?</strong> → file upstream at
 <a href="https://github.com/sourcefrog/cargo-mutants">https://github.com/sourcefrog/cargo-mutants</a>.</li>
 </ol>
@@ -1278,15 +1226,19 @@ and symlink-skipping. See the rustdoc on
 <a href="about/src/main.rs"><code>walk_dir</code></a> for the full threat-model rationale.</p>
 <h2 id="supported-versions"><a class="header" href="#supported-versions">Supported Versions</a></h2>
 <p>Security fixes are applied to the <strong>latest minor release</strong> on the
-<code>1.x</code> line. Older minor releases are not patched — please upgrade.</p>
+<code>2.x</code> line. Older minor releases (including the <code>1.x</code> line) are not
+patched — please upgrade to <code>2.x</code>. See the
+<a href="https://lijunzh.github.io/hunch/about/migration-v2.html">v2.0.0 migration guide</a>
+for breaking changes.</p>
 <div class="table-wrapper">
 <table>
 <thead>
 <tr><th>Version</th><th>Supported</th></tr>
 </thead>
 <tbody>
-<tr><td>1.1.x</td><td>:white_check_mark:</td></tr>
-<tr><td>&lt; 1.1</td><td>:x:</td></tr>
+<tr><td>2.0.x</td><td>:white_check_mark:</td></tr>
+<tr><td>1.x</td><td>:x:</td></tr>
+<tr><td>&lt; 1.0</td><td>:x:</td></tr>
 </tbody>
 </table>
 </div>
@@ -1936,6 +1888,7 @@ Release prep checklist:
   3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 -->
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h2 id="200---2026-04-20"><a class="header" href="#200---2026-04-20"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.0">2.0.0</a> - 2026-04-20</a></h2>
 <h3 id="removed"><a class="header" href="#removed">Removed</a></h3>
 <ul>
 <li><strong><code>benches/</code> directory and the <code>cargo bench</code> harness.</strong> The Criterion
@@ -1953,7 +1906,17 @@ plus the <code>contributor-guide/fuzzing.md</code> mdbook page. The fuzzing
 workflow was deleted in #217; manual contributor fuzzing isn’t being
 done in practice. The library is small and deterministic enough that
 the existing 612-test integration suite is the right testing layer
-for our scale. (#218 follow-up)</li>
+for our scale. (#218 follow-up, #222)</li>
+<li><strong>CI workflow over-engineering.</strong> The <code>coverage</code> (cargo-llvm-cov),
+<code>api-surface</code> (cargo-public-api drift gate), and <code>mutants</code> (nightly
+cargo-mutants) jobs were all dropped in #216 alongside the entire
+<code>mutants.yml</code> workflow. The <code>benchmark.yml</code> and <code>fuzz.yml</code> workflows
+were dropped in #217. Rationale: a single-author hobby crate does not
+need 7 quality-gate workflows running on every PR. The four jobs that
+matter — <code>fmt</code>, <code>clippy</code>, <code>test</code> (Linux/macOS/Windows), <code>audit</code> —
+remain. The <code>semver</code> advisory job also survives. The mutation-test
+work that landed in #180–#185 left permanent regression coverage in
+<code>tests/</code>, so that quality investment outlives the workflow.</li>
 </ul>
 <h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
 <ul>
@@ -1965,27 +1928,63 @@ ever calling <code>.run()</code>. Also added explicit <code>#[must_use]</code> o
 remaining accessors return <code>Option&lt;T&gt;</code> / <code>Vec&lt;T&gt;</code> which are already
 <code>#[must_use]</code> in std — no need to repeat. (#205, bundled in #218)</li>
 </ul>
+<h3 id="refactored"><a class="header" href="#refactored">Refactored</a></h3>
+<ul>
+<li><strong>Moved <code>rules/</code> to <code>src/rules/</code> for compile-time co-location.</strong> The
+21 TOML data files are embedded into the binary at compile time via
+<code>include_str!</code> from <code>pipeline/rule_registry.rs</code> — they’re not
+external configuration, not user-tunable at runtime, and have no
+purpose outside this crate. Top-level <code>rules/</code> was misleading
+(reading as nginx-style runtime config when it’s actually frozen
+Rust data). The <code>../../rules/X.toml</code> paths in <code>rule_registry.rs</code>
+were the universal “this should be local” code smell pointing here.
+Pure restructure: zero behavior change, all 21 <code>include_str!</code> paths
+<ul>
+<li>17 doc-comment refs updated, file history preserved via <code>git mv</code>.
+(#223)</li>
+</ul>
+</li>
+</ul>
 <h3 id="docs"><a class="header" href="#docs">Docs</a></h3>
 <ul>
-<li><strong>New <code>docs/src/about/migration-v2.md</code> page</strong> consolidating the v2.0.0
+<li>
+<p><strong>Slimmed <code>README.md</code> from 178 → 89 lines (-50%).</strong> Now that we
+have a proper mdbook at <a href="https://lijunzh.github.io/hunch">https://lijunzh.github.io/hunch</a>, the
+README can stop trying to be canonical for everything. The verbose
+<code>--batch -r</code> tip and the four “Known Limitations” subsections
+(~60 lines of edge-case essays) moved to the new
+<code>docs/src/user-guide/known-limitations.md</code> mdbook page; the README
+links to it. Documentation table tightened: dropped dead bench
+dashboard row (page deleted), added Migration Guide + Known
+Limitations rows. (#224)</p>
+</li>
+<li>
+<p><strong>New <code>docs/src/about/migration-v2.md</code> page</strong> consolidating the v2.0.0
 breaking changes (<code>Property::BitRate</code> removal + deep-import deprecation)
 in one mdbook destination, so callers don’t have to scrape the
-changelog. Linked from <code>SUMMARY.md</code>. (#201, bundled in #218)</li>
-<li><strong><code>DESIGN.md</code> pipeline module map updated</strong> from the stale 5-file list
+changelog. Linked from <code>SUMMARY.md</code>. (#201, bundled in #218)</p>
+</li>
+<li>
+<p><strong><code>DESIGN.md</code> pipeline module map updated</strong> from the stale 5-file list
 to the actual 9 files (<code>mod</code>, <code>matching</code>, <code>context</code>, <code>token_context</code>,
 <code>zone_rules</code>, <code>invariance</code>, <code>pass2_helpers</code>, <code>proper_count</code>,
-<code>rule_registry</code>). (#200, bundled in #218)</li>
-<li><strong><code>DESIGN.md</code> D9</strong> now documents the third class of property matchers:
+<code>rule_registry</code>). (#200, bundled in #218)</p>
+</li>
+<li>
+<p><strong><code>DESIGN.md</code> D9</strong> now documents the third class of property matchers:
 derived properties (computed at result-build time from another
 property’s value). Currently the only one is <code>Property::Mimetype</code>,
-derived from <code>Container</code>. (#203, bundled in #218)</li>
-<li><strong><code>README.md</code> no longer duplicates the guessit pass-rate stats</strong> that
+derived from <code>Container</code>. (#203, bundled in #218)</p>
+</li>
+<li>
+<p><strong><code>README.md</code> no longer duplicates the guessit pass-rate stats</strong> that
 live in the live compatibility report. The README now links and the
 per-property numbers stay in their single source of truth
 (regenerated from <code>cargo test -- --ignored guessit_compat</code>). The
 hard-coded <code># 295 tests</code> comment in the contribution snippet is
 also gone — it had drifted to ~612 and the count was never load-bearing.
-(#202, #204, bundled in #218)</li>
+(#202, #204, bundled in #218)</p>
+</li>
 </ul>
 <h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
 <ul>
@@ -1996,6 +1995,15 @@ via the ancestor cache.</strong> The CLI’s inheritance-blocking predicate
 common <code>extras/extra/specials/bonus</code>. In <code>--batch -r</code> mode, that gap
 let an unrelated movie title at the batch root leak into Extras
 subtrees of an adjacent show. (#208)</li>
+<li><strong>CJK fansub patterns <code>[Nth - NN]</code> and <code>[总第NN]</code> are now parsed as
+episode markers</strong> instead of being absorbed into the title. Catches
+real-world filenames from the Re:Zero / 12 Kingdoms / similar fansub
+release groups. (#212, #213)</li>
+<li><strong>Ancestor-path <code>Source</code> matches are dropped when the filename itself
+carries a Source token.</strong> Prevents directory-level source hints (e.g.
+<code>BluRay/Show.S01E01.WEB-DL.mkv</code> resolving to <code>BluRay</code>) from
+overriding the more specific filename-level signal in <code>--batch -r</code>
+mode. (#212, #215)</li>
 </ul>
 <h3 id="security"><a class="header" href="#security">Security</a></h3>
 <ul>
@@ -2133,26 +2141,13 @@ digits as part of the bit-rate (regex bound tightened to <code>\d{1,2}</code>).
 (#165)</li>
 </ul>
 <h3 id="internal--infrastructure"><a class="header" href="#internal--infrastructure">Internal / Infrastructure</a></h3>
-<p>This release lands a substantial CI and documentation investment
-motivated by the project moving from “experimental, no users” to
-“users filing real bug reports.” None of the items below change
-parser behavior, but they meaningfully improve the project’s
-ability to catch regressions before they ship:</p>
+<p>This release lands a substantial documentation investment motivated by
+the project moving from “experimental, no users” to “users filing real
+bug reports.” None of the items below change parser behavior, but they
+meaningfully improve the project’s ability to catch regressions before
+they ship.</p>
+<p><strong>What survived to v2.0.0:</strong></p>
 <ul>
-<li><strong>Code coverage tracking</strong> via <code>cargo-llvm-cov</code> (advisory). (#145, #168)</li>
-<li><strong>Mutation testing baseline</strong> via <code>cargo-mutants</code> nightly, with
-29 surviving mutants triaged and killed across
-#175, #180, #181, #182, #183, #184, #185. (#146, #169, #170, #173)</li>
-<li><strong>Fuzz baseline</strong> via <code>cargo-fuzz</code> with two targets (single-string
-parse + multi-segment path) and nightly CI. (#147, #174)</li>
-<li><strong>Public API surface tripwire</strong> that fails CI on accidental changes
-to <code>pub use src/lib.rs</code> items. (#144, #171)</li>
-<li><strong>Continuous benchmarking</strong> via <code>criterion</code> + <code>github-action-benchmark</code>,
-with PR-time regression gating (&gt;120% threshold), per-commit history
-on a live dashboard, and per-release immutable snapshots. See the
-<a href="https://lijunzh.github.io/hunch/reference/benchmarks.html">Benchmarks reference</a>
-and <a href="https://lijunzh.github.io/hunch/reference/release-trajectory.html">Release Trajectory</a>.
-(#148, #176, #177, #178, #179, #186, #189, #191, #192, #194)</li>
 <li><strong>Documentation portal</strong> at <a href="https://lijunzh.github.io/hunch/">https://lijunzh.github.io/hunch/</a>
 built with mdbook. (#188, #190)</li>
 <li><strong>Release pipeline hardening</strong> — PR-time CI now also runs on release
@@ -2161,7 +2156,22 @@ branches; release workflow is more defensive. (#150, #151, #152, #159)</li>
 <code>TitleStrategy</code> fallback ordering (#154, #161), <code>cli_walk_dir</code>
 safety boundaries (#153, #162), parse-torrent-name corpus pins
 (#157, #164).</li>
+<li><strong>Mutation-killing test additions</strong> from the cargo-mutants triage
+pass survive as permanent regression coverage in <code>tests/</code> even though
+the nightly <code>mutants.yml</code> workflow itself was dropped: 29 mutants
+killed across #175, #180, #181, #182, #183, #184, #185.</li>
 </ul>
+<p><strong>What was added during the cycle and then rolled back (see Removed):</strong></p>
+<p>The CI infrastructure burst between v1.1.x and v2.0.0 — cargo-llvm-cov
+coverage tracking (#145, #168), nightly cargo-mutants (#146, #169, #170,
+#173), cargo-fuzz (#147, #174), continuous benchmarking via criterion +
+github-action-benchmark (#148, #176, #177, #178, #179, #186, #189, #191,
+#192, #194), and the cargo-public-api surface tripwire (#144, #171) —
+all got built and then trimmed in #216, #217, #222 once we acknowledged
+this is a single-developer hobby crate. The investment paid for itself
+in permanent test additions (above) and in the public API audit it
+drove (#197), but the workflows themselves were over-engineered for the
+project’s actual scale.</p>
 <h2 id="118---2026-04-17"><a class="header" href="#118---2026-04-17"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.8">1.1.8</a> - 2026-04-17</a></h2>
 <h3 id="changed-2"><a class="header" href="#changed-2">Changed</a></h3>
 <ul>
@@ -2182,7 +2192,7 @@ directory tree. (#137)</li>
 and incorrectly extracted <code>Part 2</code> as a standalone <code>part</code> property.
 (#124, #127)</li>
 </ul>
-<h3 id="refactored"><a class="header" href="#refactored">Refactored</a></h3>
+<h3 id="refactored-1"><a class="header" href="#refactored-1">Refactored</a></h3>
 <ul>
 <li><strong>Pipeline <code>rule_registry</code> extracted</strong> from <code>pipeline/mod.rs</code> into its own
 module. Centralizes the legacy / TOML rule registration so the pipeline
@@ -2490,7 +2500,7 @@ contains only a numeric code (e.g., <code>Bones.S12E02.The.Brain.In.The.Bot .108
 <li>Added BDMux/BRMux/BDRipMux/BRRipMux source patterns.</li>
 <li>Multi-segment alternative_title with earliest-boundary fix.</li>
 </ul>
-<h3 id="refactored-1"><a class="header" href="#refactored-1">Refactored</a></h3>
+<h3 id="refactored-2"><a class="header" href="#refactored-2">Refactored</a></h3>
 <ul>
 <li><code>Property</code> enum uses <code>define_properties!</code> macro (DRY).</li>
 <li>8 positional args replaced with <code>MatchContext</code> struct.</li>
