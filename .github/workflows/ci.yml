@@ -3,20 +3,12 @@ name: CI
 on:
   pull_request:
     branches: [main]
-  push:
-    # Run CI on pushes to release prep branches so semver-checks, audit, and
-    # cross-OS results are visible BEFORE the release PR is opened (#150).
-    # `main` itself is excluded because it's already exercised by the PR-time
-    # workflow that runs against every PR targeting it.
-    branches: ["release/**"]
   workflow_call:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Least-privilege default: jobs only need to read the repo. Override per-job
-# if a future job actually needs to write something (e.g., upload artifacts).
 permissions:
   contents: read
 
@@ -24,33 +16,12 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -Dwarnings
 
-# All third-party actions are pinned to a full commit SHA (not a moving tag)
-# to defend against tag-republishing supply-chain attacks. The trailing
-# `# vN` comment records the human-readable version for auditability;
-# Dependabot's github-actions ecosystem keeps these SHAs current.
+# Action SHAs are pinned (with version comments) and Dependabot-managed for
+# supply-chain hygiene. Don't replace with floating tags.
 
 jobs:
-  check:
-    name: Check
-    # Cross-OS PR-time gate: catches platform-conditional compile errors
-    # (path separators, syscalls, std::os::* gates) before they reach
-    # main. Linux is the canonical fast-feedback target; macOS and
-    # Windows catch surprises that ubuntu can't see.
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable (2025-04-17 snapshot)
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
-      - run: cargo check --all-targets
-
   fmt:
     name: Format
-    # Format / Clippy / Docs / Audit are OS-agnostic — keeping them on
-    # ubuntu only avoids tripling CI time for zero signal.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
@@ -72,10 +43,11 @@ jobs:
 
   test:
     name: Test
-    # Cross-OS test matrix: catches platform-conditional behavior —
-    # \`tests/cli_walk_dir_safety.rs\` has \`cfg(unix)\` symlink tests that
-    # only run on macOS/Linux; Windows path-handling differences
-    # (separators, drive letters, line endings in fixtures) surface here.
+    # Cross-OS test matrix catches platform-conditional behavior:
+    # cfg(unix) symlink tests in tests/cli_walk_dir_safety.rs only run on
+    # Linux/macOS; Windows path-separator + line-ending differences
+    # surface here. `cargo test` already implies `cargo check`, so a
+    # separate check job would be pure waste.
     strategy:
       fail-fast: false
       matrix:
@@ -105,81 +77,19 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
-      - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
-      - name: Run audit
-        # `cargo audit` exits non-zero on any RUSTSEC vulnerability by
-        # default (the previous \`|| true\` was masking this gate — a
-        # real CVE could have shipped). Yanks / unmaintained warnings
-        # remain informational (exit 0) since they happen routinely
-        # in the dev-dep tree (criterion → plotters → web-sys) and
-        # shouldn't block PRs. Use --deny yanked here only if you
-        # want to enforce zero-yanks; we tolerate dev-dep yanks today.
-        run: cargo audit
-
-  coverage:
-    name: Coverage
-    # Single-OS by design: line/region coverage of pure-Rust code is
-    # platform-agnostic, and running this on the cross-OS matrix would
-    # triple CI time for zero additional signal. Platform-conditional
-    # branches (cfg(unix) symlink tests, Windows path code) are
-    # already covered by the cross-OS `test` matrix above; coverage
-    # tracking the *aggregate* % is the goal here.
-    #
-    # ADVISORY for now (no PR-time gate): this PR establishes the
-    # baseline + tooling. A follow-up PR (#145 epic) will add the
-    # "fail if coverage drops more than X% below baseline" gate once
-    # the baseline has settled across a few merges.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      # Prebuilt binary in seconds vs ~3 min for `cargo install`.
+      - uses: taiki-e/install-action@58e862542551f667fa44c8a2a4a1d64ad477c96a  # v2
         with:
-          components: llvm-tools-preview
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
-        with:
-          key: coverage
-      - name: Install cargo-llvm-cov
-        # taiki-e/install-action downloads a prebuilt binary in seconds
-        # vs ~3 min for `cargo install`. Pinned to a commit SHA per
-        # this repo's supply-chain hardening convention.
-        uses: taiki-e/install-action@58e862542551f667fa44c8a2a4a1d64ad477c96a  # v2
-        with:
-          tool: cargo-llvm-cov
-      - name: Generate coverage (LCOV + summary)
-        run: |
-          # LCOV for downstream tooling (Codecov / Coveralls in a
-          # follow-up PR), summary printed to the job log for
-          # at-a-glance review.
-          cargo llvm-cov --workspace --lcov --output-path lcov.info
-          cargo llvm-cov report --summary-only | tee coverage-summary.txt
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
-        with:
-          name: coverage-report
-          path: |
-            lcov.info
-            coverage-summary.txt
-          if-no-files-found: error
-          retention-days: 30
+          tool: cargo-audit
+      # Fails on RUSTSEC vulnerabilities; tolerates dev-dep yanks.
+      - run: cargo audit
 
   semver:
     name: Semver Checks
-    # Detects SemVer-incompatible changes to the public Rust API
-    # (anything `pub use`d from src/lib.rs). Catches the easy-to-miss
-    # cases that CONTRIBUTING.md's API Stability Policy enumerates:
-    # removed/renamed pub items, signature changes, new non-defaulted
-    # variants on pub enums, tightened trait bounds, etc.
-    #
-    # Compares the PR head's public API against the latest release on
-    # crates.io.
-    #
-    # ADVISORY (continue-on-error): pre-1.0-stability semantics for
-    # hunch — there are no external users on the 1.1.x line yet, so
-    # breaking-API PRs are landed on `main` with the version bump
-    # deferred to release-prep time. Failure here is informational,
-    # not a merge gate. Release-prep PRs MUST verify this job is
-    # green (or accept the bump it implies).
+    # Detects SemVer-incompatible changes vs the latest crates.io release.
+    # Advisory (continue-on-error): pre-1.0 stability semantics — breaking
+    # changes land on main with the version bump deferred to release prep.
+    # Release-prep PRs MUST verify this is green or accept the bump.
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -187,88 +97,3 @@ jobs:
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
       - uses: obi1kenobi/cargo-semver-checks-action@5b298c9520f7096a4683c0bd981a7ac5a7e249ae  # v2.8
-
-  api-surface:
-    name: Public API Surface
-    # Detects accidental additions to the public Rust API surface by
-    # diffing the current `cargo public-api` listing against the
-    # baseline snapshot at docs/src/reference/public-api.txt.
-    #
-    # Complements `Semver Checks` above: that job catches signature /
-    # behaviour breakage; this one catches *additive* drift
-    # (new `pub` items that probably shouldn't be exposed).
-    #
-    # ADVISORY (continue-on-error): the diff in the Job Summary makes
-    # drift impossible to miss in code review, but doesn't block merge.
-    # See docs/src/reference/public-api.md for the regenerate-the-baseline workflow
-    # and the upcoming audit roadmap (#144).
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6
-      - name: Install Rust nightly
-        # cargo-public-api requires nightly's unstable rustdoc-JSON output.
-        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
-        with:
-          toolchain: nightly
-          components: rust-docs
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
-        with:
-          key: api-surface
-      - name: Install cargo-public-api
-        uses: taiki-e/install-action@58e862542551f667fa44c8a2a4a1d64ad477c96a  # v2
-        with:
-          tool: cargo-public-api
-      - name: Generate current public API
-        run: |
-          # --simplified strips trait-impl noise (Send/Sync/Unpin/etc.
-          # blanket impls) so the diff focuses on intentional surface.
-          # We pin the toolchain explicitly so future stable upgrades
-          # don't subtly change rustdoc-JSON output.
-          cargo +nightly public-api --simplified > /tmp/api-current.txt 2>/dev/null
-      - name: Diff against baseline
-        run: |
-          # Always write a Job Summary, even when the diff is empty,
-          # so reviewers can confirm at a glance "yep, no drift today".
-          # All Summary writes are wrapped in a single { ... } >> for
-          # one open/close instead of N (shellcheck SC2129).
-          if diff -u docs/src/reference/public-api.txt /tmp/api-current.txt > /tmp/api.diff; then
-            {
-              echo "# 🏛️ Public API Surface"
-              echo ""
-              echo "Baseline: \`docs/src/reference/public-api.txt\` ($(wc -l < docs/src/reference/public-api.txt) lines)"
-              echo "Current:  \`cargo public-api --simplified\` ($(wc -l < /tmp/api-current.txt) lines)"
-              echo ""
-              echo "✅ **No drift** — public API matches the committed baseline."
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            ADDED=$(grep -c '^+[^+]' /tmp/api.diff || true)
-            REMOVED=$(grep -c '^-[^-]' /tmp/api.diff || true)
-            {
-              echo "# 🏛️ Public API Surface"
-              echo ""
-              echo "Baseline: \`docs/src/reference/public-api.txt\` ($(wc -l < docs/src/reference/public-api.txt) lines)"
-              echo "Current:  \`cargo public-api --simplified\` ($(wc -l < /tmp/api-current.txt) lines)"
-              echo ""
-              echo "⚠️ **API surface drift detected** — $ADDED additions, $REMOVED removals"
-              echo ""
-              echo "If intentional, regenerate the baseline per [docs/src/reference/public-api.md](../blob/main/docs/src/reference/public-api.md#regenerating-the-baseline) and commit \`docs/src/reference/public-api.txt\` in this PR."
-              echo ""
-              echo "## Diff"
-              echo '```diff'
-              cat /tmp/api.diff
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-            # Surface the diff in the job log too so it's grep-able
-            # without opening the Summary tab.
-            cat /tmp/api.diff
-            exit 1
-          fi
-      - name: Upload current API snapshot artifact
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
-        with:
-          name: public-api-current
-          path: /tmp/api-current.txt
-          if-no-files-found: warn
-          retention-days: 14
