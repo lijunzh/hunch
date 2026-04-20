@@ -8,7 +8,7 @@
 //!
 //! ## Adding a rule set
 //!
-//! 1. Add a TOML file under `rules/`.
+//! 1. Add a TOML file under `src/rules/`.
 //! 2. Add a `static FOO_RULES: LazyLock<RuleSet> = ...;` below.
 //! 3. Add one [`TomlRule`] entry to the vec returned by
 //!    [`build_toml_rules`].
@@ -34,47 +34,47 @@ use crate::properties::{
 // ── TOML rule sets (embedded at compile time) ──────────────────────────────
 
 pub(super) static VIDEO_CODEC_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_codec.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_codec.toml")));
 pub(super) static COLOR_DEPTH_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/color_depth.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/color_depth.toml")));
 pub(super) static COUNTRY_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/country.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/country.toml")));
 pub(super) static STREAMING_SERVICE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/streaming_service.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/streaming_service.toml")));
 pub(super) static VIDEO_PROFILE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_profile.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_profile.toml")));
 pub(super) static EPISODE_DETAILS_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/episode_details.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/episode_details.toml")));
 pub(super) static ANIME_BONUS_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/anime_bonus.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/anime_bonus.toml")));
 pub(super) static EDITION_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/edition.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/edition.toml")));
 pub(super) static AUDIO_CODEC_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_codec.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_codec.toml")));
 pub(super) static AUDIO_PROFILE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_profile.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_profile.toml")));
 pub(super) static AUDIO_CHANNELS_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/audio_channels.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/audio_channels.toml")));
 pub(super) static OTHER_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/other.toml")));
 pub(super) static OTHER_POSITIONAL_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/other_positional.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/other_positional.toml")));
 pub(super) static VIDEO_API_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/video_api.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/video_api.toml")));
 pub(super) static SOURCE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/source.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/source.toml")));
 pub(super) static SCREEN_SIZE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/screen_size.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/screen_size.toml")));
 pub(super) static CONTAINER_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/container.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/container.toml")));
 pub(super) static FRAME_RATE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/frame_rate.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/frame_rate.toml")));
 pub(super) static LANGUAGE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/language.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/language.toml")));
 pub(super) static SUBTITLE_LANGUAGE_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/subtitle_language.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/subtitle_language.toml")));
 pub(super) static EPISODE_FORMAT_RULES: LazyLock<RuleSet> =
-    LazyLock::new(|| RuleSet::from_toml(include_str!("../../rules/episode_format.toml")));
+    LazyLock::new(|| RuleSet::from_toml(include_str!("../rules/episode_format.toml")));
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

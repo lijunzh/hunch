@@ -1,5 +1,5 @@
 //! Container detection — now fully handled by pipeline PATH A (extension)
-//! and `rules/container.toml` (standalone tokens).
+//! and `src/rules/container.toml` (standalone tokens).
 //!
 //! PATH A: Tokenizer strips extension → pipeline emits Container (priority 10)
 //! PATH B: container.toml exact matches → standalone tokens (priority 5)

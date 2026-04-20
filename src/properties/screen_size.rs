@@ -1,4 +1,4 @@
-//! Screen size detection — now fully handled by `rules/screen_size.toml`.
+//! Screen size detection — now fully handled by `src/rules/screen_size.toml`.
 //!
 //! The TOML rule engine handles:
 //! - Standard: 720p, 1080p, 2160p, 480i, etc.

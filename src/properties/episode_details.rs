@@ -1,4 +1,4 @@
-//! Episode details detection — now fully handled by `rules/episode_details.toml`.
+//! Episode details detection — now fully handled by `src/rules/episode_details.toml`.
 
 #[cfg(test)]
 mod tests {

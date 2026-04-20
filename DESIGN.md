@@ -484,22 +484,22 @@ src/
 │   ├── engine.rs       # Conflict resolution (priority + length)
 │   ├── rule_loader.rs  # TOML → RuleSet parser
 │   └── regex_utils.rs  # BoundedRegex (strips lookarounds)
-└── properties/         # 31 property matcher modules
-    ├── episodes/       # S01E02, 1x03, ranges, anime (algorithmic)
-    ├── title/          # Title extraction (algorithmic)
-    ├── release_group/  # Positional heuristics (algorithmic)
-    └── ...             # year, date, language, etc.
+├── properties/         # 31 property matcher modules
+│   ├── episodes/       # S01E02, 1x03, ranges, anime (algorithmic)
+│   ├── title/          # Title extraction (algorithmic)
+│   ├── release_group/  # Positional heuristics (algorithmic)
+│   └── ...             # year, date, language, etc.
+└── rules/              # 21 TOML data files (compile-time embedded
+                        # via include_str! by pipeline/rule_registry.rs)
 
-rules/                  # 20 TOML data files (compile-time embedded)
 tests/                  # Integration + regression + constraint tests
-benches/                # Criterion benchmarks
 ```
 
 ---
 
 ## Adding a New Property
 
-1. Create `rules/<name>.toml` with `property`, `[exact]`, `[[patterns]]`.
+1. Create `src/rules/<name>.toml` with `property`, `[exact]`, `[[patterns]]`.
 2. Add a `LazyLock<RuleSet>` static in `pipeline/mod.rs`.
 3. Register it in `toml_rules` with property + priority + segment scope.
 4. Add `Property::YourProp` variant to `matcher/span.rs`.

@@ -430,7 +430,7 @@ value = "RealVideo"
 
     #[test]
     fn test_load_video_codec_toml() {
-        let toml_str = include_str!("../../rules/video_codec.toml");
+        let toml_str = include_str!("../rules/video_codec.toml");
         let rules = RuleSet::from_toml(toml_str);
         assert_eq!(rules.property, "video_codec");
         assert!(rules.exact_count() >= 10);
