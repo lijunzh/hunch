@@ -8,6 +8,7 @@
 
 - [User Manual](./user-guide/user-manual.md)
 - [guessit Compatibility](./user-guide/compatibility.md)
+- [Known Limitations](./user-guide/known-limitations.md)
 
 # Reference
 
