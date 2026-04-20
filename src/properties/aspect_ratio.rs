@@ -2,6 +2,13 @@
 //!
 //! Aspect ratio is derived from explicit WxH resolution patterns.
 //! When we see "1920x1080", we compute 1920/1080 = 1.778.
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Post-match arithmetic (WxH → ratio float, formatted to 3 decimal
+//! places) is the entire point of this module — the regex just
+//! captures the two integers. See DESIGN.md D2 decision table →
+//! "requires post-match arithmetic".
 
 use regex::Regex;
 

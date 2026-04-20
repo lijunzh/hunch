@@ -3,6 +3,15 @@
 //! Supports S01E02, 1x03, Season/Saison, Episode, 3/4-digit decomposition,
 //! anime-style, path-based seasons, and Roman numeral seasons.
 //!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Sequential parsing with range expansion (S01E02-04 → [2, 3, 4]),
+//! cross-pattern span deduplication, and anime-numbering edge cases.
+//! Multiple regex variants emit different output meanings (season vs
+//! episode vs both). See DESIGN.md "D2: Vocabulary in TOML, logic in
+//! Rust" → the decision table flags this on the "multiple variants /
+//! cross-pattern coordination" rows.
+//!
 //! The main `find_matches` orchestrates pattern groups in priority order:
 //! 1. SxxExx family (structural: S01E02, S03-E01, etc.)
 //! 2. NxN compact notation (1x03, 5x44x45)

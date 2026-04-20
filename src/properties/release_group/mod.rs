@@ -3,6 +3,14 @@
 //! Release groups typically appear at the end of the filename, after a "-".
 //! Example: `Movie.2024.1080p.BluRay.x264-GROUP.mkv` -> "GROUP"
 //!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Positional context (start vs end of filename) drives priority among
+//! ~9 fallback patterns; the *first* match wins, not the longest. That
+//! ordering is logic, not vocabulary. See DESIGN.md "D2: Vocabulary in
+//! TOML, logic in Rust" → "multiple regex variants with different
+//! output meanings" + "cross-pattern coordination" rows.
+//!
 //! ## v0.3 change: Two-pass pipeline
 //!
 //! Release group now runs AFTER conflict resolution (Pass 2), so it can

@@ -1,6 +1,16 @@
 //! Date detection.
 //!
 //! Detects air dates in filenames: 2014.12.25, 25-12-2014, etc.
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Each of the 7 regex variants has a *different* named-capture-group
+//! arrangement (YMD vs MDY vs DMY vs YYYYMMDD vs 2-digit-year). The
+//! consumer code reads `(?P<year>...)`/`(?P<month>...)`/`(?P<day>...)`
+//! to construct `Date` objects with disambiguation rules. The regex
+//! *shape* is the data, not the regex string — moving the strings to
+//! TOML wouldn't move the consumer logic. See DESIGN.md D2 decision
+//! table → "multiple regex variants with different output meanings".
 
 use regex::Regex;
 

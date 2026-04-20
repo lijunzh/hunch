@@ -16,6 +16,15 @@ Release prep checklist:
 
 ### Docs
 
+- **Documented the D2 boundary (vocabulary in TOML, logic in Rust)**
+  with a decision table in DESIGN.md and per-module "Why this lives in
+  Rust" header docstrings on the 14 inline-regex property modules
+  (`date`, `episodes`, `release_group`, `title`, `part`, `website`,
+  `episode_count`, `bonus`, `uuid`, `year`, `version`, `crc32`,
+  `aspect_ratio`, `size`, `bit_rate`). Closes the audit thread from
+  the now-resolved #143 epic. Pure docs — no behavior change.
+  Net diff: +153 lines across 16 files.
+
 - **README polish.** Replaced the stale `Coverage` badge (the underlying
   CI job was deleted in #216 — the 94.34% number is frozen forever) with
   the standard four-badge row: CI status, crates.io version, docs.rs,

@@ -15,6 +15,14 @@
 //!
 //! This unit-based heuristic matches guessit's behavior and reflects how the
 //! values appear in real-world filenames.
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Float parsing of the numeric capture, unit-based property routing
+//! (Kbps → audio, Mbps → video), and the disambiguation heuristic above
+//! are all logic the regex can't express on its own. See DESIGN.md D2
+//! decision table → "requires post-match arithmetic" + "multiple regex
+//! variants with different output meanings".
 
 use regex::Regex;
 

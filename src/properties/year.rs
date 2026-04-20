@@ -1,4 +1,11 @@
 //! Year detection (4-digit years in a reasonable range).
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Year-range validation (only `(?:19|20)\d{2}` are accepted, plus
+//! contextual disambiguation against episode numbers) wraps the regex
+//! match. The regex itself is one line; the validation logic is the
+//! rest. See DESIGN.md D2 decision table → "validation beyond regex".
 
 use regex::Regex;
 

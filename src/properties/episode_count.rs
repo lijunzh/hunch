@@ -3,6 +3,13 @@
 //! Detects `X of Y` patterns for episode and season totals:
 //! - `1of4` / `1 of 4` → episode=1, episode_count=4
 //! - `Season.2of5` → season=2, season_count=5
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! A single regex match emits *two* properties (e.g., `episode` AND
+//! `episode_count`) and the season-count vs episode-count distinction
+//! requires cross-pattern span tracking to avoid double-counting. See
+//! DESIGN.md D2 decision table → "cross-pattern coordination" row.
 //! - `14.of.21` → episode=14, episode_count=21
 
 use regex::Regex;

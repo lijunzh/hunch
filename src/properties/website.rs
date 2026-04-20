@@ -1,6 +1,13 @@
 //! Website detection.
 //!
 //! Detects website names in brackets or prefixed in filenames.
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Multi-part TLD validation (e.g., distinguishing `.co.uk` from a
+//! language code) requires logic beyond a regex match — it disqualifies
+//! false positives like `s02e20.ru` matching as a `.ru` website (issue
+//! #163). See DESIGN.md D2 decision table → "validation beyond regex".
 
 use regex::Regex;
 

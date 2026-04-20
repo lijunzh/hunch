@@ -3,6 +3,16 @@
 //! Split into submodules:
 //! - `clean` — string cleaning (separators, brackets, casing)
 //! - `secondary` — episode_title, film_title, alternative_title, media_type
+//!
+//! ## Why this lives in Rust (not `src/rules/`)
+//!
+//! Title is the *residual* extractor: it can't be expressed as a
+//! pattern because its definition is "the substring no other property
+//! claimed". The cleanup phase then applies algorithmic post-processing
+//! (separator normalization, bracket stripping, casing rules) that's
+//! pure logic, not vocabulary. See DESIGN.md D2 decision table →
+//! "cross-pattern coordination" (depends on every other matcher's
+//! output spans).
 
 mod clean;
 mod secondary;
