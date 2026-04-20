@@ -32,6 +32,18 @@ Release prep checklist (per #179):
   let an unrelated movie title at the batch root leak into Extras
   subtrees of an adjacent show. (#208)
 
+### Security
+
+- **`list_media_files` now skips symlinks**, mirroring the hardening
+  already applied to `walk_dir_inner` for `--batch -r`. The function
+  backs both `--context` mode and `--batch <dir>` (without `-r`); the
+  previous use of `Path::is_file()` followed symlinks, allowing an
+  attacker who controls files inside the user-chosen directory to inject
+  crafted basenames from outside the directory into the parser. Hunch
+  only reads basenames (not file contents), so the impact was low — but
+  matching `walk_dir`'s defense story keeps both CLI entry points
+  consistent. (#209)
+
 ### Added
 
 - **`HunchResult::is_movie()`, `is_episode()`, `is_extra()` convenience

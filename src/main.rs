@@ -345,6 +345,16 @@ fn print_result(filename: &str, result: &hunch::HunchResult, json: bool) {
 // ── File listing ────────────────────────────────────────────────────────
 
 /// List media files in a directory (non-recursive).
+///
+/// **Symlink-safe** — uses [`std::fs::DirEntry::file_type`] (which does
+/// NOT follow symlinks) and skips symlinked entries entirely, mirroring
+/// the defense in [`walk_dir_inner`]. Without this guard, `--context`
+/// mode could collect basenames of files outside the user-chosen
+/// directory via a symlink, slightly broadening the parser's input
+/// surface to attacker-controlled bytes. Hunch only reads basenames,
+/// not file contents, so the impact is low — but matching `walk_dir`'s
+/// hardening keeps the defense story consistent across both `--context`
+/// and `--batch -r` entry points. (#209)
 fn list_media_files(dir: &Path) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else {
         eprintln!("Error: cannot read directory {}", dir.display());
@@ -352,8 +362,17 @@ fn list_media_files(dir: &Path) -> Vec<PathBuf> {
     };
     let mut files: Vec<PathBuf> = entries
         .filter_map(|e| e.ok())
-        .map(|e| e.path())
-        .filter(|p| p.is_file() && is_media_extension(p))
+        .filter_map(|e| {
+            // Use file_type() (does NOT follow symlinks) instead of
+            // path.is_file() (which DOES). Skip symlinks entirely for
+            // parity with walk_dir_inner.
+            let ft = e.file_type().ok()?;
+            if ft.is_symlink() || !ft.is_file() {
+                return None;
+            }
+            let path = e.path();
+            is_media_extension(&path).then_some(path)
+        })
         .collect();
     files.sort();
     files
