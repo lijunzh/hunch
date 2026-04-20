@@ -22,6 +22,16 @@ Release prep checklist (per #179):
 
 ## [Unreleased]
 
+### Fixed
+
+- **`Show/Extras/Bonus.mkv` no longer inherits unrelated sibling titles
+  via the ancestor cache.** The CLI's inheritance-blocking predicate
+  (previously `is_sample_dir`, now `is_inheritance_blocking_dir`) covered
+  `sample/samples/subs/subtitles/featurettes` but missed the equally
+  common `extras/extra/specials/bonus`. In `--batch -r` mode, that gap
+  let an unrelated movie title at the batch root leak into Extras
+  subtrees of an adjacent show. (#208)
+
 ### Added
 
 - **`HunchResult::is_movie()`, `is_episode()`, `is_extra()` convenience
