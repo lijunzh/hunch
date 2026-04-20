@@ -3,21 +3,9 @@ name: Deploy Docs
 # Builds the mdbook docs/ site and pushes the rendered HTML to the
 # gh-pages branch.
 #
-# Co-existence with the benchmark dashboard data (per #188 + #178):
-#
-#   The benchmark workflow ALSO pushes to gh-pages, into `dev/bench/`.
-#   We use `peaceiris/actions-gh-pages` (NOT `actions/deploy-pages`)
-#   with `keep_files: true` so the mdbook deploy preserves any files
-#   not present in the new build \u2014 critical for /dev/bench/data.js.
-#
-#   The dashboard page at docs/src/reference/benchmark-dashboard.md
-#   loads `../dev/bench/data.js` (a relative URL that resolves to
-#   /dev/bench/data.js once deployed at the site root).
-#
 # GitHub Pages source must be set to:
-#   Settings \u2192 Pages \u2192 Build and deployment \u2192 Source: "Deploy from a branch"
-#                                            \u2192 Branch: gh-pages / (root)
-# This is a one-time admin click after this PR merges.
+#   Settings → Pages → Build and deployment → Source: "Deploy from a branch"
+#                                          → Branch: gh-pages / (root)
 
 on:
   push:
@@ -62,17 +50,14 @@ jobs:
         run: mdbook build docs
 
       - name: Deploy to gh-pages
-        # peaceiris/actions-gh-pages with keep_files: true.
-        # Critical: WITHOUT keep_files, this would wipe /dev/bench/
-        # on every deploy, breaking the benchmark dashboard.
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e  # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: gh-pages
           publish_dir: docs/book
-          keep_files: true
-          # Use a distinct commit message so it's easy to grep gh-pages
-          # log for "what was a docs deploy vs what was a bench data push".
+          # No keep_files: the bench dashboard data at /dev/bench/ that
+          # this used to preserve was retired alongside benches/ and the
+          # benchmark workflow. Next deploy wipes it cleanly.
           commit_message: 'docs: deploy mdbook from ${{ github.sha }}'
           user_name: 'github-actions[bot]'
           user_email: '41898282+github-actions[bot]@users.noreply.github.com'

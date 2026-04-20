@@ -15,10 +15,8 @@ page has an "edit this page" link in the top right.
 |---|---|
 | A user (CLI or library) | [User Manual](./user-guide/user-manual.md) |
 | Evaluating accuracy vs guessit | [guessit Compatibility](./user-guide/compatibility.md) |
-| Curious about performance | [Benchmarks](./reference/benchmarks.md) → [Live Dashboard](./reference/benchmark-dashboard.md) |
 | Auditing the public API surface | [Public API Surface](./reference/public-api.md) |
 | Contributing tests | [Mutation Testing](./contributor-guide/mutation-baseline.md), [Coverage](./contributor-guide/coverage.md) |
-| Contributing crash-shape work | [Fuzzing](./contributor-guide/fuzzing.md) |
 
 ## How the quality stack fits together
 
@@ -26,14 +24,11 @@ page has an "edit this page" link in the top right.
 |---|---|---|
 | **Coverage** ([#168](https://github.com/lijunzh/hunch/issues/168)) | Which lines are exercised at all | [coverage.md](./contributor-guide/coverage.md) |
 | **Mutation testing** ([#146](https://github.com/lijunzh/hunch/issues/146)) | Whether tests actually catch bugs | [mutation-baseline.md](./contributor-guide/mutation-baseline.md) |
-| **Fuzzing** ([#147](https://github.com/lijunzh/hunch/issues/147)) | Crash-shape bugs on adversarial inputs | [fuzzing.md](./contributor-guide/fuzzing.md) |
 | **Public API surface** ([#145](https://github.com/lijunzh/hunch/issues/145)) | SemVer-relevant public-surface drift | [public-api.md](./reference/public-api.md) |
-| **Performance** ([#148](https://github.com/lijunzh/hunch/issues/148)) | Parse-time regressions | [benchmarks.md](./reference/benchmarks.md) |
 
 Each layer is independently honest: coverage tells you what code runs,
 but a 100%-covered codebase can still have zero meaningful assertions —
-that's what mutation testing exists for. Fuzzing finds the inputs that
-the other three layers never thought to test.
+that's what mutation testing exists for.
 
 ## Project links
 

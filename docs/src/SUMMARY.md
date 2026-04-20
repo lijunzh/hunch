@@ -11,16 +11,12 @@
 
 # Reference
 
-- [Benchmarks](./reference/benchmarks.md)
-- [Benchmark Dashboard](./reference/benchmark-dashboard.md)
-- [Release Performance Trajectory](./reference/release-trajectory.md)
 - [Public API Surface](./reference/public-api.md)
 
 # Contributor Guide
 
 - [Code Coverage](./contributor-guide/coverage.md)
 - [Mutation Testing](./contributor-guide/mutation-baseline.md)
-- [Fuzzing](./contributor-guide/fuzzing.md)
 
 # About
 

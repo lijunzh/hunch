@@ -56,9 +56,6 @@ cargo test
 # Run guessit compatibility report
 cargo test compatibility_report -- --ignored --nocapture
 
-# Run benchmarks
-cargo bench
-
 # Run clippy
 cargo clippy -- -D warnings
 ```

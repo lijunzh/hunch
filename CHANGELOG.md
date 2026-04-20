@@ -6,21 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 <!--
-Release prep checklist (per #179):
+Release prep checklist:
   1. Bump `version` in Cargo.toml
   2. Move "[Unreleased]" entries below into a new "[X.Y.Z] - YYYY-MM-DD" section
-  3. Add the new tag to the RELEASE_TAGS array in
-     docs/src/reference/release-trajectory.md (top of list)
-  4. (Optional) Add a "### Performance" subsection to the new release with
-     a one-liner like:
-     - See <https://lijunzh.github.io/hunch/reference/release-trajectory.html>
-       for bench numbers compared to vX.Y.Z-1.
-  5. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
-  6. The Benchmarks workflow auto-publishes the snapshot to
-     gh-pages/release-snapshots/vX.Y.Z.json (~3 min after the tag push)
+  3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 -->
 
 ## [Unreleased]
+
+### Removed
+
+- **`benches/` directory and the `cargo bench` harness.** The Criterion
+  setup (5 micro-benches) was over-engineered for a hobby-scale
+  filename parser — the benchmark workflow it served was deleted in
+  #217. Dropping the harness now (along with the `criterion`
+  dev-dependency, the `[[bench]]` Cargo entry, and the dependent
+  mdbook pages: `benchmarks.md`, `benchmark-dashboard.md`,
+  `release-trajectory.md`) eliminates ~100 LOC of dev infra plus four
+  doc pages whose content was stale the moment the workflow stopped
+  publishing snapshots. (#218 follow-up)
+- **`fuzz/` directory and the `cargo-fuzz` infrastructure.** Two fuzz
+  targets (`parse_filename`, `parse_with_context`) plus corpus seeds
+  plus the `contributor-guide/fuzzing.md` mdbook page. The fuzzing
+  workflow was deleted in #217; manual contributor fuzzing isn't being
+  done in practice. The library is small and deterministic enough that
+  the existing 612-test integration suite is the right testing layer
+  for our scale. (#218 follow-up)
 
 ### Changed
 
