@@ -72,9 +72,10 @@
 : video_codec: H.264
   video_profile: Scalable Video Coding
 
+# mpeg4-AVC — AVC here means the codec (H.264), NOT the AVCHD camcorder format.
+# No video_profile should be emitted.
 ? mpeg4-AVC
 : video_codec: H.264
-  video_profile: Advanced Video Codec High Definition
 
 ? AVCHD-SC
 ? H.264-AVCHD-SC
