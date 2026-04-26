@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-151c5061.js";
+            window.path_to_searchindex_js = "searchindex-32127058.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8a688177.js"></script>
@@ -1395,6 +1395,45 @@ hevc = "H.265"
 <p>Control flow (episode parsing, date detection, title extraction)
 lives in Rust. The boundary is: if it’s a vocabulary lookup, it’s
 TOML; if it needs branching or state, it’s Rust.</p>
+<h4 id="when-does-a-property-go-to-toml-vs-stay-in-rust"><a class="header" href="#when-does-a-property-go-to-toml-vs-stay-in-rust">When does a property go to TOML vs stay in Rust?</a></h4>
+<p>The D2 boundary in practice — use this table when adding a new
+property or wondering why an existing one lives where it does:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Question about your property</th><th style="text-align: center">TOML</th><th style="text-align: center">Rust</th></tr>
+</thead>
+<tbody>
+<tr><td>Fixed vocabulary lookup? (<code>x264</code> → <code>H.264</code>)</td><td style="text-align: center">✅</td><td style="text-align: center"></td></tr>
+<tr><td>Single capture group → string substitution with <code>value = "{1}"</code>?</td><td style="text-align: center">✅</td><td style="text-align: center"></td></tr>
+<tr><td>Needs &gt;1 named capture group with semantic roles?</td><td style="text-align: center"></td><td style="text-align: center">✅</td></tr>
+<tr><td>Requires post-match arithmetic? (WxH → ratio float)</td><td style="text-align: center"></td><td style="text-align: center">✅</td></tr>
+<tr><td>Requires type conversion? (<code>trois</code> → 3, hex → bytes)</td><td style="text-align: center"></td><td style="text-align: center">✅</td></tr>
+<tr><td>Cross-pattern coordination or span deduplication?</td><td style="text-align: center"></td><td style="text-align: center">✅</td></tr>
+<tr><td>Validation beyond regex? (year range, CRC format)</td><td style="text-align: center"></td><td style="text-align: center">✅</td></tr>
+<tr><td>Multiple regex variants with different output meanings? (YMD vs MDY)</td><td style="text-align: center"></td><td style="text-align: center">✅</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Examples on each side as of v2.0.0:</strong></p>
+<ul>
+<li>✅ <strong>TOML-only</strong> (16 properties): <code>audio_codec</code>, <code>audio_profile</code>,
+<code>color_depth</code>, <code>container</code>, <code>country</code>, <code>edition</code>, <code>episode_details</code>,
+<code>frame_rate</code>, <code>other</code>, <code>screen_size</code>, <code>source</code>, <code>streaming_service</code>,
+<code>video_codec</code>, <code>video_profile</code> — plus the hybrid pair below.</li>
+<li>✅ <strong>Rust-only</strong> (14 properties with inline regex): <code>date</code>,
+<code>episodes</code>, <code>release_group</code>, <code>title</code>, <code>part</code>, <code>website</code>,
+<code>episode_count</code>, <code>bonus</code>, <code>uuid</code>, <code>year</code>, <code>version</code>, <code>crc32</code>,
+<code>aspect_ratio</code>, <code>size</code>, <code>bit_rate</code> — each module’s docstring states
+which row(s) of the table forced it Rust-side.</li>
+<li>🔀 <strong>Hybrid</strong> (TOML vocabulary + Rust logic): <code>subtitle_language</code>,
+<code>language</code> — simple markers in TOML, positional/algorithmic patterns
+in Rust. Module docstring names the TOML companion.</li>
+</ul>
+<p>If you find yourself wanting to add <code>min</code>/<code>max</code>/<code>format</code>/<code>transform</code>
+keys to a TOML schema to express logic, <strong>stop</strong>: that’s the table
+telling you the property belongs in Rust. Inventing a Rust→TOML→Rust
+DSL is a category error (Zen: “Simple is better than complex”).</p>
 <h3 id="d3-single-self-contained-binary-p3"><a class="header" href="#d3-single-self-contained-binary-p3">D3: Single self-contained binary (P3)</a></h3>
 <p>All TOML rules are <code>include_str!</code>-ed at compile time. No runtime
 config files, no data directories. <code>cargo install hunch</code> gives you
@@ -1888,6 +1927,32 @@ Release prep checklist:
   3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 -->
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h3 id="docs"><a class="header" href="#docs">Docs</a></h3>
+<ul>
+<li>
+<p><strong>Documented the D2 boundary (vocabulary in TOML, logic in Rust)</strong>
+with a decision table in DESIGN.md and per-module “Why this lives in
+Rust” header docstrings on the 14 inline-regex property modules
+(<code>date</code>, <code>episodes</code>, <code>release_group</code>, <code>title</code>, <code>part</code>, <code>website</code>,
+<code>episode_count</code>, <code>bonus</code>, <code>uuid</code>, <code>year</code>, <code>version</code>, <code>crc32</code>,
+<code>aspect_ratio</code>, <code>size</code>, <code>bit_rate</code>). Closes the audit thread from
+the now-resolved #143 epic. Pure docs — no behavior change.
+Net diff: +153 lines across 16 files.</p>
+</li>
+<li>
+<p><strong>README polish.</strong> Replaced the stale <code>Coverage</code> badge (the underlying
+CI job was deleted in #216 — the 94.34% number is frozen forever) with
+the standard four-badge row: CI status, crates.io version, docs.rs,
+and license. Scaled back the “Real-world accuracy” section to point at
+the live compatibility report only — the prior personal-library
+anecdote (“99.8% across 7,838 files”) was a single ad-hoc data point,
+not a reproducible measurement, and the section header now matches
+what’s actually claimed (“Accuracy”). Dropped the inline Contributing
+and License sections — the new license badge links to <code>LICENSE</code>, and
+<code>CONTRIBUTING.md</code> stays in the repo root next to the README. Net diff:
+−13 lines.</p>
+</li>
+</ul>
 <h2 id="200---2026-04-20"><a class="header" href="#200---2026-04-20"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.0">2.0.0</a> - 2026-04-20</a></h2>
 <h3 id="removed"><a class="header" href="#removed">Removed</a></h3>
 <ul>
@@ -1945,7 +2010,7 @@ Pure restructure: zero behavior change, all 21 <code>include_str!</code> paths
 </ul>
 </li>
 </ul>
-<h3 id="docs"><a class="header" href="#docs">Docs</a></h3>
+<h3 id="docs-1"><a class="header" href="#docs-1">Docs</a></h3>
 <ul>
 <li>
 <p><strong>Slimmed <code>README.md</code> from 178 → 89 lines (-50%).</strong> Now that we
@@ -2230,7 +2295,7 @@ realistic-depth happy path (depth 6); <code>cfg(unix)</code> symlink-loop contai
 (counts occurrences to prove non-following); outside-root symlink-escape
 rejection. (#137)</li>
 </ul>
-<h3 id="docs-1"><a class="header" href="#docs-1">Docs</a></h3>
+<h3 id="docs-2"><a class="header" href="#docs-2">Docs</a></h3>
 <ul>
 <li><strong><code>SECURITY.md</code> added</strong> at repo root with threat model, vulnerability
 reporting procedure (private GitHub Security Advisories), and explicit
@@ -2303,7 +2368,7 @@ trees. (#99)</li>
 as <code>title</code> when it looks like natural language instead of a release group.
 (#100)</li>
 </ul>
-<h3 id="docs-2"><a class="header" href="#docs-2">Docs</a></h3>
+<h3 id="docs-3"><a class="header" href="#docs-3">Docs</a></h3>
 <ul>
 <li>Added a README <strong>Known Limitations</strong> section documenting the main remaining
 edge-case categories and their tradeoffs. (#103)</li>
@@ -2357,7 +2422,7 @@ integers throughout the codebase. (#85)</li>
 names (e.g., <code>language_in_title_zone</code>) instead of numbers (Rule 1,
 Rule 2, …). (#86)</li>
 </ul>
-<h3 id="docs-3"><a class="header" href="#docs-3">Docs</a></h3>
+<h3 id="docs-4"><a class="header" href="#docs-4">Docs</a></h3>
 <ul>
 <li>Added <code>--batch -r</code> flag to CLI help, README, and user manual. (#69)</li>
 <li>Added P5 principle (surface ambiguity) and updated D6 in design.md. (#76)</li>
