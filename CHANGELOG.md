@@ -14,6 +14,21 @@ Release prep checklist:
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-04-26
+
+### Fixed
+
+- **False `AVCHD` video profile for bare `AVC` token.** `AVC` is the codec
+  name for H.264 and carries no profile information on its own. `AVCHD`
+  (Advanced Video Codec High Definition) is a specific consumer camcorder
+  delivery format and should only fire on the literal `avchd` token.
+  The incorrect mapping caused filenames containing bare `AVC` (e.g.
+  multi-audio CJK releases) to gain a spurious
+  `video_profile: "Advanced Video Codec High Definition"` field. Fixed
+  by removing the `avc` entry from `video_profile.toml`'s `[exact]`
+  table while keeping `avchd`. Regression fixture added to
+  `tests/fixtures/community.yml`. (#237, #238)
+
 ### Docs
 
 - **Documented the D2 boundary (vocabulary in TOML, logic in Rust)**
@@ -36,6 +51,20 @@ Release prep checklist:
   and License sections — the new license badge links to `LICENSE`, and
   `CONTRIBUTING.md` stays in the repo root next to the README. Net diff:
   −13 lines.
+
+### CI
+
+- **`cargo semver-checks` is now a required CI gate** (previously
+  advisory). Any PR that introduces a SemVer-incompatible public API
+  change will now hard-fail CI rather than emit a warning. Enforced
+  via `obi1kenobi/cargo-semver-checks-action`. (#229)
+
+### Dependencies
+
+- Bumped `dependabot/fetch-metadata` 2.5.0 → 3.1.0
+- Bumped `taiki-e/install-action` 2.75.17 → 2.75.20
+- Bumped `obi1kenobi/cargo-semver-checks-action` 2.8 → 2.9
+- Bumped Rust minor/patch toolchain group (Dependabot auto-merge)
 
 ## [2.0.0] - 2026-04-20
 
@@ -1102,6 +1131,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[2.0.1]: https://github.com/lijunzh/hunch/releases/tag/v2.0.1
 [2.0.0]: https://github.com/lijunzh/hunch/releases/tag/v2.0.0
 [1.1.8]: https://github.com/lijunzh/hunch/releases/tag/v1.1.8
 [1.1.7]: https://github.com/lijunzh/hunch/releases/tag/v1.1.7
