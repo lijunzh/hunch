@@ -2,8 +2,10 @@
 property = "video_profile"
 
 [exact]
+# AVCHD is a specific consumer camcorder delivery format — only fire when
+# the literal "avchd" token is present. The bare "avc" token is just the
+# codec name (= H.264) and carries no profile information.
 avchd = "Advanced Video Codec High Definition"
-avc   = "Advanced Video Codec High Definition"
 hevc  = "High Efficiency Video Coding"
 hp    = "High"
 

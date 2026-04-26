@@ -16,7 +16,23 @@
 
 # --- Episodes ---
 
-# (add community-reported episode cases here)
+# Regression: #237 — bare "AVC" token must NOT produce video_profile=AVCHD.
+# AVC is the codec name (= H.264), not the AVCHD camcorder delivery format.
+# AVCHD is only valid when the literal "avchd" token is present.
+? "[晚街与灯][Re Zero kara Hajimeru Isekai Seikatsu][4th - 03][总第69][WEB-DL Remux][1080P_AVC_AAC][简繁日内封PGS].mkv"
+: release_group: 晚街与灯
+  title: Re Zero kara Hajimeru Isekai Seikatsu
+  season: 4
+  episode: 3
+  absolute_episode: 69
+  source: Web
+  other: Remux
+  screen_size: 1080p
+  video_codec: H.264
+  audio_codec: AAC
+  container: mkv
+  type: episode
+  video_profile: !!null
 
 # --- Edge Cases ---
 
