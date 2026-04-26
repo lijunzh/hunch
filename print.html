@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-32127058.js";
+            window.path_to_searchindex_js = "searchindex-a037c74a.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8a688177.js"></script>
@@ -719,7 +719,7 @@ over-engineered CI for a hobby-scale crate. The contract still holds;
 the verification step just moved from “every PR” to “release prep”.</p>
 </blockquote>
 <h2 id="current-baseline"><a class="header" href="#current-baseline">Current baseline</a></h2>
-<p>Captured against <code>main</code> at the v2.0.0 release tag (post #197/#198):</p>
+<p>Captured against <code>main</code> at the v2.0.1 release tag (post #197/#198).</p>
 <div class="table-wrapper">
 <table>
 <thead>
@@ -1927,6 +1927,20 @@ Release prep checklist:
   3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 -->
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h2 id="201---2026-04-26"><a class="header" href="#201---2026-04-26"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.1">2.0.1</a> - 2026-04-26</a></h2>
+<h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
+<ul>
+<li><strong>False <code>AVCHD</code> video profile for bare <code>AVC</code> token.</strong> <code>AVC</code> is the codec
+name for H.264 and carries no profile information on its own. <code>AVCHD</code>
+(Advanced Video Codec High Definition) is a specific consumer camcorder
+delivery format and should only fire on the literal <code>avchd</code> token.
+The incorrect mapping caused filenames containing bare <code>AVC</code> (e.g.
+multi-audio CJK releases) to gain a spurious
+<code>video_profile: "Advanced Video Codec High Definition"</code> field. Fixed
+by removing the <code>avc</code> entry from <code>video_profile.toml</code>’s <code>[exact]</code>
+table while keeping <code>avchd</code>. Regression fixture added to
+<code>tests/fixtures/community.yml</code>. (#237, #238)</li>
+</ul>
 <h3 id="docs"><a class="header" href="#docs">Docs</a></h3>
 <ul>
 <li>
@@ -1952,6 +1966,20 @@ and License sections — the new license badge links to <code>LICENSE</code>, an
 <code>CONTRIBUTING.md</code> stays in the repo root next to the README. Net diff:
 −13 lines.</p>
 </li>
+</ul>
+<h3 id="ci"><a class="header" href="#ci">CI</a></h3>
+<ul>
+<li><strong><code>cargo semver-checks</code> is now a required CI gate</strong> (previously
+advisory). Any PR that introduces a SemVer-incompatible public API
+change will now hard-fail CI rather than emit a warning. Enforced
+via <code>obi1kenobi/cargo-semver-checks-action</code>. (#229)</li>
+</ul>
+<h3 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h3>
+<ul>
+<li>Bumped <code>dependabot/fetch-metadata</code> 2.5.0 → 3.1.0</li>
+<li>Bumped <code>taiki-e/install-action</code> 2.75.17 → 2.75.20</li>
+<li>Bumped <code>obi1kenobi/cargo-semver-checks-action</code> 2.8 → 2.9</li>
+<li>Bumped Rust minor/patch toolchain group (Dependabot auto-merge)</li>
 </ul>
 <h2 id="200---2026-04-20"><a class="header" href="#200---2026-04-20"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.0">2.0.0</a> - 2026-04-20</a></h2>
 <h3 id="removed"><a class="header" href="#removed">Removed</a></h3>
@@ -2051,7 +2079,7 @@ also gone — it had drifted to ~612 and the count was never load-bearing.
 (#202, #204, bundled in #218)</p>
 </li>
 </ul>
-<h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
+<h3 id="fixed-1"><a class="header" href="#fixed-1">Fixed</a></h3>
 <ul>
 <li><strong><code>Show/Extras/Bonus.mkv</code> no longer inherits unrelated sibling titles
 via the ancestor cache.</strong> The CLI’s inheritance-blocking predicate
@@ -2192,7 +2220,7 @@ prerelease audit (#196) — every <code>pub enum</code> in the crate is now
 consistently <code>#[non_exhaustive]</code>. (#172, #196)</p>
 </li>
 </ul>
-<h3 id="fixed-1"><a class="header" href="#fixed-1">Fixed</a></h3>
+<h3 id="fixed-2"><a class="header" href="#fixed-2">Fixed</a></h3>
 <ul>
 <li><strong>Website false-positives on country-code TLDs inside language
 abbreviations.</strong> Filenames like <code>Community.s02e20.rus.eng.720p.mkv</code>
@@ -2250,7 +2278,7 @@ NAS symlinks) will see fewer or zero results in v1.1.8 — either follow
 the symlinks before invoking hunch, or run hunch on the original
 directory tree. (#137)</li>
 </ul>
-<h3 id="fixed-2"><a class="header" href="#fixed-2">Fixed</a></h3>
+<h3 id="fixed-3"><a class="header" href="#fixed-3">Fixed</a></h3>
 <ul>
 <li><strong>Anime titles containing <code>" - "</code> and <code>"Part N"</code></strong> — in <code>[Group] Show - Sub Part 2 - 13 [tags]</code> style filenames, the title is now extracted as the full
 <code>Show - Sub Part 2</code>. Previously the parser truncated at the first <code>" - "</code>
@@ -2319,7 +2347,7 @@ source state. (#136)</li>
 up from 1071 / 1309 in v1.1.7 (two fixtures added, one new pass).
 (release-prep)</li>
 </ul>
-<h3 id="ci"><a class="header" href="#ci">CI</a></h3>
+<h3 id="ci-1"><a class="header" href="#ci-1">CI</a></h3>
 <ul>
 <li><strong><code>cargo-semver-checks</code> PR-time gate</strong> added. Detects accidental
 SemVer-incompatible changes to the public Rust API by comparing PR head
@@ -2345,7 +2373,7 @@ credential commits (<code>.env*</code>, <code>*.pem</code>, <code>*.key</code>, 
 <code>credentials.json</code>, <code>service-account*.json</code>). (#139)</li>
 </ul>
 <h2 id="117---2026-03-23"><a class="header" href="#117---2026-03-23"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.7">1.1.7</a> - 2026-03-23</a></h2>
-<h3 id="fixed-3"><a class="header" href="#fixed-3">Fixed</a></h3>
+<h3 id="fixed-4"><a class="header" href="#fixed-4">Fixed</a></h3>
 <ul>
 <li><strong>Bracket metadata leakage</strong> — bracketed metadata in CJK/anime filenames no
 longer leaks into <code>episode_title</code>, and release-group extraction now prefers
@@ -2394,7 +2422,7 @@ extraction for deeply nested libraries (<code>tv/Show/Season 1/01.mkv</code> →
 and subdirectories contain media files being skipped, hunch prints a hint
 to stderr suggesting <code>--batch -r</code>. (#74)</li>
 </ul>
-<h3 id="fixed-4"><a class="header" href="#fixed-4">Fixed</a></h3>
+<h3 id="fixed-5"><a class="header" href="#fixed-5">Fixed</a></h3>
 <ul>
 <li><strong>“Movie N” parsed as episode</strong> — <code>Detective.Conan.Movie.10...</code> in a
 <code>movie/</code> directory now returns <code>type=movie</code>. Bare number matches at
@@ -2473,7 +2501,7 @@ per-call in episode title extraction).</li>
 <li><strong><code>is_episode_directory</code></strong> uses <code>strip_prefix('s')</code> instead of
 <code>component[1..]</code> byte indexing for safe UTF-8 handling.</li>
 </ul>
-<h3 id="fixed-5"><a class="header" href="#fixed-5">Fixed</a></h3>
+<h3 id="fixed-6"><a class="header" href="#fixed-6">Fixed</a></h3>
 <ul>
 <li><strong><code>CODEC_NUMBERS</code> shared constant</strong> (264, 265, 128) — extracted from
 duplicated checks in <code>invariance.rs</code> and <code>episodes/mod.rs</code>. (DRY)</li>
@@ -2513,7 +2541,7 @@ dependencies.</li>
 <li><code>--batch</code> now properly conflicts with positional filename args.</li>
 <li><code>list_media_files</code> signature: <code>&amp;PathBuf</code> → <code>&amp;Path</code> (idiomatic Rust).</li>
 </ul>
-<h3 id="fixed-6"><a class="header" href="#fixed-6">Fixed</a></h3>
+<h3 id="fixed-7"><a class="header" href="#fixed-7">Fixed</a></h3>
 <ul>
 <li>Stale doc-links pointing to <code>hunch</code> instead of <code>hunch_with_context</code>.</li>
 <li><code>Pipeline</code> doc comment merged with <code>SegmentScope</code> doc (missing blank line).</li>
@@ -2553,7 +2581,7 @@ not hardcoded to the leaf filename.</li>
 <li><strong>episode_title: 73.6% → 76.1%</strong> — parent-dir extraction, boundary fixes.</li>
 <li><strong>other: 88.8% → 89.1%</strong> — TOML-driven <code>requires_nearby</code> for “Proper”.</li>
 </ul>
-<h3 id="fixed-7"><a class="header" href="#fixed-7">Fixed</a></h3>
+<h3 id="fixed-8"><a class="header" href="#fixed-8">Fixed</a></h3>
 <ul>
 <li>Episode title extraction from parent directories when the leaf filename
 contains only a numeric code (e.g., <code>Bones.S12E02.The.Brain.In.The.Bot .1080p.WEB-DL/161219_06.mkv</code> → episode_title: “The Brain In The Bot”).</li>
@@ -2578,7 +2606,7 @@ These were dead code from v1.0.0 (never wired into the pipeline).</li>
 <li><code>src/options.rs</code> module deleted.</li>
 </ul>
 <h2 id="112---2026-02-28"><a class="header" href="#112---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.2">1.1.2</a> - 2026-02-28</a></h2>
-<h3 id="fixed-8"><a class="header" href="#fixed-8">Fixed</a></h3>
+<h3 id="fixed-9"><a class="header" href="#fixed-9">Fixed</a></h3>
 <ul>
 <li><strong>docs.rs build</strong> — added <code>rust-version = "1.85"</code> and
 <code>[package.metadata.docs.rs]</code> to <code>Cargo.toml</code>. Edition 2024 requires
@@ -2586,7 +2614,7 @@ Rust 1.85+; docs.rs needs this hint to select a compatible toolchain.
 Versions 1.0.0–1.1.1 failed to build on docs.rs for this reason.</li>
 </ul>
 <h2 id="111---2026-02-28"><a class="header" href="#111---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.1">1.1.1</a> - 2026-02-28</a></h2>
-<h3 id="fixed-9"><a class="header" href="#fixed-9">Fixed</a></h3>
+<h3 id="fixed-10"><a class="header" href="#fixed-10">Fixed</a></h3>
 <ul>
 <li><strong><code>cargo fmt</code></strong> — applied rustfmt to all files modified in v1.1.0.
 No logic changes; line wrapping only.</li>
@@ -2629,7 +2657,7 @@ count (295).</li>
 <li><strong>CLI error handling</strong> — JSON serialization errors now print to stderr
 and exit(1) instead of silently producing empty output.</li>
 </ul>
-<h3 id="fixed-10"><a class="header" href="#fixed-10">Fixed</a></h3>
+<h3 id="fixed-11"><a class="header" href="#fixed-11">Fixed</a></h3>
 <ul>
 <li><strong>~30 bare <code>.unwrap()</code> calls</strong> replaced with descriptive <code>.expect()</code>
 messages across <code>zone_map.rs</code>, <code>bit_rate.rs</code>, <code>size.rs</code>, <code>uuid.rs</code>,
@@ -2641,7 +2669,7 @@ algorithmic complexity and future optimization path.</li>
 planned <code>media_type</code> / <code>expected_title</code> wiring.</li>
 </ul>
 <h2 id="101---2026-02-28"><a class="header" href="#101---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.0.1">1.0.1</a> - 2026-02-28</a></h2>
-<h3 id="fixed-11"><a class="header" href="#fixed-11">Fixed</a></h3>
+<h3 id="fixed-12"><a class="header" href="#fixed-12">Fixed</a></h3>
 <ul>
 <li><strong>Documentation patch</strong> — v1.0.0 shipped with incorrect compatibility
 numbers in README. This release corrects all documentation to match
@@ -2666,7 +2694,7 @@ actual test results (81.7%, 1,069 / 1,309).</li>
 <li>Single binary, TOML rules embedded at compile time.</li>
 </ul>
 <h2 id="031---2026-02-27"><a class="header" href="#031---2026-02-27"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.3.1">0.3.1</a> - 2026-02-27</a></h2>
-<h3 id="fixed-12"><a class="header" href="#fixed-12">Fixed</a></h3>
+<h3 id="fixed-13"><a class="header" href="#fixed-13">Fixed</a></h3>
 <ul>
 <li><strong>Language/subtitle_language disambiguation</strong> — Add zone Rule 8 to
 suppress Language matches contained within SubtitleLanguage spans.
@@ -2747,7 +2775,7 @@ title zone when the same language appears in the tech zone.</li>
 <li><strong>Zone Rule 5</strong> moved to <code>apply_post_release_group_rules()</code> so it
 can see release group positions.</li>
 </ul>
-<h3 id="fixed-13"><a class="header" href="#fixed-13">Fixed</a></h3>
+<h3 id="fixed-14"><a class="header" href="#fixed-14">Fixed</a></h3>
 <ul>
 <li><strong>video_codec.toml</strong>: HEVC suffix regex <code>hevc.+</code> → <code>hevc[a-zA-Z0-9_]+</code>
 to prevent multi-token window over-matching (e.g., HEVC.Atmos-GROUP).</li>
@@ -2795,7 +2823,7 @@ SCR screener, FanSub pruning, Dubbed not_after.</li>
 <li><strong>release_group module</strong> split into <code>mod.rs</code> + <code>known_tokens.rs</code>
 (626 lines → 312 + 190).</li>
 </ul>
-<h3 id="fixed-14"><a class="header" href="#fixed-14">Fixed</a></h3>
+<h3 id="fixed-15"><a class="header" href="#fixed-15">Fixed</a></h3>
 <ul>
 <li><strong>HQ standalone</strong> → Other:High Quality (was audio_profile:High Quality).
 AudioProfile HQ now requires AAC prefix.</li>
@@ -2868,7 +2896,7 @@ retiring zone Rule 4.</li>
 directly instead of re-deriving from match positions.</li>
 <li><strong>cargo clippy</strong> clean — zero warnings.</li>
 </ul>
-<h3 id="fixed-15"><a class="header" href="#fixed-15">Fixed</a></h3>
+<h3 id="fixed-16"><a class="header" href="#fixed-16">Fixed</a></h3>
 <ul>
 <li><strong>Title: “The 100” pattern</strong> — absolute episode candidates before the
 first S/E span are now skipped.</li>
@@ -2955,7 +2983,7 @@ deepest-first (closest to filename preferred).</li>
 </tbody>
 </table>
 </div>
-<h3 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h3>
+<h3 id="dependencies-1"><a class="header" href="#dependencies-1">Dependencies</a></h3>
 <ul>
 <li>Removed: <code>fancy-regex</code> (was fallback for lookaround patterns)</li>
 <li>All regex matching is now guaranteed linear-time via <code>regex</code> crate</li>
@@ -2988,7 +3016,7 @@ in the technical zone (prevents false positives on titles like
 <li>Pre-built binaries for 5 platforms in GitHub Releases.</li>
 <li><code>cargo-binstall</code> support — install without compiling.</li>
 </ul>
-<h3 id="fixed-16"><a class="header" href="#fixed-16">Fixed</a></h3>
+<h3 id="fixed-17"><a class="header" href="#fixed-17">Fixed</a></h3>
 <ul>
 <li>All clippy warnings resolved.</li>
 <li><code>cargo fmt</code> applied consistently.</li>
