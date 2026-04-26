@@ -26,7 +26,7 @@ Two complementary tools watch this contract:
 
 ## Current baseline
 
-Captured against `main` at the v2.0.0 release tag (post #197/#198):
+Captured against `main` at the v2.0.1 release tag (post #197/#198).
 
 | Metric | Count |
 |---|---|
