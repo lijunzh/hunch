@@ -156,6 +156,14 @@ pub use pipeline::Pipeline;
 /// This is the main entry point for the library. It creates a default
 /// [`Pipeline`] and runs it against the input string.
 ///
+/// # Input
+///
+/// `input` is expected to be a single media filename (or release name),
+/// typically well under 255 bytes — the POSIX `NAME_MAX` for a path
+/// component. There is no hard upper bound; parsing is linear-time and
+/// allocation-bounded, but supplying multi-kilobyte strings is outside
+/// the intended use case.
+///
 /// # Performance
 ///
 /// Creates a new [`Pipeline`] on every call. For batch processing,

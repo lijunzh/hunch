@@ -3,11 +3,10 @@ name = "hunch"
 version = "2.0.1"
 edition = "2024"
 rust-version = "1.85"
-authors = ["Lijun Zhu"]
 description = "A media filename parser for movies, TV, and anime — built in Rust, inspired by guessit"
 license = "MIT"
 repository = "https://github.com/lijunzh/hunch"
-homepage = "https://github.com/lijunzh/hunch"
+homepage = "https://lijunzh.github.io/hunch/"
 keywords = ["media", "parser", "filename", "movies", "episodes"]
 categories = ["multimedia", "parser-implementations", "command-line-utilities", "text-processing"]
 readme = "README.md"
@@ -16,7 +15,7 @@ readme = "README.md"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "1.1"
+toml = "1"
 log = "0.4"
 
 # CLI-only deps (not pulled in when used as a library)
