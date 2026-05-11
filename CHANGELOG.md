@@ -14,6 +14,101 @@ Release prep checklist:
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-05-11
+
+### Fixed
+
+- **Title bracket containing inline season marker.** Bracket-style titles
+  with an inline season suffix (e.g. `[Show Title S2]`, `[Show Title 第2期]`)
+  no longer drop the title field. Three root causes converged: (1) Season
+  / Episode matches inside a title bracket counted as "claimed" and
+  shadowed the title; (2) the trailing-season cleanup regex
+  (`RE_TRAILING_SEASON`) didn't recognize the short `S\d+` form;
+  (3) the CJK bracket strategy bypassed `clean_title`. Fixed by
+  excluding Season/Episode from `is_claimed`, extending the cleanup
+  regex with the short form, and routing the CJK bracket through
+  `clean_title`. (#244 bug 1, #246)
+- **Anime-extras directory names leaking as title.** Structural
+  directory names like `PV/`, `menu/`, `NCOP&NCED/`, `OVA/`, `OAD/`,
+  `tokuten/` were treated as legitimate parent-dir titles in
+  `--batch -r`. Extended `is_generic_dir`'s allow-list to cover the
+  anime-extras structural set so these dirs no longer claim a title.
+  (#244 bug 2, #246)
+- **External subtitle files dropped by `--batch -r`.** `MEDIA_EXTENSIONS`
+  was video-only; `.srt`, `.ass`, `.ssa`, `.sub`, `.idx`, `.vtt`,
+  `.sup`, `.smi` files were silently skipped. Extended the recognized
+  set so external subtitles flow through batch parsing. (#244 bug 3,
+  #246)
+- **`[menu]` bracket not matching the Menu rule.** The rule lived in
+  `[exact_sensitive]` (case-sensitive); `[menu]`, `[Menu]`, and
+  `[MENU]` now all match the same Menu property by moving the entry
+  to `[exact]` (case-insensitive). (#244 bug 5, #246)
+
+### Refactored
+
+- **Title precedence model is now confidence-based, not heuristic.**
+  The post-#246-merge follow-up replaced two ad-hoc heuristics
+  (`filename_has_bracket`, `is_path_dir_name`) with three structural
+  fixes: (a) `find_unclaimed_gaps` now scopes the gap cursor to
+  `filename_start`, structurally excluding path-prefix text from
+  invariance candidates; (b) per-strategy `TitleConfidence { Strong,
+  Weak }` declared on the `TitleStrategy` trait, with `extract_title`
+  returning `TitleExtraction { span, confidence }` and the new
+  `pick_final_title` decider applying one declarative precedence rule
+  (`Strong → Hint → Weak → None`); (c) `analyze_invariance` filters
+  gap candidates to those preceding the first content anchor
+  (Season / Episode / Year), so post-anchor episode-title commonality
+  no longer masquerades as a show title. Net: −120 LOC of ad-hoc
+  heuristics, +60 LOC of declarative orchestration. The
+  `last_resort_title` post-pass2 patching block and the 18-case
+  `is_path_dir_name` test were deleted entirely. Internal-only — no
+  public API impact. (#246)
+
+### Changed
+
+- **`Cargo.toml` `homepage` field** now points at the curated mdBook
+  site (`https://lijunzh.github.io/hunch/`) rather than duplicating
+  `repository`. crates.io already auto-links to docs.rs via its
+  Documentation button. The GH Pages site covers user manual, design,
+  migration, and contributor guides — strictly broader than the
+  rustdoc API reference. (#240, #241)
+
+### Removed
+
+- **`Cargo.toml` `authors` field.** Cargo 1.73+ no longer surfaces
+  this on crates.io; the field is inert manifest noise. (#240, #241)
+
+### Tests
+
+- **2 new regression tests** in
+  `tests/issue_244_self_describing_filenames.rs` lock in the
+  post-anchor invariance fix:
+  - `episode_title_commonality_does_not_become_show_title` — the
+    Paw Patrol scenario where sibling episode titles shared a common
+    prefix that previously clobbered the show title
+  - `pre_anchor_invariance_still_wins` — anti-regression for the
+    canonical `Show.S01E01.mkv` invariance case (#246)
+
+### Docs
+
+- **`hunch()` rustdoc gains an `# Input` section** clarifying the
+  expected input class (single filename, typically <255 bytes) per
+  security-auditor recommendation. Behavior unchanged. (#240, #241)
+
+### Dependencies
+
+- **`toml` dep bound relaxed** from `"1.1"` to `"1"`. Aligns with
+  the major-only bound used by every other dep and unblocks
+  downstreams that pin `toml` to 1.0.x. (#240, #241)
+- Bumped `taiki-e/install-action` 2.75.20 → 2.77.1 (#242, #243)
+
+### Notes on issue #244 scope
+
+Bugs #1, #2, #3, #5 from issue #244 are fixed in this release. Bugs #4
+(`NCED1`/`NCED2`/`NCED3`/`NCED4` collapse trailing index) and #6 are
+deliberately deferred as design choices — see the resolution comment
+on issue #244 for the rationale.
+
 ## [2.0.1] - 2026-04-26
 
 ### Fixed
@@ -1131,6 +1226,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[2.0.2]: https://github.com/lijunzh/hunch/releases/tag/v2.0.2
 [2.0.1]: https://github.com/lijunzh/hunch/releases/tag/v2.0.1
 [2.0.0]: https://github.com/lijunzh/hunch/releases/tag/v2.0.0
 [1.1.8]: https://github.com/lijunzh/hunch/releases/tag/v1.1.8
