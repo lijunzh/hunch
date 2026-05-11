@@ -9,25 +9,39 @@
 //!   ShowS2/mini-anims/[...][Otto's Diary][01].mkv
 //!     → title "Re Zero ..."  ❌ clobbered by parent's cached title
 //!
-//! Two distinct mechanisms could clobber the title:
+//! Three distinct mechanisms could clobber the title:
 //!   1. Ancestor fallback override — parent's cached title was passed
 //!      as `fallback_title` and used as an authoritative override even
 //!      when the file's own bracket extraction would succeed.
 //!   2. Path-prefix invariance — invariance found a normalized form
 //!      of the parent dir name (`hunch_show2` → "hunch show") as the
-//!      common-text title across siblings; `is_path_dir_name` missed
-//!      the normalization so it was treated as a legitimate invariance
-//!      title.
+//!      common-text title across siblings; the post-hoc dir-name
+//!      check missed the normalization so it was treated as a
+//!      legitimate invariance title.
+//!   3. Post-anchor invariance — even with path-prefix scoped out,
+//!      sibling episode titles can share a common prefix (e.g.
+//!      `S01E10 - Pups Save ...` / `S01E11 - Pups and ...` → "Pups")
+//!      that masquerades as a show title.
 //!
-//! Fix: when the FILENAME itself has bracket structure (the dominant
-//! fansub convention for explicit titles), demote both invariance and
-//! ancestor fallback from override to last-resort. The file's own
-//! extraction speaks first; cross-file signals only fire if extraction
-//! returns nothing.
+//! Fix (architectural, no `filename_has_bracket` heuristic needed):
+//!   - **Path-prefix gaps**: `find_unclaimed_gaps` now starts the
+//!     cursor at `filename_start`, structurally excluding path text.
+//!   - **Post-anchor invariance**: `analyze_invariance` filters gaps
+//!     to those preceding the first content anchor (Season / Episode
+//!     / Year), so episode-title commonality can't pose as a show
+//!     title.
+//!   - **Per-strategy `TitleConfidence`**: each title strategy
+//!     declares Strong (file is self-describing via brackets / year
+//!     anchors / structural separators) or Weak (residual extraction
+//!     / parent-dir last resort). The pipeline's `pick_final_title`
+//!     applies the precedence: Strong extraction beats any cross-file
+//!     hint, otherwise hint wins, otherwise weak extraction, otherwise
+//!     nothing.
 //!
-//! Files WITHOUT brackets in their filename (e.g. `Special.720p.mkv`,
-//! `Making.Of.720p.mkv`) keep the legacy behavior: ancestor fallback
-//! overrides extraction (covered by `tests/parent_context.rs`).
+//! This subsumes the old `filename_has_bracket` and `is_path_dir_name`
+//! heuristics: a file with brackets is implicitly Strong (via the
+//! bracket strategies), and path-prefix titles can't reach invariance
+//! anymore.
 
 use hunch::Pipeline;
 
@@ -146,4 +160,45 @@ fn real_invariance_still_overrides_for_dotted_filenames() {
         Some("Wrong Show Name"),
         "real invariance from dotted filenames must still override fallback"
     );
+}
+
+// ── 5. Post-anchor invariance does NOT clobber show title ───────────
+
+#[test]
+fn episode_title_commonality_does_not_become_show_title() {
+    // `S01E10 - Pups Save Ryder's Robot` and
+    // `S01E11 - Pups and the Ghost Pirate` share the prefix " - Pups"
+    // *after* the episode anchor. That commonality is per-episode-title
+    // text, NOT a show title. Pre-fix, filename-only invariance still
+    // picked it up and clobbered the actual show name ("Paw Patrol")
+    // from the parent directory.
+    //
+    // After the fix, `analyze_invariance` filters gaps to those
+    // preceding the first content anchor (Season/Episode/Year). The
+    // post-anchor " - Pups" gap is no longer a title candidate, and
+    // the parent-dir extraction wins.
+    let pipeline = Pipeline::new();
+    let result = pipeline.run_with_context(
+        "Paw Patrol/S01E10 - Pups Save Ryder's Robot.mkv",
+        &["Paw Patrol/S01E11 - Pups and the Ghost Pirate.mkv"],
+    );
+    assert_eq!(
+        result.title(),
+        Some("Paw Patrol"),
+        "show title from parent dir, not episode-title commonality"
+    );
+}
+
+#[test]
+fn pre_anchor_invariance_still_wins() {
+    // Mirror of the test above: when the common text is BEFORE the
+    // episode anchor (the canonical case), invariance must still fire.
+    // Files: `Show.S01E01.mkv` / `Show.S01E02.mkv` — "Show" is the
+    // pre-anchor invariant.
+    let pipeline = Pipeline::new();
+    let result = pipeline.run_with_context(
+        "Show.S01E01.720p.mkv",
+        &["Show.S01E02.720p.mkv", "Show.S01E03.720p.mkv"],
+    );
+    assert_eq!(result.title(), Some("Show"));
 }

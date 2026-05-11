@@ -18,10 +18,10 @@ mod clean;
 mod secondary;
 mod strategies;
 
-pub(crate) use clean::is_generic_dir;
 pub use secondary::{
     extract_alternative_titles, extract_episode_title, extract_film_title, infer_media_type,
 };
+pub use strategies::{TitleConfidence, TitleExtraction};
 
 use crate::FILENAME_SEPS as SEPS;
 use crate::matcher::span::{MatchSpan, Property};
@@ -61,12 +61,24 @@ fn is_tech_property(p: Property) -> bool {
 /// Reclaimable matches (marked by TOML `requires_nearby`) are transparent
 /// to the title boundary: they don't stop the title, and if absorbed into
 /// the title span they are removed from `matches`.
+/// Extract title from the input string by finding the gap before the first
+/// recognized match. This is a post-processing step, not a `PropertyMatcher`.
+///
+/// The `zone_map` is used for year-as-title disambiguation (e.g., "2001" in
+/// "2001.A.Space.Odyssey.1968" is a title word, not the release year).
+///
+/// to the title boundary: they don't stop the title, and if absorbed into
+/// the title span they are removed from `matches`.
+///
+/// Returns a [`TitleExtraction`] pairing the title span with a confidence
+/// score that the pipeline uses to decide whether cross-file context
+/// (invariance, ancestor fallback) should override this title.
 pub fn extract_title(
     input: &str,
     matches: &[MatchSpan],
     zone_map: &ZoneMap,
     _token_stream: &TokenStream,
-) -> Option<MatchSpan> {
+) -> Option<TitleExtraction> {
     let filename_start = input.rfind(['/', '\\']).map(|i| i + 1).unwrap_or(0);
     let filename = &input[filename_start..];
 
@@ -115,10 +127,31 @@ pub fn extract_title(
     let raw_title = &input[filename_start..title_end_abs];
 
     // Truncate at structural separators (" - ", "--", "(").
-    let title_end_abs = find_first_structural_separator(raw_title)
+    let structural_sep_offset = find_first_structural_separator(raw_title);
+    let title_end_abs = structural_sep_offset
         .map(|offset| filename_start + offset)
         .unwrap_or(title_end_abs);
     let raw_title = &input[filename_start..title_end_abs];
+
+    // Confidence classification for the residual extractor.
+    //
+    // Strong: the title was bounded by an explicit author-placed marker
+    //   - a structural separator (" - ", "(", "--")
+    //   - a content property (Year, Season, Episode, Part, ...)
+    //   The file is self-describing.
+    //
+    // Weak: the title is just "the bytes before the first tech token"
+    //   or "the bytes before the extension" — no deliberate marker. A
+    //   filename like `Special.720p.mkv` extracts "Special" as a Weak
+    //   title, and the pipeline will prefer ancestor fallback if any.
+    let confidence = if structural_sep_offset.is_some() {
+        TitleConfidence::Strong
+    } else {
+        match first_match_in_filename {
+            Some(m) if !is_tech_property(m.property) => TitleConfidence::Strong,
+            _ => TitleConfidence::Weak,
+        }
+    };
 
     let cleaned = clean_title(raw_title);
 
@@ -146,11 +179,9 @@ pub fn extract_title(
     {
         let best = pick_better_casing(&cleaned, &parent_match.value);
         if best != cleaned {
-            return Some(MatchSpan::new(
-                filename_start,
-                title_end_abs,
-                Property::Title,
-                best,
+            return Some(TitleExtraction::new(
+                MatchSpan::new(filename_start, title_end_abs, Property::Title, best),
+                confidence,
             ));
         }
     }
@@ -164,14 +195,15 @@ pub fn extract_title(
             filename_start,
         })
     {
-        return Some(parent_title);
+        return Some(TitleExtraction::new(
+            parent_title,
+            strategies::ParentDir.confidence(),
+        ));
     }
 
-    Some(MatchSpan::new(
-        filename_start,
-        title_end_abs,
-        Property::Title,
-        cleaned,
+    Some(TitleExtraction::new(
+        MatchSpan::new(filename_start, title_end_abs, Property::Title, cleaned),
+        confidence,
     ))
 }
 
@@ -197,14 +229,15 @@ fn handle_empty_title(
     matches: &[MatchSpan],
     zone_map: &ZoneMap,
     first_match_in_filename: Option<&MatchSpan>,
-) -> Option<MatchSpan> {
+) -> Option<TitleExtraction> {
     // Year-as-title via ZoneMap: e.g., "2001" in "2001.A.Space.Odyssey.1968".
     if let Some(ref yi) = zone_map.year
         && let Some(ty) = yi.title_years.iter().find(|ty| ty.start == filename_start)
         && let Some(title) =
             extract_title_after_position(input, ty.end, filename_start, filename, matches)
     {
-        return Some(title);
+        // Year-anchored title is a structural marker.
+        return Some(TitleExtraction::new(title, TitleConfidence::Strong));
     }
     // Fallback: first match is a Year at filename start.
     if let Some(first_m) = first_match_in_filename
@@ -213,7 +246,7 @@ fn handle_empty_title(
         && let Some(title) =
             extract_title_after_position(input, first_m.end, filename_start, filename, matches)
     {
-        return Some(title);
+        return Some(TitleExtraction::new(title, TitleConfidence::Strong));
     }
     // Leading tech tokens at filename start (e.g., "h265 - HEVC Riddick...").
     // Skip past all contiguous tech matches at the start to find the title gap.
@@ -239,14 +272,18 @@ fn handle_empty_title(
         if let Some(title) =
             extract_title_after_position(input, skip_end, filename_start, filename, matches)
         {
-            return Some(title);
+            // Bounded by tech only — weak (residual extraction).
+            return Some(TitleExtraction::new(title, TitleConfidence::Weak));
         }
     }
     // Single short word with no path/extension → treat as title.
     if !input.contains(['/', '\\']) && !input.contains('.') && input.len() <= 10 {
         let cleaned = clean_title(input);
         if !cleaned.is_empty() {
-            return Some(MatchSpan::new(0, input.len(), Property::Title, cleaned));
+            return Some(TitleExtraction::new(
+                MatchSpan::new(0, input.len(), Property::Title, cleaned),
+                TitleConfidence::Weak,
+            ));
         }
     }
     // Unclaimed bracket content: when everything is in brackets and one
@@ -258,9 +295,14 @@ fn handle_empty_title(
         filename_start,
     };
     if let Some(title) = strategies::UnclaimedBracket.try_extract(&ctx) {
-        return Some(title);
+        return Some(TitleExtraction::new(
+            title,
+            strategies::UnclaimedBracket.confidence(),
+        ));
     }
-    strategies::ParentDir.try_extract(&ctx)
+    strategies::ParentDir
+        .try_extract(&ctx)
+        .map(|t| TitleExtraction::new(t, strategies::ParentDir.confidence()))
 }
 
 /// Extract title from position `start` to the next match in the filename.
@@ -408,7 +450,7 @@ mod tests {
         let zm = test_zone_map(input);
         let ts = test_ts(input);
         let title = extract_title(input, &matches, &zm, &ts).unwrap();
-        assert_eq!(title.value, "The Matrix");
+        assert_eq!(title.span.value, "The Matrix");
     }
 
     #[test]
@@ -417,7 +459,7 @@ mod tests {
         let zm = test_zone_map(input);
         let ts = test_ts(input);
         let title = extract_title(input, &[], &zm, &ts).unwrap();
-        assert_eq!(title.value, "JustATitle");
+        assert_eq!(title.span.value, "JustATitle");
     }
 
     #[test]
@@ -427,7 +469,7 @@ mod tests {
         let zm = test_zone_map(input);
         let ts = test_ts(input);
         let title = extract_title(input, &matches, &zm, &ts).unwrap();
-        assert_eq!(title.value, "The Movie");
+        assert_eq!(title.span.value, "The Movie");
     }
 
     #[test]
@@ -438,7 +480,7 @@ mod tests {
         let ts = test_ts(input);
         let title = extract_title(input, &matches, &zm, &ts);
         assert!(title.is_some());
-        assert_eq!(title.unwrap().value, "Alice in Wonderland");
+        assert_eq!(title.unwrap().span.value, "Alice in Wonderland");
     }
 
     #[test]
@@ -458,9 +500,9 @@ mod tests {
         let zm = test_zone_map(input);
         let ts = test_ts(input);
         let title = extract_title(input, &matches, &zm, &ts).unwrap();
-        assert_eq!(title.value, "Harold And Kumar 3D Christmas");
+        assert_eq!(title.span.value, "Harold And Kumar 3D Christmas");
         // Absorb should remove the reclaimable match.
-        absorb_reclaimable(&title, &mut matches);
+        absorb_reclaimable(&title.span, &mut matches);
         assert!(matches.is_empty(), "reclaimable 3D should be absorbed");
     }
 
@@ -474,7 +516,7 @@ mod tests {
         let zm = test_zone_map(input);
         let ts = test_ts(input);
         let title = extract_title(input, &matches, &zm, &ts).unwrap();
-        assert_eq!(title.value, "Pacific Rim");
+        assert_eq!(title.span.value, "Pacific Rim");
     }
 
     #[test]

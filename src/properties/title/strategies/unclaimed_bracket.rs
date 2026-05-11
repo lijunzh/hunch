@@ -9,13 +9,20 @@
 use crate::matcher::span::{MatchSpan, Property};
 
 use super::super::clean::clean_title;
-use super::{StrategyContext, TitleStrategy};
+use super::{StrategyContext, TitleConfidence, TitleStrategy};
 
 pub(crate) struct UnclaimedBracket;
 
 impl TitleStrategy for UnclaimedBracket {
     fn name(&self) -> &'static str {
         "unclaimed_bracket"
+    }
+
+    /// All-bracket releases like `[a][b][title][c][d].mkv` use brackets
+    /// as a structural device; the unclaimed bracket is a deliberate
+    /// title slot. Self-describing.
+    fn confidence(&self) -> TitleConfidence {
+        TitleConfidence::Strong
     }
 
     fn try_extract(&self, ctx: &StrategyContext<'_>) -> Option<MatchSpan> {

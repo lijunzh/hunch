@@ -10,13 +10,20 @@ use crate::matcher::span::{MatchSpan, Property};
 
 use super::super::clean::{clean_title, clean_title_preserve_dashes};
 use super::super::find_first_structural_separator;
-use super::{StrategyContext, TitleStrategy};
+use super::{StrategyContext, TitleConfidence, TitleStrategy};
 
 pub(crate) struct AfterBracketGroup;
 
 impl TitleStrategy for AfterBracketGroup {
     fn name(&self) -> &'static str {
         "after_bracket_group"
+    }
+
+    /// Anime `[Group] Title - Ep [tags]` is a deliberate convention
+    /// with the title bounded by an explicit episode marker. The author
+    /// is self-describing.
+    fn confidence(&self) -> TitleConfidence {
+        TitleConfidence::Strong
     }
 
     fn try_extract(&self, ctx: &StrategyContext<'_>) -> Option<MatchSpan> {

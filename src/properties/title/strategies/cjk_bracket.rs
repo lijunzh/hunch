@@ -6,13 +6,21 @@
 use crate::matcher::span::{MatchSpan, Property};
 
 use super::super::clean::clean_title;
-use super::{StrategyContext, TitleStrategy};
+use super::{StrategyContext, TitleConfidence, TitleStrategy};
 
 pub(crate) struct CjkBracket;
 
 impl TitleStrategy for CjkBracket {
     fn name(&self) -> &'static str {
         "cjk_bracket"
+    }
+
+    /// `[Group][Title][Episode]` is a deliberate, structurally-marked
+    /// title in the dominant fansub convention. The author placed the
+    /// title inside a bracket bounded by an episode anchor — about as
+    /// explicit a self-description as a filename can be.
+    fn confidence(&self) -> TitleConfidence {
+        TitleConfidence::Strong
     }
 
     fn try_extract(&self, ctx: &StrategyContext<'_>) -> Option<MatchSpan> {

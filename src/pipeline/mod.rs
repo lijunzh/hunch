@@ -54,6 +54,32 @@ use crate::priority;
 use crate::properties::part;
 use crate::properties::release_group;
 use crate::properties::title;
+use crate::properties::title::{TitleConfidence, TitleExtraction};
+
+/// A title supplied to [`Pipeline::pass2`] from outside the file itself.
+///
+/// Two cross-file sources can produce a hint:
+///   - **Invariance**: sibling consensus on filename content
+///     (`source = "invariance"`, `position = Some(byte_offset)` from the
+///     [`InvarianceReport`](invariance::InvarianceReport)).
+///   - **Ancestor fallback**: a title cached from a parent directory
+///     during batch ‑r traversal (`source = "fallback"`, `position = None`
+///     because the text usually doesn't appear verbatim in the input).
+///
+/// The pipeline disambiguates between the two before constructing the
+/// hint (invariance preferred). Pass2 then weighs this hint against the
+/// file's own extraction via [`pick_final_title`].
+///
+/// Replaces the previous `(title_override, last_resort_title)` pair and
+/// the `filename_has_bracket` / `is_path_dir_name` ad-hoc heuristics.
+struct TitleHint {
+    /// The title text.
+    value: String,
+    /// Byte offset of `value` in `input`, when known.
+    position: Option<usize>,
+    /// Where the hint came from (debug/trace logs only).
+    source: &'static str,
+}
 
 /// The two-pass parsing pipeline.
 ///
@@ -193,11 +219,17 @@ impl Pipeline {
             return self.run(input);
         }
 
-        // If we have no siblings but do have a fallback title, run Pass 1
-        // and use the fallback directly in Pass 2.
+        // No siblings but a fallback title: skip invariance, run pass1
+        // and let pass2 weigh the fallback against the file's own
+        // extraction by confidence.
         if siblings.is_empty() {
             let (mut matches, ts, zm) = self.pass1(input);
-            return self.pass2(input, &mut matches, &zm, &ts, fallback_title, None);
+            let hint = fallback_title.map(|fb| TitleHint {
+                value: fb.to_string(),
+                position: None,
+                source: "fallback",
+            });
+            return self.pass2(input, &mut matches, &zm, &ts, hint, None);
         }
 
         // 1. Run Pass 1 on target + all siblings.
@@ -205,6 +237,10 @@ impl Pipeline {
         let sibling_results: Vec<_> = siblings.iter().map(|s| self.pass1(s)).collect();
 
         // 2. Unified invariance analysis (title + year + episode signals).
+        //    Invariance gaps are filename-scoped (see
+        //    `find_unclaimed_gaps`), so any title produced here came
+        //    from actual filename content shared across siblings — not
+        //    from path-prefix accidents.
         let sibling_analyses: Vec<_> = siblings
             .iter()
             .zip(&sibling_results)
@@ -241,108 +277,43 @@ impl Pipeline {
             );
         }
 
-        // 3. Run Pass 2 with invariance report.
-        // If invariance found a title from actual filename content, use it.
-        // If it found a title that's just a directory name from the path,
-        // treat it as weak evidence:
-        //   - Prefer the parent fallback title if available (#94).
-        //   - Otherwise let pass2's normal extractor try first. If pass2
-        //     also fails, use the dir-name title as last resort — an
-        //     imprecise title beats no title (#97).
+        // 3. Pick the title hint to pass to pass2.
         //
-        // **Self-describing files** (#244 follow-up): when the filename
-        // itself contains a bracket group (the dominant convention for
-        // explicit titles in fansub releases), the file is treated as
-        // self-describing. BOTH invariance and ancestor fallback are
-        // demoted from override to last-resort — they only fire if the
-        // file's own extraction returns nothing. This prevents two
-        // failure modes seen in batch -r mode against anime libraries:
-        //   1. Sibling-consensus clobbering distinct sub-show titles
-        //      (e.g. mini-anims under `迷你动画/` getting the parent
-        //      show's title because the parent dir cached it).
-        //   2. Invariance picking up a normalized path-prefix as the
-        //      title (e.g. `hunch_show2/...` → invariance title
-        //      `"hunch show"`) when `is_path_dir_name`'s exact match
-        //      misses the normalization.
-        let invariance_title = report.title.as_deref();
-        let filename_self_describing = filename_has_bracket(input);
-        let (title_hint, last_resort_title) = match (invariance_title, fallback_title) {
-            (Some(inv), _) if filename_self_describing => {
-                // Self-describing file: any cross-file signal (invariance
-                // OR ancestor fallback) is held as last-resort. The
-                // file's own bracket extraction wins if it succeeds.
-                debug!(
-                    "filename has bracket structure — demoting cross-file title {:?} to last-resort (fallback={:?})",
-                    inv, fallback_title
-                );
-                (None, fallback_title.or(Some(inv)))
-            }
-            (Some(inv), _) if is_path_dir_name(input, inv) => {
-                // Invariance only found a directory name. Real invariance
-                // (siblings agreeing on actual filename content) is strong;
-                // dir-name invariance is weak. Prefer ancestor fallback.
-                debug!(
-                    "invariance title {:?} is a directory name — {}",
-                    inv,
-                    fallback_title
-                        .map(|fb| format!("preferring parent fallback {:?}", fb))
-                        .unwrap_or_else(|| "letting pass2 try first".to_string())
-                );
-                // With fallback: use fallback, no last resort needed.
-                // Without fallback: pass2 tries first, dir name is last resort.
-                (
-                    fallback_title,
-                    if fallback_title.is_none() {
-                        Some(inv)
-                    } else {
-                        None
-                    },
-                )
-            }
-            (Some(inv), _) => (Some(inv), None),
-            (None, Some(fb)) if filename_self_describing => {
-                // Self-describing file with no invariance signal: let
-                // pass2 extract from the filename's bracket. The ancestor
-                // fallback is held as last-resort only. (#244 follow-up)
-                debug!(
-                    "filename has bracket structure — demoting ancestor fallback {:?} to last-resort",
-                    fb
-                );
-                (None, Some(fb))
-            }
-            (None, fb) => (fb, None),
+        //    Two cross-file signals exist; both can potentially override
+        //    a Weak extraction. Invariance (sibling consensus on actual
+        //    filename content) is more authoritative than ancestor
+        //    fallback (a parent-dir-derived guess), so it takes priority
+        //    when both are present.
+        //
+        //    Pass2 then resolves the final title by comparing this hint
+        //    against the file's own extraction confidence (see
+        //    [`pick_final_title`]). The pipeline never overrides Strong
+        //    extractions — a self-describing file always wins, because
+        //    second-guessing explicit author markup is exactly the bug
+        //    `filename_has_bracket` was patching around.
+        let title_hint = match (report.title.as_ref(), fallback_title) {
+            (Some(inv), _) => Some(TitleHint {
+                value: inv.clone(),
+                position: report.title_start,
+                source: "invariance",
+            }),
+            (None, Some(fb)) => Some(TitleHint {
+                value: fb.to_string(),
+                position: None,
+                source: "fallback",
+            }),
+            (None, None) => None,
         };
+
         let mut matches = target_matches;
-        let mut result = self.pass2(
+        self.pass2(
             input,
             &mut matches,
             &target_zm,
             &target_ts,
             title_hint,
             Some(&report),
-        );
-
-        // Last resort: if pass2 found no title and we have a dir-name
-        // invariance title stashed, use it — but only if it's a meaningful
-        // name (not a generic category like "movie", "Japanese", "Anime").
-        if result.title().is_none() {
-            if let Some(lr) = last_resort_title {
-                if crate::properties::title::is_generic_dir(lr) {
-                    debug!(
-                        "pass2 found no title — last-resort {:?} is generic, skipping",
-                        lr
-                    );
-                } else {
-                    debug!(
-                        "pass2 found no title — using last-resort dir-name title {:?}",
-                        lr
-                    );
-                    result.set(Property::Title, lr);
-                }
-            }
-        }
-
-        result
+        )
     }
 
     /// Run Pass 1: tokenize → zone map → match → conflict resolve → zone disambiguate.
@@ -452,7 +423,7 @@ impl Pipeline {
         all_matches: &mut Vec<MatchSpan>,
         zone_map: &ZoneMap,
         token_stream: &TokenStream,
-        title_override: Option<&str>,
+        title_hint: Option<TitleHint>,
         report: Option<&invariance::InvarianceReport>,
     ) -> HunchResult {
         // Step 5a: Release group (post-resolution — can see claimed positions).
@@ -483,47 +454,28 @@ impl Pipeline {
         }
 
         // Step 5b: Title extraction.
-        if let Some(override_title) = title_override {
-            // Cross-file context provided a title — use it directly.
-            // Use the pre-computed byte offset from InvarianceReport if available,
-            // falling back to input.find() for backwards compatibility.
-            let title_start = report
-                .and_then(|r| r.title_start)
-                .or_else(|| input.find(override_title));
-            if let Some(start) = title_start {
-                let (start, end) = pass2_helpers::compute_override_title_span(
-                    start,
-                    override_title.len(),
-                    input.len(),
-                );
-                let title_match = MatchSpan::new(start, end, Property::Title, override_title);
-                debug!(
-                    "step 5b: title override — \"{}\" at {}..{}",
-                    title_match.value, title_match.start, title_match.end
-                );
-                title::absorb_reclaimable(&title_match, all_matches);
-                all_matches.push(title_match);
-            } else {
-                // Title text not found verbatim — set it without a byte range.
-                debug!(
-                    "step 5b: title override (no byte range) — \"{}\"",
-                    override_title
-                );
-                all_matches.push(MatchSpan::new(0, 0, Property::Title, override_title));
-            }
-        } else if let Some(title_match) =
-            title::extract_title(input, all_matches, zone_map, token_stream)
-        {
+        //
+        // The pipeline orchestrates between three possible title sources:
+        //   1. The file's own pass2 extraction (with declared
+        //      `TitleConfidence`).
+        //   2. A cross-file `title_hint` (invariance OR ancestor
+        //      fallback, already disambiguated by the caller).
+        //
+        // [`pick_final_title`] applies the precedence:
+        //   - Strong extraction always wins (file is self-describing).
+        //   - Otherwise, hint wins if present.
+        //   - Otherwise, weak extraction is used.
+        //   - Otherwise, no title.
+        let extraction = title::extract_title(input, all_matches, zone_map, token_stream);
+        if let Some(final_title) = pick_final_title(input, extraction, title_hint.as_ref()) {
             debug!(
-                "step 5b: title extracted — \"{}\" at {}..{}",
-                title_match.value, title_match.start, title_match.end
+                "step 5b: title → {:?} at {}..{}",
+                final_title.value, final_title.start, final_title.end
             );
-            // Remove reclaimable matches absorbed into the title.
-            // (This is also where Part matches inside anime titles like
-            // "Show Part 2 - 13" get dropped — they were marked reclaimable
-            // in pass1 step 4b when an Episode was present.)
-            title::absorb_reclaimable(&title_match, all_matches);
-            all_matches.push(title_match);
+            // Reclaimables inside the title span (e.g. `Part N` in anime
+            // titles, or `3D` in `Pacific.Rim.3D`) get absorbed.
+            title::absorb_reclaimable(&final_title, all_matches);
+            all_matches.push(final_title);
         }
         // Film title: when -fNN- marker exists, split franchise from movie title.
         if let Some((film_title, adjusted_title)) =
@@ -591,7 +543,7 @@ impl Pipeline {
 
         // Step 7: Compute confidence.
         let confidence =
-            pass2_helpers::compute_confidence(&result, title_override.is_some(), all_matches);
+            pass2_helpers::compute_confidence(&result, title_hint.is_some(), all_matches);
         result.set_confidence(confidence);
         debug!("step 7: confidence = {:?}", confidence);
 
@@ -668,129 +620,87 @@ impl Pipeline {
     }
 }
 
-/// Returns `true` when the **filename** portion of `input` contains a
-/// `[` — the dominant convention for explicit titles in fansub/anime
-/// releases (`[Group][Title][Episode][Quality]...`).
+/// Pick the final title from the file's own extraction and an optional
+/// cross-file [`TitleHint`].
 ///
-/// Used by [`Pipeline::run_with_context_and_fallback_inner`] to decide
-/// whether a file is "self-describing" enough that ancestor-directory
-/// fallback should defer to the file's own title extraction. Files
-/// without brackets (e.g. `Show.S01E01.mkv`, `Special.720p.mkv`) keep
-/// the legacy behavior where ancestor fallback overrides extraction.
-/// (#244 follow-up)
+/// Precedence (highest first):
+/// 1. **Strong extraction.** The file declared its own title via an
+///    explicit structural marker (bracket group, year/episode anchor,
+///    structural separator). The author is self-describing; second-
+///    guessing them is exactly the bug `filename_has_bracket` was
+///    patching around. Hint is ignored.
+/// 2. **Hint.** No strong self-description was found. The cross-file
+///    signal (invariance OR ancestor fallback, already prioritized by
+///    the caller) wins.
+/// 3. **Weak extraction.** No hint either. Use whatever residual title
+///    the file produced.
+/// 4. **Nothing.** Pass2 produced no title; no hint exists.
 ///
-/// Only the filename component is checked — bracket characters in
-/// parent directory names (a common artifact of release-group dir
-/// naming like `[DBD-Raws][Show]/file.mkv`) do **not** count.
-fn filename_has_bracket(input: &str) -> bool {
-    let fn_start = crate::filename_start(input);
-    input[fn_start..].contains('[')
-}
-
-/// Check whether `title` is derived from directory components of `input`.
-///
-/// Returns `true` when the invariance title is:
-/// - An exact match to a single directory component (e.g., `"特典映像"`)
-/// - A concatenation of consecutive directory components joined by spaces
-///   (e.g., `"夏目友人帐 特典映像"` from path `夏目友人帐/特典映像/file.mkv`)
-/// - Composed entirely of directory components, even non-consecutive
-///   (e.g., `"Anime  特典映像"` from `tv/Anime/ShowDir/特典映像/file.mkv`
-///   where `ShowDir` was consumed by matchers, leaving a double space) (#97)
-///
-/// When the invariance engine finds a title that came from directory
-/// structure rather than filename content, it's weak evidence. The caller
-/// can then prefer a fallback title or let pass2 extract from the filename.
-///
-/// Comparison is case-insensitive.
-fn is_path_dir_name(input: &str, title: &str) -> bool {
-    use std::path::Path;
-    let path = Path::new(input);
-    let title_lower = title.to_lowercase();
-
-    // Collect directory components (excluding the filename itself).
-    let dir_names: Vec<String> = path
-        .ancestors()
-        .skip(1) // skip the file itself
-        .filter_map(|a| a.file_name().and_then(|n| n.to_str()))
-        .map(|n| n.to_lowercase())
-        .collect();
-
-    // 1. Exact match to a single directory component.
-    if dir_names.contains(&title_lower) {
-        return true;
-    }
-
-    // 2. Concatenation of consecutive directory components (space-joined).
-    //    The path produces components in reverse (child → parent), so
-    //    reverse to get parent → child order, then check all contiguous
-    //    subsequences.
-    let ordered: Vec<&str> = dir_names.iter().rev().map(|s| s.as_str()).collect();
-    for start in 0..ordered.len() {
-        let mut concat = String::new();
-        for component in ordered.iter().skip(start) {
-            if !concat.is_empty() {
-                concat.push(' ');
-            }
-            concat.push_str(component);
-            if concat == title_lower {
-                return true;
-            }
+/// When the hint wins, this function locates its byte span in `input`
+/// (using `hint.position` if available, then a verbatim `find`, finally
+/// falling back to a zero-width span at offset 0 when the text doesn't
+/// appear literally — e.g. a normalized fallback like `"Paw Patrol"`
+/// against an input like `"Paw Patrol/SP/Special.720p.mkv"` *will* be
+/// found, but normalized titles often won't).
+fn pick_final_title(
+    input: &str,
+    extraction: Option<TitleExtraction>,
+    hint: Option<&TitleHint>,
+) -> Option<MatchSpan> {
+    match (extraction, hint) {
+        // Strong extraction beats any hint.
+        (Some(ex), _) if ex.confidence == TitleConfidence::Strong => {
+            trace!(
+                "title decision: STRONG extraction wins ({:?}); hint discarded",
+                ex.span.value
+            );
+            Some(ex.span)
+        }
+        // No strong self-description — use the hint when present.
+        (ex, Some(h)) => {
+            trace!(
+                "title decision: hint wins (source={}, value={:?}); extraction was {:?}",
+                h.source,
+                h.value,
+                ex.as_ref().map(|e| (&e.span.value, e.confidence))
+            );
+            Some(hint_to_match(input, h))
+        }
+        // No hint, use weak extraction if any.
+        (Some(ex), None) => {
+            trace!(
+                "title decision: weak extraction wins ({:?}); no hint available",
+                ex.span.value
+            );
+            Some(ex.span)
+        }
+        (None, None) => {
+            trace!("title decision: no extraction, no hint — no title");
+            None
         }
     }
+}
 
-    // 3. All-parts check: every non-empty whitespace-delimited part of
-    //    the title is a directory component. Catches non-consecutive dir
-    //    names joined by double spaces (e.g., "Anime  特典映像" from
-    //    tv/Anime/ShowDir/特典映像/ where ShowDir was consumed). (#97)
-    let parts: Vec<&str> = title_lower.split_whitespace().collect();
-    if parts.len() >= 2 && parts.iter().all(|part| dir_names.iter().any(|d| d == part)) {
-        return true;
+/// Materialize a [`TitleHint`] into a [`MatchSpan`], locating its byte
+/// span in `input` if possible.
+fn hint_to_match(input: &str, hint: &TitleHint) -> crate::matcher::span::MatchSpan {
+    use crate::matcher::span::{MatchSpan, Property};
+
+    let value = hint.value.as_str();
+    let position = hint.position.or_else(|| input.find(value));
+    if let Some(start) = position {
+        let (start, end) =
+            pass2_helpers::compute_override_title_span(start, value.len(), input.len());
+        MatchSpan::new(start, end, Property::Title, value)
+    } else {
+        // Title text not in input verbatim — emit a zero-width span.
+        MatchSpan::new(0, 0, Property::Title, value)
     }
-
-    false
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_is_path_dir_name() {
-        // Single directory component match.
-        assert!(is_path_dir_name("夏目友人帐/特典映像/file.mkv", "特典映像"));
-        assert!(is_path_dir_name(
-            "夏目友人帐/特典映像/file.mkv",
-            "夏目友人帐"
-        ));
-        assert!(is_path_dir_name("ShowDir/Extras/file.mkv", "Extras"));
-        assert!(is_path_dir_name("ShowDir/Extras/file.mkv", "ShowDir"));
-        // Case-insensitive.
-        assert!(is_path_dir_name("ShowDir/file.mkv", "showdir"));
-        // Compound: consecutive dir names joined by space.
-        assert!(is_path_dir_name(
-            "夏目友人帐/特典映像/file.mkv",
-            "夏目友人帐 特典映像"
-        ));
-        assert!(is_path_dir_name(
-            "Show/Season 1/Extras/file.mkv",
-            "Show Season 1"
-        ));
-        // Filename itself should NOT match.
-        assert!(!is_path_dir_name("ShowDir/file.mkv", "file"));
-        // Text not in path should NOT match.
-        assert!(!is_path_dir_name("ShowDir/file.mkv", "OtherDir"));
-        // Non-contiguous dir names should match via all-parts check (#97).
-        assert!(is_path_dir_name(
-            "tv/Anime/ShowDir/特典映像/file.mkv",
-            "Anime  特典映像"
-        ));
-        assert!(is_path_dir_name("A/B/C/file.mkv", "A C"));
-        assert!(is_path_dir_name("A/B/C/file.mkv", "A  C"));
-        // Single word that is NOT a dir name should NOT match.
-        assert!(!is_path_dir_name("A/B/C/file.mkv", "D E"));
-        // Mixed: one part is a dir, the other isn't.
-        assert!(!is_path_dir_name("A/B/C/file.mkv", "A D"));
-    }
 
     // ---- match_overlaps_any_title_year ----
     //

@@ -8,13 +8,21 @@
 use crate::matcher::span::{MatchSpan, Property};
 
 use super::super::clean::{clean_title, is_generic_dir, strip_extension};
-use super::{StrategyContext, TitleStrategy};
+use super::{StrategyContext, TitleConfidence, TitleStrategy};
 
 pub(crate) struct ParentDir;
 
 impl TitleStrategy for ParentDir {
     fn name(&self) -> &'static str {
         "parent_dir"
+    }
+
+    /// Walking up the directory tree to grab a path component is a
+    /// last-resort heuristic, not a self-description. The filename
+    /// itself contained no usable signal. Ancestor fallback (an
+    /// explicit hint from the caller) should beat this.
+    fn confidence(&self) -> TitleConfidence {
+        TitleConfidence::Weak
     }
 
     fn try_extract(&self, ctx: &StrategyContext<'_>) -> Option<MatchSpan> {
