@@ -41,16 +41,29 @@ pub(crate) struct UnclaimedGap {
 ///
 /// Gaps are regions of the input that no `MatchSpan` covers. These are the
 /// candidate regions for title text. The extension (last `.xxx`) is excluded.
+///
+/// **Scope**: only the filename portion of `input` is scanned. Path-prefix
+/// text (everything before the last `/` or `\`) is excluded from gap
+/// analysis because cross-file invariance against path components produces
+/// misleading "titles" — e.g., siblings sharing parent dir `hunch_show2/`
+/// would yield invariant text `"hunch show"`, not the actual show title in
+/// the brackets. The pipeline layer was previously patching this up with a
+/// post-hoc `is_path_dir_name` check; scoping to filename eliminates the
+/// problem at the source. Path-derived title hints are the responsibility
+/// of the explicit `ParentDir` strategy / ancestor-fallback API, which use
+/// directory components deliberately rather than via accidental invariance.
 pub(crate) fn find_unclaimed_gaps(input: &str, matches: &[MatchSpan]) -> Vec<UnclaimedGap> {
     // Sort matches by start position.
     let mut sorted: Vec<(usize, usize)> = matches.iter().map(|m| (m.start, m.end)).collect();
     sorted.sort_by_key(|&(s, _)| s);
 
-    // Find the input region to scan (exclude file extension).
+    // Confine the scan to the filename portion. The path prefix is
+    // structurally unsuitable for invariance analysis (see doc above).
+    let filename_start = crate::filename_start(input);
     let scan_end = strip_extension_pos(input);
 
     let mut gaps = Vec::new();
-    let mut cursor = 0;
+    let mut cursor = filename_start;
 
     for (start, end) in &sorted {
         let start = *start;

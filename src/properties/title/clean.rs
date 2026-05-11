@@ -274,8 +274,14 @@ static RE_TRAILING_PART: LazyLock<regex::Regex> = LazyLock::new(|| {
 });
 
 static RE_TRAILING_SEASON: LazyLock<regex::Regex> = LazyLock::new(|| {
+    // Matches trailing season tokens in two flavors:
+    //   1. Long form: `Season 2`, `Saison 2`, `Stagione II`, `Temporada 3 & 4`, ...
+    //   2. Short form: `S2`, `S03`, `S10` (anime fansub convention).
+    //
+    // The short form is anchored with `\b` and bounded to 1-3 digits so it
+    // doesn't eat trailing words like `Inus` (which ends in `s`) or `Spider-Man`.
     regex::Regex::new(
-        r"(?i)\s+(?:Saison|Temporada|Stagione|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
+        r"(?i)\s+(?:S\d{1,3}|(?:Saison|Temporada|Stagione|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?)\s*$"
     ).expect("RE_TRAILING_SEASON regex is valid")
 });
 
@@ -528,6 +534,26 @@ pub(crate) fn is_generic_dir(name: &str) -> bool {
             | "特典"      // tokuten — bonus/extras (JP)
             | "映像特典"  // eizou tokuten — video bonus (JP)
             | "sp"
+            // Anime-extras structural directory names. Real-world layouts:
+            //   Show/PV/file.mkv, Show/NCOP&NCED/file.mkv, Show/menu/file.mkv
+            // These are STRUCTURAL groupings (preview clips, creditless
+            // openings/endings, BD menu screens) — not the show title.
+            // Without this list, parent_dir would leak "PV"/"menu"/etc.
+            // as the title in --batch -r mode. (#244)
+            | "pv"
+            | "op"
+            | "ed"
+            | "ncop"
+            | "nced"
+            | "ncop&nced"
+            | "nced&ncop"
+            | "menu"
+            | "menus"
+            | "ova"
+            | "oad"
+            | "ona"
+            | "cm"
+            | "tokuten"
             // Subtitles / audio
             | "subs"
             | "subtitles"

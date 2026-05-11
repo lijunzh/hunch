@@ -5,13 +5,22 @@
 
 use crate::matcher::span::{MatchSpan, Property};
 
-use super::{StrategyContext, TitleStrategy};
+use super::super::clean::clean_title;
+use super::{StrategyContext, TitleConfidence, TitleStrategy};
 
 pub(crate) struct CjkBracket;
 
 impl TitleStrategy for CjkBracket {
     fn name(&self) -> &'static str {
         "cjk_bracket"
+    }
+
+    /// `[Group][Title][Episode]` is a deliberate, structurally-marked
+    /// title in the dominant fansub convention. The author placed the
+    /// title inside a bracket bounded by an episode anchor — about as
+    /// explicit a self-description as a filename can be.
+    fn confidence(&self) -> TitleConfidence {
+        TitleConfidence::Strong
     }
 
     fn try_extract(&self, ctx: &StrategyContext<'_>) -> Option<MatchSpan> {
@@ -56,10 +65,16 @@ impl TitleStrategy for CjkBracket {
         let abs_end = filename_start + second_open + 1 + content.len();
 
         // Check if this bracket content is already claimed by a tech match.
+        //
+        // Season/Episode matches inside the title bracket (e.g., `S2` in
+        // `[Re Zero ... Seikatsu S2]`) do NOT disqualify the bracket from
+        // being the title — they're inline metadata that lives ALONGSIDE
+        // the title, not a competing claim on it. Trailing `S2`/`Season N`
+        // is then stripped by `clean_title` via `RE_TRAILING_SEASON`. (#244)
         let is_claimed = matches.iter().any(|m| {
             !matches!(
                 m.property,
-                Property::ReleaseGroup | Property::Title | Property::Episode
+                Property::ReleaseGroup | Property::Title | Property::Season | Property::Episode
             ) && m.start < abs_end
                 && m.end > abs_start
         });
@@ -67,11 +82,15 @@ impl TitleStrategy for CjkBracket {
             return None;
         }
 
-        Some(MatchSpan::new(
-            abs_start,
-            abs_end,
-            Property::Title,
-            content.to_string(),
-        ))
+        // Run the bracket content through the standard title-cleaning
+        // pipeline. This strips trailing `S2` / `Season N` / `Part N` /
+        // bonus markers using the same regexes used by every other title
+        // path — no parallel implementation. (#244)
+        let cleaned = clean_title(content);
+        if cleaned.is_empty() {
+            return None;
+        }
+
+        Some(MatchSpan::new(abs_start, abs_end, Property::Title, cleaned))
     }
 }

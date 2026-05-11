@@ -13,7 +13,7 @@ use std::sync::LazyLock;
 use super::context::{
     SEPS, TRIM_CHARS, UnclaimedGap, find_invariant_text, find_unclaimed_gaps, strip_extension_pos,
 };
-use crate::matcher::span::MatchSpan;
+use crate::matcher::span::{MatchSpan, Property};
 
 // ── InvarianceReport: unified cross-file analysis ─────────────────────────
 // Phase 1 of #52/#53: structs + analysis logic.
@@ -116,9 +116,27 @@ pub(crate) fn analyze_invariance(
         .map(|s| find_unclaimed_gaps(s.input, s.matches))
         .collect();
 
-    // 2. Title: invariant text (existing algorithm).
-    let all_gap_refs: Vec<&[UnclaimedGap]> = std::iter::once(target_gaps.as_slice())
-        .chain(sibling_gaps.iter().map(|v| v.as_slice()))
+    // 2. Title: invariant text in *pre-anchor* gaps only.
+    //
+    //    A gap qualifies as a title candidate only when it precedes the
+    //    first content anchor (Season/Episode/Year) in the filename.
+    //    Rationale: titles structurally appear *before* the
+    //    season/episode/year identifier; text that's invariant *after*
+    //    that identifier is per-episode-title commonality, not show
+    //    title. Without this filter, files like
+    //    `Show/S01E10 - Pups Save Ryder's Robot.mkv` and
+    //    `Show/S01E11 - Pups and the Ghost Pirate.mkv` would yield an
+    //    invariance title of `"Pups"` (the common prefix of two
+    //    episode-title strings) and clobber the correct `"Show"` from
+    //    the parent directory. (#244 follow-up bug A)
+    let target_pre = title_candidate_gaps(&target_gaps, target.input, target.matches);
+    let sibling_pre: Vec<Vec<UnclaimedGap>> = siblings
+        .iter()
+        .zip(&sibling_gaps)
+        .map(|(s, gaps)| title_candidate_gaps(gaps, s.input, s.matches))
+        .collect();
+    let all_gap_refs: Vec<&[UnclaimedGap]> = std::iter::once(target_pre.as_slice())
+        .chain(sibling_pre.iter().map(|v| v.as_slice()))
         .collect();
     let (title, title_start) = match find_invariant_text(&all_gap_refs) {
         Some((start, text)) => (Some(text), Some(start)),
@@ -162,6 +180,49 @@ pub(crate) fn analyze_invariance(
         title_start,
         year_signals,
         episode_signals,
+    }
+}
+
+/// Filter `gaps` to those eligible to contribute a title via invariance.
+///
+/// A gap qualifies when it ends **at or before** the start of the first
+/// content anchor (Season / Episode / Year) in the filename. Anything
+/// after the first such anchor is post-title territory — release-group
+/// noise, episode titles, language tags, etc. — where cross-file
+/// commonality reflects naming convention, not show identity.
+///
+/// Files with **no** content anchor in the filename pass all gaps
+/// through unchanged: the whole filename body is title territory (e.g.
+/// `Movie.Name.2020.mkv` only has a Year, but `Movie.Name.mkv` has none
+/// and the entire stem is fair game).
+///
+/// Path-prefix gaps were already excluded structurally by
+/// [`find_unclaimed_gaps`].
+fn title_candidate_gaps(
+    gaps: &[UnclaimedGap],
+    input: &str,
+    matches: &[MatchSpan],
+) -> Vec<UnclaimedGap> {
+    let fn_start = crate::filename_start(input);
+    let first_anchor = matches
+        .iter()
+        .filter(|m| {
+            m.start >= fn_start
+                && matches!(
+                    m.property,
+                    Property::Season | Property::Episode | Property::Year
+                )
+        })
+        .map(|m| m.start)
+        .min();
+
+    match first_anchor {
+        Some(anchor) => gaps
+            .iter()
+            .filter(|g| find_gap_end_in_input(input, g) <= anchor)
+            .cloned()
+            .collect(),
+        None => gaps.to_vec(),
     }
 }
 

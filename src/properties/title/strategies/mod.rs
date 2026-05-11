@@ -46,9 +46,65 @@ pub(super) use cjk_bracket::CjkBracket;
 pub(super) use parent_dir::ParentDir;
 pub(super) use unclaimed_bracket::UnclaimedBracket;
 
+/// How much the pipeline should trust an extracted title.
+///
+/// The pipeline orchestrates between three title sources:
+///   1. The file's own pass2 extraction (this enum).
+///   2. Cross-file invariance (sibling consensus).
+///   3. Ancestor fallback (a parent directory's cached title).
+///
+/// Confidence determines who wins when multiple sources disagree. The
+/// general rule: **a structurally-marked self-description beats any
+/// external hint, because the file is asserting its own identity.**
+///
+/// Replaces the previous `filename_has_bracket` heuristic with a
+/// per-strategy declaration of strength.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TitleConfidence {
+    /// Positional / residual extraction. The title is whatever bytes
+    /// remained after other matchers consumed structural tokens. There
+    /// was no explicit syntactic marker (bracket group, structural
+    /// separator, etc.) bounding the title — just "the leftover".
+    ///
+    /// Examples:
+    ///   - `Special.720p.mkv` → "Special" (just the bytes before tech)
+    ///   - `Interview.720p.mkv` → "Interview"
+    ///   - `S01E01.mkv` with no other content → ParentDir last resort
+    ///
+    /// Weak signals lose to ancestor fallback and to invariance.
+    Weak,
+
+    /// Title bounded by a structural marker that the file author
+    /// deliberately placed: a bracket group (`[Title]`), a structural
+    /// separator (` - `), an explicit episode/season/year anchor, or a
+    /// fansub convention like `[Group][Title][Ep]`.
+    ///
+    /// Examples:
+    ///   - `[DBD-Raws][Otto's Diary][01].mkv` → CJK bracket
+    ///   - `[Group] Title - 01 [tags].mkv` → AfterBracketGroup
+    ///   - `Show.Name.S01E01.mkv` → dotted with explicit episode anchor
+    ///
+    /// The file is self-describing. Beats invariance and ancestor
+    /// fallback — we don't second-guess the author's explicit markup.
+    Strong,
+}
+
+/// A title extraction result paired with its confidence.
+#[derive(Debug, Clone)]
+pub struct TitleExtraction {
+    pub span: MatchSpan,
+    pub confidence: TitleConfidence,
+}
+
+impl TitleExtraction {
+    pub(super) fn new(span: MatchSpan, confidence: TitleConfidence) -> Self {
+        Self { span, confidence }
+    }
+}
+
 /// Inputs every strategy needs. Bundled into a struct so adding a new
 /// piece of context (e.g. `zone_map`) is a one-line change to every
-/// strategy signature \u2014 not N.
+/// strategy signature — not N.
 pub(super) struct StrategyContext<'a> {
     pub input: &'a str,
     pub matches: &'a [MatchSpan],
@@ -63,6 +119,10 @@ pub(super) trait TitleStrategy: Sync {
     /// Short, debug-friendly identifier (e.g. `"cjk_bracket"`). Used in
     /// trace logs to explain *which* strategy claimed the title.
     fn name(&self) -> &'static str;
+
+    /// How much the pipeline should trust this strategy's extraction.
+    /// See [`TitleConfidence`] for the semantic contract.
+    fn confidence(&self) -> TitleConfidence;
 
     /// Try to produce a title match. Return `None` if the strategy does
     /// not apply to this input (the next strategy in the ladder is then
@@ -90,18 +150,22 @@ pub(super) static FALLBACK_STRATEGIES: &[&dyn TitleStrategy] = &[
     &ParentDir,
 ];
 
-/// Run the ladder; return the first hit.
-pub(super) fn run_fallback_ladder(ctx: &StrategyContext<'_>) -> Option<MatchSpan> {
+/// Run the ladder; return the first hit paired with that strategy's
+/// declared confidence. The pipeline uses the confidence to decide
+/// whether cross-file context (invariance, ancestor fallback) should
+/// override this title.
+pub(super) fn run_fallback_ladder(ctx: &StrategyContext<'_>) -> Option<TitleExtraction> {
     for strategy in FALLBACK_STRATEGIES {
         if let Some(title) = strategy.try_extract(ctx) {
             trace!(
-                "title fallback: {} claimed {:?} at {}..{}",
+                "title fallback: {} ({:?}) claimed {:?} at {}..{}",
                 strategy.name(),
+                strategy.confidence(),
                 title.value,
                 title.start,
                 title.end
             );
-            return Some(title);
+            return Some(TitleExtraction::new(title, strategy.confidence()));
         }
     }
     None

@@ -7,9 +7,17 @@ use clap::Parser;
 use hunch::{Confidence, Pipeline};
 
 /// Media file extensions recognized for batch/context scanning.
+///
+/// Includes both video containers and external-subtitle formats. The pipeline
+/// classifies each container correctly via `rules/container.toml`, so subtitle
+/// files share the same code path as videos — they just yield different
+/// `container` / `mimetype` properties. (#244)
 const MEDIA_EXTENSIONS: &[&str] = &[
+    // Video containers
     "mkv", "mp4", "avi", "wmv", "flv", "ts", "m4v", "webm", "ogv", "mov", "mpg", "mpeg", "m2ts",
     "iso", "img", "rmvb", "rm",
+    // External subtitle formats (most common in anime workflows)
+    "srt", "ass", "ssa", "sub", "idx", "vtt", "sup", "smi",
 ];
 
 #[derive(Parser)]
