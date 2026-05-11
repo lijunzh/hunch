@@ -534,6 +534,26 @@ pub(crate) fn is_generic_dir(name: &str) -> bool {
             | "特典"      // tokuten — bonus/extras (JP)
             | "映像特典"  // eizou tokuten — video bonus (JP)
             | "sp"
+            // Anime-extras structural directory names. Real-world layouts:
+            //   Show/PV/file.mkv, Show/NCOP&NCED/file.mkv, Show/menu/file.mkv
+            // These are STRUCTURAL groupings (preview clips, creditless
+            // openings/endings, BD menu screens) — not the show title.
+            // Without this list, parent_dir would leak "PV"/"menu"/etc.
+            // as the title in --batch -r mode. (#244)
+            | "pv"
+            | "op"
+            | "ed"
+            | "ncop"
+            | "nced"
+            | "ncop&nced"
+            | "nced&ncop"
+            | "menu"
+            | "menus"
+            | "ova"
+            | "oad"
+            | "ona"
+            | "cm"
+            | "tokuten"
             // Subtitles / audio
             | "subs"
             | "subtitles"
