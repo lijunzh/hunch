@@ -48,19 +48,22 @@ OAD2   = "OAD"
 ONA    = "ONA"
 ONA1   = "ONA"
 ONA2   = "ONA"
-# Preview / Commercial / Menu
+# Preview / Commercial
 PV     = "PV"
 PV1    = "PV"
 PV2    = "PV"
 CM     = "CM"
 CM1    = "CM"
 CM2    = "CM"
-# Menu (BD menu screens)
-MENU   = "Menu"
+# (Menu moved to case-insensitive [exact] below — real-world filenames
+# use any of [menu]/[Menu]/[MENU]; "menu" as a title word is too rare
+# to justify case-sensitive matching here. See #244.)
 
 [exact]
 # Tokuten (特典) — Japanese BD bonus/extras
 tokuten = "Tokuten"
+# Menu (BD menu screens) — case-insensitive so [menu], [Menu], [MENU] all match.
+menu    = "Menu"
 
 [[patterns]]
 # Numbered variants with higher numbers: SP01, SP02, etc.
