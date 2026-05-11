@@ -71,9 +71,17 @@ impl TitleStrategy for UnclaimedBracket {
             }
 
             // Check if this bracket's content overlaps with any existing match.
+            //
+            // Season/Episode matches inside a title bracket (e.g., `S2` in
+            // `[Re Zero ... Seikatsu S2]`) do NOT disqualify the bracket from
+            // being the title — they're inline metadata that lives ALONGSIDE
+            // the title, not a competing claim on it. Trailing `S2`/`Season N`
+            // is then stripped by `clean_title` via `RE_TRAILING_SEASON`. (#244)
             let is_claimed = matches.iter().any(|m| {
-                !matches!(m.property, Property::ReleaseGroup | Property::Title)
-                    && m.start < abs_end
+                !matches!(
+                    m.property,
+                    Property::ReleaseGroup | Property::Title | Property::Season | Property::Episode
+                ) && m.start < abs_end
                     && m.end > abs_start
             });
 

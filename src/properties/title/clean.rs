@@ -274,8 +274,14 @@ static RE_TRAILING_PART: LazyLock<regex::Regex> = LazyLock::new(|| {
 });
 
 static RE_TRAILING_SEASON: LazyLock<regex::Regex> = LazyLock::new(|| {
+    // Matches trailing season tokens in two flavors:
+    //   1. Long form: `Season 2`, `Saison 2`, `Stagione II`, `Temporada 3 & 4`, ...
+    //   2. Short form: `S2`, `S03`, `S10` (anime fansub convention).
+    //
+    // The short form is anchored with `\b` and bounded to 1-3 digits so it
+    // doesn't eat trailing words like `Inus` (which ends in `s`) or `Spider-Man`.
     regex::Regex::new(
-        r"(?i)\s+(?:Saison|Temporada|Stagione|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?\s*$"
+        r"(?i)\s+(?:S\d{1,3}|(?:Saison|Temporada|Stagione|Tem\.?|Season|Seasons?)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+)?(?:\s*(?:&|and)\s*(?:I{1,4}|IV|VI{0,3}|IX|X{0,3}|[0-9]+))?)\s*$"
     ).expect("RE_TRAILING_SEASON regex is valid")
 });
 
