@@ -249,9 +249,38 @@ impl Pipeline {
         //   - Otherwise let pass2's normal extractor try first. If pass2
         //     also fails, use the dir-name title as last resort — an
         //     imprecise title beats no title (#97).
+        //
+        // **Self-describing files** (#244 follow-up): when the filename
+        // itself contains a bracket group (the dominant convention for
+        // explicit titles in fansub releases), the file is treated as
+        // self-describing. BOTH invariance and ancestor fallback are
+        // demoted from override to last-resort — they only fire if the
+        // file's own extraction returns nothing. This prevents two
+        // failure modes seen in batch -r mode against anime libraries:
+        //   1. Sibling-consensus clobbering distinct sub-show titles
+        //      (e.g. mini-anims under `迷你动画/` getting the parent
+        //      show's title because the parent dir cached it).
+        //   2. Invariance picking up a normalized path-prefix as the
+        //      title (e.g. `hunch_show2/...` → invariance title
+        //      `"hunch show"`) when `is_path_dir_name`'s exact match
+        //      misses the normalization.
         let invariance_title = report.title.as_deref();
+        let filename_self_describing = filename_has_bracket(input);
         let (title_hint, last_resort_title) = match (invariance_title, fallback_title) {
+            (Some(inv), _) if filename_self_describing => {
+                // Self-describing file: any cross-file signal (invariance
+                // OR ancestor fallback) is held as last-resort. The
+                // file's own bracket extraction wins if it succeeds.
+                debug!(
+                    "filename has bracket structure — demoting cross-file title {:?} to last-resort (fallback={:?})",
+                    inv, fallback_title
+                );
+                (None, fallback_title.or(Some(inv)))
+            }
             (Some(inv), _) if is_path_dir_name(input, inv) => {
+                // Invariance only found a directory name. Real invariance
+                // (siblings agreeing on actual filename content) is strong;
+                // dir-name invariance is weak. Prefer ancestor fallback.
                 debug!(
                     "invariance title {:?} is a directory name — {}",
                     inv,
@@ -271,6 +300,16 @@ impl Pipeline {
                 )
             }
             (Some(inv), _) => (Some(inv), None),
+            (None, Some(fb)) if filename_self_describing => {
+                // Self-describing file with no invariance signal: let
+                // pass2 extract from the filename's bracket. The ancestor
+                // fallback is held as last-resort only. (#244 follow-up)
+                debug!(
+                    "filename has bracket structure — demoting ancestor fallback {:?} to last-resort",
+                    fb
+                );
+                (None, Some(fb))
+            }
             (None, fb) => (fb, None),
         };
         let mut matches = target_matches;
@@ -627,6 +666,25 @@ impl Pipeline {
 
         matches
     }
+}
+
+/// Returns `true` when the **filename** portion of `input` contains a
+/// `[` — the dominant convention for explicit titles in fansub/anime
+/// releases (`[Group][Title][Episode][Quality]...`).
+///
+/// Used by [`Pipeline::run_with_context_and_fallback_inner`] to decide
+/// whether a file is "self-describing" enough that ancestor-directory
+/// fallback should defer to the file's own title extraction. Files
+/// without brackets (e.g. `Show.S01E01.mkv`, `Special.720p.mkv`) keep
+/// the legacy behavior where ancestor fallback overrides extraction.
+/// (#244 follow-up)
+///
+/// Only the filename component is checked — bracket characters in
+/// parent directory names (a common artifact of release-group dir
+/// naming like `[DBD-Raws][Show]/file.mkv`) do **not** count.
+fn filename_has_bracket(input: &str) -> bool {
+    let fn_start = crate::filename_start(input);
+    input[fn_start..].contains('[')
 }
 
 /// Check whether `title` is derived from directory components of `input`.
