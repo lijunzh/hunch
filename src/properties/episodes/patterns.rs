@@ -69,9 +69,10 @@ pub(super) static VERSIONED_EPISODE: LazyLock<Regex> =
 pub(super) static LEADING_EPISODE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^(?P<episode>0\d{1,3}|\d{1,3})(?:\s*[-.]\s+[A-Za-z])"));
 
-/// Anime episode: `- 01`, `- 001`.
+/// Anime episode: `- 01`, `- 001`, and `_-_01_` from releases that write
+/// every space as an underscore.
 pub(super) static ANIME_EPISODE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?<![a-z0-9])[-]\s+(?P<episode>\d{1,4})(?:\s|[.]|$)"));
+    LazyLock::new(|| Regex::new(r"(?<![a-z0-9])[-][\s_]+(?P<episode>\d{1,4})(?:[\s_]|[.]|$)"));
 
 /// Bare episode after dots: `Show.05.Title`.
 pub(super) static BARE_EPISODE: LazyLock<Regex> =

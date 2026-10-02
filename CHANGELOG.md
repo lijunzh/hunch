@@ -14,6 +14,13 @@ Release prep checklist:
 
 ## [Unreleased]
 
+### Fixed
+
+- Anime episode numbers written with underscores around the dash, as in
+  `[Group]_Show_-_12_(1080p).mkv`, now parse as episode 12. The pattern
+  accepted only whitespace there, so these names came out as films with
+  no episode. Two more of guessit's episode fixtures pass as a result.
+
 ## [2.0.2] - 2026-05-11
 
 ### Fixed

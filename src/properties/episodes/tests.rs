@@ -193,6 +193,17 @@ fn test_anime_dash_episode() {
 }
 
 #[test]
+fn test_anime_dash_episode_underscores() {
+    // Fansub releases often write every space as `_`, including the ones
+    // around the dash before the episode number.
+    let m = find_matches("[Grp]_Show_Name_-_12_(1080p)_[4D5E6F70].mkv");
+    assert!(
+        m.iter()
+            .any(|x| x.property == Property::Episode && x.value == "12")
+    );
+}
+
+#[test]
 fn test_bare_dot_episode() {
     let m = find_matches("Neverwhere.05.Down.Street.avi");
     assert!(
