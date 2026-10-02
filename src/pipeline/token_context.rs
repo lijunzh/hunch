@@ -307,20 +307,20 @@ fn is_after_metadata_separator(
     // Since the tokenizer treats " - " as just separators between tokens,
     // we look for the pattern: prev_token then dash-space before current.
     // The simplest check: did the original input have " - " before this token?
-    if let Some(token) = tokens.get(token_idx) {
-        if token.start >= 3 {
-            // We need access to the raw input here, but we only have tokens.
-            // Instead, check the separator chain: if this token's separator
-            // is Dash and the gap between prev.end and token.start includes
-            // spaces, it's a " - " pattern.
-            if token.separator == Separator::Dash || token.separator == Separator::Space {
-                // Check if there's a dash in the gap between prev and current.
-                let gap_start = prev.end;
-                let gap_end = token.start;
-                if gap_end > gap_start + 1 {
-                    // Multi-character gap → likely " - "
-                    return true;
-                }
+    if let Some(token) = tokens.get(token_idx)
+        && token.start >= 3
+    {
+        // We need access to the raw input here, but we only have tokens.
+        // Instead, check the separator chain: if this token's separator
+        // is Dash and the gap between prev.end and token.start includes
+        // spaces, it's a " - " pattern.
+        if token.separator == Separator::Dash || token.separator == Separator::Space {
+            // Check if there's a dash in the gap between prev and current.
+            let gap_start = prev.end;
+            let gap_end = token.start;
+            if gap_end > gap_start + 1 {
+                // Multi-character gap → likely " - "
+                return true;
             }
         }
     }

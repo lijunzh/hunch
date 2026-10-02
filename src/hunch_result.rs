@@ -400,21 +400,17 @@ impl HunchResult {
             let key = k.to_string();
             let numeric = k.is_numeric();
             if v.len() == 1 {
-                if numeric {
-                    if let Ok(n) = v[0].parse::<i64>() {
-                        map.insert(key, serde_json::Value::Number(n.into()));
-                        continue;
-                    }
+                if numeric && let Ok(n) = v[0].parse::<i64>() {
+                    map.insert(key, serde_json::Value::Number(n.into()));
+                    continue;
                 }
                 map.insert(key, serde_json::Value::String(v[0].clone()));
             } else {
                 let arr: Vec<serde_json::Value> = v
                     .iter()
                     .map(|s| {
-                        if numeric {
-                            if let Ok(n) = s.parse::<i64>() {
-                                return serde_json::Value::Number(n.into());
-                            }
+                        if numeric && let Ok(n) = s.parse::<i64>() {
+                            return serde_json::Value::Number(n.into());
                         }
                         serde_json::Value::String(s.clone())
                     })

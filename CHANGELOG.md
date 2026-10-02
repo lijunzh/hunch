@@ -14,6 +14,12 @@ Release prep checklist:
 
 ## [Unreleased]
 
+### Fixed
+
+- `rust-version` now says 1.88. The crate uses let chains, which Rust
+  stabilised in 1.88, so it never built on the 1.85 it declared. CI gains
+  an MSRV job that builds on the declared version.
+
 ## [2.0.2] - 2026-05-11
 
 ### Fixed

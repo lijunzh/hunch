@@ -41,6 +41,19 @@ jobs:
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
       - run: cargo clippy --all-targets -- -D warnings
 
+  msrv:
+    name: MSRV
+    # Builds on the rust-version declared in Cargo.toml. The other jobs use
+    # stable, so without this one newer syntax can land unnoticed.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+        with:
+          toolchain: "1.88"
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32  # v2
+      - run: cargo check --locked --all-targets
+
   test:
     name: Test
     # Cross-OS test matrix catches platform-conditional behavior:

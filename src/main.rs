@@ -255,10 +255,8 @@ fn run_batch(pipeline: &Pipeline, batch_dir: &Path, recursive: bool, json: bool)
 
         // Cache the most common title from this directory group so child
         // directories can inherit it as fallback context. (#94)
-        if recursive {
-            if let Some(title) = most_common_title(&group_titles) {
-                dir_titles.insert(parent_key.clone(), title);
-            }
+        if recursive && let Some(title) = most_common_title(&group_titles) {
+            dir_titles.insert(parent_key.clone(), title);
         }
     }
 }
