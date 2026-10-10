@@ -34,6 +34,19 @@
   type: episode
   video_profile: !!null
 
+# Underscores around the dash before an anime episode number. Many fansub
+# releases write every space as `_`, and `Show_-_12_` must parse the same
+# way as `Show - 12`. The show and group names are made up.
+? "[Grp]_Paper_Lantern_Club_-_12_(1920x1080_H264)_[4D5E6F70].mkv"
+: release_group: Grp
+  title: Paper Lantern Club
+  episode: 12
+  screen_size: 1080p
+  video_codec: H.264
+  crc32: 4D5E6F70
+  container: mkv
+  type: episode
+
 # --- Edge Cases ---
 
 # (add community-reported edge cases here)
