@@ -926,3 +926,21 @@ fn episode_with_repack_and_proper_emits_proper_count_two() {
     let r = hunch("Show.S01E03.REPACK.PROPER.mkv");
     assert_eq!(r.proper_count(), Some(2));
 }
+
+// Regression: issue #287 — a mid-name `SUB` release tag was read as a
+// subtitle container, which stripped video_codec from the result.
+#[test]
+fn sub_release_tag_is_not_a_container() {
+    let r = hunch(
+        "Moana.2.2024.Hybrid.MULTi.SUB.2160p.AMZN.WEB-DL.DV.HDR10.DDP5.1.Atmos.H265-Garfieldowcy-SZAFQU.mkv",
+    );
+    assert_eq!(r.video_codec(), Some("H.265"));
+    assert_eq!(r.container(), Some("mkv"));
+}
+
+#[test]
+fn sub_file_extension_still_strips_tech_properties() {
+    let r = hunch("Movie.2024.1080p.x264.sub");
+    assert_eq!(r.container(), Some("sub"));
+    assert_eq!(r.video_codec(), None);
+}

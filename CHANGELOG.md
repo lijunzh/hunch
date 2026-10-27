@@ -14,6 +14,13 @@ Release prep checklist:
 
 ## [Unreleased]
 
+### Fixed
+
+- **`SUB` release tag no longer breaks `video_codec`** (#287). A mid-name
+  `SUB` token (hardcoded subs) was emitted as a subtitle container, which
+  made the pipeline strip `video_codec` and other tech properties. Only the
+  real file extension now counts as a subtitle container.
+
 ## [2.0.3] - 2026-10-27
 
 ### Fixed

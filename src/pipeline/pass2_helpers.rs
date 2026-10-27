@@ -183,9 +183,13 @@ const SUBTITLE_STRIP_PROPERTIES: &[Property] = &[
 ];
 
 /// Strip video/audio tech properties from subtitle containers.
+///
+/// Only the file extension counts: a mid-name token like the `SUB`
+/// release tag (`Movie.MULTi.SUB.2160p.H265.mkv`) is not a subtitle file.
 pub(super) fn strip_tech_from_subtitle_containers(matches: &mut Vec<MatchSpan>) {
     let is_subtitle = matches.iter().any(|m| {
         m.property == Property::Container
+            && m.is_extension
             && SUBTITLE_CONTAINERS
                 .iter()
                 .any(|ext| m.value.eq_ignore_ascii_case(ext))
