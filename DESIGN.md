@@ -342,6 +342,35 @@ new foundation.
 This principle is enforced in code review, not by tooling. Reviewers
 flagging tripwire violations is the load-bearing mechanism.
 
+### D11: Title precedence — self-description beats context beats residue (P1, P2)
+
+D6 says to prefer context over heuristics. D11 settles what happens
+when a file's own title extraction and a cross-file signal disagree.
+`pick_final_title` (`src/pipeline/mod.rs`) decides, in this order:
+
+1. **Strong extraction.** The filename described its own title with an
+   explicit structural marker (bracket group, year/episode anchor,
+   structural separator). The author is self-describing; hunch does not
+   second-guess them, and any hint is discarded.
+2. **Hint.** No strong self-description. The cross-file signal wins:
+   sibling invariance first, then ancestor-directory fallback (the
+   caller has already ranked these).
+3. **Weak extraction.** No hint either. Use the residual text left in
+   the title zone.
+4. **Nothing.** No title is emitted rather than inventing one.
+
+Each extractor tags its result `Strong` or `Weak` (`TitleConfidence`).
+A new title strategy must pick a tier honestly: `Strong` only if a
+syntactic marker bounds the title, not merely because it is the
+leftover text. Weak signals losing to context is the point of D6, so
+do not promote a residual strategy to `Strong` to win an argument with
+a hint; fix the context instead.
+
+The protocol deliberately ranks a file's explicit self-description
+above context, even though D6's table rates context as Strong too. The
+two are not in conflict: invariance and path context settle files that
+*don't* say what their title is.
+
 ---
 
 ## Architecture Overview

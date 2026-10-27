@@ -44,10 +44,11 @@ rmvb  = "rmvb"
 mk3d  = "mk3d"
 
 # ── Subtitle containers ─────────────────────────────────────────────────────
+# `sub` is deliberately absent: mid-name `SUB` is a release tag (hardcoded
+# subs), not a container. `.sub` as a file extension is handled by PATH A.
 srt   = "srt"
 ass   = "ass"
 ssa   = "ssa"
-sub   = "sub"
 sup   = "sup"
 idx   = "idx"
 vtt   = "vtt"
