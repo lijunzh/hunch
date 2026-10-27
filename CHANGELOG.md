@@ -14,6 +14,8 @@ Release prep checklist:
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-10-27
+
 ### Fixed
 
 - **`SUB` release tag no longer breaks `video_codec`** (#287). A mid-name
@@ -1257,6 +1259,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[2.0.4]: https://github.com/lijunzh/hunch/releases/tag/v2.0.4
 [2.0.3]: https://github.com/lijunzh/hunch/releases/tag/v2.0.3
 [2.0.2]: https://github.com/lijunzh/hunch/releases/tag/v2.0.2
 [2.0.1]: https://github.com/lijunzh/hunch/releases/tag/v2.0.1
