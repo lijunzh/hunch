@@ -33,7 +33,7 @@ jobs:
   build-and-deploy:
     name: Build mdbook + deploy to gh-pages
     runs-on: ubuntu-latest
-    # Token override needed for peaceiris to push to gh-pages.
+    # contents: write is needed to push to gh-pages.
     permissions:
       contents: write
     steps:
@@ -50,14 +50,36 @@ jobs:
         run: mdbook build docs
 
       - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453  # v4.1.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_branch: gh-pages
-          publish_dir: docs/book
-          # No keep_files: the bench dashboard data at /dev/bench/ that
-          # this used to preserve was retired alongside benches/ and the
-          # benchmark workflow. Next deploy wipes it cleanly.
-          commit_message: 'docs: deploy mdbook from ${{ github.sha }}'
-          user_name: 'github-actions[bot]'
-          user_email: '41898282+github-actions[bot]@users.noreply.github.com'
+        # Plain git instead of a third-party action: no Node runtime to
+        # deprecate, and the whole deploy is visible here. The rendered
+        # site replaces the branch contents wholesale (no keep_files: the
+        # old /dev/bench/ data was retired with the benchmark workflow).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${GITHUB_TOKEN}@github.com/${REPO}.git"
+          rm -rf "$RUNNER_TEMP/gh-pages"
+          mkdir "$RUNNER_TEMP/gh-pages"
+          cd "$RUNNER_TEMP/gh-pages"
+          git init -q
+          git remote add origin "$remote"
+          if git fetch -q --depth=1 origin gh-pages; then
+            git checkout -q -b gh-pages FETCH_HEAD
+          else
+            git checkout -q --orphan gh-pages
+          fi
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a "$GITHUB_WORKSPACE/docs/book/." .
+          touch .nojekyll
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to deploy."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "docs: deploy mdbook from ${SHA}"
+          git push -q origin HEAD:gh-pages
