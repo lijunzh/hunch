@@ -14,6 +14,8 @@ Release prep checklist:
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-10-27
+
 ### Fixed
 
 - `rust-version` now says 1.88. The crate uses let chains, which Rust
@@ -1236,6 +1238,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[2.0.3]: https://github.com/lijunzh/hunch/releases/tag/v2.0.3
 [2.0.2]: https://github.com/lijunzh/hunch/releases/tag/v2.0.2
 [2.0.1]: https://github.com/lijunzh/hunch/releases/tag/v2.0.1
 [2.0.0]: https://github.com/lijunzh/hunch/releases/tag/v2.0.0
