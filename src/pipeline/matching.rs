@@ -119,15 +119,15 @@ pub(crate) fn match_tokens_in_segment(ctx: &MatchContext, matches: &mut Vec<Matc
                     } else {
                         continue;
                     }
-                } else if !token_match.requires_context {
-                    if let Some(ref required) = token_match.requires_before {
-                        let ok = i > 0
-                            && required
-                                .iter()
-                                .any(|r| r.as_str() == ctx.tokens[i - 1].lower());
-                        if !ok {
-                            continue;
-                        }
+                } else if !token_match.requires_context
+                    && let Some(ref required) = token_match.requires_before
+                {
+                    let ok = i > 0
+                        && required
+                            .iter()
+                            .any(|r| r.as_str() == ctx.tokens[i - 1].lower());
+                    if !ok {
+                        continue;
                     }
                 }
 
