@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-56b3d406.js";
+            window.path_to_searchindex_js = "../searchindex-9795e9da.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-8a688177.js"></script>
@@ -184,13 +184,15 @@
 <p>This page is rendered from <a href="https://github.com/lijunzh/hunch/blob/main/DESIGN.md"><code>DESIGN.md</code></a>
 at the root of the repository (single source of truth).</p>
 <p>The design doc covers hunch’s mission, three foundational principles
-(P1–P3), and the design decisions (D1–D10) that flow from them.
+(P1–P3), and the design decisions (D1–D11) that flow from them.
 Particularly relevant for would-be contributors:</p>
 <ul>
 <li><strong>D8: 5 features, not 15</strong> — the anti-feature-creep principle</li>
 <li><strong>D9: Self-contained property matchers</strong> — how to add a new property</li>
 <li><strong>D10: Refactor before accreting</strong> — the tripwires that flag when to
 consolidate before adding the next thing</li>
+<li><strong>D11: Title precedence</strong> — how a file’s own title, cross-file hints,
+and residual text are ranked</li>
 </ul>
 <h1 id="design--hunch"><a class="header" href="#design--hunch">Design — Hunch</a></h1>
 <blockquote>
@@ -507,6 +509,32 @@ structure first. If they should, refactor; <em>then</em> add the Nth on the
 new foundation.</p>
 <p>This principle is enforced in code review, not by tooling. Reviewers
 flagging tripwire violations is the load-bearing mechanism.</p>
+<h3 id="d11-title-precedence--self-description-beats-context-beats-residue-p1-p2"><a class="header" href="#d11-title-precedence--self-description-beats-context-beats-residue-p1-p2">D11: Title precedence — self-description beats context beats residue (P1, P2)</a></h3>
+<p>D6 says to prefer context over heuristics. D11 settles what happens
+when a file’s own title extraction and a cross-file signal disagree.
+<code>pick_final_title</code> (<code>src/pipeline/mod.rs</code>) decides, in this order:</p>
+<ol>
+<li><strong>Strong extraction.</strong> The filename described its own title with an
+explicit structural marker (bracket group, year/episode anchor,
+structural separator). The author is self-describing; hunch does not
+second-guess them, and any hint is discarded.</li>
+<li><strong>Hint.</strong> No strong self-description. The cross-file signal wins:
+sibling invariance first, then ancestor-directory fallback (the
+caller has already ranked these).</li>
+<li><strong>Weak extraction.</strong> No hint either. Use the residual text left in
+the title zone.</li>
+<li><strong>Nothing.</strong> No title is emitted rather than inventing one.</li>
+</ol>
+<p>Each extractor tags its result <code>Strong</code> or <code>Weak</code> (<code>TitleConfidence</code>).
+A new title strategy must pick a tier honestly: <code>Strong</code> only if a
+syntactic marker bounds the title, not merely because it is the
+leftover text. Weak signals losing to context is the point of D6, so
+do not promote a residual strategy to <code>Strong</code> to win an argument with
+a hint; fix the context instead.</p>
+<p>The protocol deliberately ranks a file’s explicit self-description
+above context, even though D6’s table rates context as Strong too. The
+two are not in conflict: invariance and path context settle files that
+<em>don’t</em> say what their title is.</p>
 <hr>
 <h2 id="architecture-overview"><a class="header" href="#architecture-overview">Architecture Overview</a></h2>
 <p>The problem decomposes into three sub-problems:</p>
