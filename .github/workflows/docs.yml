@@ -42,7 +42,7 @@ jobs:
       - name: Install mdbook
         # taiki-e/install-action provides pre-built binaries (no cargo
         # build), keeping the deploy job under 30s.
-        uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283  # v2
+        uses: taiki-e/install-action@5488ac5a951645ce95062214902ac4b6bc1a1037  # v2
         with:
           tool: mdbook@${{ env.MDBOOK_VERSION }}
 
