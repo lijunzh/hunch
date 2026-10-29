@@ -92,7 +92,7 @@ jobs:
           cp README.md LICENSE hunch-${{ matrix.target }}/
           7z a hunch-${{ matrix.target }}.zip hunch-${{ matrix.target }}/
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7
         with:
           name: hunch-${{ matrix.target }}
           path: |
