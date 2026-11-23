@@ -176,3 +176,18 @@ fn warning_pluralizes_correctly_for_multiple_subdirs() {
         "expected plural 'subdirectories', got: {stderr}"
     );
 }
+
+#[test]
+fn json_output_carries_confidence() {
+    let out = std::process::Command::new(env!("CARGO_BIN_EXE_hunch"))
+        .args(["-j", "The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv"])
+        .output()
+        .expect("run hunch");
+    let line = String::from_utf8(out.stdout).expect("utf8");
+    let v: serde_json::Value = serde_json::from_str(line.trim()).expect("one JSON object");
+    assert_eq!(v["_confidence"], "high");
+    assert_eq!(
+        v["_filename"],
+        "The.Matrix.1999.1080p.BluRay.x264-GROUP.mkv"
+    );
+}

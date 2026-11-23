@@ -365,6 +365,26 @@ impl HunchResult {
         self.first(Property::FrameRate)
     }
 
+    /// IMDb id (e.g., "tt0133093" from `tt0133093` or `{imdb-tt0133093}`).
+    pub fn imdb_id(&self) -> Option<&str> {
+        self.first(Property::ImdbId)
+    }
+
+    /// TMDB id (e.g., 12345 from the Plex-style tag `{tmdb-12345}`).
+    pub fn tmdb_id(&self) -> Option<u64> {
+        self.first(Property::TmdbId).and_then(|s| s.parse().ok())
+    }
+
+    /// TheTVDB id (e.g., 67890 from `{tvdb-67890}` or `[tvdbid-67890]`).
+    pub fn tvdb_id(&self) -> Option<u64> {
+        self.first(Property::TvdbId).and_then(|s| s.parse().ok())
+    }
+
+    /// Volume number (e.g., 3 from `vol.3`).
+    pub fn volume(&self) -> Option<i32> {
+        self.first(Property::Volume).and_then(|s| s.parse().ok())
+    }
+
     // ── Generic accessors ──
 
     /// Get the first value for a property.

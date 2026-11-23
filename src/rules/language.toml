@@ -49,7 +49,7 @@ hebrew     = "Hebrew"
 # Localized language names
 deutsch     = "German"
 italiano    = "Italian"
-castellano  = "Catalan"
+castellano  = "Spanish"
 dublado     = "und"       # Portuguese: "dubbed"
 legendado   = "und"       # Portuguese: "subtitled"
 
@@ -114,9 +114,10 @@ match = '(?i)^fran[cç]aise?$'
 value = "French"
 
 [[patterns]]
-# Español Castellano / Espanol.Castellano (compound → Catalan, not Spanish)
+# Español Castellano / Espanol.Castellano: Castilian is Spanish
+# (guessit 4.5.4 fixed the same Catalan mix-up)
 match = '(?i)^espa[nñ]ol[-. ]castellano$'
-value = "Catalan"
+value = "Spanish"
 
 [[patterns]]
 # Español / Espanol

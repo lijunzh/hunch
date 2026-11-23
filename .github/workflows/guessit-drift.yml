@@ -1,0 +1,105 @@
+name: guessit Drift
+
+# hunch checks itself against a copy of guessit's test suites
+# (tests/fixtures, source tag in ATTRIBUTION.md). guessit is still
+# released regularly, so this job compares that copy with guessit's
+# latest release once a month. When a newer release exists, it refreshes
+# the fixtures in the runner, reruns the compatibility report, and opens
+# (or updates) one `guessit-drift` issue saying how many cases were added
+# and how many hunch passes. It never changes the repo; refreshing is a
+# normal PR, using .github/scripts/refresh-guessit-fixtures.py.
+on:
+  schedule:
+    - cron: "23 15 1 * *"  # 1st of each month, 15:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+
+jobs:
+  drift:
+    name: guessit Drift
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - uses: Swatinem/rust-cache@eedcf2fb1c22f010a0eb66b92f378c110977f266  # v2
+
+      - name: Compare pinned and latest guessit
+        id: versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PINNED=$(grep -o '\*\*guessit v[0-9.]*\*\*' tests/fixtures/ATTRIBUTION.md | tr -d '*' | cut -d' ' -f2)
+          LATEST=$(gh release view -R guessit-io/guessit --json tagName -q .tagName)
+          echo "pinned=$PINNED" >> "$GITHUB_OUTPUT"
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          if [ "$PINNED" = "$LATEST" ]; then
+            echo "Fixtures match guessit's latest release ($LATEST)." >> "$GITHUB_STEP_SUMMARY"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Score current and refreshed fixtures
+        if: steps.versions.outputs.changed == 'true'
+        env:
+          LATEST: ${{ steps.versions.outputs.latest }}
+        run: |
+          HUNCH_RESULTS=before.tsv cargo test -q --release --test guessit_regression \
+            compatibility_report -- --ignored --nocapture 2> before.txt
+          git clone -q --depth 1 --branch "$LATEST" https://github.com/guessit-io/guessit.git "$RUNNER_TEMP/guessit"
+          python3 .github/scripts/refresh-guessit-fixtures.py "$RUNNER_TEMP/guessit" "$LATEST"
+          HUNCH_RESULTS=after.tsv cargo test -q --release --test guessit_regression \
+            compatibility_report -- --ignored --nocapture 2> after.txt
+          git diff --stat -- tests/fixtures
+
+      - name: Open or update the drift issue
+        if: steps.versions.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PINNED: ${{ steps.versions.outputs.pinned }}
+          LATEST: ${{ steps.versions.outputs.latest }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 - <<'PY' > body.md
+          import os
+          def load(path):
+              rows = [l.rstrip("\n").split("\t") for l in open(path, encoding="utf-8") if l.strip()]
+              return [(r[0], r[1], r[2], r[3] if len(r) > 3 else "") for r in rows]
+          before, after = load("before.tsv"), load("after.tsv")
+          seen = {(f, n) for _, f, n, _ in before}
+          new = [r for r in after if (r[1], r[2]) not in seen]
+          rate = lambda rows: sum(r[0] == "PASS" for r in rows)
+          b, a, n = rate(before), rate(after), rate(new)
+          print(f"guessit **{os.environ['LATEST']}** is out; hunch's fixtures are from **{os.environ['PINNED']}** ({os.environ['RUN_URL']}).\n")
+          print("| Suite | Passed | Cases | Rate |\n|---|---|---|---|")
+          for label, p, t in (("Current fixtures", b, len(before)), ("Refreshed fixtures", a, len(after)), ("Cases new in this release", n, len(new))):
+              print(f"| {label} | {p} | {t} | {100 * p / max(t, 1):.1f}% |")
+          fails = [r for r in new if r[0] == "FAIL"][:30]
+          if fails:
+              print("\n<details><summary>New cases hunch fails (first 30)</summary>\n")
+              for _, f, name, why in fails:
+                  print(f"- `{f}` `{name}`: {why}")
+              print("\n</details>")
+          print("\n**To refresh:** clone guessit at the tag, run "
+                "`python3 .github/scripts/refresh-guessit-fixtures.py <checkout> <tag>`, "
+                "fix what is worth fixing, recalibrate the floors in `tests/guessit_regression.rs`, "
+                "and update `docs/src/user-guide/compatibility.md`. Close this issue when merged.")
+          PY
+          cat body.md >> "$GITHUB_STEP_SUMMARY"
+          gh label create guessit-drift --color 0E8A16 \
+            --description "guessit released new test cases" 2>/dev/null || true
+          OPEN=$(gh issue list --state open --label guessit-drift --json number --jq '.[0].number // empty')
+          if [ -n "$OPEN" ]; then
+            gh issue comment "$OPEN" --body-file body.md
+          else
+            gh issue create --title "guessit $LATEST: new test cases to review" \
+              --label guessit-drift --body-file body.md
+          fi

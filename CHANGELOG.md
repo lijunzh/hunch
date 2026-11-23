@@ -14,6 +14,50 @@ Release prep checklist:
 
 ## [Unreleased]
 
+### Added
+
+- **New properties `imdb_id`, `tmdb_id`, `tvdb_id`, `volume`**, with
+  accessors on `HunchResult`. Plex/Jellyfin tags (`{tmdb-12345}`,
+  `{imdb-tt0133093}`, `[tvdbid-67890]`) and bare `tt1234567` are read and
+  no longer leak into the title. A name with a database id is High
+  confidence.
+- **Season/episode words in other languages and scripts**: `Staffel`,
+  `Seizoen`, `Sezon`, `Säsong`, `Сезон`, `Folge`, `Episodio`, `Capitulo`,
+  `Серия`, `Bölüm` and more, number-first forms (`2. Staffel`,
+  `5-й сезон`, `24 серия`), totals (`Capitulo 5 de 12`), and CJK
+  `第二季` / `第二十三集` / `シーズン2` with Chinese numerals.
+- **CLI `_confidence`** in `-j` output (`high`/`medium`/`low`), next to
+  `_filename`, for scripts and AI agents.
+- **Containers** `.strm`, `.torrent`, `.tar`, `.gz`, `.tgz`, `.bz2`,
+  `.xz`, `.ace`, `.r00`-`.r99`; **Other** `DoVi` (Dolby Vision),
+  `Micro-HD`, VR (`VR180`, `EAC360`), and named 3D layouts (Side By Side,
+  Over Under and their Half forms).
+- **guessit Drift** workflow: a monthly check that opens an issue when a
+  newer guessit release adds test cases.
+
+### Fixed
+
+- **Titles that are also vocabulary words**: `The.Collector.2009` (was
+  "The"), `F1.2024`, `xXx.2002`, `Opus.2025` and `F1.The.Movie.2025` keep
+  their title.
+- **Folder vs file episode numbers**: `Show.S01E01-E10.Pack/Show.S01E05.mkv`
+  is episode 5 (was 1-10), `Show.S02E03/Show.S01E09.mkv` is S01E09, and a
+  sample in a single-episode release folder takes the folder's numbers.
+  A folder's `WEB-DL` no longer yields release group "DL".
+- **Complete runs** (`COMPLETE`, French `INTEGRALE`) are typed as series
+  unless a year marks a film; `COMPLETE.SERIES`/`MINISERIES` outweigh it.
+- **Castellano is Spanish**, not Catalan.
+- A bare `01.mp4` inside a season folder is episode 1.
+- `Over.Under.2021` is a title, not a 3D layout.
+
+### Changed
+
+- **Test fixtures refreshed to guessit v4.5.5** (about 300 new cases):
+  78.2% pass, from 71.6% before these fixes. The regression harness
+  applied `-prop: value` lines in HashMap order, so results changed
+  between runs; negations are now deterministic assertions. See the
+  compatibility page for the numbers and the one intentional divergence.
+
 ## [2.0.4] - 2026-10-27
 
 ### Fixed

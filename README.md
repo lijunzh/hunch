@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/crates/l/hunch.svg)](LICENSE)
 
 **A fast, offline media filename parser for Rust — extract title, year,
-season, episode, codec, language, and 49 properties from messy filenames.**
+season, episode, codec, language, and 53 properties from messy filenames.**
 
 A Rust rewrite of Python's [guessit](https://github.com/guessit-io/guessit).
 Pure, deterministic, single-binary, linear-time regex only (ReDoS-immune).
@@ -57,7 +57,7 @@ assert_eq!(result.episode(), Some(3));
 
 | Document | What's there |
 |---|---|
-| [**User Manual**](https://lijunzh.github.io/hunch/user-guide/user-manual.html) | Install, CLI, library API, all 49 properties, batch parsing, cross-file context |
+| [**User Manual**](https://lijunzh.github.io/hunch/user-guide/user-manual.html) | Install, CLI, library API, all 53 properties, batch parsing, cross-file context |
 | [**guessit Compatibility**](https://lijunzh.github.io/hunch/user-guide/compatibility.html) | Pass rates per property, methodology |
 | [**Known Limitations**](https://lijunzh.github.io/hunch/user-guide/known-limitations.html) | Edge cases that remain difficult to handle |
 | [**Migrating to v2.0.0**](https://lijunzh.github.io/hunch/about/migration-v2.html) | Breaking-change guide |

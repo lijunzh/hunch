@@ -324,7 +324,7 @@ fn is_drive_letter(seg: &str) -> bool {
 fn split_extension(filename: &str) -> (&str, Option<String>) {
     if let Some(dot_pos) = filename.rfind('.') {
         let ext = &filename[dot_pos + 1..];
-        if !ext.is_empty() && ext.len() <= 5 && is_known_extension(ext) {
+        if !ext.is_empty() && ext.len() <= 7 && is_known_extension(ext) {
             return (&filename[..dot_pos], Some(ext.to_lowercase()));
         }
     }
@@ -372,7 +372,24 @@ fn is_known_extension(ext: &str) -> bool {
             | "rar"
             | "zip"
             | "7z"
-    )
+            | "tar"
+            | "gz"
+            | "tgz"
+            | "bz2"
+            | "xz"
+            | "ace"
+            | "torrent"
+            | "strm"
+    ) || is_split_rar_volume(ext)
+}
+
+/// `r00`..`r99`: the numbered volumes of a split RAR archive.
+fn is_split_rar_volume(ext: &str) -> bool {
+    let b = ext.as_bytes();
+    b.len() == 3
+        && b[0].eq_ignore_ascii_case(&b'r')
+        && b[1].is_ascii_digit()
+        && b[2].is_ascii_digit()
 }
 
 /// Find byte ranges of dot-acronyms (e.g., `S.H.I.E.L.D.`) that should

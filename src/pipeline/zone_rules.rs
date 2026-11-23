@@ -34,12 +34,30 @@ use super::token_context;
 /// positional heuristics ("first half of title zone", "before the anchor").
 pub fn apply_zone_rules(
     input: &str,
-    _zone_map: &ZoneMap,
+    zone_map: &ZoneMap,
     token_stream: &TokenStream,
     matches: &mut Vec<MatchSpan>,
 ) {
     let fn_start = crate::filename_start(input);
     let initial_count = matches.len();
+
+    title_word_before_year(fn_start, zone_map, token_stream, matches);
+    filename_episode_beats_directory(fn_start, token_stream, matches);
+
+    // ── vr_angle_is_not_an_episode ────────────────────────────────────
+    // `VR.180` / `VR.360` name a field of view; the number inside must
+    // not also read as season 1 episode 80.
+    let vr_spans: Vec<(usize, usize)> = matches
+        .iter()
+        .filter(|m| m.property == Property::Other && m.value == "Virtual Reality")
+        .map(|m| (m.start, m.end))
+        .collect();
+    if !vr_spans.is_empty() {
+        matches.retain(|m| {
+            !(matches!(m.property, Property::Season | Property::Episode)
+                && vr_spans.iter().any(|(s, e)| m.start >= *s && m.end <= *e))
+        });
+    }
 
     // ── language_disambiguation ────────────────────────────────────────
     // Check each language match's actual neighbor context:
@@ -96,12 +114,21 @@ pub fn apply_zone_rules(
     // Ancestor-only sources (no filename source) are preserved — e.g.
     // `/Volumes/Blu-ray/Movie.mkv` still detects `source: "Blu-ray"`.
     {
-        let has_filename_source = matches
+        let filename_sources: Vec<String> = matches
             .iter()
-            .any(|m| m.property == Property::Source && m.start >= fn_start);
-        if has_filename_source {
+            .filter(|m| m.property == Property::Source && m.start >= fn_start)
+            .map(|m| m.value.to_string())
+            .collect();
+        if !filename_sources.is_empty() {
             let before = matches.len();
-            matches.retain(|m| !(m.property == Property::Source && m.start < fn_start));
+            // An ancestor match that agrees with the filename stays: it adds
+            // no second value, and it keeps the folder's `WEB-DL` claimed so
+            // its `DL` half can't become a release group.
+            matches.retain(|m| {
+                !(m.property == Property::Source
+                    && m.start < fn_start
+                    && !filename_sources.contains(&m.value.to_string()))
+            });
             if matches.len() < before {
                 trace!(
                     "zone rules: dropped {} ancestor-path Source match(es) in favor of filename source",
@@ -251,6 +278,202 @@ pub fn apply_zone_rules(
                 .iter()
                 .any(|(ts, te)| m.start >= *ts && m.end <= *te)
         });
+    }
+}
+
+/// Leading articles that can't be a whole title on their own.
+const LONE_ARTICLES: &[&str] = &["the", "a", "an"];
+
+/// `title_word_before_year`: give a vocabulary word back to the title when
+/// it is the title.
+///
+/// In `The.Collector.2009`, `opus.2025` or `F1.2024` the only
+/// words before the year are a vocabulary hit (edition, other, audio codec,
+/// film number), optionally after a lone article. Claiming the word would
+/// leave the title empty or just "The", so the word is the title
+/// (guessit #652/#784 behave the same way).
+///
+/// The rule fires only when the year is the first anchor (nothing
+/// technical precedes it) and the word sits directly before the year:
+/// an edition or other word after a lone article (`The.Collector`; a bare
+/// `Extended.2019` or `3D.2019` keeps its property), an audio codec
+/// spelled as a plain word whatever precedes it (`Something.Opus.2025`,
+/// but not `Movie.AAC2.0.2008`), or a film number that opens the filename
+/// (`F1.The.Movie.2025`, which is the title's first word). Mixed-case
+/// `xXx` is handled in `other.toml`, where only upper-case `XXX` is Other.
+fn title_word_before_year(
+    fn_start: usize,
+    zone_map: &ZoneMap,
+    token_stream: &TokenStream,
+    matches: &mut Vec<MatchSpan>,
+) {
+    let Some(year) = zone_map.year.as_ref() else {
+        return;
+    };
+    // The year must be the tech-zone boundary: no Tier 1/2 anchor before it.
+    if zone_map.title_zone.end != year.start {
+        return;
+    }
+    let Some(segment) = token_stream.segments.last() else {
+        return;
+    };
+    let tokens: Vec<_> = segment
+        .tokens
+        .iter()
+        .filter(|t| t.start >= fn_start && t.end <= year.start)
+        .collect();
+    if tokens.iter().any(|t| t.in_brackets) {
+        return;
+    }
+
+    let drop: Vec<(usize, usize, Property)> = matches
+        .iter()
+        .filter(|m| {
+            matches!(
+                m.property,
+                Property::Edition | Property::Other | Property::AudioCodec | Property::Film
+            ) && m.start >= fn_start
+                && m.end <= year.start
+        })
+        .filter(|m| {
+            let before: Vec<_> = tokens.iter().filter(|t| t.end <= m.start).collect();
+            let after_empty = !tokens.iter().any(|t| t.start >= m.end);
+            let lone_article = before.len() == 1
+                && LONE_ARTICLES.contains(&before[0].text.to_lowercase().as_str());
+            // A plain word (`Opus`), not a codec spelling like `AAC2.0`.
+            let plain_word = tokens
+                .iter()
+                .filter(|t| t.start >= m.start && t.end <= m.end)
+                .all(|t| t.text.chars().all(char::is_alphabetic));
+            match m.property {
+                Property::Film => before.is_empty(),
+                Property::AudioCodec => after_empty && plain_word,
+                _ => after_empty && lone_article,
+            }
+        })
+        .map(|m| (m.start, m.end, m.property))
+        .collect();
+
+    if !drop.is_empty() {
+        trace!("zone rules: title_word_before_year gives back {:?}", drop);
+        matches.retain(|m| !drop.contains(&(m.start, m.end, m.property)));
+    }
+}
+
+/// `filename_episode_beats_directory`: one season/episode, not a merge.
+///
+/// When both the filename and a parent directory name an episode
+/// (`Show.S02E03/Show.S01E09.mkv`, a `Show.S01E01-E10.Pack/` folder holding
+/// `Show.S01E05.mkv`), the filename's numbers describe the file and the
+/// directory's are dropped. A directory that names only a season
+/// (`Show.S01/`, `Season 2/`) is untouched, so season-from-folder plus
+/// episode-from-file still combines.
+///
+/// The exception is a sample or proof file inside a single-episode
+/// release folder (`Westworld.S02E03.720p/sample/Westworld.S01E01.sample.mkv`):
+/// such files often carry a placeholder number, and the release folder
+/// names the episode they belong to. A sample inside a multi-episode pack
+/// keeps its own number. guessit 4.5 behaves the same way.
+fn filename_episode_beats_directory(
+    fn_start: usize,
+    token_stream: &TokenStream,
+    matches: &mut Vec<MatchSpan>,
+) {
+    let is_ep = |m: &MatchSpan| matches!(m.property, Property::Season | Property::Episode);
+    let file_has_episode = matches
+        .iter()
+        .any(|m| m.property == Property::Episode && m.start >= fn_start);
+    let dir_episodes: Vec<&MatchSpan> = matches
+        .iter()
+        .filter(|m| m.property == Property::Episode && m.end <= fn_start)
+        .collect();
+    if !file_has_episode || dir_episodes.is_empty() {
+        return;
+    }
+
+    let mut dir_values: Vec<&str> = dir_episodes.iter().map(|m| m.value.as_ref()).collect();
+    dir_values.sort_unstable();
+    dir_values.dedup();
+    let mut file_values: Vec<&str> = matches
+        .iter()
+        .filter(|m| m.property == Property::Episode && m.start >= fn_start)
+        .map(|m| m.value.as_ref())
+        .collect();
+    file_values.sort_unstable();
+    file_values.dedup();
+    // Folder and file agree (`Show.S06E09.../show.s06e09.avi`): nothing to
+    // resolve, and the folder's matches still shape its title.
+    if dir_values == file_values {
+        return;
+    }
+    let dir_single_episode = dir_values.len() == 1;
+
+    let is_sample = matches.iter().any(|m| {
+        m.property == Property::Other
+            && m.start >= fn_start
+            && matches!(m.value.as_ref(), "Sample" | "Proof")
+    }) || token_stream.segments.iter().any(|seg| {
+        seg.end <= fn_start
+            && seg
+                .tokens
+                .iter()
+                .any(|t| t.text.eq_ignore_ascii_case("sample"))
+    });
+
+    // Directory episode matches live in the segment that carries them;
+    // keep any season that comes from a season-only directory.
+    let dir_episode_segments: Vec<(usize, usize)> = token_stream
+        .segments
+        .iter()
+        .filter(|seg| seg.end <= fn_start)
+        .filter(|seg| {
+            dir_episodes
+                .iter()
+                .any(|m| m.start >= seg.start && m.end <= seg.end)
+        })
+        .map(|seg| (seg.start, seg.end))
+        .collect();
+    let in_episode_dir = |m: &MatchSpan| {
+        dir_episode_segments
+            .iter()
+            .any(|(s, e)| m.start >= *s && m.end <= *e)
+    };
+
+    if is_sample && dir_single_episode {
+        // Keep the file's SxxExx span claimed (so it doesn't leak into the
+        // title) but give it the folder's numbers.
+        trace!("zone rules: sample in a single-episode folder, folder's episode wins");
+        let dir_season = matches
+            .iter()
+            .find(|m| m.property == Property::Season && in_episode_dir(m))
+            .map(|m| m.value.clone());
+        let dir_episode = dir_episodes[0].value.clone();
+        for m in matches.iter_mut().filter(|m| m.start >= fn_start) {
+            match m.property {
+                Property::Episode => m.value = dir_episode.clone(),
+                Property::Season => {
+                    if let Some(season) = &dir_season {
+                        m.value = season.clone();
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut seen: Vec<(Property, String)> = Vec::new();
+        matches.retain(|m| {
+            if !is_ep(m) {
+                return true;
+            }
+            let key = (m.property, m.value.to_string());
+            if seen.contains(&key) {
+                return m.start >= fn_start;
+            }
+            seen.push(key);
+            true
+        });
+    } else {
+        trace!("zone rules: filename's episode wins over the folder's");
+        matches.retain(|m| !(is_ep(m) && in_episode_dir(m)));
     }
 }
 

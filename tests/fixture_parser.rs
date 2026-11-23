@@ -161,3 +161,35 @@ fn strips_inline_comments_but_not_inside_quotes() {
         Some(&"Keep # inside quotes".to_string())
     );
 }
+
+#[test]
+fn negated_value_is_an_assertion_not_a_removal() {
+    // `-episode: 1` next to `episode: 5` must keep the 5 whatever order the
+    // keys are read in, and must record that the result may not contain 1.
+    let (_dir, path) = write_fixture(
+        r#"
+? __default__
+: type: episode
+
+? Show.S01E01.Pack/Show.S01E05.mkv
+: title: Show
+  episode: 5
+  -episode: 1
+  -type: movie
+"#,
+    );
+
+    for _ in 0..20 {
+        let cases = load_test_cases(&path);
+        assert_eq!(cases.len(), 1);
+        assert_eq!(cases[0].expected.get("episode"), Some(&"5".to_string()));
+        assert_eq!(cases[0].expected.get("type"), None);
+        assert_eq!(
+            cases[0].negated,
+            vec![
+                ("episode".to_string(), "1".to_string()),
+                ("type".to_string(), "movie".to_string())
+            ]
+        );
+    }
+}

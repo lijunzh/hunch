@@ -1,6 +1,6 @@
 //! Core types for match spans and properties.
 //!
-//! This module defines [`Property`] — the enum of all 49 extractable metadata
+//! This module defines [`Property`] — the enum of all 53 extractable metadata
 //! fields — and [`MatchSpan`] — a positioned, valued match within an input
 //! string. These are the fundamental types that flow through the entire
 //! pipeline: matchers produce `MatchSpan`s, conflict resolution filters them,
@@ -230,6 +230,14 @@ define_properties! {
     /// (Appended to the end of the enum to keep the
     /// discriminants of pre-existing variants stable.)
     VideoBitRate => "video_bit_rate",
+    /// IMDb id (e.g., `"tt0133093"` from `tt0133093` or `{imdb-tt0133093}`).
+    ImdbId => "imdb_id",
+    /// TMDB id (e.g., `"12345"` from the Plex-style tag `{tmdb-12345}`).
+    TmdbId => "tmdb_id",
+    /// TheTVDB id (e.g., `"67890"` from `{tvdb-67890}` or `[tvdbid-67890]`).
+    TvdbId => "tvdb_id",
+    /// Volume number (e.g., `"3"` from `vol.3`).
+    Volume => "volume",
 }
 
 /// A single match found in the input string.
@@ -369,6 +377,9 @@ impl Property {
                 | Self::SeasonCount
                 | Self::ProperCount
                 | Self::Version
+                | Self::TmdbId
+                | Self::TvdbId
+                | Self::Volume
         )
     }
 }
