@@ -149,6 +149,38 @@ fn check(tc: &TestCase) -> (Vec<PropResult>, Vec<String>) {
             ));
         }
     }
+    for (key, value) in &tc.negated {
+        let is_lang = LANG_PROPS.contains(&key.as_str());
+        let norm = |s: &str| -> String {
+            let v = s.trim().to_lowercase();
+            if is_lang { normalize_language(&v) } else { v }
+        };
+        let forbidden: Vec<String> = parse_value_list(&value.trim().to_lowercase())
+            .iter()
+            .map(|v| norm(v))
+            .collect();
+        let actual: Vec<String> = match got.get(key) {
+            Some(serde_json::Value::Array(arr)) => arr
+                .iter()
+                .map(|v| match v {
+                    serde_json::Value::String(s) => norm(s),
+                    other => other.to_string().to_lowercase(),
+                })
+                .collect(),
+            Some(serde_json::Value::String(s)) => vec![norm(s)],
+            Some(other) => vec![other.to_string().to_lowercase()],
+            None => vec![],
+        };
+        let ok = !forbidden.iter().any(|f| actual.contains(f));
+        prop_results.push(PropResult {
+            property: key.clone(),
+            passed: ok,
+        });
+        if !ok {
+            failures.push(format!("{key}: must not be {}", forbidden.join(", ")));
+        }
+    }
+
     (prop_results, failures)
 }
 
@@ -433,6 +465,10 @@ fn compatibility_report() {
         "-".repeat(7)
     );
 
+    // HUNCH_RESULTS=<path> writes one line per case ("PASS|FAIL<TAB>file<TAB>
+    // filename<TAB>failures"), for diffing two runs or two fixture sets.
+    let mut results_log: Vec<String> = Vec::new();
+
     for (label, path) in ALL_FIXTURES {
         let cases = load_test_cases(path);
         let mut file_passed = 0usize;
@@ -449,6 +485,13 @@ fn compatibility_report() {
                     entry.1 += 1;
                 }
             }
+
+            results_log.push(format!(
+                "{}\t{label}\t{}\t{}",
+                if failures.is_empty() { "PASS" } else { "FAIL" },
+                tc.filename.replace(['\t', '\n'], " "),
+                failures.join("; ")
+            ));
 
             if failures.is_empty() {
                 file_passed += 1;
@@ -491,6 +534,9 @@ fn compatibility_report() {
     eprintln!(
         "\nOVERALL: {total_passed}/{total_cases} passed ({overall_rate:.1}%), {total_failed} failed"
     );
+    if let Ok(path) = std::env::var("HUNCH_RESULTS") {
+        std::fs::write(&path, results_log.join("\n") + "\n").expect("write HUNCH_RESULTS file");
+    }
 
     // Per-property breakdown.
     let mut props: Vec<_> = prop_stats.iter().collect();

@@ -12,6 +12,8 @@ use std::fs;
 pub struct TestCase {
     pub filename: String,
     pub expected: HashMap<String, String>,
+    /// `-prop: value` lines: the result must not contain `value` for `prop`.
+    pub negated: Vec<(String, String)>,
 }
 
 pub fn load_test_cases(path: &str) -> Vec<TestCase> {
@@ -36,18 +38,28 @@ pub fn load_test_cases(path: &str) -> Vec<TestCase> {
                 continue;
             }
 
-            // Merge defaults with this entry's props.
+            // Merge defaults with this entry's props. Positive keys first,
+            // then negated ones, so the result doesn't depend on HashMap
+            // order: `-episode: 1` next to `episode: 5` must not drop the 5.
             let mut expected = defaults.clone();
-            for (k, v) in props {
-                if let Some(stripped) = k.strip_prefix('-') {
+            for (k, v) in props.iter().filter(|(k, _)| !k.starts_with('-')) {
+                expected.insert(k.clone(), v.clone());
+            }
+            let mut negated: Vec<(String, String)> = Vec::new();
+            for (k, v) in props.iter().filter(|(k, _)| k.starts_with('-')) {
+                let stripped = &k[1..];
+                // A negation overrides a default of the same key, never a
+                // positive expectation written in the same entry.
+                if !props.contains_key(stripped) {
                     expected.remove(stripped);
-                } else {
-                    expected.insert(k.clone(), v.clone());
+                }
+                if !v.trim().is_empty() {
+                    negated.push((stripped.to_string(), v.clone()));
                 }
             }
+            negated.sort();
 
-            // Remove negated keys and skip entries with "options".
-            expected.retain(|k, _| !k.starts_with('-'));
+            // Skip entries with "options".
             if expected.contains_key("options") {
                 continue;
             }
@@ -55,6 +67,7 @@ pub fn load_test_cases(path: &str) -> Vec<TestCase> {
             cases.push(TestCase {
                 filename: key.clone(),
                 expected,
+                negated,
             });
         }
     }
