@@ -74,6 +74,7 @@ pub hunch::Property::EpisodeTitle
 pub hunch::Property::Film
 pub hunch::Property::FilmTitle
 pub hunch::Property::FrameRate
+pub hunch::Property::ImdbId
 pub hunch::Property::Language
 pub hunch::Property::MediaType
 pub hunch::Property::Mimetype
@@ -89,12 +90,15 @@ pub hunch::Property::Source
 pub hunch::Property::StreamingService
 pub hunch::Property::SubtitleLanguage
 pub hunch::Property::Title
+pub hunch::Property::TmdbId
+pub hunch::Property::TvdbId
 pub hunch::Property::Uuid
 pub hunch::Property::Version
 pub hunch::Property::VideoApi
 pub hunch::Property::VideoBitRate
 pub hunch::Property::VideoCodec
 pub hunch::Property::VideoProfile
+pub hunch::Property::Volume
 pub hunch::Property::Website
 pub hunch::Property::Week
 pub hunch::Property::Year
@@ -145,6 +149,7 @@ pub fn hunch::HunchResult::episode_title(&self) -> core::option::Option<&str>
 pub fn hunch::HunchResult::film(&self) -> core::option::Option<i32>
 pub fn hunch::HunchResult::first(&self, property: hunch::Property) -> core::option::Option<&str>
 pub fn hunch::HunchResult::frame_rate(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::imdb_id(&self) -> core::option::Option<&str>
 pub fn hunch::HunchResult::is_episode(&self) -> bool
 pub fn hunch::HunchResult::is_extra(&self) -> bool
 pub fn hunch::HunchResult::is_movie(&self) -> bool
@@ -164,10 +169,13 @@ pub fn hunch::HunchResult::streaming_service(&self) -> core::option::Option<&str
 pub fn hunch::HunchResult::subtitle_language(&self) -> core::option::Option<&str>
 pub fn hunch::HunchResult::subtitle_languages(&self) -> alloc::vec::Vec<&str>
 pub fn hunch::HunchResult::title(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::tmdb_id(&self) -> core::option::Option<u64>
 pub fn hunch::HunchResult::to_flat_map(&self) -> alloc::collections::btree::map::BTreeMap<alloc::string::String, serde_json::value::Value>
+pub fn hunch::HunchResult::tvdb_id(&self) -> core::option::Option<u64>
 pub fn hunch::HunchResult::video_bit_rate(&self) -> core::option::Option<&str>
 pub fn hunch::HunchResult::video_codec(&self) -> core::option::Option<&str>
 pub fn hunch::HunchResult::video_profile(&self) -> core::option::Option<&str>
+pub fn hunch::HunchResult::volume(&self) -> core::option::Option<i32>
 pub fn hunch::HunchResult::year(&self) -> core::option::Option<i32>
 impl core::clone::Clone for hunch::HunchResult
 pub fn hunch::HunchResult::clone(&self) -> hunch::HunchResult

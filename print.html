@@ -36,7 +36,7 @@
             const path_to_root = "";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "searchindex-9795e9da.js";
+            window.path_to_searchindex_js = "searchindex-2b1fd8f2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="toc-8a688177.js"></script>
@@ -180,7 +180,7 @@
                     <main>
                         <h1 id="hunch"><a class="header" href="#hunch">hunch</a></h1>
 <blockquote>
-<p>A fast, accurate media-filename parser for Rust. Extracts 49 properties
+<p>A fast, accurate media-filename parser for Rust. Extracts 53 properties
 from movie/TV/anime release names with high accuracy on real-world
 libraries.</p>
 </blockquote>
@@ -230,7 +230,7 @@ that’s what mutation testing exists for.</p>
 <div style="break-before: page; page-break-before: always;"></div>
 <h1 id="user-manual--hunch"><a class="header" href="#user-manual--hunch">User Manual — Hunch</a></h1>
 <blockquote>
-<p>Installation, CLI usage, library API, and all 49 properties.</p>
+<p>Installation, CLI usage, library API, and all 53 properties.</p>
 </blockquote>
 <hr>
 <h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
@@ -301,11 +301,31 @@ an episode because the parser sees the <code>tv/</code> and <code>Anime/</code> 
 <tr><td><code>--context &lt;DIR&gt;</code></td><td>Use sibling files for better title detection</td></tr>
 <tr><td><code>--batch &lt;DIR&gt;</code></td><td>Parse all media files in a directory</td></tr>
 <tr><td><code>-r</code>, <code>--recursive</code></td><td>Recurse into subdirectories (with <code>--batch</code>). Symlinks are skipped (loop-safe, sandbox-safe), and traversal stops at 32 levels deep.</td></tr>
-<tr><td><code>-j</code>, <code>--json</code></td><td>Compact JSON output (default is pretty-printed)</td></tr>
+<tr><td><code>-j</code>, <code>--json</code></td><td>Compact JSON output, one object per line (default is pretty-printed)</td></tr>
 <tr><td><code>-v</code>, <code>--verbose</code></td><td>Enable debug logging</td></tr>
 </tbody>
 </table>
 </div>
+<h3 id="scripts-and-ai-agents"><a class="header" href="#scripts-and-ai-agents">Scripts and AI agents</a></h3>
+<p>With <code>-j</code>, each result is one JSON object per line. Besides the parsed
+properties, it carries two fields that start with an underscore:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Field</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>_filename</code></td><td>The input exactly as given</td></tr>
+<tr><td><code>_confidence</code></td><td><code>high</code>, <code>medium</code> or <code>low</code>. On <code>low</code>, retry with <code>--context &lt;dir&gt;</code> or <code>--batch</code>, or check the result before acting on it</td></tr>
+</tbody>
+</table>
+</div>
+<pre><code class="language-bash">$ hunch -j "The Matrix (1999) {imdb-tt0133093}.mkv"
+{"_confidence":"high","_filename":"The Matrix (1999) {imdb-tt0133093}.mkv","container":"mkv","imdb_id":"tt0133093","mimetype":"video/x-matroska","title":"The Matrix","type":"movie","year":1999}
+</code></pre>
+<p>Plex/Jellyfin-style database tags (<code>{tmdb-…}</code>, <code>{imdb-tt…}</code>,
+<code>[tvdbid-…]</code>) come back as <code>tmdb_id</code>, <code>imdb_id</code> and <code>tvdb_id</code>, so a
+renamed library can be matched to its database entries without a lookup.</p>
 <h3 id="logging"><a class="header" href="#logging">Logging</a></h3>
 <p>Hunch uses the <a href="https://docs.rs/log"><code>log</code></a> crate for diagnostic output.
 This is invaluable for debugging misparses.</p>
@@ -427,7 +447,7 @@ variants and
 <a href="https://docs.rs/hunch/latest/hunch/struct.HunchResult.html"><code>HunchResult</code></a>
 accessors.</p>
 <hr>
-<h2 id="all-49-properties"><a class="header" href="#all-49-properties">All 49 Properties</a></h2>
+<h2 id="all-53-properties"><a class="header" href="#all-53-properties">All 53 Properties</a></h2>
 <h3 id="structural-always-unambiguous"><a class="header" href="#structural-always-unambiguous">Structural (always unambiguous)</a></h3>
 <div class="table-wrapper">
 <table>
@@ -508,6 +528,20 @@ accessors.</p>
 </tbody>
 </table>
 </div>
+<h3 id="database-ids-and-volume"><a class="header" href="#database-ids-and-volume">Database ids and volume</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Property</th><th>Example value</th><th>Example input</th></tr>
+</thead>
+<tbody>
+<tr><td><code>imdb_id</code></td><td>tt0133093</td><td><code>{imdb-tt0133093}</code>, <code>tt0133093</code></td></tr>
+<tr><td><code>tmdb_id</code></td><td>12345</td><td><code>{tmdb-12345}</code></td></tr>
+<tr><td><code>tvdb_id</code></td><td>67890</td><td><code>{tvdb-67890}</code>, <code>[tvdbid-67890]</code></td></tr>
+<tr><td><code>volume</code></td><td>3</td><td><code>vol.3</code></td></tr>
+</tbody>
+</table>
+</div>
 <h3 id="episode-details"><a class="header" href="#episode-details">Episode details</a></h3>
 <div class="table-wrapper">
 <table>
@@ -580,28 +614,50 @@ against guessit’s test suite as a <strong>secondary benchmark</strong>.</p>
 Hunch is tuned first for <strong>real-world media-library accuracy</strong>, with guessit
 compatibility used as a reference point rather than a product goal.</p>
 <blockquote>
-<p><strong>Last updated:</strong> 2026-04-19 (pre-v2.0.0)</p>
+<p><strong>Last updated:</strong> 2026-11-23 (fixtures from guessit v4.5.5)</p>
 </blockquote>
 <hr>
 <h2 id="current-snapshot"><a class="header" href="#current-snapshot">Current snapshot</a></h2>
 <p>Latest compatibility rerun:</p>
 <pre><code class="language-bash">cargo test compatibility_report --release -- --ignored --nocapture
 </code></pre>
-<p>Results:</p>
+<p>Results against guessit <strong>v4.5.5</strong>’s suites (1,631 cases, about 300 more
+than the February 2026 copy):</p>
 <ul>
-<li><strong>1,071 / 1,310</strong> cases passed</li>
-<li><strong>81.8%</strong> overall compatibility</li>
-<li><strong>49 / 49</strong> properties implemented</li>
-<li><strong>3 intentional divergences</strong></li>
+<li><strong>1,276 / 1,631</strong> cases passed</li>
+<li><strong>78.2%</strong> overall compatibility (71.6% before the November 2026 fixes)</li>
+<li><strong>1 intentional divergence</strong> (below)</li>
 </ul>
-<p>A few examples of still-strong property areas:</p>
+<p>The refresh added harder cases, so the rate is lower than the 81.8% the
+old, smaller suite gave in April. On the old copy the new code passes
+1,084 cases against 1,086 before; the six that flipped are all cases where
+guessit itself changed its answer since (Castellano is Spanish, 3D layouts
+are named, a <code>COMPLETE</code> run is a series).</p>
+<p>A few examples of strong property areas:</p>
 <ul>
-<li><code>source</code>: <strong>96.1%</strong></li>
-<li><code>type</code>: <strong>93.7%</strong></li>
-<li><code>title</code>: <strong>91.8%</strong></li>
-<li><code>episode</code>: <strong>90.6%</strong></li>
-<li><code>release_group</code>: <strong>90.4%</strong></li>
+<li><code>container</code>: <strong>94.8%</strong></li>
+<li><code>type</code>: <strong>93.8%</strong></li>
+<li><code>season</code>: <strong>92.9%</strong></li>
+<li><code>episode</code>: <strong>91.2%</strong></li>
+<li><code>release_group</code>: <strong>91.0%</strong></li>
+<li><code>title</code>: <strong>89.5%</strong></li>
 </ul>
+<p>Areas with the most room left: <code>episode_title</code> (73.3%), <code>subtitle_language</code>
+(76.9%), and the anime credits markers (<code>NCOP</code>, <code>NCED</code>, <code>OP2</code>) that
+guessit 4.5 reads as <code>other</code> plus <code>credits_number</code>.</p>
+<hr>
+<h2 id="keeping-up-with-guessit"><a class="header" href="#keeping-up-with-guessit">Keeping up with guessit</a></h2>
+<p>guessit is maintained again and releases often (4.5.3 to 4.5.5 shipped in
+one week of November 2026). The <strong>guessit Drift</strong> workflow checks on the
+1st of each month whether a newer release exists. If it does, it scores
+hunch against the new suites and opens a <code>guessit-drift</code> issue with the
+pass rate on the new cases and the first failures. To refresh:</p>
+<pre><code class="language-bash">git clone --depth 1 --branch &lt;tag&gt; https://github.com/guessit-io/guessit.git /tmp/guessit
+python3 .github/scripts/refresh-guessit-fixtures.py /tmp/guessit &lt;tag&gt;
+HUNCH_RESULTS=/tmp/after.tsv cargo test compatibility_report --release -- --ignored --nocapture
+</code></pre>
+<p><code>HUNCH_RESULTS</code> writes one line per case (<code>PASS</code>/<code>FAIL</code>, file, filename,
+failures), so two runs can be diffed case by case.</p>
 <hr>
 <h2 id="how-to-interpret-this"><a class="header" href="#how-to-interpret-this">How to interpret this</a></h2>
 <p>guessit compatibility is useful for:</p>
@@ -616,14 +672,21 @@ truth. When compatibility and real-world behavior disagree, hunch prefers the
 behavior that is more accurate and maintainable for actual media libraries.</p>
 <hr>
 <h2 id="intentional-divergences"><a class="header" href="#intentional-divergences">Intentional divergences</a></h2>
-<p>Hunch intentionally does not mirror guessit in a few places. The list is
-smaller than it used to be — several earlier divergences (notably the
-bit_rate split and mimetype derivation) were resolved in v2.0.0 (#165)
-because real-world filenames turned out to provide enough signal after
-all.</p>
-<p><em>Active divergences as of v2.0.0: none worth listing.</em> If you find one,
-please file an issue — the goal is for divergences to be deliberate and
-documented, not accidental.</p>
+<p>Hunch intentionally does not mirror guessit in a few places. Each one is
+listed in <code>DIVERGENCES</code> in <code>tests/guessit_regression.rs</code>, which skips
+that property for that case, and here with its reason.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Case</th><th>Property</th><th>guessit</th><th>hunch</th><th>Why</th></tr>
+</thead>
+<tbody>
+<tr><td><code>mpeg4-AVC</code></td><td><code>video_profile</code></td><td>Advanced Video Codec High Definition</td><td>(none)</td><td>AVC is the H.264 codec name, not the AVCHD camcorder format (#237)</td></tr>
+</tbody>
+</table>
+</div>
+<p>If you find another, please file an issue: divergences should be
+deliberate and documented, not accidental.</p>
 <hr>
 <h2 id="real-world-accuracy-matters-more"><a class="header" href="#real-world-accuracy-matters-more">Real-world accuracy matters more</a></h2>
 <p>The main quality signal for hunch is behavior on real media libraries, not
@@ -1744,6 +1807,7 @@ via <code>--context</code> and <code>--batch</code>.</p>
 <tbody>
 <tr><td>Cross-file context + title found</td><td>High</td></tr>
 <tr><td>≥3 tech anchors + title ≥2 chars</td><td>High</td></tr>
+<tr><td>Database id (<code>{imdb-…}</code>, <code>{tmdb-…}</code>, <code>{tvdb-…}</code>) + title ≥2 chars</td><td>High</td></tr>
 <tr><td>Some anchors, reasonable title</td><td>Medium</td></tr>
 <tr><td>Conflicting interpretations (D7)</td><td>Low</td></tr>
 <tr><td>No title or title ≤1 char</td><td>Low</td></tr>
@@ -1813,7 +1877,7 @@ not_before = ["tv", "dvd", "cam", "rip"]
 │   ├── proper_count.rs   # PROPER/REPACK release-version derivation
 │   └── rule_registry.rs  # Compile-time rule→matcher registry
 ├── matcher/
-│   ├── span.rs         # MatchSpan + Property enum (49 variants)
+│   ├── span.rs         # MatchSpan + Property enum (53 properties)
 │   ├── engine.rs       # Conflict resolution (priority + length)
 │   ├── rule_loader.rs  # TOML → RuleSet parser
 │   └── regex_utils.rs  # BoundedRegex (strips lookarounds)
@@ -1955,14 +2019,59 @@ Release prep checklist:
   3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
 -->
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h3 id="added"><a class="header" href="#added">Added</a></h3>
+<ul>
+<li><strong>New properties <code>imdb_id</code>, <code>tmdb_id</code>, <code>tvdb_id</code>, <code>volume</code></strong>, with
+accessors on <code>HunchResult</code>. Plex/Jellyfin tags (<code>{tmdb-12345}</code>,
+<code>{imdb-tt0133093}</code>, <code>[tvdbid-67890]</code>) and bare <code>tt1234567</code> are read and
+no longer leak into the title. A name with a database id is High
+confidence.</li>
+<li><strong>Season/episode words in other languages and scripts</strong>: <code>Staffel</code>,
+<code>Seizoen</code>, <code>Sezon</code>, <code>Säsong</code>, <code>Сезон</code>, <code>Folge</code>, <code>Episodio</code>, <code>Capitulo</code>,
+<code>Серия</code>, <code>Bölüm</code> and more, number-first forms (<code>2. Staffel</code>,
+<code>5-й сезон</code>, <code>24 серия</code>), totals (<code>Capitulo 5 de 12</code>), and CJK
+<code>第二季</code> / <code>第二十三集</code> / <code>シーズン2</code> with Chinese numerals.</li>
+<li><strong>CLI <code>_confidence</code></strong> in <code>-j</code> output (<code>high</code>/<code>medium</code>/<code>low</code>), next to
+<code>_filename</code>, for scripts and AI agents.</li>
+<li><strong>Containers</strong> <code>.strm</code>, <code>.torrent</code>, <code>.tar</code>, <code>.gz</code>, <code>.tgz</code>, <code>.bz2</code>,
+<code>.xz</code>, <code>.ace</code>, <code>.r00</code>-<code>.r99</code>; <strong>Other</strong> <code>DoVi</code> (Dolby Vision),
+<code>Micro-HD</code>, VR (<code>VR180</code>, <code>EAC360</code>), and named 3D layouts (Side By Side,
+Over Under and their Half forms).</li>
+<li><strong>guessit Drift</strong> workflow: a monthly check that opens an issue when a
+newer guessit release adds test cases.</li>
+</ul>
 <h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
+<ul>
+<li><strong>Titles that are also vocabulary words</strong>: <code>The.Collector.2009</code> (was
+“The”), <code>F1.2024</code>, <code>xXx.2002</code>, <code>Opus.2025</code> and <code>F1.The.Movie.2025</code> keep
+their title.</li>
+<li><strong>Folder vs file episode numbers</strong>: <code>Show.S01E01-E10.Pack/Show.S01E05.mkv</code>
+is episode 5 (was 1-10), <code>Show.S02E03/Show.S01E09.mkv</code> is S01E09, and a
+sample in a single-episode release folder takes the folder’s numbers.
+A folder’s <code>WEB-DL</code> no longer yields release group “DL”.</li>
+<li><strong>Complete runs</strong> (<code>COMPLETE</code>, French <code>INTEGRALE</code>) are typed as series
+unless a year marks a film; <code>COMPLETE.SERIES</code>/<code>MINISERIES</code> outweigh it.</li>
+<li><strong>Castellano is Spanish</strong>, not Catalan.</li>
+<li>A bare <code>01.mp4</code> inside a season folder is episode 1.</li>
+<li><code>Over.Under.2021</code> is a title, not a 3D layout.</li>
+</ul>
+<h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
+<ul>
+<li><strong>Test fixtures refreshed to guessit v4.5.5</strong> (about 300 new cases):
+78.2% pass, from 71.6% before these fixes. The regression harness
+applied <code>-prop: value</code> lines in HashMap order, so results changed
+between runs; negations are now deterministic assertions. See the
+compatibility page for the numbers and the one intentional divergence.</li>
+</ul>
+<h2 id="204---2026-10-27"><a class="header" href="#204---2026-10-27"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.4">2.0.4</a> - 2026-10-27</a></h2>
+<h3 id="fixed-1"><a class="header" href="#fixed-1">Fixed</a></h3>
 <ul>
 <li><strong><code>SUB</code> release tag no longer breaks <code>video_codec</code></strong> (#287). A mid-name
 <code>SUB</code> token (hardcoded subs) was emitted as a subtitle container, which
 made the pipeline strip <code>video_codec</code> and other tech properties. Only the
 real file extension now counts as a subtitle container.</li>
 </ul>
-<h3 id="changed"><a class="header" href="#changed">Changed</a></h3>
+<h3 id="changed-1"><a class="header" href="#changed-1">Changed</a></h3>
 <ul>
 <li><strong>Docs deploy no longer uses <code>peaceiris/actions-gh-pages</code></strong> (#193). The
 <code>Deploy Docs</code> workflow pushes to <code>gh-pages</code> with plain <code>git</code>, removing
@@ -1975,7 +2084,7 @@ strong extraction → hint → weak extraction ordering used by
 <code>pick_final_title</code>.</li>
 </ul>
 <h2 id="203---2026-10-27"><a class="header" href="#203---2026-10-27"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.3">2.0.3</a> - 2026-10-27</a></h2>
-<h3 id="fixed-1"><a class="header" href="#fixed-1">Fixed</a></h3>
+<h3 id="fixed-2"><a class="header" href="#fixed-2">Fixed</a></h3>
 <ul>
 <li><code>rust-version</code> now says 1.88. The crate uses let chains, which Rust
 stabilised in 1.88, so it never built on the 1.85 it declared. CI gains
@@ -1986,7 +2095,7 @@ accepted only whitespace there, so these names came out as films with
 no episode. Two more of guessit’s episode fixtures pass as a result.</li>
 </ul>
 <h2 id="202---2026-05-11"><a class="header" href="#202---2026-05-11"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.2">2.0.2</a> - 2026-05-11</a></h2>
-<h3 id="fixed-2"><a class="header" href="#fixed-2">Fixed</a></h3>
+<h3 id="fixed-3"><a class="header" href="#fixed-3">Fixed</a></h3>
 <ul>
 <li><strong>Title bracket containing inline season marker.</strong> Bracket-style titles
 with an inline season suffix (e.g. <code>[Show Title S2]</code>, <code>[Show Title 第2期]</code>)
@@ -2033,7 +2142,7 @@ heuristics, +60 LOC of declarative orchestration. The
 <code>is_path_dir_name</code> test were deleted entirely. Internal-only — no
 public API impact. (#246)</li>
 </ul>
-<h3 id="changed-1"><a class="header" href="#changed-1">Changed</a></h3>
+<h3 id="changed-2"><a class="header" href="#changed-2">Changed</a></h3>
 <ul>
 <li><strong><code>Cargo.toml</code> <code>homepage</code> field</strong> now points at the curated mdBook
 site (<code>https://lijunzh.github.io/hunch/</code>) rather than duplicating
@@ -2080,7 +2189,7 @@ downstreams that pin <code>toml</code> to 1.0.x. (#240, #241)</li>
 deliberately deferred as design choices — see the resolution comment
 on issue #244 for the rationale.</p>
 <h2 id="201---2026-04-26"><a class="header" href="#201---2026-04-26"><a href="https://github.com/lijunzh/hunch/releases/tag/v2.0.1">2.0.1</a> - 2026-04-26</a></h2>
-<h3 id="fixed-3"><a class="header" href="#fixed-3">Fixed</a></h3>
+<h3 id="fixed-4"><a class="header" href="#fixed-4">Fixed</a></h3>
 <ul>
 <li><strong>False <code>AVCHD</code> video profile for bare <code>AVC</code> token.</strong> <code>AVC</code> is the codec
 name for H.264 and carries no profile information on its own. <code>AVCHD</code>
@@ -2163,7 +2272,7 @@ remain. The <code>semver</code> advisory job also survives. The mutation-test
 work that landed in #180–#185 left permanent regression coverage in
 <code>tests/</code>, so that quality investment outlives the workflow.</li>
 </ul>
-<h3 id="changed-2"><a class="header" href="#changed-2">Changed</a></h3>
+<h3 id="changed-3"><a class="header" href="#changed-3">Changed</a></h3>
 <ul>
 <li><strong><code>#[must_use]</code> on <code>HunchResult</code> and <code>Pipeline</code>.</strong> Catches the easy
 mistake of dropping a parsed result or constructing a Pipeline without
@@ -2231,7 +2340,7 @@ also gone — it had drifted to ~612 and the count was never load-bearing.
 (#202, #204, bundled in #218)</p>
 </li>
 </ul>
-<h3 id="fixed-4"><a class="header" href="#fixed-4">Fixed</a></h3>
+<h3 id="fixed-5"><a class="header" href="#fixed-5">Fixed</a></h3>
 <ul>
 <li><strong><code>Show/Extras/Bonus.mkv</code> no longer inherits unrelated sibling titles
 via the ancestor cache.</strong> The CLI’s inheritance-blocking predicate
@@ -2262,7 +2371,7 @@ only reads basenames (not file contents), so the impact was low — but
 matching <code>walk_dir</code>’s defense story keeps both CLI entry points
 consistent. (#209)</li>
 </ul>
-<h3 id="added"><a class="header" href="#added">Added</a></h3>
+<h3 id="added-1"><a class="header" href="#added-1">Added</a></h3>
 <ul>
 <li><strong><code>HunchResult::is_movie()</code>, <code>is_episode()</code>, <code>is_extra()</code> convenience
 methods.</strong> Pure derived getters over the existing <code>media_type()</code> typed
@@ -2281,7 +2390,7 @@ properties moved from 0% to 100% accuracy on the compatibility corpus.
 Previously only R5 was recognized. R7–R9 are intentionally omitted to
 limit false positives on niche release-group tokens. (#156)</li>
 </ul>
-<h3 id="changed-3"><a class="header" href="#changed-3">Changed</a></h3>
+<h3 id="changed-4"><a class="header" href="#changed-4">Changed</a></h3>
 <ul>
 <li>
 <p><strong>⚠️ BREAKING: removed <code>Property::BitRate</code> variant.</strong> Deprecated in
@@ -2372,7 +2481,7 @@ prerelease audit (#196) — every <code>pub enum</code> in the crate is now
 consistently <code>#[non_exhaustive]</code>. (#172, #196)</p>
 </li>
 </ul>
-<h3 id="fixed-5"><a class="header" href="#fixed-5">Fixed</a></h3>
+<h3 id="fixed-6"><a class="header" href="#fixed-6">Fixed</a></h3>
 <ul>
 <li><strong>Website false-positives on country-code TLDs inside language
 abbreviations.</strong> Filenames like <code>Community.s02e20.rus.eng.720p.mkv</code>
@@ -2418,7 +2527,7 @@ in permanent test additions (above) and in the public API audit it
 drove (#197), but the workflows themselves were over-engineered for the
 project’s actual scale.</p>
 <h2 id="118---2026-04-17"><a class="header" href="#118---2026-04-17"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.8">1.1.8</a> - 2026-04-17</a></h2>
-<h3 id="changed-4"><a class="header" href="#changed-4">Changed</a></h3>
+<h3 id="changed-5"><a class="header" href="#changed-5">Changed</a></h3>
 <ul>
 <li><strong><code>--batch -r</code> now bounds recursion depth and skips symlinks.</strong> Recursive
 directory walks (<code>hunch --batch &lt;dir&gt; -r</code>) cap at 32 levels deep and
@@ -2430,7 +2539,7 @@ NAS symlinks) will see fewer or zero results in v1.1.8 — either follow
 the symlinks before invoking hunch, or run hunch on the original
 directory tree. (#137)</li>
 </ul>
-<h3 id="fixed-6"><a class="header" href="#fixed-6">Fixed</a></h3>
+<h3 id="fixed-7"><a class="header" href="#fixed-7">Fixed</a></h3>
 <ul>
 <li><strong>Anime titles containing <code>" - "</code> and <code>"Part N"</code></strong> — in <code>[Group] Show - Sub Part 2 - 13 [tags]</code> style filenames, the title is now extracted as the full
 <code>Show - Sub Part 2</code>. Previously the parser truncated at the first <code>" - "</code>
@@ -2525,7 +2634,7 @@ credential commits (<code>.env*</code>, <code>*.pem</code>, <code>*.key</code>, 
 <code>credentials.json</code>, <code>service-account*.json</code>). (#139)</li>
 </ul>
 <h2 id="117---2026-03-23"><a class="header" href="#117---2026-03-23"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.7">1.1.7</a> - 2026-03-23</a></h2>
-<h3 id="fixed-7"><a class="header" href="#fixed-7">Fixed</a></h3>
+<h3 id="fixed-8"><a class="header" href="#fixed-8">Fixed</a></h3>
 <ul>
 <li><strong>Bracket metadata leakage</strong> — bracketed metadata in CJK/anime filenames no
 longer leaks into <code>episode_title</code>, and release-group extraction now prefers
@@ -2554,7 +2663,7 @@ as <code>title</code> when it looks like natural language instead of a release g
 edge-case categories and their tradeoffs. (#103)</li>
 </ul>
 <h2 id="116---2026-03-22"><a class="header" href="#116---2026-03-22"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.6">1.1.6</a> - 2026-03-22</a></h2>
-<h3 id="added-1"><a class="header" href="#added-1">Added</a></h3>
+<h3 id="added-2"><a class="header" href="#added-2">Added</a></h3>
 <ul>
 <li><strong><code>MediaType::Extra</code></strong> — new media type variant for supplementary content
 (NCED, NCOP, OP, ED, SP, PV, CM, OVA, OAD, ONA, Menu, Tokuten). Files
@@ -2574,7 +2683,7 @@ extraction for deeply nested libraries (<code>tv/Show/Season 1/01.mkv</code> →
 and subdirectories contain media files being skipped, hunch prints a hint
 to stderr suggesting <code>--batch -r</code>. (#74)</li>
 </ul>
-<h3 id="fixed-8"><a class="header" href="#fixed-8">Fixed</a></h3>
+<h3 id="fixed-9"><a class="header" href="#fixed-9">Fixed</a></h3>
 <ul>
 <li><strong>“Movie N” parsed as episode</strong> — <code>Detective.Conan.Movie.10...</code> in a
 <code>movie/</code> directory now returns <code>type=movie</code>. Bare number matches at
@@ -2592,7 +2701,7 @@ now include the parent directory path so the invariant title text (e.g.,
 “Paw Patrol”) is correctly identified and suppressed from episode titles.
 (#63)</li>
 </ul>
-<h3 id="changed-5"><a class="header" href="#changed-5">Changed</a></h3>
+<h3 id="changed-6"><a class="header" href="#changed-6">Changed</a></h3>
 <ul>
 <li><strong>Named priority constants</strong> — new <code>src/priority.rs</code> module exposes
 <code>STRUCTURAL</code>, <code>KEYWORD</code>, <code>VOCABULARY</code>, <code>DEFAULT</code>, <code>HEURISTIC</code>,
@@ -2616,7 +2725,7 @@ into distinct sections. (#77, #78)</li>
 <li>Added CLI integration tests for the flat-batch subdirectory warning. (#75)</li>
 </ul>
 <h2 id="115---2026-03-20"><a class="header" href="#115---2026-03-20"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.5">1.1.5</a> - 2026-03-20</a></h2>
-<h3 id="added-2"><a class="header" href="#added-2">Added</a></h3>
+<h3 id="added-3"><a class="header" href="#added-3">Added</a></h3>
 <ul>
 <li><strong>CJK episode markers</strong> (<code>第N話</code>, <code>第N集</code>, <code>第N回</code>, <code>第N话</code>) — structural
 pattern recognition for Japanese and Chinese episode numbering. Full-width
@@ -2635,7 +2744,7 @@ invariant years from metadata. (#47, #48)</li>
 path inference, invariance signals, cross-feature interactions, and
 panic safety edge cases.</li>
 </ul>
-<h3 id="changed-6"><a class="header" href="#changed-6">Changed</a></h3>
+<h3 id="changed-7"><a class="header" href="#changed-7">Changed</a></h3>
 <ul>
 <li><strong><code>find_invariant_text</code></strong> now returns <code>(usize, String)</code> — pre-computed
 byte offset eliminates fragile <code>input.find()</code> re-search that could match
@@ -2653,7 +2762,7 @@ per-call in episode title extraction).</li>
 <li><strong><code>is_episode_directory</code></strong> uses <code>strip_prefix('s')</code> instead of
 <code>component[1..]</code> byte indexing for safe UTF-8 handling.</li>
 </ul>
-<h3 id="fixed-9"><a class="header" href="#fixed-9">Fixed</a></h3>
+<h3 id="fixed-10"><a class="header" href="#fixed-10">Fixed</a></h3>
 <ul>
 <li><strong><code>CODEC_NUMBERS</code> shared constant</strong> (264, 265, 128) — extracted from
 duplicated checks in <code>invariance.rs</code> and <code>episodes/mod.rs</code>. (DRY)</li>
@@ -2662,7 +2771,7 @@ duplicated checks in <code>invariance.rs</code> and <code>episodes/mod.rs</code>
 <li><code>.unwrap()</code> → <code>.expect()</code> on CJK regex capture groups.</li>
 </ul>
 <h2 id="114---2026-03-20"><a class="header" href="#114---2026-03-20"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.4">1.1.4</a> - 2026-03-20</a></h2>
-<h3 id="added-3"><a class="header" href="#added-3">Added</a></h3>
+<h3 id="added-4"><a class="header" href="#added-4">Added</a></h3>
 <ul>
 <li><strong>Cross-file context for title extraction</strong> (<code>run_with_context</code>, <code>hunch_with_context</code>) —
 when sibling filenames are provided, hunch identifies the invariant text across
@@ -2679,7 +2788,7 @@ structural signals (tech anchors, title quality, cross-file context).</li>
 <code>requires_context</code>, <code>requires_nearby</code>, side effects, compound windows,
 zone scoping, and reclaimable matches.</li>
 </ul>
-<h3 id="changed-7"><a class="header" href="#changed-7">Changed</a></h3>
+<h3 id="changed-8"><a class="header" href="#changed-8">Changed</a></h3>
 <ul>
 <li><strong>Pipeline refactored</strong> into <code>pass1()</code> / <code>pass2()</code> for reuse by cross-file
 context. No behavior change for existing <code>run()</code> callers.</li>
@@ -2693,7 +2802,7 @@ dependencies.</li>
 <li><code>--batch</code> now properly conflicts with positional filename args.</li>
 <li><code>list_media_files</code> signature: <code>&amp;PathBuf</code> → <code>&amp;Path</code> (idiomatic Rust).</li>
 </ul>
-<h3 id="fixed-10"><a class="header" href="#fixed-10">Fixed</a></h3>
+<h3 id="fixed-11"><a class="header" href="#fixed-11">Fixed</a></h3>
 <ul>
 <li>Stale doc-links pointing to <code>hunch</code> instead of <code>hunch_with_context</code>.</li>
 <li><code>Pipeline</code> doc comment merged with <code>SegmentScope</code> doc (missing blank line).</li>
@@ -2701,7 +2810,7 @@ dependencies.</li>
 <li>README.md: removed deleted <code>options.rs</code>, updated test count to 333.</li>
 </ul>
 <h2 id="113---2026-03-19"><a class="header" href="#113---2026-03-19"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.3">1.1.3</a> - 2026-03-19</a></h2>
-<h3 id="changed-8"><a class="header" href="#changed-8">Changed</a></h3>
+<h3 id="changed-9"><a class="header" href="#changed-9">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 81.7% → 82.2%</strong> (1,069 → 1,076 / 1,309).</li>
 <li><strong>Structure-aware neighbor-context disambiguation</strong> — replaced fragile
@@ -2733,7 +2842,7 @@ not hardcoded to the leaf filename.</li>
 <li><strong>episode_title: 73.6% → 76.1%</strong> — parent-dir extraction, boundary fixes.</li>
 <li><strong>other: 88.8% → 89.1%</strong> — TOML-driven <code>requires_nearby</code> for “Proper”.</li>
 </ul>
-<h3 id="fixed-11"><a class="header" href="#fixed-11">Fixed</a></h3>
+<h3 id="fixed-12"><a class="header" href="#fixed-12">Fixed</a></h3>
 <ul>
 <li>Episode title extraction from parent directories when the leaf filename
 contains only a numeric code (e.g., <code>Bones.S12E02.The.Brain.In.The.Bot .1080p.WEB-DL/161219_06.mkv</code> → episode_title: “The Brain In The Bot”).</li>
@@ -2758,7 +2867,7 @@ These were dead code from v1.0.0 (never wired into the pipeline).</li>
 <li><code>src/options.rs</code> module deleted.</li>
 </ul>
 <h2 id="112---2026-02-28"><a class="header" href="#112---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.2">1.1.2</a> - 2026-02-28</a></h2>
-<h3 id="fixed-12"><a class="header" href="#fixed-12">Fixed</a></h3>
+<h3 id="fixed-13"><a class="header" href="#fixed-13">Fixed</a></h3>
 <ul>
 <li><strong>docs.rs build</strong> — added <code>rust-version = "1.85"</code> and
 <code>[package.metadata.docs.rs]</code> to <code>Cargo.toml</code>. Edition 2024 requires
@@ -2766,13 +2875,13 @@ Rust 1.85+; docs.rs needs this hint to select a compatible toolchain.
 Versions 1.0.0–1.1.1 failed to build on docs.rs for this reason.</li>
 </ul>
 <h2 id="111---2026-02-28"><a class="header" href="#111---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.1">1.1.1</a> - 2026-02-28</a></h2>
-<h3 id="fixed-13"><a class="header" href="#fixed-13">Fixed</a></h3>
+<h3 id="fixed-14"><a class="header" href="#fixed-14">Fixed</a></h3>
 <ul>
 <li><strong><code>cargo fmt</code></strong> — applied rustfmt to all files modified in v1.1.0.
 No logic changes; line wrapping only.</li>
 </ul>
 <h2 id="110---2026-02-28"><a class="header" href="#110---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.1.0">1.1.0</a> - 2026-02-28</a></h2>
-<h3 id="added-4"><a class="header" href="#added-4">Added</a></h3>
+<h3 id="added-5"><a class="header" href="#added-5">Added</a></h3>
 <ul>
 <li><strong>Structured logging</strong> — integrated the <code>log</code> crate with <code>debug!</code> and
 <code>trace!</code> instrumentation across the full pipeline. Each stage (tokenize,
@@ -2788,7 +2897,7 @@ regressions.</li>
 <li><strong>15 new doc-tests</strong> — all rustdoc examples are compiled and run as
 part of <code>cargo test</code> (total: 295 tests).</li>
 </ul>
-<h3 id="changed-9"><a class="header" href="#changed-9">Changed</a></h3>
+<h3 id="changed-10"><a class="header" href="#changed-10">Changed</a></h3>
 <ul>
 <li><strong>Comprehensive Rustdoc coverage</strong> — 81 missing-doc warnings → 0:
 <ul>
@@ -2809,7 +2918,7 @@ count (295).</li>
 <li><strong>CLI error handling</strong> — JSON serialization errors now print to stderr
 and exit(1) instead of silently producing empty output.</li>
 </ul>
-<h3 id="fixed-14"><a class="header" href="#fixed-14">Fixed</a></h3>
+<h3 id="fixed-15"><a class="header" href="#fixed-15">Fixed</a></h3>
 <ul>
 <li><strong>~30 bare <code>.unwrap()</code> calls</strong> replaced with descriptive <code>.expect()</code>
 messages across <code>zone_map.rs</code>, <code>bit_rate.rs</code>, <code>size.rs</code>, <code>uuid.rs</code>,
@@ -2821,7 +2930,7 @@ algorithmic complexity and future optimization path.</li>
 planned <code>media_type</code> / <code>expected_title</code> wiring.</li>
 </ul>
 <h2 id="101---2026-02-28"><a class="header" href="#101---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.0.1">1.0.1</a> - 2026-02-28</a></h2>
-<h3 id="fixed-15"><a class="header" href="#fixed-15">Fixed</a></h3>
+<h3 id="fixed-16"><a class="header" href="#fixed-16">Fixed</a></h3>
 <ul>
 <li><strong>Documentation patch</strong> — v1.0.0 shipped with incorrect compatibility
 numbers in README. This release corrects all documentation to match
@@ -2830,7 +2939,7 @@ actual test results (81.7%, 1,069 / 1,309).</li>
 <li>Added missing CHANGELOG entries for v1.0.0 and v1.0.1.</li>
 </ul>
 <h2 id="100---2026-02-28"><a class="header" href="#100---2026-02-28"><a href="https://github.com/lijunzh/hunch/releases/tag/v1.0.0">1.0.0</a> - 2026-02-28</a></h2>
-<h3 id="changed-10"><a class="header" href="#changed-10">Changed</a></h3>
+<h3 id="changed-11"><a class="header" href="#changed-11">Changed</a></h3>
 <ul>
 <li><strong>Stable release</strong> — first non-pre-release version.</li>
 <li>Removed “in progress” / “developing” warnings from all documentation.</li>
@@ -2846,7 +2955,7 @@ actual test results (81.7%, 1,069 / 1,309).</li>
 <li>Single binary, TOML rules embedded at compile time.</li>
 </ul>
 <h2 id="031---2026-02-27"><a class="header" href="#031---2026-02-27"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.3.1">0.3.1</a> - 2026-02-27</a></h2>
-<h3 id="fixed-16"><a class="header" href="#fixed-16">Fixed</a></h3>
+<h3 id="fixed-17"><a class="header" href="#fixed-17">Fixed</a></h3>
 <ul>
 <li><strong>Language/subtitle_language disambiguation</strong> — Add zone Rule 8 to
 suppress Language matches contained within SubtitleLanguage spans.
@@ -2862,7 +2971,7 @@ Multi-language bracket patterns like <code>St{Fr-Eng}</code> now correctly
 extract both languages.</li>
 <li><strong>Remove unused <code>is_episode_property</code></strong> — Dead code cleanup.</li>
 </ul>
-<h3 id="changed-11"><a class="header" href="#changed-11">Changed</a></h3>
+<h3 id="changed-12"><a class="header" href="#changed-12">Changed</a></h3>
 <ul>
 <li><strong>language.yml pass rate</strong> — 66.7% → 100% (ratcheted to 98%).</li>
 <li><strong>Enable Language rules in directory segments</strong> — Language TOML
@@ -2884,7 +2993,7 @@ with spaces are now detected.</li>
 <li><strong>Compound bracket groups</strong> — Tokenizer model improvements.</li>
 </ul>
 <h2 id="030---2026-02-26"><a class="header" href="#030---2026-02-26"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.3.0">0.3.0</a> - 2026-02-26</a></h2>
-<h3 id="added-5"><a class="header" href="#added-5">Added</a></h3>
+<h3 id="added-6"><a class="header" href="#added-6">Added</a></h3>
 <ul>
 <li><strong>Two-pass pipeline</strong> — Release group extraction runs after conflict
 resolution (Pass 2), using resolved match positions instead of a
@@ -2914,7 +3023,7 @@ title extraction skips to the first non-tech gap.</li>
 <li><strong>Zone Rule 1 duplicate language detection</strong> — drops language in
 title zone when the same language appears in the tech zone.</li>
 </ul>
-<h3 id="changed-12"><a class="header" href="#changed-12">Changed</a></h3>
+<h3 id="changed-13"><a class="header" href="#changed-13">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 79.0% → 80.0%</strong> (1,034 → 1,047 / 1,309).</li>
 <li><strong>title: 90.1% → 91.6%</strong> — leading codec, language dedup, asterisks.</li>
@@ -2927,7 +3036,7 @@ title zone when the same language appears in the tech zone.</li>
 <li><strong>Zone Rule 5</strong> moved to <code>apply_post_release_group_rules()</code> so it
 can see release group positions.</li>
 </ul>
-<h3 id="fixed-17"><a class="header" href="#fixed-17">Fixed</a></h3>
+<h3 id="fixed-18"><a class="header" href="#fixed-18">Fixed</a></h3>
 <ul>
 <li><strong>video_codec.toml</strong>: HEVC suffix regex <code>hevc.+</code> → <code>hevc[a-zA-Z0-9_]+</code>
 to prevent multi-token window over-matching (e.g., HEVC.Atmos-GROUP).</li>
@@ -2944,7 +3053,7 @@ the Other match value, to distinguish metadata from title content.</li>
 position-based overlap detection + 20-token curated non-group list.</li>
 </ul>
 <h2 id="022---2026-02-26"><a class="header" href="#022---2026-02-26"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.2.2">0.2.2</a> - 2026-02-26</a></h2>
-<h3 id="added-6"><a class="header" href="#added-6">Added</a></h3>
+<h3 id="added-7"><a class="header" href="#added-7">Added</a></h3>
 <ul>
 <li><strong><code>requires_before</code> constraint</strong> in TOML rule engine — symmetric with
 <code>requires_after</code>. A match is rejected unless the previous token
@@ -2959,7 +3068,7 @@ source (TV) and a specific source (HDTV) exist, the generic is dropped.</li>
 year is ≥6 bytes, the year enables zone filtering even without Tier 1/2
 anchors. Fixes titles like <code>A.Common.Title.Special.2014</code>.</li>
 </ul>
-<h3 id="changed-13"><a class="header" href="#changed-13">Changed</a></h3>
+<h3 id="changed-14"><a class="header" href="#changed-14">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 76.6% → 79.1%</strong> (1,003 → 1,036 / 1,309).</li>
 <li><strong>edition: 97.6% → 100%</strong> on per-property accuracy.</li>
@@ -2975,7 +3084,7 @@ SCR screener, FanSub pruning, Dubbed not_after.</li>
 <li><strong>release_group module</strong> split into <code>mod.rs</code> + <code>known_tokens.rs</code>
 (626 lines → 312 + 190).</li>
 </ul>
-<h3 id="fixed-18"><a class="header" href="#fixed-18">Fixed</a></h3>
+<h3 id="fixed-19"><a class="header" href="#fixed-19">Fixed</a></h3>
 <ul>
 <li><strong>HQ standalone</strong> → Other:High Quality (was audio_profile:High Quality).
 AudioProfile HQ now requires AAC prefix.</li>
@@ -2995,7 +3104,7 @@ number, source) to avoid false-positive matching on title words.</li>
 <li><strong>Zone Rule 5</strong> extended with adjacency gap and Fan Subtitled value.</li>
 </ul>
 <h2 id="021---2026-02-26"><a class="header" href="#021---2026-02-26"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.2.1">0.2.1</a> - 2026-02-26</a></h2>
-<h3 id="added-7"><a class="header" href="#added-7">Added</a></h3>
+<h3 id="added-8"><a class="header" href="#added-8">Added</a></h3>
 <ul>
 <li><strong><code>bit_rate</code> property</strong> — detects audio/video bit rates from filename
 patterns (<code>320Kbps</code>, <code>19.1Mbps</code>, <code>1.5Mbps</code>). Emitted as a single
@@ -3012,7 +3121,7 @@ Other:Screener, Other:Reencoded via declarative side_effects.</li>
 <li><strong>Zone Rule 7</strong> — promotes Blu-ray → Ultra HD Blu-ray when UHD/4K/2160p
 signals exist elsewhere in the filename.</li>
 </ul>
-<h3 id="changed-14"><a class="header" href="#changed-14">Changed</a></h3>
+<h3 id="changed-15"><a class="header" href="#changed-15">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 78.2% → 76.6%</strong> (1,023 → 1,003 / 1,309).
 Slight regression from eliminating dual-pipeline overlap; source-specific
@@ -3048,7 +3157,7 @@ retiring zone Rule 4.</li>
 directly instead of re-deriving from match positions.</li>
 <li><strong>cargo clippy</strong> clean — zero warnings.</li>
 </ul>
-<h3 id="fixed-19"><a class="header" href="#fixed-19">Fixed</a></h3>
+<h3 id="fixed-20"><a class="header" href="#fixed-20">Fixed</a></h3>
 <ul>
 <li><strong>Title: “The 100” pattern</strong> — absolute episode candidates before the
 first S/E span are now skipped.</li>
@@ -3068,7 +3177,7 @@ structural handling (e.g., “2001.A.Space.Odyssey.1968”).</li>
 <li><strong><code>mimetype</code></strong>: trivially derived from <code>container</code>; redundant.</li>
 </ul>
 <h2 id="020---2026-02-25"><a class="header" href="#020---2026-02-25"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.2.0">0.2.0</a> - 2026-02-25</a></h2>
-<h3 id="added-8"><a class="header" href="#added-8">Added</a></h3>
+<h3 id="added-9"><a class="header" href="#added-9">Added</a></h3>
 <ul>
 <li><strong>TOML side effects</strong> — one pattern match can emit multiple properties
 (e.g., <code>DVDRip</code> → Source:DVD + Other:Rip). Declarative, no callbacks.</li>
@@ -3096,7 +3205,7 @@ are treated as title.</li>
 <li><strong>Subtitle language capture groups</strong> — <code>SUB.FR</code> / <code>FR-SUB</code> patterns
 extract the language code via <code>{1}</code> template.</li>
 </ul>
-<h3 id="changed-15"><a class="header" href="#changed-15">Changed</a></h3>
+<h3 id="changed-16"><a class="header" href="#changed-16">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 75.1% → 77.3%</strong> (983 → 1,012 / 1,309 test cases).</li>
 <li><strong><code>fancy_regex</code> removed entirely</strong> — all regex is now standard <code>regex</code>
@@ -3141,7 +3250,7 @@ deepest-first (closest to filename preferred).</li>
 <li>All regex matching is now guaranteed linear-time via <code>regex</code> crate</li>
 </ul>
 <h2 id="012---2026-02-24"><a class="header" href="#012---2026-02-24"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.1.2">0.1.2</a> - 2026-02-24</a></h2>
-<h3 id="added-9"><a class="header" href="#added-9">Added</a></h3>
+<h3 id="added-10"><a class="header" href="#added-10">Added</a></h3>
 <ul>
 <li><strong>ARCHITECTURE.md</strong> — layered architecture design document with decision
 log (D001–D005) covering TOML rules, regex-only, tokenizer, and
@@ -3152,7 +3261,7 @@ offline-only constraints.</li>
 <li><strong>Español Castellano</strong> — combined pattern maps to Catalan correctly.</li>
 <li><strong>DTS.HD-MA</strong> — dot-separated <code>DTS.HD-MA</code> now matches as DTS-HD.</li>
 </ul>
-<h3 id="changed-16"><a class="header" href="#changed-16">Changed</a></h3>
+<h3 id="changed-17"><a class="header" href="#changed-17">Changed</a></h3>
 <ul>
 <li><strong>Overall pass rate: 61.6% → 75.1%</strong> (806 → 983 / 1,309 test cases).</li>
 <li><strong>proper_count</strong> — <code>REAL</code> keyword scanned case-insensitively but only
@@ -3163,19 +3272,19 @@ in the technical zone (prevents false positives on titles like
 <li>Updated README.md with current compatibility stats.</li>
 </ul>
 <h2 id="011---2026-02-22"><a class="header" href="#011---2026-02-22"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.1.1">0.1.1</a> - 2026-02-22</a></h2>
-<h3 id="added-10"><a class="header" href="#added-10">Added</a></h3>
+<h3 id="added-11"><a class="header" href="#added-11">Added</a></h3>
 <ul>
 <li>Pre-built binaries for 5 platforms in GitHub Releases.</li>
 <li><code>cargo-binstall</code> support — install without compiling.</li>
 </ul>
-<h3 id="fixed-20"><a class="header" href="#fixed-20">Fixed</a></h3>
+<h3 id="fixed-21"><a class="header" href="#fixed-21">Fixed</a></h3>
 <ul>
 <li>All clippy warnings resolved.</li>
 <li><code>cargo fmt</code> applied consistently.</li>
 <li>CI workflow now callable as reusable workflow.</li>
 </ul>
 <h2 id="010---2026-02-22"><a class="header" href="#010---2026-02-22"><a href="https://github.com/lijunzh/hunch/releases/tag/v0.1.0">0.1.0</a> - 2026-02-22</a></h2>
-<h3 id="added-11"><a class="header" href="#added-11">Added</a></h3>
+<h3 id="added-12"><a class="header" href="#added-12">Added</a></h3>
 <ul>
 <li>Initial release — Rust port of Python’s guessit.</li>
 <li>27 property matchers covering all 49 guessit properties.</li>

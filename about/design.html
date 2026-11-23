@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-9795e9da.js";
+            window.path_to_searchindex_js = "../searchindex-2b1fd8f2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-8a688177.js"></script>
@@ -631,6 +631,7 @@ via <code>--context</code> and <code>--batch</code>.</p>
 <tbody>
 <tr><td>Cross-file context + title found</td><td>High</td></tr>
 <tr><td>≥3 tech anchors + title ≥2 chars</td><td>High</td></tr>
+<tr><td>Database id (<code>{imdb-…}</code>, <code>{tmdb-…}</code>, <code>{tvdb-…}</code>) + title ≥2 chars</td><td>High</td></tr>
 <tr><td>Some anchors, reasonable title</td><td>Medium</td></tr>
 <tr><td>Conflicting interpretations (D7)</td><td>Low</td></tr>
 <tr><td>No title or title ≤1 char</td><td>Low</td></tr>
@@ -700,7 +701,7 @@ not_before = ["tv", "dvd", "cam", "rip"]
 │   ├── proper_count.rs   # PROPER/REPACK release-version derivation
 │   └── rule_registry.rs  # Compile-time rule→matcher registry
 ├── matcher/
-│   ├── span.rs         # MatchSpan + Property enum (49 variants)
+│   ├── span.rs         # MatchSpan + Property enum (53 properties)
 │   ├── engine.rs       # Conflict resolution (priority + length)
 │   ├── rule_loader.rs  # TOML → RuleSet parser
 │   └── regex_utils.rs  # BoundedRegex (strips lookarounds)

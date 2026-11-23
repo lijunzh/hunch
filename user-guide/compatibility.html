@@ -35,7 +35,7 @@
             const path_to_root = "../";
             const default_light_theme = "navy";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-9795e9da.js";
+            window.path_to_searchindex_js = "../searchindex-2b1fd8f2.js";
         </script>
         <!-- Start loading toc.js asap -->
         <script src="../toc-8a688177.js"></script>
@@ -188,28 +188,50 @@ against guessit’s test suite as a <strong>secondary benchmark</strong>.</p>
 Hunch is tuned first for <strong>real-world media-library accuracy</strong>, with guessit
 compatibility used as a reference point rather than a product goal.</p>
 <blockquote>
-<p><strong>Last updated:</strong> 2026-04-19 (pre-v2.0.0)</p>
+<p><strong>Last updated:</strong> 2026-11-23 (fixtures from guessit v4.5.5)</p>
 </blockquote>
 <hr>
 <h2 id="current-snapshot"><a class="header" href="#current-snapshot">Current snapshot</a></h2>
 <p>Latest compatibility rerun:</p>
 <pre><code class="language-bash">cargo test compatibility_report --release -- --ignored --nocapture
 </code></pre>
-<p>Results:</p>
+<p>Results against guessit <strong>v4.5.5</strong>’s suites (1,631 cases, about 300 more
+than the February 2026 copy):</p>
 <ul>
-<li><strong>1,071 / 1,310</strong> cases passed</li>
-<li><strong>81.8%</strong> overall compatibility</li>
-<li><strong>49 / 49</strong> properties implemented</li>
-<li><strong>3 intentional divergences</strong></li>
+<li><strong>1,276 / 1,631</strong> cases passed</li>
+<li><strong>78.2%</strong> overall compatibility (71.6% before the November 2026 fixes)</li>
+<li><strong>1 intentional divergence</strong> (below)</li>
 </ul>
-<p>A few examples of still-strong property areas:</p>
+<p>The refresh added harder cases, so the rate is lower than the 81.8% the
+old, smaller suite gave in April. On the old copy the new code passes
+1,084 cases against 1,086 before; the six that flipped are all cases where
+guessit itself changed its answer since (Castellano is Spanish, 3D layouts
+are named, a <code>COMPLETE</code> run is a series).</p>
+<p>A few examples of strong property areas:</p>
 <ul>
-<li><code>source</code>: <strong>96.1%</strong></li>
-<li><code>type</code>: <strong>93.7%</strong></li>
-<li><code>title</code>: <strong>91.8%</strong></li>
-<li><code>episode</code>: <strong>90.6%</strong></li>
-<li><code>release_group</code>: <strong>90.4%</strong></li>
+<li><code>container</code>: <strong>94.8%</strong></li>
+<li><code>type</code>: <strong>93.8%</strong></li>
+<li><code>season</code>: <strong>92.9%</strong></li>
+<li><code>episode</code>: <strong>91.2%</strong></li>
+<li><code>release_group</code>: <strong>91.0%</strong></li>
+<li><code>title</code>: <strong>89.5%</strong></li>
 </ul>
+<p>Areas with the most room left: <code>episode_title</code> (73.3%), <code>subtitle_language</code>
+(76.9%), and the anime credits markers (<code>NCOP</code>, <code>NCED</code>, <code>OP2</code>) that
+guessit 4.5 reads as <code>other</code> plus <code>credits_number</code>.</p>
+<hr>
+<h2 id="keeping-up-with-guessit"><a class="header" href="#keeping-up-with-guessit">Keeping up with guessit</a></h2>
+<p>guessit is maintained again and releases often (4.5.3 to 4.5.5 shipped in
+one week of November 2026). The <strong>guessit Drift</strong> workflow checks on the
+1st of each month whether a newer release exists. If it does, it scores
+hunch against the new suites and opens a <code>guessit-drift</code> issue with the
+pass rate on the new cases and the first failures. To refresh:</p>
+<pre><code class="language-bash">git clone --depth 1 --branch &lt;tag&gt; https://github.com/guessit-io/guessit.git /tmp/guessit
+python3 .github/scripts/refresh-guessit-fixtures.py /tmp/guessit &lt;tag&gt;
+HUNCH_RESULTS=/tmp/after.tsv cargo test compatibility_report --release -- --ignored --nocapture
+</code></pre>
+<p><code>HUNCH_RESULTS</code> writes one line per case (<code>PASS</code>/<code>FAIL</code>, file, filename,
+failures), so two runs can be diffed case by case.</p>
 <hr>
 <h2 id="how-to-interpret-this"><a class="header" href="#how-to-interpret-this">How to interpret this</a></h2>
 <p>guessit compatibility is useful for:</p>
@@ -224,14 +246,21 @@ truth. When compatibility and real-world behavior disagree, hunch prefers the
 behavior that is more accurate and maintainable for actual media libraries.</p>
 <hr>
 <h2 id="intentional-divergences"><a class="header" href="#intentional-divergences">Intentional divergences</a></h2>
-<p>Hunch intentionally does not mirror guessit in a few places. The list is
-smaller than it used to be — several earlier divergences (notably the
-bit_rate split and mimetype derivation) were resolved in v2.0.0 (#165)
-because real-world filenames turned out to provide enough signal after
-all.</p>
-<p><em>Active divergences as of v2.0.0: none worth listing.</em> If you find one,
-please file an issue — the goal is for divergences to be deliberate and
-documented, not accidental.</p>
+<p>Hunch intentionally does not mirror guessit in a few places. Each one is
+listed in <code>DIVERGENCES</code> in <code>tests/guessit_regression.rs</code>, which skips
+that property for that case, and here with its reason.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Case</th><th>Property</th><th>guessit</th><th>hunch</th><th>Why</th></tr>
+</thead>
+<tbody>
+<tr><td><code>mpeg4-AVC</code></td><td><code>video_profile</code></td><td>Advanced Video Codec High Definition</td><td>(none)</td><td>AVC is the H.264 codec name, not the AVCHD camcorder format (#237)</td></tr>
+</tbody>
+</table>
+</div>
+<p>If you find another, please file an issue: divergences should be
+deliberate and documented, not accidental.</p>
 <hr>
 <h2 id="real-world-accuracy-matters-more"><a class="header" href="#real-world-accuracy-matters-more">Real-world accuracy matters more</a></h2>
 <p>The main quality signal for hunch is behavior on real media libraries, not
