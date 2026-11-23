@@ -19,6 +19,10 @@ into "[X.Y.Z] - YYYY-MM-DD", merge, then
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-23
+
+Catches up with guessit v4.5.5 and adds Plex/Jellyfin database ids; hunch is now in maintenance mode.
+
 ### Added
 
 - **New properties `imdb_id`, `tmdb_id`, `tvdb_id`, `volume`**, with
@@ -67,6 +71,12 @@ into "[X.Y.Z] - YYYY-MM-DD", merge, then
   applied `-prop: value` lines in HashMap order, so results changed
   between runs; negations are now deterministic assertions. See the
   compatibility page for the numbers and the one intentional divergence.
+
+### Dependencies
+
+- chore(deps): bump regex (#309)
+- chore(deps): bump toml (#303)
+- chore(deps): bump log (#301)
 
 ## [2.0.4] - 2026-10-27
 
@@ -1313,6 +1323,7 @@ source, audio_codec, screen_size, audio_channels, date.
 
 color_depth, streaming_service, bonus, episode_details, film.
 
+[2.1.0]: https://github.com/lijunzh/hunch/releases/tag/v2.1.0
 [2.0.4]: https://github.com/lijunzh/hunch/releases/tag/v2.0.4
 [2.0.3]: https://github.com/lijunzh/hunch/releases/tag/v2.0.3
 [2.0.2]: https://github.com/lijunzh/hunch/releases/tag/v2.0.2
