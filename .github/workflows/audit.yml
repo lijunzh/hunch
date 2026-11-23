@@ -1,0 +1,82 @@
+name: Scheduled Audit
+
+# hunch is in maintenance mode (see README), so weeks can pass without a
+# PR, and the `Security Audit` job in ci.yml only runs on PRs. This job
+# checks main's Cargo.lock against the RustSec database every week and
+# keeps one open `security` issue while an advisory applies. The issue
+# closes itself once the audit passes again.
+#
+# Note: GitHub disables scheduled workflows in public repos after 60 days
+# without activity. Monthly Dependabot merges keep the repo active.
+on:
+  schedule:
+    - cron: "17 14 * * 1"  # Mondays 14:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: never
+  ISSUE_TITLE: Security advisory affects Cargo.lock
+
+jobs:
+  audit:
+    name: Scheduled Audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+      - uses: taiki-e/install-action@ab49d3c64680143e184118bed66a46419fc15519  # v2
+        with:
+          tool: cargo-audit
+
+      - name: Run cargo audit
+        id: audit
+        run: |
+          set +e
+          cargo audit > audit.txt 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat audit.txt
+
+      - name: Open or close the advisory issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STATUS: ${{ steps.audit.outputs.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          OPEN=$(gh issue list --state open --label security --json number,title \
+            --jq "map(select(.title == \"$ISSUE_TITLE\")) | .[0].number // empty" 2>/dev/null || true)
+
+          if [ "$STATUS" = "0" ]; then
+            if [ -n "$OPEN" ]; then
+              gh issue close "$OPEN" --comment "\`cargo audit\` passes on main again: $RUN_URL"
+            fi
+            exit 0
+          fi
+
+          if [ -z "$OPEN" ]; then
+            {
+              echo "The weekly \`cargo audit\` of main's \`Cargo.lock\` found an advisory ($RUN_URL)."
+              echo
+              echo '```'
+              cat audit.txt
+              echo '```'
+              echo
+              echo "**What to do**"
+              echo
+              echo "1. Merge the Dependabot security PR for the affected crate (it may already have auto-merged)."
+              echo "   If none appears, bump the crate yourself, or add an \`audit.toml\` ignore with a reason if hunch is not affected."
+              echo "2. Run the **Release PR** workflow (Actions → Release PR → Run workflow) and merge the PR it opens."
+              echo "   Merging tags the release and publishes crates.io, the GitHub binaries and Homebrew."
+              echo
+              echo "This issue closes itself once the weekly audit passes."
+            } > body.md
+            gh label create security --color B60205 \
+              --description "Security advisory or fix" 2>/dev/null || true
+            gh issue create --title "$ISSUE_TITLE" --label security --body-file body.md
+          fi
+          exit 1

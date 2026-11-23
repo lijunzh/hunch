@@ -1,9 +1,11 @@
 version: 2
+# Maintenance mode: routine version updates monthly. Security updates don't
+# follow this schedule; Dependabot opens them as soon as an advisory lands.
 updates:
   - package-ecosystem: cargo
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
@@ -20,7 +22,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 3
     commit-message:
       prefix: "ci(deps)"
