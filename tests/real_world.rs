@@ -72,3 +72,41 @@ fn opus_after_the_year_is_still_a_codec() {
     assert_eq!(r.audio_codec(), Some("Opus"));
     assert_eq!(r.release_group(), Some("Hn1Dr2"));
 }
+
+// ─── Episode numbers in both the folder and the filename ────────────────
+
+#[test]
+fn file_episode_beats_a_pack_folder_range() {
+    let r = hunch("Show.S01E01-E10.Complete.720p.WEB-DL/Show.S01E05.720p.WEB-DL.mkv");
+    assert_eq!(r.season(), Some(1));
+    assert_eq!(r.episode(), Some(5));
+    assert_ne!(r.release_group(), Some("DL"));
+}
+
+#[test]
+fn file_episode_beats_a_different_folder_episode() {
+    let r = hunch("Show.S02E03/Show.S01E09.mkv");
+    assert_eq!(r.season(), Some(1));
+    assert_eq!(r.episode(), Some(9));
+}
+
+#[test]
+fn season_folder_still_combines_with_file_episode() {
+    let r = hunch("Friends S03/Friends - 07 - The One.mkv");
+    assert_eq!(r.season(), Some(3));
+    assert_eq!(r.episode(), Some(7));
+}
+
+#[test]
+fn sample_in_single_episode_folder_takes_the_folder_episode() {
+    let r = hunch("Westworld.S02E03.720p.WEB-DL/sample/Westworld.S01E01.sample.mkv");
+    assert_eq!(r.title(), Some("Westworld"));
+    assert_eq!(r.season(), Some(2));
+    assert_eq!(r.episode(), Some(3));
+}
+
+#[test]
+fn sample_in_pack_folder_keeps_its_own_episode() {
+    let r = hunch("Show.S01E01-E10.Complete.720p/Sample/Show.S01E05.sample.mkv");
+    assert_eq!(r.episode(), Some(5));
+}
