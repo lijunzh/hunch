@@ -34,12 +34,14 @@ use super::token_context;
 /// positional heuristics ("first half of title zone", "before the anchor").
 pub fn apply_zone_rules(
     input: &str,
-    _zone_map: &ZoneMap,
+    zone_map: &ZoneMap,
     token_stream: &TokenStream,
     matches: &mut Vec<MatchSpan>,
 ) {
     let fn_start = crate::filename_start(input);
     let initial_count = matches.len();
+
+    title_word_before_year(fn_start, zone_map, token_stream, matches);
 
     // ── language_disambiguation ────────────────────────────────────────
     // Check each language match's actual neighbor context:
@@ -251,6 +253,85 @@ pub fn apply_zone_rules(
                 .iter()
                 .any(|(ts, te)| m.start >= *ts && m.end <= *te)
         });
+    }
+}
+
+/// Leading articles that can't be a whole title on their own.
+const LONE_ARTICLES: &[&str] = &["the", "a", "an"];
+
+/// `title_word_before_year`: give a vocabulary word back to the title when
+/// it is the title.
+///
+/// In `The.Collector.2009`, `opus.2025` or `F1.2024` the only
+/// words before the year are a vocabulary hit (edition, other, audio codec,
+/// film number), optionally after a lone article. Claiming the word would
+/// leave the title empty or just "The", so the word is the title
+/// (guessit #652/#784 behave the same way).
+///
+/// The rule fires only when the year is the first anchor (nothing
+/// technical precedes it) and the word sits directly before the year:
+/// an edition or other word after a lone article (`The.Collector`; a bare
+/// `Extended.2019` or `3D.2019` keeps its property), an audio codec
+/// spelled as a plain word whatever precedes it (`Something.Opus.2025`,
+/// but not `Movie.AAC2.0.2008`), or a film number that opens the filename
+/// (`F1.The.Movie.2025`, which is the title's first word). Mixed-case
+/// `xXx` is handled in `other.toml`, where only upper-case `XXX` is Other.
+fn title_word_before_year(
+    fn_start: usize,
+    zone_map: &ZoneMap,
+    token_stream: &TokenStream,
+    matches: &mut Vec<MatchSpan>,
+) {
+    let Some(year) = zone_map.year.as_ref() else {
+        return;
+    };
+    // The year must be the tech-zone boundary: no Tier 1/2 anchor before it.
+    if zone_map.title_zone.end != year.start {
+        return;
+    }
+    let Some(segment) = token_stream.segments.last() else {
+        return;
+    };
+    let tokens: Vec<_> = segment
+        .tokens
+        .iter()
+        .filter(|t| t.start >= fn_start && t.end <= year.start)
+        .collect();
+    if tokens.iter().any(|t| t.in_brackets) {
+        return;
+    }
+
+    let drop: Vec<(usize, usize, Property)> = matches
+        .iter()
+        .filter(|m| {
+            matches!(
+                m.property,
+                Property::Edition | Property::Other | Property::AudioCodec | Property::Film
+            ) && m.start >= fn_start
+                && m.end <= year.start
+        })
+        .filter(|m| {
+            let before: Vec<_> = tokens.iter().filter(|t| t.end <= m.start).collect();
+            let after_empty = !tokens.iter().any(|t| t.start >= m.end);
+            let lone_article = before.len() == 1
+                && LONE_ARTICLES.contains(&before[0].text.to_lowercase().as_str());
+            // A plain word (`Opus`), not a codec spelling like `AAC2.0`.
+            let plain_word = tokens
+                .iter()
+                .filter(|t| t.start >= m.start && t.end <= m.end)
+                .all(|t| t.text.chars().all(char::is_alphabetic));
+            match m.property {
+                Property::Film => before.is_empty(),
+                Property::AudioCodec => after_empty && plain_word,
+                _ => after_empty && lone_article,
+            }
+        })
+        .map(|m| (m.start, m.end, m.property))
+        .collect();
+
+    if !drop.is_empty() {
+        trace!("zone rules: title_word_before_year gives back {:?}", drop);
+        matches.retain(|m| !drop.contains(&(m.start, m.end, m.property)));
     }
 }
 

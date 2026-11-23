@@ -128,9 +128,10 @@ static SUFFIXED_RESOLUTION: LazyLock<regex::Regex> = LazyLock::new(|| {
 /// Kept small and precise — false positives here would break title extraction.
 const TIER2_TOKENS: &[&str] = &[
     // Video codecs
-    "x264", "x265", "h264", "h265", "hevc", "xvid", "divx", "av1", "avc",
-    // Audio codecs
-    "aac", "ac3", "dts", "flac", "opus", "truehd", "atmos", "eac3", "pcm",
+    "x264", "x265", "h264", "h265", "hevc", "xvid", "divx", "av1", "avc", "vp9",
+    // Audio codecs ("opus" is left out: it is also an ordinary word, as in
+    // `Something.Opus.2025`)
+    "aac", "ac3", "dts", "flac", "truehd", "atmos", "eac3", "pcm",
     // Sources (compound/rip forms)
     "bluray", "bdrip", "brrip", "dvdrip", "webrip", "hdrip", "hdtv", "pdtv", "sdtv", "dsr",
     "dvdscr", "hddvd", // Sources (standalone — unambiguous, never title words)

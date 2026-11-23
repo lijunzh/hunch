@@ -40,7 +40,6 @@ hybrid      = "Hybrid"
 preair      = "Preair"
 2in1        = "2in1"
 internal    = "Internal"
-xxx         = "XXX"
 colorized   = "Colorized"
 # NOTE: "Dubbed" as standalone exact match removed — it's handled by a
 # pattern with not_after constraint to avoid matching after language names.
@@ -77,6 +76,9 @@ ld          = "Line Dubbed"
 # Case-sensitive exact matches — only tokens that are exclusively these values.
 [exact_sensitive]
 REAL  = "Proper"
+# Adult tag in all-caps or all-lowercase only: mixed-case `xXx` is the film title.
+XXX   = "XXX"
+xxx   = "XXX"
 
 # Multi-token and complex patterns.
 
