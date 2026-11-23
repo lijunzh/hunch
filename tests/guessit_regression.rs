@@ -63,6 +63,14 @@ fn normalize_language(s: &str) -> String {
 
 const LANG_PROPS: &[&str] = &["language", "subtitle_language"];
 
+/// Intentional divergences from guessit: (filename, property) pairs where
+/// hunch deliberately answers differently. Each one is listed in
+/// docs/src/user-guide/compatibility.md with its reason. Keep this short.
+const DIVERGENCES: &[(&str, &str)] = &[
+    // #237: AVC is the codec (H.264), not the AVCHD camcorder format.
+    ("mpeg4-AVC", "video_profile"),
+];
+
 // ── Core comparison logic ───────────────────────────────────────────
 
 /// Per-property result from checking a single test case.
@@ -79,6 +87,9 @@ fn check(tc: &TestCase) -> (Vec<PropResult>, Vec<String>) {
     let mut failures = Vec::new();
 
     for (key, expected) in &tc.expected {
+        if DIVERGENCES.contains(&(tc.filename.as_str(), key.as_str())) {
+            continue;
+        }
         let actual = got.get(key);
         let expected_str = expected.trim().to_lowercase();
 
@@ -291,7 +302,11 @@ macro_rules! guessit_test_file {
 }
 
 /// Minimum pass rates per fixture file — ratchet up, never down.
-/// Set to (actual - 2%). Last calibrated: 2026-02-26 (v0.2.1).
+/// Set to (actual - 2%). Last calibrated: 2026-11-23, on the guessit v4.5.5
+/// fixtures. That refresh added ~300 harder cases, so the floors of the
+/// files whose cases changed were recalibrated from scratch then (date and
+/// language went down because their denominators changed, not because
+/// hunch regressed on the old cases).
 fn min_pass_rate(path: &str) -> f64 {
     match path {
         "tests/fixtures/rules/screen_size.yml" => 98.0,
@@ -306,16 +321,16 @@ fn min_pass_rate(path: &str) -> f64 {
         "tests/fixtures/rules/episodes.yml" => 92.0,
         "tests/fixtures/rules/release_group.yml" => 76.0,
         "tests/fixtures/rules/title.yml" => 75.0,
-        "tests/fixtures/rules/language.yml" => 98.0,
-        "tests/fixtures/rules/date.yml" => 73.0,
+        "tests/fixtures/rules/language.yml" => 85.0,
+        "tests/fixtures/rules/date.yml" => 64.0,
         "tests/fixtures/rules/bonus.yml" => 64.0,
         "tests/fixtures/rules/country.yml" => 64.0,
         "tests/fixtures/rules/film.yml" => 64.0,
         "tests/fixtures/rules/cd.yml" => 48.0,
-        "tests/fixtures/rules/website.yml" => 48.0,
-        "tests/fixtures/movies.yml" => 66.0,
-        "tests/fixtures/episodes.yml" => 62.0,
-        "tests/fixtures/various.yml" => 63.0,
+        "tests/fixtures/rules/website.yml" => 98.0,
+        "tests/fixtures/movies.yml" => 71.0,
+        "tests/fixtures/episodes.yml" => 67.0,
+        "tests/fixtures/various.yml" => 64.0,
         _ => 0.0,
     }
 }

@@ -1,6 +1,6 @@
 # User Manual — Hunch
 
-> Installation, CLI usage, library API, and all 49 properties.
+> Installation, CLI usage, library API, and all 53 properties.
 
 ---
 
@@ -270,7 +270,7 @@ accessors.
 
 ---
 
-## All 49 Properties
+## All 53 Properties
 
 ### Structural (always unambiguous)
 
@@ -326,6 +326,15 @@ accessors.
 | `size` | 1.4 GB | `1.4GB` |
 | `proper_count` | 1 | `PROPER` |
 | `version` | 2 | `v2` |
+
+### Database ids and volume
+
+| Property | Example value | Example input |
+|---|---|---|
+| `imdb_id` | tt0133093 | `{imdb-tt0133093}`, `tt0133093` |
+| `tmdb_id` | 12345 | `{tmdb-12345}` |
+| `tvdb_id` | 67890 | `{tvdb-67890}`, `[tvdbid-67890]` |
+| `volume` | 3 | `vol.3` |
 
 ### Episode details
 

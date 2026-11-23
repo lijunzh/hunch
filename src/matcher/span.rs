@@ -1,6 +1,6 @@
 //! Core types for match spans and properties.
 //!
-//! This module defines [`Property`] — the enum of all 49 extractable metadata
+//! This module defines [`Property`] — the enum of all 53 extractable metadata
 //! fields — and [`MatchSpan`] — a positioned, valued match within an input
 //! string. These are the fundamental types that flow through the entire
 //! pipeline: matchers produce `MatchSpan`s, conflict resolution filters them,

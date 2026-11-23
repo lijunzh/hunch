@@ -546,7 +546,7 @@ src/
 │   ├── proper_count.rs   # PROPER/REPACK release-version derivation
 │   └── rule_registry.rs  # Compile-time rule→matcher registry
 ├── matcher/
-│   ├── span.rs         # MatchSpan + Property enum (49 variants)
+│   ├── span.rs         # MatchSpan + Property enum (53 properties)
 │   ├── engine.rs       # Conflict resolution (priority + length)
 │   ├── rule_loader.rs  # TOML → RuleSet parser
 │   └── regex_utils.rs  # BoundedRegex (strips lookarounds)
