@@ -13,8 +13,11 @@ Pure, deterministic, single-binary, linear-time regex only (ReDoS-immune).
 
 ## Project status: maintenance mode
 
-hunch is feature-complete, and I'm no longer developing new features. It
-is still maintained:
+hunch is feature-complete, and I'm no longer developing new features.
+I now do most media renaming with AI agents, so a dedicated renaming tool
+matters less to me, and probably to others. hunch is still useful as a
+fast, offline, deterministic parser that programs and agents can call
+(`hunch --batch <dir> -r -j` emits JSON), so it stays maintained:
 
 - **Security fixes** ship as patch releases. A weekly `cargo audit` of the
   lockfile flags new advisories, and Dependabot applies the fixes.
