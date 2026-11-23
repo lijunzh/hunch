@@ -241,3 +241,9 @@ fn leading_website_prefix_is_not_the_title() {
         Some("www.TamilBlasters.vip")
     );
 }
+
+#[test]
+fn database_id_gives_high_confidence() {
+    let r = hunch("The Matrix (1999) {imdb-tt0133093}.mkv");
+    assert_eq!(r.confidence(), hunch::Confidence::High);
+}

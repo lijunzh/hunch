@@ -95,8 +95,27 @@ hunch --batch /path/to/movies/ -r -j
 | `--context <DIR>` | Use sibling files for better title detection |
 | `--batch <DIR>` | Parse all media files in a directory |
 | `-r`, `--recursive` | Recurse into subdirectories (with `--batch`). Symlinks are skipped (loop-safe, sandbox-safe), and traversal stops at 32 levels deep. |
-| `-j`, `--json` | Compact JSON output (default is pretty-printed) |
+| `-j`, `--json` | Compact JSON output, one object per line (default is pretty-printed) |
 | `-v`, `--verbose` | Enable debug logging |
+
+### Scripts and AI agents
+
+With `-j`, each result is one JSON object per line. Besides the parsed
+properties, it carries two fields that start with an underscore:
+
+| Field | Meaning |
+|---|---|
+| `_filename` | The input exactly as given |
+| `_confidence` | `high`, `medium` or `low`. On `low`, retry with `--context <dir>` or `--batch`, or check the result before acting on it |
+
+```bash
+$ hunch -j "The Matrix (1999) {imdb-tt0133093}.mkv"
+{"_confidence":"high","_filename":"The Matrix (1999) {imdb-tt0133093}.mkv","container":"mkv","imdb_id":"tt0133093","mimetype":"video/x-matroska","title":"The Matrix","type":"movie","year":1999}
+```
+
+Plex/Jellyfin-style database tags (`{tmdb-…}`, `{imdb-tt…}`,
+`[tvdbid-…]`) come back as `tmdb_id`, `imdb_id` and `tvdb_id`, so a
+renamed library can be matched to its database entries without a lookup.
 
 ### Logging
 

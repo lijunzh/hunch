@@ -469,6 +469,7 @@ via `--context` and `--batch`.
 |---|---|
 | Cross-file context + title found | High |
 | ≥3 tech anchors + title ≥2 chars | High |
+| Database id (`{imdb-…}`, `{tmdb-…}`, `{tvdb-…}`) + title ≥2 chars | High |
 | Some anchors, reasonable title | Medium |
 | Conflicting interpretations (D7) | Low |
 | No title or title ≤1 char | Low |

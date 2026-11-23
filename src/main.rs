@@ -336,6 +336,18 @@ fn print_result(filename: &str, result: &hunch::HunchResult, json: bool) {
             "_filename".to_string(),
             serde_json::Value::String(filename.to_string()),
         );
+        // Machine-readable form of the low-confidence hint that pretty
+        // mode prints to stderr, so scripts and agents can decide when to
+        // retry with --context or check the result.
+        let confidence = match result.confidence() {
+            Confidence::High => "high",
+            Confidence::Medium => "medium",
+            _ => "low",
+        };
+        map.insert(
+            "_confidence".to_string(),
+            serde_json::Value::String(confidence.to_string()),
+        );
         match serde_json::to_string(&map) {
             Ok(json) => println!("{json}"),
             Err(e) => {

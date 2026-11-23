@@ -159,6 +159,15 @@ pub(super) fn compute_confidence(
         return Confidence::Low;
     }
 
+    // High: a database id (`{imdb-tt0133093}`, `{tmdb-12345}`) means the
+    // name was written by a library manager and describes itself.
+    let has_database_id = [Property::ImdbId, Property::TmdbId, Property::TvdbId]
+        .iter()
+        .any(|p| result.first(*p).is_some());
+    if has_database_id {
+        return Confidence::High;
+    }
+
     // Medium: everything else.
     if anchor_count >= 1 {
         Confidence::Medium
