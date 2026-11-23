@@ -4,6 +4,9 @@ on:
   pull_request:
     branches: [main]
   workflow_call:
+  # release-pr.yml dispatches CI on release/ branches, because PRs opened
+  # with GITHUB_TOKEN don't trigger `pull_request`.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}

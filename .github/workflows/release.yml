@@ -3,9 +3,25 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  # Called by release-tag.yml after a release/ PR merges (a tag pushed with
+  # GITHUB_TOKEN can't trigger the push event above).
+  workflow_call:
+    inputs:
+      tag:
+        description: Tag to release, e.g. v2.0.5
+        type: string
+        required: true
+  # Re-run a release for an existing tag (e.g. after a failed publish).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to release, e.g. v2.0.5
+        type: string
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 # Default to least-privilege (#151). Only the jobs that actually need to write
 # repository contents (uploading release assets) escalate to `contents: write`
@@ -21,9 +37,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - name: Check tag matches Cargo.toml version
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
+          TAG="${RELEASE_TAG#v}"
           CRATE_VER=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
           if [ "$TAG" != "$CRATE_VER" ]; then
             echo "::error::Tag v$TAG does not match Cargo.toml version $CRATE_VER"
@@ -41,6 +59,8 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - uses: Swatinem/rust-cache@eedcf2fb1c22f010a0eb66b92f378c110977f266  # v2
       - run: cargo test
@@ -65,6 +85,8 @@ jobs:
             os: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
         with:
           targets: ${{ matrix.target }}
@@ -113,6 +135,8 @@ jobs:
     # the GitHub Release tag and the crates.io version.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
       - name: Publish (idempotent on "already uploaded")
         env:
@@ -146,6 +170,8 @@ jobs:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8
         with:
@@ -155,7 +181,7 @@ jobs:
       - name: Extract release notes
         id: notes
         run: |
-          TAG="${GITHUB_REF#refs/tags/v}"
+          TAG="${RELEASE_TAG#v}"
           if [ -f RELEASE_NOTES.md ] && [ -s RELEASE_NOTES.md ]; then
             cp RELEASE_NOTES.md release_notes.md
             echo "generate=false" >> $GITHUB_OUTPUT
@@ -171,6 +197,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3  # v3.0.4
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
           generate_release_notes: ${{ steps.notes.outputs.generate == 'true' }}
           body_path: ${{ steps.notes.outputs.generate != 'true' && 'release_notes.md' || '' }}
           files: |
@@ -190,7 +217,7 @@ jobs:
       - name: Compute SHA256 checksums
         id: sha
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
+          VERSION="${RELEASE_TAG#v}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "aarch64_mac=$(sha256sum artifacts/hunch-aarch64-apple-darwin.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT
           echo "x86_64_mac=$(sha256sum artifacts/hunch-x86_64-apple-darwin.tar.gz | cut -d' ' -f1)" >> $GITHUB_OUTPUT

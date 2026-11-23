@@ -1,0 +1,89 @@
+name: Release PR
+
+# One-tap release prep for maintenance mode. Run it from the Actions tab
+# (or the GitHub mobile app): it bumps the version, dates the changelog,
+# and opens a `release/vX.Y.Z` PR. Merging that PR tags the release and
+# publishes everything (see release-tag.yml → release.yml).
+#
+# PRs opened with GITHUB_TOKEN don't trigger `pull_request` workflows, so
+# this job dispatches CI on the release branch itself; the required
+# checks then report on the PR's head commit.
+#
+# Requires: Settings → Actions → General → "Allow GitHub Actions to create
+# and approve pull requests". Without it the branch is still pushed and the
+# run summary links to the compare page, where you open the PR yourself.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (majors are released by hand)
+        type: choice
+        options: [patch, minor]
+        default: patch
+      summary:
+        description: One-line reason for the release, e.g. "Picks up the fix for RUSTSEC-YYYY-NNNN" (optional)
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  release-pr:
+    name: Open release PR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8  # stable
+
+      - name: Bump version and changelog
+        id: prep
+        env:
+          BUMP: ${{ inputs.bump }}
+          SUMMARY: ${{ inputs.summary }}
+        run: |
+          python3 .github/scripts/prepare-release.py "$BUMP" "$SUMMARY"
+          cargo update --workspace
+          git diff --stat
+
+      - name: Push branch and open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.prep.outputs.version }}
+          PREVIOUS: ${{ steps.prep.outputs.previous }}
+        run: |
+          BRANCH="release/v${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -am "chore: release v${VERSION}"
+          git push origin "$BRANCH"
+
+          {
+            echo "Release prep for v${VERSION}, opened by the **Release PR** workflow."
+            echo
+            echo "- \`Cargo.toml\` / \`Cargo.lock\`: ${PREVIOUS} → ${VERSION}"
+            echo "- \`CHANGELOG.md\`: dated \`[${VERSION}]\` section and release link"
+            echo
+            echo "Changes since v${PREVIOUS}: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/v${PREVIOUS}...${BRANCH}"
+            echo
+            echo "**Merging tags \`v${VERSION}\` and publishes crates.io, the GitHub binaries and Homebrew.**"
+            echo "Edit the changelog on this branch first if the generated notes need wording."
+          } > pr-body.md
+
+          if gh pr create --base main --head "$BRANCH" \
+               --title "chore: release v${VERSION}" --body-file pr-body.md; then
+            gh workflow run ci.yml --ref "$BRANCH"
+            echo "Opened the v${VERSION} release PR and started CI on it." >> "$GITHUB_STEP_SUMMARY"
+          else
+            URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/main...${BRANCH}?expand=1"
+            echo "::warning::Actions may not open PRs in this repo. Open it yourself: $URL"
+            echo "Branch \`$BRANCH\` is pushed. [Open the release PR]($URL)" >> "$GITHUB_STEP_SUMMARY"
+          fi

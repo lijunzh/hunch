@@ -11,6 +11,23 @@ season, episode, codec, language, and 53 properties from messy filenames.**
 A Rust rewrite of Python's [guessit](https://github.com/guessit-io/guessit).
 Pure, deterministic, single-binary, linear-time regex only (ReDoS-immune).
 
+## Project status: maintenance mode
+
+hunch is feature-complete, and I'm no longer developing new features. It
+is still maintained:
+
+- **Security fixes** ship as patch releases. A weekly `cargo audit` of the
+  lockfile flags new advisories, and Dependabot applies the fixes.
+- **Dependency updates** land monthly. A release follows when a fix
+  reaches users, mainly through the prebuilt binaries and Homebrew. As a
+  library, hunch picks up compatible fixes in your own `cargo update`
+  without a new hunch release.
+- **Bug reports and pull requests** are welcome. Review may be slow, and
+  new parsing features are unlikely to be merged.
+
+The 2.x API is stable, and no breaking release is planned. See
+[SECURITY.md](SECURITY.md) to report a vulnerability.
+
 ## Quick Start
 
 ```bash

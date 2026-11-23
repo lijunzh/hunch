@@ -6,10 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
 <!--
-Release prep checklist:
-  1. Bump `version` in Cargo.toml
-  2. Move "[Unreleased]" entries below into a new "[X.Y.Z] - YYYY-MM-DD" section
-  3. Tag + push: `git tag vX.Y.Z && git push origin vX.Y.Z`
+Releasing (patch or minor):
+  1. Actions → "Release PR" → Run workflow. It bumps Cargo.toml/Cargo.lock,
+     dates the "[Unreleased]" entries below (or lists commits since the last
+     tag when it's empty) and opens a release/vX.Y.Z PR.
+  2. Merge the PR. "Tag Release" tags it and publishes crates.io, the GitHub
+     binaries and Homebrew.
+By hand (majors, or a GPG-signed tag): bump Cargo.toml, move "[Unreleased]"
+into "[X.Y.Z] - YYYY-MM-DD", merge, then
+`git tag -s vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
 -->
 
 ## [Unreleased]
@@ -52,6 +57,11 @@ Release prep checklist:
 
 ### Changed
 
+- **Maintenance mode** (README). hunch is feature-complete: security
+  fixes, dependency updates and bug fixes continue, new features are
+  unlikely. A weekly scheduled `cargo audit` opens an issue when an
+  advisory applies, and patch releases are prepared by a one-click
+  "Release PR" workflow.
 - **Test fixtures refreshed to guessit v4.5.5** (about 300 new cases):
   78.2% pass, from 71.6% before these fixes. The regression harness
   applied `-prop: value` lines in HashMap order, so results changed

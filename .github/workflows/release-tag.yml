@@ -1,0 +1,65 @@
+name: Tag Release
+
+# Merging a `release/vX.Y.Z` PR (normally opened by release-pr.yml) tags
+# the merge commit and runs the Release workflow on it.
+#
+# A tag pushed with GITHUB_TOKEN does not trigger `on: push: tags`, so the
+# release runs here through `workflow_call` instead; there is no double
+# release. Tags made here are annotated but not GPG-signed. Pushing a
+# signed tag by hand still works as before (release.yml's tag trigger);
+# do that instead of merging a release/ branch if you want a signed tag.
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    name: Create tag
+    if: >-
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'release/v') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Tag the merge commit
+        id: tag
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          TAG="v${VERSION}"
+          if [ "release/${TAG}" != "$HEAD_REF" ]; then
+            echo "::error::Branch $HEAD_REF does not match Cargo.toml version $VERSION"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null; then
+            echo "::error::Tag $TAG already exists; nothing to release"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "hunch $TAG"
+          git push origin "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Release
+    needs: tag
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    permissions:
+      contents: write
+    secrets: inherit
