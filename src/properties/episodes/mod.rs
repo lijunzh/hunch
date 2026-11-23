@@ -31,6 +31,7 @@
 //! context when available (see DESIGN.md, Cross-file context).
 //! Until then, they run at low priority as last-resort fallbacks.
 
+mod multilingual;
 mod patterns;
 #[cfg(test)]
 mod tests;
@@ -211,6 +212,11 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     // Season patterns: word-based, ranges, roman, paths
     try_season_patterns(input, &mut matches);
 
+    // Other languages and CJK: `Staffel 2`, `Folge 5`, `5-й сезон`,
+    // `第二季`, `第3集`. Structural markers, so they run before the
+    // standalone heuristics below.
+    multilingual::find(input, &mut matches);
+
     // Episode standalone: E01, "Episode 1", anime, versioned, Cap.NNN
     try_episode_standalone(input, &mut matches);
 
@@ -219,16 +225,17 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
         try_cjk_bracket_episode(input, &mut matches);
     }
 
-    // CJK ordinal episode markers: 第N話, 第N集, 第N话, 第N回
-    if !has_property(&matches, Property::Episode) {
-        try_cjk_episode_marker(input, &mut matches);
-    }
-
     // CJK cumulative-episode marker: `[总第67]` → absolute_episode=67.
     // Runs unconditionally (independent of Episode detection) because
     // it produces AbsoluteEpisode, not Episode — the two coexist by
     // design (e.g. season 4 episode 1 = cumulative episode 67).
     try_cjk_cumulative_episode(input, &mut matches);
+
+    // `Season 2/01.mp4`, `庆余年第二季/01.mp4`: a filename that is only a
+    // number, under a folder that names the season, is the episode.
+    if has_property(&matches, Property::Season) && !has_property(&matches, Property::Episode) {
+        try_bare_number_filename(input, &mut matches);
+    }
 
     // Low confidence: digit decomposition (only if nothing found)
     if !has_property(&matches, Property::Season) && !has_property(&matches, Property::Episode) {
@@ -794,7 +801,7 @@ fn try_episode_standalone(input: &str, matches: &mut Vec<MatchSpan>) {
         for cap in LEADING_EPISODE.captures_iter(filename) {
             let ep_match = cap
                 .name("episode")
-                .expect("episode group always present in CJK_EPISODE_MARKER regex");
+                .expect("episode group always present in LEADING_EPISODE regex");
             let ep_num: u32 = ep_match.as_str().parse().unwrap_or(0);
             if ep_num == 0 || ep_num > 999 || (1900..=2039).contains(&ep_num) {
                 continue;
@@ -880,38 +887,7 @@ fn try_cjk_bracket_episode(input: &str, matches: &mut Vec<MatchSpan>) {
     }
 }
 
-// ── Group 4c: CJK ordinal episode markers ─────────────────────
-
-/// CJK ordinal episode markers: 第N話 (Japanese), 第N集 (Chinese), 第N话, 第N回.
-///
-/// Examples:
-/// - `第13話` → Episode 13 (Japanese)
-/// - `第1集` → Episode 1 (Chinese)
-/// - `(BD)十二国記 第13話「月の影...」(...).mkv`
-fn try_cjk_episode_marker(input: &str, matches: &mut Vec<MatchSpan>) {
-    for cap in CJK_EPISODE_MARKER.captures_iter(input) {
-        let ep_match = cap.name("episode").unwrap();
-        // Normalize full-width digits (０-９) to ASCII (0-9).
-        let normalized: String = ep_match
-            .as_str()
-            .chars()
-            .map(|c| match c {
-                '\u{ff10}'..='\u{ff19}' => (b'0' + (c as u32 - 0xff10) as u8) as char,
-                _ => c,
-            })
-            .collect();
-        let ep_num: u32 = match normalized.parse() {
-            Ok(n) if n > 0 => n,
-            _ => continue,
-        };
-        let abs_start = ep_match.start();
-        let abs_end = ep_match.end();
-        matches.push(
-            MatchSpan::new(abs_start, abs_end, Property::Episode, ep_num.to_string())
-                .with_priority(crate::priority::KEYWORD),
-        );
-    }
-}
+// (Group 4c, CJK ordinal markers `第N話`/`第N集`, moved to multilingual.rs.)
 
 // ── Group 4d: CJK fansub Latin-ordinal season+episode ─────────────
 
@@ -1151,5 +1127,32 @@ fn detect_absolute_episodes(input: &str, matches: &mut Vec<MatchSpan>) {
                 ));
             }
         }
+    }
+}
+
+/// A filename whose stem is just a 1-3 digit number (`01.mp4`).
+fn try_bare_number_filename(input: &str, matches: &mut Vec<MatchSpan>) {
+    let fn_start = crate::filename_start(input);
+    if fn_start == 0 {
+        return; // No folder, so nothing says this number is an episode.
+    }
+    let filename = &input[fn_start..];
+    let stem_len = filename.rfind('.').unwrap_or(filename.len());
+    let stem = &filename[..stem_len];
+    if stem.is_empty() || stem.len() > 3 || !stem.bytes().all(|b| b.is_ascii_digit()) {
+        return;
+    }
+    if let Ok(n) = stem.parse::<u32>()
+        && n > 0
+    {
+        matches.push(
+            MatchSpan::new(
+                fn_start,
+                fn_start + stem_len,
+                Property::Episode,
+                n.to_string(),
+            )
+            .with_priority(crate::priority::HEURISTIC),
+        );
     }
 }
