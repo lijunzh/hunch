@@ -80,7 +80,10 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-latest
           - target: aarch64-apple-darwin
-            os: macos-14
+            # macos-latest runs on Apple Silicon, so this build is native.
+            # Pinned images such as macos-14 get retired (it failed the
+            # v2.1.0 release), so stay on the rolling label.
+            os: macos-latest
           - target: x86_64-pc-windows-msvc
             os: windows-latest
     steps:
