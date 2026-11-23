@@ -13,11 +13,11 @@ Pure, deterministic, single-binary, linear-time regex only (ReDoS-immune).
 
 ## Project status: maintenance mode
 
-hunch is feature-complete, and I'm no longer developing new features.
+hunch is feature-complete: I'm not planning new features of my own.
 I now do most media renaming with AI agents, so a dedicated renaming tool
 matters less to me, and probably to others. hunch is still useful as a
-fast, offline, deterministic parser that programs and agents can call
-(`hunch --batch <dir> -r -j` emits JSON), so it stays maintained:
+fast, offline, deterministic parser that programs and agents can call,
+so it stays maintained. What to expect:
 
 - **Security fixes** ship as patch releases. A weekly `cargo audit` of the
   lockfile flags new advisories, and Dependabot applies the fixes.
@@ -25,8 +25,11 @@ fast, offline, deterministic parser that programs and agents can call
   reaches users, mainly through the prebuilt binaries and Homebrew. As a
   library, hunch picks up compatible fixes in your own `cargo update`
   without a new hunch release.
+- **guessit parity** is checked monthly. When a guessit release adds test
+  cases, an issue tracks them, and misses that affect real filenames get
+  fixed in a minor release.
 - **Bug reports and pull requests** are welcome. Review may be slow, and
-  new parsing features are unlikely to be merged.
+  new parsing features beyond guessit's are unlikely to be merged.
 
 The 2.x API is stable, and no breaking release is planned. See
 [SECURITY.md](SECURITY.md) to report a vulnerability.
@@ -60,6 +63,13 @@ For batch parsing across a media library and cross-file context for
 ambiguous CJK / anime filenames, see the
 [User Manual](https://lijunzh.github.io/hunch/user-guide/user-manual.html).
 
+**From scripts and AI agents:** `hunch -j` prints one JSON object per
+line, with `_confidence` (`high`, `medium` or `low`) so the caller knows
+when to retry with `--context` or check the result. Plex/Jellyfin tags
+such as `{tmdb-12345}` and `{imdb-tt0133093}` come back as `tmdb_id` and
+`imdb_id`. See
+[Scripts and AI agents](https://lijunzh.github.io/hunch/user-guide/user-manual.html#scripts-and-ai-agents).
+
 ### Library
 
 ```rust
@@ -87,10 +97,11 @@ assert_eq!(result.episode(), Some(3));
 
 ## Accuracy
 
-Validated against guessit's upstream test suite — see the
-[compatibility report](https://lijunzh.github.io/hunch/user-guide/compatibility.html)
-for the live pass rate, regenerated from
-`cargo test -- --ignored guessit_compat` so it can't drift. Edge cases
-that remain difficult are documented under
+hunch passes **78.2%** of guessit v4.5.5's 1,631 test cases (November
+2026); per-property rates and the one intentional divergence are in the
+[compatibility report](https://lijunzh.github.io/hunch/user-guide/compatibility.html).
+A monthly workflow compares that copy with guessit's latest release, and
+`cargo test compatibility_report --release -- --ignored --nocapture`
+reproduces the numbers. Edge cases that remain difficult are documented
+under
 [Known Limitations](https://lijunzh.github.io/hunch/user-guide/known-limitations.html).
-
