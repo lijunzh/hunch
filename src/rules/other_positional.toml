@@ -56,11 +56,44 @@ match = '(?i)^itunes[- .]?hd$'
 value = "HD"
 
 [[patterns]]
-# Side-by-Side / Half-SBS (3D variant)
-match = '(?i)^(?:half[- .]?)?sbs$'
-value = "3D"
+# Stereoscopic layouts (3D and VR). guessit 4.5 names the layout; a
+# separate `3D` token still gives Other "3D". Full forms are positional
+# too: `Over.Under.2021` is a film title.
+match = '(?i)^half[- .]?side[- .]?by[- .]?side$'
+value = "Half Side By Side"
 
 [[patterns]]
-# Over-Under / Half-OU (3D variant)
-match = '(?i)^(?:half[- .]?)?ou$'
-value = "3D"
+match = '(?i)^side[- .]?by[- .]?side$'
+value = "Side By Side"
+
+[[patterns]]
+match = '(?i)^half[- .]?over[- .]?under$'
+value = "Half Over Under"
+
+[[patterns]]
+match = '(?i)^over[- .]?under$'
+value = "Over Under"
+
+[[patterns]]
+match = '(?i)^(?:half[- .]?sbs|hsbs)$'
+value = "Half Side By Side"
+
+[[patterns]]
+match = '(?i)^sbs$'
+value = "Side By Side"
+
+[[patterns]]
+# `LR` (left-right) only right after a VR angle: `VR.180.LR`.
+match = '(?i)^lr$'
+value = "Side By Side"
+requires_before = ["180", "360", "vr", "vr180", "vr360"]
+
+[[patterns]]
+match = '(?i)^(?:half[- .]?ou|hou)$'
+value = "Half Over Under"
+
+[[patterns]]
+# Bare `OU` only right after a 3D or VR marker (`Show.S04E10.OU` is not 3D).
+match = '(?i)^ou$'
+value = "Over Under"
+requires_before = ["3d", "vr", "180", "360", "vr180", "vr360"]

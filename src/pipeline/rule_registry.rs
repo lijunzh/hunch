@@ -27,8 +27,8 @@ use crate::matcher::rule_loader::RuleSet;
 use crate::matcher::span::{MatchSpan, Property};
 use crate::priority;
 use crate::properties::{
-    aspect_ratio, bit_rate, bonus, crc32, date, episode_count, episodes, language, part, size,
-    subtitle_language, uuid, version, website, year,
+    aspect_ratio, bit_rate, bonus, crc32, date, episode_count, episodes, language, media_ids, part,
+    size, subtitle_language, uuid, version, website, year,
 };
 
 // ── TOML rule sets (embedded at compile time) ──────────────────────────────
@@ -199,6 +199,7 @@ pub(super) fn build_legacy_matchers() -> Vec<LegacyMatcherFn> {
         language::find_matches,
         subtitle_language::find_matches,
         crc32::find_matches,
+        media_ids::find_matches,
         uuid::find_matches,
         website::find_matches,
         size::find_matches,

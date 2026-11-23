@@ -52,6 +52,15 @@ static WEBSITE_INLINE: LazyLock<Regex> = LazyLock::new(|| {
     ).unwrap()
 });
 
+/// A `www.` site that opens the filename and is followed by ` - `:
+/// `www.TamilBlasters.vip - Shang-Chi (2021)`. The `www.` prefix and the
+/// separator make any TLD safe here, including new gTLDs (`.party`,
+/// `.pics`, `.show`) that the bracket and inline forms don't accept.
+static WEBSITE_LEADING_WWW: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:^|[/\\])(?P<site>www\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.[a-z]{2,10})\s+-\s")
+        .unwrap()
+});
+
 /// Scan for embedded website URLs (e.g., `[www.example.com]`) and return matches.
 pub fn find_matches(input: &str) -> Vec<MatchSpan> {
     let mut matches = Vec::new();
@@ -68,6 +77,16 @@ pub fn find_matches(input: &str) -> Vec<MatchSpan> {
                         .with_priority(crate::priority::KEYWORD),
                 );
             }
+        }
+    }
+
+    // Priority 1b: leading `www.site.tld - ` with any TLD.
+    for cap in WEBSITE_LEADING_WWW.captures_iter(input) {
+        if let Some(site) = cap.name("site") {
+            matches.push(
+                MatchSpan::new(site.start(), site.end(), Property::Website, site.as_str())
+                    .with_priority(crate::priority::KEYWORD),
+            );
         }
     }
 

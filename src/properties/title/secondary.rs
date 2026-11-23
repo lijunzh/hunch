@@ -462,6 +462,22 @@ pub fn infer_media_type(input: &str, matches: &[MatchSpan]) -> &'static str {
         return "episode";
     }
 
+    // 2b. A complete run (`COMPLETE`, `INTEGRALE`) is a series unless a
+    //     year marks it as one film's release; `COMPLETE.SERIES` and
+    //     `MINISERIES` outweigh the year (guessit 4.5 does the same).
+    let is_complete = matches
+        .iter()
+        .any(|m| m.property == Property::Other && m.value == "Complete");
+    if is_complete {
+        let has_year = matches.iter().any(|m| m.property == Property::Year);
+        let names_series = input
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|w| w.eq_ignore_ascii_case("series") || w.eq_ignore_ascii_case("miniseries"));
+        if !has_year || names_series {
+            return "episode";
+        }
+    }
+
     // 3. Strong movie signals override weak path-based episode context.
     //    File/parent names like "The Movie" or "劇場版" are explicit content
     //    labels, stronger than organizational directories like `tv/`.

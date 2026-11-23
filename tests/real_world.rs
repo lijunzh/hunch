@@ -153,3 +153,91 @@ fn castellano_is_spanish() {
     let r = hunch("Movie.2020.Castellano.1080p.WEB.H264-GRP");
     assert_eq!(r.first(hunch::Property::Language), Some("Spanish"));
 }
+
+// ─── Plex IDs, file types, video layouts, complete runs ─────────────────
+
+#[test]
+fn plex_style_database_ids() {
+    let r = hunch("Movie (2020) {tmdb-12345}.mkv");
+    assert_eq!(r.title(), Some("Movie"));
+    assert_eq!(r.tmdb_id(), Some(12345));
+
+    let r = hunch("The Matrix (1999) {imdb-tt0133093}/The Matrix (1999) {imdb-tt0133093}.mkv");
+    assert_eq!(r.title(), Some("The Matrix"));
+    assert_eq!(r.imdb_id(), Some("tt0133093"));
+
+    let r = hunch("Show.Name.S01E02.[tvdbid-67890].720p.HDTV.x264-GRP.mkv");
+    assert_eq!(r.tvdb_id(), Some(67890));
+    assert_eq!(r.title(), Some("Show Name"));
+}
+
+#[test]
+fn volume_number_but_not_inside_a_title_with_year() {
+    assert_eq!(
+        hunch("Manga.Title.vol.3.720p.x264-GRP.mkv").volume(),
+        Some(3)
+    );
+    let r = hunch("Guardians.of.the.Galaxy.Vol.2.2017.1080p.BluRay.x264.mkv");
+    assert_eq!(r.title(), Some("Guardians of the Galaxy Vol 2"));
+    assert_eq!(r.volume(), None);
+}
+
+#[test]
+fn stream_and_archive_files_have_a_container() {
+    for (name, ext) in [
+        ("Show.Name.S01E02.1080p-NINJA.strm", "strm"),
+        ("Movie.Name.2020.1080p.x264.r00", "r00"),
+        ("Some.Release.2020.1080p.x264-GRP.tgz", "tgz"),
+        ("Some.Release.2020.1080p.x264-GRP.torrent", "torrent"),
+    ] {
+        assert_eq!(hunch(name).container(), Some(ext), "{name}");
+    }
+}
+
+#[test]
+fn dolby_vision_3d_and_vr_layouts() {
+    let r = hunch("Some.Movie.2017.2160p.UHD.BluRay.DTS-HD.MA.5.1.DoVi.x265-NoGroup");
+    assert!(r.all(hunch::Property::Other).contains(&"Dolby Vision"));
+
+    let r = hunch("TEST.2015.1080p.3D.BluRay.Half-SBS.x264.DTS-HD.MA.7.1-ABC");
+    let other = r.all(hunch::Property::Other);
+    assert!(other.contains(&"3D") && other.contains(&"Half Side By Side"));
+
+    let r = hunch("Movie.Name.2020.VR.180.1080p.x264-GRP.mkv");
+    assert!(r.all(hunch::Property::Other).contains(&"Virtual Reality"));
+    assert_eq!(r.episode(), None);
+
+    // A title, not a layout.
+    assert_eq!(
+        hunch("Over.Under.2021.1080p.WEB.h264-GRP.mkv").title(),
+        Some("Over Under")
+    );
+    assert!(
+        hunch("Show.Name.S04E10.OU.1080p.x264-GRP.mkv")
+            .all(hunch::Property::Other)
+            .is_empty()
+    );
+}
+
+#[test]
+fn complete_runs_are_series() {
+    for name in [
+        "Breaking.Bad.COMPLETE.1080p.BluRay.x264-GRP",
+        "The.Wire.COMPLETE.SERIES.2002.720p.BluRay-GRP",
+        "Friends.INTEGRALE.MULTi.1080p.BluRay-GRP",
+    ] {
+        assert!(hunch(name).is_episode(), "{name}");
+    }
+    // A year without SERIES keeps a complete disc release a movie.
+    assert!(hunch("Movie.2009.COMPLETE.BLURAY-GRP").is_movie());
+}
+
+#[test]
+fn leading_website_prefix_is_not_the_title() {
+    let r = hunch("www.TamilBlasters.vip - Shang-Chi (2021) 720p BDRip x264");
+    assert_eq!(r.title(), Some("Shang-Chi"));
+    assert_eq!(
+        r.first(hunch::Property::Website),
+        Some("www.TamilBlasters.vip")
+    );
+}

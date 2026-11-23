@@ -30,6 +30,7 @@ pub mod episode_details;
 pub mod episodes;
 pub mod frame_rate;
 pub mod language;
+pub mod media_ids;
 pub mod other;
 pub mod part;
 pub mod release_group;

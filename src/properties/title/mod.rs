@@ -49,6 +49,8 @@ fn is_tech_property(p: Property) -> bool {
             | Property::StreamingService
             | Property::Edition
             | Property::Other
+            // A leading `www.site.tld - ` prefix: skip it like tech.
+            | Property::Website
     )
 }
 

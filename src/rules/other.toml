@@ -18,6 +18,7 @@ repack      = "Proper"
 rerip       = "Proper"
 reencoded   = "Reencoded"
 hdr10       = "HDR10"
+dovi        = "Dolby Vision"
 sdr         = "Standard Dynamic Range"
 fhd         = "Full HD"
 ultra       = "Ultra HD"
@@ -123,9 +124,19 @@ match = '(?i)^netflix[- .]?uhd$'
 value = "Ultra HD"
 
 [[patterns]]
-# Micro HD / mHD / HDLight
-match = '(?i)^(?:mhd|hdlight)$'
+# Micro HD / Micro-HD / mHD / HDLight
+match = '(?i)^(?:mhd|hdlight|micro[- .]?hd)$'
 value = "Micro HD"
+
+[[patterns]]
+# VR video: VR180, VR.360, EAC360 (equi-angular cubemap)
+match = '(?i)^(?:vr[- .]?(?:180|360)|eac[- .]?360)$'
+value = "Virtual Reality"
+
+[[patterns]]
+# French "complete run": INTEGRALE, Intégrale, L'Integrale, Coffret Integrale
+match = "(?i)^(?:l'?|coffret[- .])?int[eé]grale$"
+value = "Complete"
 
 [[patterns]]
 # WideScreen / Wide Screen / Wide-Screen
@@ -187,16 +198,6 @@ requires_after = ["dvd", "bd", "br", "web", "bluray", "sub", "subs", "subtitulos
 # Multi Audio / Multi-Audio
 match = '(?i)^multi[- .]?audio$'
 value = "Multi Audio"
-
-[[patterns]]
-# Side-by-Side (full form — unambiguous)
-match = '(?i)^(?:half[- .]?)?side[- .]?by[- .]?side$'
-value = "3D"
-
-[[patterns]]
-# Over-Under (full form — unambiguous)
-match = '(?i)^(?:half[- .]?)?over[- .]?under$'
-value = "3D"
 
 [[patterns]]
 # Pre-Air / PreAir

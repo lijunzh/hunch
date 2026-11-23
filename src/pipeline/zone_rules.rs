@@ -44,6 +44,21 @@ pub fn apply_zone_rules(
     title_word_before_year(fn_start, zone_map, token_stream, matches);
     filename_episode_beats_directory(fn_start, token_stream, matches);
 
+    // ── vr_angle_is_not_an_episode ────────────────────────────────────
+    // `VR.180` / `VR.360` name a field of view; the number inside must
+    // not also read as season 1 episode 80.
+    let vr_spans: Vec<(usize, usize)> = matches
+        .iter()
+        .filter(|m| m.property == Property::Other && m.value == "Virtual Reality")
+        .map(|m| (m.start, m.end))
+        .collect();
+    if !vr_spans.is_empty() {
+        matches.retain(|m| {
+            !(matches!(m.property, Property::Season | Property::Episode)
+                && vr_spans.iter().any(|(s, e)| m.start >= *s && m.end <= *e))
+        });
+    }
+
     // ── language_disambiguation ────────────────────────────────────────
     // Check each language match's actual neighbor context:
     //   - Surrounded by title words? → drop (it's a title word)
